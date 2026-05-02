@@ -1,0 +1,24 @@
+ollama:
+  base_url: "http://localhost:11434"
+  tier1_model: "qwen2.5-coder:7b"
+  tier2_model: "mistral:7b-instruct-q4_K_M"
+  timeout_seconds: 120
+  num_ctx: 4096
+
+claude:
+  model: "claude-sonnet-4-6"
+  hard_cap_usd: 25.0
+  alert_threshold_usd: 15.0
+
+routing:
+  confidence_threshold: 0.72
+  risk_score_threshold: 0.7
+
+skills:
+  max_per_prompt: 2
+  min_trigger_matches: 2
+  max_words_per_skill: 400
+
+memory:
+  max_lines_injected: 30
+  line_char_limit: 150
