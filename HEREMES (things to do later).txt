@@ -1,0 +1,7 @@
+HEREMES (things to do later)
+
+1. add while writing code ({
+  "keep_alive": 0
+})
+
+2. ollama should run everytime i run Hermes or doing the project

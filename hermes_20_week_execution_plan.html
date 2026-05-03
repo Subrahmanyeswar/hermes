@@ -1,0 +1,388 @@
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font-sans)}
+.wrap{padding:1rem 0}
+.phase-header{display:flex;align-items:center;gap:12px;padding:10px 16px;border-radius:var(--border-radius-md);margin:20px 0 8px;cursor:pointer;user-select:none}
+.phase-header h2{font-size:15px;font-weight:500;flex:1}
+.phase-badge{font-size:11px;font-weight:500;padding:3px 10px;border-radius:20px;white-space:nowrap}
+.week-row{display:grid;grid-template-columns:80px 1fr auto;gap:0;border-radius:var(--border-radius-md);border:0.5px solid var(--color-border-tertiary);margin-bottom:6px;overflow:hidden;background:var(--color-background-primary)}
+.week-num{background:var(--color-background-secondary);padding:12px 10px;font-size:12px;font-weight:500;color:var(--color-text-secondary);display:flex;flex-direction:column;align-items:center;justify-content:center;border-right:0.5px solid var(--color-border-tertiary);gap:2px}
+.week-num span{font-size:10px;font-weight:400;color:var(--color-text-tertiary)}
+.week-body{padding:10px 14px}
+.week-goal{font-size:13px;font-weight:500;color:var(--color-text-primary);margin-bottom:4px}
+.week-tasks{font-size:12px;color:var(--color-text-secondary);line-height:1.5}
+.week-prompts{padding:8px 14px;display:flex;flex-direction:column;align-items:center;justify-content:center;border-left:0.5px solid var(--color-border-tertiary);min-width:72px}
+.prompt-num{font-size:20px;font-weight:500;color:var(--color-text-primary)}
+.prompt-label{font-size:10px;color:var(--color-text-tertiary)}
+.deliverable{display:inline-block;font-size:10px;padding:2px 7px;border-radius:12px;margin:2px 2px 0 0;background:var(--color-background-secondary);color:var(--color-text-secondary);border:0.5px solid var(--color-border-tertiary)}
+.total-bar{background:var(--color-background-secondary);border-radius:var(--border-radius-lg);padding:16px 20px;margin-top:20px;display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.stat{text-align:center}
+.stat-n{font-size:28px;font-weight:500;color:var(--color-text-primary)}
+.stat-l{font-size:12px;color:var(--color-text-secondary);margin-top:2px}
+.rule-box{border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-md);padding:12px 16px;margin-top:16px;font-size:12px;color:var(--color-text-secondary);line-height:1.6}
+.rule-box strong{color:var(--color-text-primary);font-weight:500}
+.ph1{background:#EFF6FF;color:#1B4B8A}
+.ph2{background:#ECFDF5;color:#1B5E3B}
+.ph3{background:#FEF3C7;color:#8A4A00}
+.ph1-h{border-left:3px solid #3B82F6}
+.ph2-h{border-left:3px solid #22C55E}
+.ph3-h{border-left:3px solid #F59E0B}
+.tag-f{background:#EFF6FF;color:#1B4B8A;border:0.5px solid #BFDBFE}
+.tag-b{background:#ECFDF5;color:#1B5E3B;border:0.5px solid #BBF7D0}
+.tag-p{background:#FEF3C7;color:#8A4A00;border:0.5px solid #FDE68A}
+</style>
+
+<div class="wrap">
+
+<div class="total-bar">
+  <div class="stat"><div class="stat-n">20</div><div class="stat-l">Weeks total</div></div>
+  <div class="stat"><div class="stat-n">81–100</div><div class="stat-l">Antigravity prompts</div></div>
+  <div class="stat"><div class="stat-n">3</div><div class="stat-l">Build phases</div></div>
+</div>
+
+<div class="rule-box" style="margin-top:12px">
+  <strong>Prompt philosophy:</strong> One class or one function per prompt. Never one prompt for an entire system. Each prompt must include: file path, exact function signatures, Pydantic schemas where needed, error handling requirements, and at least one test to run after. After every prompt: test, commit, then move on.
+</div>
+
+<!-- PHASE 1 -->
+<div class="phase-header ph1-h" style="margin-top:24px">
+  <h2>Phase 1 — Foundation (Weeks 1–8) · The engine, no UI</h2>
+  <span class="phase-badge ph1">47–58 prompts</span>
+</div>
+
+<div class="week-row">
+  <div class="week-num">W1<span>Apr 25</span></div>
+  <div class="week-body">
+    <div class="week-goal">Environment + Ollama client + first tool</div>
+    <div class="week-tasks">Folder structure, venv, requirements.txt pinned. Pull both models, verify VRAM with nvidia-smi. Implement ollama_client.py with async generate() + keep_alive:0. Test VRAM drops to baseline after each call. Implement read_file with Pydantic v2. End-to-end test: Python script calls Tier 1, returns a response.</div>
+    <div style="margin-top:6px">
+      <span class="deliverable">ollama_client.py</span>
+      <span class="deliverable">tools/base.py</span>
+      <span class="deliverable">tools/registry.py @tool</span>
+      <span class="deliverable">file_tools.py read_file</span>
+      <span class="deliverable">VRAM test script</span>
+    </div>
+  </div>
+  <div class="week-prompts"><div class="prompt-num">5–6</div><div class="prompt-label">prompts</div></div>
+</div>
+
+<div class="week-row">
+  <div class="week-num">W2<span>May 2</span></div>
+  <div class="week-body">
+    <div class="week-goal">Core file tools + write discipline</div>
+    <div class="week-tasks">write_file, append_file, create_folder, list_directory, move_file — each as a separate Pydantic class. Permission gate: blocked_in=['safe'] enforced at registry level. Unit tests for schema validation failures (wrong type, missing field). Tool registry lookup, error response format.</div>
+    <div style="margin-top:6px">
+      <span class="deliverable">5 file tools</span>
+      <span class="deliverable">permissions.yaml parser</span>
+      <span class="deliverable">ToolResult type</span>
+      <span class="deliverable">test_tools.py W1+W2</span>
+    </div>
+  </div>
+  <div class="week-prompts"><div class="prompt-num">5–6</div><div class="prompt-label">prompts</div></div>
+</div>
+
+<div class="week-row">
+  <div class="week-num">W3<span>May 9</span></div>
+  <div class="week-body">
+    <div class="week-goal">bash_exec + 15 security gates</div>
+    <div class="week-tasks">Implement security.py with all 15 gates as separate functions, each with a regex and a docstring of exactly what it blocks. bash_exec tool calls security.check_all() before subprocess.run. Adversarial test suite: 30 malicious commands, all must be blocked. run_python and run_tests tools. Manual test: run a real Python file via HERMES.</div>
+    <div style="margin-top:6px">
+      <span class="deliverable">security.py 15 gates</span>
+      <span class="deliverable">bash_exec</span>
+      <span class="deliverable">run_python</span>
+      <span class="deliverable">run_tests</span>
+      <span class="deliverable">test_security.py 30 adversarial</span>
+    </div>
+  </div>
+  <div class="week-prompts"><div class="prompt-num">6–7</div><div class="prompt-label">prompts</div></div>
+</div>
+
+<div class="week-row">
+  <div class="week-num">W4<span>May 16</span></div>
+  <div class="week-body">
+    <div class="week-goal">Network + Git tools + intent classifier</div>
+    <div class="week-tasks">web_search (DuckDuckGo free API), web_fetch (httpx). git_init, git_add_commit (GitPython). intent_classifier.py: word-boundary regex, MIN_MATCHES=2, negation window=5. Test classifier on 100 diverse prompts, log false-positive rate. 3 core SKILL.md files: flask-rest-api, debugging, pytest-generation (under 400 words each).</div>
+    <div style="margin-top:6px">
+      <span class="deliverable">web_search / web_fetch</span>
+      <span class="deliverable">git_init / git_commit</span>
+      <span class="deliverable">intent_classifier.py</span>
+      <span class="deliverable">3 SKILL.md files</span>
+      <span class="deliverable">test_classifier.py</span>
+    </div>
+  </div>
+  <div class="week-prompts"><div class="prompt-num">6–8</div><div class="prompt-label">prompts</div></div>
+</div>
+
+<div class="week-row">
+  <div class="week-num">W5<span>May 23</span></div>
+  <div class="week-body">
+    <div class="week-goal">Memory system — Layer 1 + state machine</div>
+    <div class="week-tasks">memory/store.py: MEMORY.md reader and writer, 150-char line enforcement. Memory state machine: PROPOSED → CONFIRMED (exit_code=0 required) → PERSISTED. Duplicate detection by key entity. Stale fact archival. memory/extractor.py: extract_memories() structured Tier 1 call producing JSON list. Memory injected into every Tier 1 system prompt. Session resume in Python script only, no UI yet.</div>
+    <div style="margin-top:6px">
+      <span class="deliverable">memory/store.py</span>
+      <span class="deliverable">memory/extractor.py</span>
+      <span class="deliverable">state machine: 3 states</span>
+      <span class="deliverable">memory injection</span>
+      <span class="deliverable">test_memory.py</span>
+    </div>
+  </div>
+  <div class="week-prompts"><div class="prompt-num">5–6</div><div class="prompt-label">prompts</div></div>
+</div>
+
+<div class="week-row">
+  <div class="week-num">W6<span>May 30</span></div>
+  <div class="week-body">
+    <div class="week-goal">Memory Layer 2 + consolidator + 6 more skills</div>
+    <div class="week-tasks">Layer 2 topic files: data/memory/project-name/ loaded on-demand via [DETAIL] pointer. memory/consolidator.py: dedup, contradiction detection, stale removal. 6 new SKILL.md: git-workflow, security-audit, auto-docs, database-design, refactoring, bash-scripting. Test session restart: facts survive, load correctly next session.</div>
+    <div style="margin-top:6px">
+      <span class="deliverable">memory/consolidator.py</span>
+      <span class="deliverable">Layer 2 on-demand load</span>
+      <span class="deliverable">6 SKILL.md files</span>
+      <span class="deliverable">session restart test</span>
+    </div>
+  </div>
+  <div class="week-prompts"><div class="prompt-num">5–6</div><div class="prompt-label">prompts</div></div>
+</div>
+
+<div class="week-row">
+  <div class="week-num">W7<span>Jun 6</span></div>
+  <div class="week-body">
+    <div class="week-goal">Tier 2 verifier + Tier 3 client</div>
+    <div class="week-tasks">core/verifier.py: Mistral 7B called with keep_alive:0. Strict JSON output: {agree, confidence, critical_issues, risk_score}. Agreement criteria precisely defined. claude_client.py with Anthropic SDK, token counting, cost logging to SQLite, hard $25 cap enforced. Test 10 cases: 5 where T2 agrees, 3 partial, 2 should escalate.</div>
+    <div style="margin-top:6px">
+      <span class="deliverable">core/verifier.py</span>
+      <span class="deliverable">claude_client.py</span>
+      <span class="deliverable">cost cap enforcement</span>
+      <span class="deliverable">api_costs SQLite table</span>
+      <span class="deliverable">test_routing.py 10 cases</span>
+    </div>
+  </div>
+  <div class="week-prompts"><div class="prompt-num">4–5</div><div class="prompt-label">prompts</div></div>
+</div>
+
+<div class="week-row">
+  <div class="week-num">W8<span>Jun 13</span></div>
+  <div class="week-body">
+    <div class="week-goal">Disagreement router + full 12-stage orchestrator</div>
+    <div class="week-tasks">core/disagreement_router.py: 0.72 threshold, risk_score > 0.7 → escalate. All reasons logged. core/orchestrator.py: all 12 stages wired end-to-end as a Python script. core/planner.py: complexity_score, required_tools, priority. Run 10 real diverse tasks end-to-end. Confirm every stage runs, errors surface correctly, memory updates after success only.</div>
+    <div style="margin-top:6px">
+      <span class="deliverable">disagreement_router.py</span>
+      <span class="deliverable">orchestrator.py 12 stages</span>
+      <span class="deliverable">planner.py</span>
+      <span class="deliverable">10-task end-to-end test</span>
+    </div>
+  </div>
+  <div class="week-prompts"><div class="prompt-num">5–6</div><div class="prompt-label">prompts</div></div>
+</div>
+
+<!-- PHASE 2 -->
+<div class="phase-header ph2-h" style="margin-top:24px">
+  <h2>Phase 2 — Hardening (Weeks 9–14) · Stability before the UI</h2>
+  <span class="phase-badge ph2">22–28 prompts</span>
+</div>
+
+<div class="week-row">
+  <div class="week-num">W9<span>Jun 20</span></div>
+  <div class="week-body">
+    <div class="week-goal">KAIROS daemon + SQLite task queue</div>
+    <div class="week-tasks">SQLite schema: tasks, api_costs tables. kairos/task_queue.py: add, update, query, STUCK detection. kairos/daemon.py: asyncio loop with Triple-Gate, memory consolidation trigger, retry management, runaway detection (15-min cap). Lock file prevents double-run. Test KAIROS runs in background while orchestrator runs tasks.</div>
+    <div style="margin-top:6px">
+      <span class="deliverable">kairos/task_queue.py</span>
+      <span class="deliverable">kairos/daemon.py</span>
+      <span class="deliverable">Triple-Gate logic</span>
+      <span class="deliverable">runaway detection</span>
+      <span class="deliverable">concurrent test</span>
+    </div>
+  </div>
+  <div class="week-prompts"><div class="prompt-num">4–5</div><div class="prompt-label">prompts</div></div>
+</div>
+
+<div class="week-row">
+  <div class="week-num">W10<span>Jun 27</span></div>
+  <div class="week-body">
+    <div class="week-goal">Remaining 3 skills + prompt hardening</div>
+    <div class="week-tasks">Skills: react-frontend, code-review, screenshot-to-code. All 12 skills now complete. System prompt hardening: run 50 diverse prompts through Tier 1, measure JSON parse success rate. If below 90%, iterate on the JSON enforcement prompt. Log every parse failure reason. This week is about reliability, not new features.</div>
+    <div style="margin-top:6px">
+      <span class="deliverable">3 final SKILL.md files</span>
+      <span class="deliverable">50-prompt parse test</span>
+      <span class="deliverable">prompt v2 if needed</span>
+      <span class="deliverable">parse failure log</span>
+    </div>
+  </div>
+  <div class="week-prompts"><div class="prompt-num">3–4</div><div class="prompt-label">prompts</div></div>
+</div>
+
+<div class="week-row">
+  <div class="week-num">W11<span>Jul 4</span></div>
+  <div class="week-body">
+    <div class="week-goal">Full failure mode hardening</div>
+    <div class="week-tasks">Implement all error paths: JSON parse failure → re-prompt once → FAILED. Tool not found → structured error → re-prompt once. exit_code != 0 → inject error → retry up to 3 times. Ollama timeout (120s) → [TIMEOUT] tag. Tier 3 API failure → [UNVERIFIED] tag. Memory parse error → empty context fallback. Test each failure mode in isolation.</div>
+    <div style="margin-top:6px">
+      <span class="deliverable">5 error paths implemented</span>
+      <span class="deliverable">retry logic up to 3x</span>
+      <span class="deliverable">failure mode test suite</span>
+      <span class="deliverable">session never crashes</span>
+    </div>
+  </div>
+  <div class="week-prompts"><div class="prompt-num">4–5</div><div class="prompt-label">prompts</div></div>
+</div>
+
+<div class="week-row">
+  <div class="week-num">W12<span>Jul 11</span></div>
+  <div class="week-body">
+    <div class="week-goal">Logging, observability, request tracing</div>
+    <div class="week-tasks">Loguru config: JSONL session logs with rotation. Every tool call gets a trace_id. Log: T1 latency, T2 latency, tool duration, cost per task. utils/logging.py emits structured records. Session JSONL is append-only. Full pipeline trace visible in logs for debugging. Layer 3 grep access working.</div>
+    <div style="margin-top:6px">
+      <span class="deliverable">utils/logging.py</span>
+      <span class="deliverable">trace_id per call</span>
+      <span class="deliverable">JSONL session logs</span>
+      <span class="deliverable">latency metrics</span>
+    </div>
+  </div>
+  <div class="week-prompts"><div class="prompt-num">3–4</div><div class="prompt-label">prompts</div></div>
+</div>
+
+<div class="week-row">
+  <div class="week-num">W13<span>Jul 18</span></div>
+  <div class="week-body">
+    <div class="week-goal">Integration test suite + threshold calibration</div>
+    <div class="week-tasks">Write tests/integration/ test suite: 20 real tasks run end-to-end with assertions on output structure. test_routing.py: run disagreement router at thresholds 0.60, 0.70, 0.72, 0.80, 0.90. Record false escalation rate and missed error rate for each. Pick final threshold value for the paper (not necessarily 0.72 — let the data decide).</div>
+    <div style="margin-top:6px">
+      <span class="deliverable">20-task integration suite</span>
+      <span class="deliverable">threshold calibration data</span>
+      <span class="deliverable">final threshold chosen</span>
+      <span class="deliverable">results.json</span>
+    </div>
+  </div>
+  <div class="week-prompts"><div class="prompt-num">4–5</div><div class="prompt-label">prompts</div></div>
+</div>
+
+<div class="week-row">
+  <div class="week-num">W14<span>Jul 25</span></div>
+  <div class="week-body">
+    <div class="week-goal">Performance measurement + stability week</div>
+    <div class="week-tasks">Measure: average T1 latency, T2 latency, tool execution time per difficulty level. Memory injection overhead. KAIROS consolidation time. Identify and fix the 3 most common failure modes from W11 test suite. This week is a deliberate buffer — use it to fix anything shaky before the TUI. No new features.</div>
+    <div style="margin-top:6px">
+      <span class="deliverable">latency per stage</span>
+      <span class="deliverable">3 biggest bugs fixed</span>
+      <span class="deliverable">all tests green</span>
+      <span class="deliverable">system is stable</span>
+    </div>
+  </div>
+  <div class="week-prompts"><div class="prompt-num">2–3</div><div class="prompt-label">prompts</div></div>
+</div>
+
+<!-- PHASE 3 -->
+<div class="phase-header ph3-h" style="margin-top:24px">
+  <h2>Phase 3 — Product + Research (Weeks 15–20) · UI, benchmarks, paper</h2>
+  <span class="phase-badge ph3">12–16 prompts</span>
+</div>
+
+<div class="week-row">
+  <div class="week-num">W15<span>Aug 1</span></div>
+  <div class="week-body">
+    <div class="week-goal">Textual TUI — structure + chat panel</div>
+    <div class="week-tasks">Study Textual docs for 1 day before writing code. ui/app.py: main App class. ui/panels/chat.py: conversation history, user messages styled, tool calls as collapsible Rich panels, errors in amber. Left 55% layout with full height. Wire chat panel to the orchestrator — user types, HERMES responds, no other panels yet. Test on actual laptop terminal (80x40).</div>
+    <div style="margin-top:6px">
+      <span class="deliverable">ui/app.py skeleton</span>
+      <span class="deliverable">chat.py panel</span>
+      <span class="deliverable">orchestrator wired to TUI</span>
+      <span class="deliverable">live on real terminal</span>
+    </div>
+  </div>
+  <div class="week-prompts"><div class="prompt-num">4–5</div><div class="prompt-label">prompts</div></div>
+</div>
+
+<div class="week-row">
+  <div class="week-num">W16<span>Aug 8</span></div>
+  <div class="week-body">
+    <div class="week-goal">TUI — right panel (tabs) + status bar</div>
+    <div class="week-tasks">ui/panels/right_panel.py: TabbedContent with Tool Trace, Memory View, Task Queue tabs. Each tab live-updates from the orchestrator. ui/panels/status_bar.py: one line showing mode, active model tier, active skill name, KAIROS status, cost, spinner verb. 30 spinner verbs in a list, one picked randomly during generation. Safe/Plan/Auto mode switching with keyboard shortcuts (Ctrl+S/P/A).</div>
+    <div style="margin-top:6px">
+      <span class="deliverable">right_panel.py 3 tabs</span>
+      <span class="deliverable">status_bar.py</span>
+      <span class="deliverable">30 spinner verbs</span>
+      <span class="deliverable">mode switching</span>
+      <span class="deliverable">all 4 panels live</span>
+    </div>
+  </div>
+  <div class="week-prompts"><div class="prompt-num">4–5</div><div class="prompt-label">prompts</div></div>
+</div>
+
+<div class="week-row">
+  <div class="week-num">W17<span>Aug 15</span></div>
+  <div class="week-body">
+    <div class="week-goal">WOW features — export, GitHub, screenshot-to-code</div>
+    <div class="week-tasks">export_tools.py: export_zip (shutil.make_archive), open_in_vscode (subprocess Popen). git_tools.py: git_push with GITHUB_TOKEN from env only, never in code. vision_tools.py: screenshot_to_code calls Ollama multimodal endpoint with image base64. Test with 3 real UI screenshots. /push, /export, /vscode slash commands in the TUI.</div>
+    <div style="margin-top:6px">
+      <span class="deliverable">export_zip working</span>
+      <span class="deliverable">git_push working</span>
+      <span class="deliverable">open_in_vscode working</span>
+      <span class="deliverable">screenshot-to-code 3 tests</span>
+    </div>
+  </div>
+  <div class="week-prompts"><div class="prompt-num">3–4</div><div class="prompt-label">prompts</div></div>
+</div>
+
+<div class="week-row">
+  <div class="week-num">W18<span>Aug 22</span></div>
+  <div class="week-body">
+    <div class="week-goal">50-task benchmark + ablation study</div>
+    <div class="week-tasks">benchmarks/tasks.json: 50 tasks defined (10 L1, 10 L2, 15 L3, 10 L4, 5 L5). benchmarks/runner.py: automated executor, runs each task under all 3 conditions (HERMES, T1+skill, T1-no-skill). Captures: completion, escalations, cost, latency. Ablation: same 30 domain tasks with and without skill injection. Run full benchmark. Save raw results to benchmarks/results.json.</div>
+    <div style="margin-top:6px">
+      <span class="deliverable">tasks.json 50 tasks</span>
+      <span class="deliverable">runner.py automated</span>
+      <span class="deliverable">3 conditions per task</span>
+      <span class="deliverable">ablation results</span>
+      <span class="deliverable">results.json</span>
+    </div>
+  </div>
+  <div class="week-prompts"><div class="prompt-num">3–4</div><div class="prompt-label">prompts</div></div>
+</div>
+
+<div class="week-row">
+  <div class="week-num">W19<span>Aug 29</span></div>
+  <div class="week-body">
+    <div class="week-goal">Metrics, graphs, paper draft</div>
+    <div class="week-tasks">Compute all 6 metrics from results.json. Generate graphs using matplotlib: task completion rate bar chart, escalation rate comparison, skill accuracy lift, cost comparison, agreement rate histogram. Paper: draft all 8 sections using the structure from Section 11. Results stated honestly — if H1/H2/H3 are partially confirmed, document that. Limitations section written clearly.</div>
+    <div style="margin-top:6px">
+      <span class="deliverable">6 metrics computed</span>
+      <span class="deliverable">5 graphs generated</span>
+      <span class="deliverable">paper 8 sections drafted</span>
+      <span class="deliverable">honest H1/H2/H3 results</span>
+    </div>
+  </div>
+  <div class="week-prompts"><div class="prompt-num">2–3</div><div class="prompt-label">prompts</div></div>
+</div>
+
+<div class="week-row">
+  <div class="week-num">W20<span>Sep 5</span></div>
+  <div class="week-body">
+    <div class="week-goal">Demo rehearsal, final polish, submission</div>
+    <div class="week-tasks">Run the 10-minute demo script 5 times minimum. Time each section. Fix any reliability issues found during rehearsal. All 8 viva answers rehearsed out loud. README.md with architecture overview. requirements.txt pinned. No API keys in git (verify with git log -p). Demo laptop: Ollama pre-loaded, both models pulled, battery checked. Submit.</div>
+    <div style="margin-top:6px">
+      <span class="deliverable">demo rehearsed 5 times</span>
+      <span class="deliverable">README final</span>
+      <span class="deliverable">security check passed</span>
+      <span class="deliverable">all tests green</span>
+      <span class="deliverable">submitted</span>
+    </div>
+  </div>
+  <div class="week-prompts"><div class="prompt-num">1–2</div><div class="prompt-label">prompts</div></div>
+</div>
+
+<div class="total-bar" style="margin-top:20px">
+  <div class="stat"><div class="stat-n">81–100</div><div class="stat-l">Total prompts across 20 weeks</div></div>
+  <div class="stat"><div class="stat-n">47–58</div><div class="stat-l">Phase 1 prompts (foundation)</div></div>
+  <div class="stat"><div class="stat-n">≤3/day</div><div class="stat-l">Maximum prompts per day</div></div>
+</div>
+
+<div class="rule-box" style="margin-top:12px">
+  <strong>The three non-negotiable rules:</strong><br>
+  1. Never start a new week's work until the current week's deliverables are all working and committed to git.<br>
+  2. Never build the UI while the backend has untested failure paths. The TUI starts Week 15, not before.<br>
+  3. Never give Antigravity a prompt that spans more than one file or one class. One prompt → one unit of work → one test to verify it.
+</div>
+
+</div>
