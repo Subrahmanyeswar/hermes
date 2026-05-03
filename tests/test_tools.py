@@ -7,6 +7,7 @@ from pathlib import Path
 import pytest
 
 from tools.file_tools import ListDirectoryTool, ReadFileTool, WriteFileTool
+from tools.shell_tools import BashExecTool, RunPythonTool, RunTestsTool
 
 
 def test_read_file_success(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -85,3 +86,100 @@ def test_list_directory_not_found(
     result = ListDirectoryTool().execute(ListDirectoryTool.Input(path="missing"))
 
     assert result.success is False
+
+
+# ── bash_exec tests ──────────────────────────────────────────────────
+
+
+def test_bash_exec_runs_simple_command():
+    tool = BashExecTool()
+    result = tool.execute(BashExecTool.Input(command="echo hello_hermes"))
+    assert result.success is True
+    assert "hello_hermes" in result.output
+    assert result.exit_code == 0
+
+
+def test_bash_exec_captures_exit_code():
+    tool = BashExecTool()
+    result = tool.execute(BashExecTool.Input(command="exit 42", timeout_seconds=5))
+    assert result.exit_code == 42
+    assert result.success is False
+
+
+def test_bash_exec_blocks_dangerous_command():
+    tool = BashExecTool()
+    result = tool.execute(BashExecTool.Input(command="rm -rf /"))
+    assert result.success is False
+    assert result.exit_code == 126
+    assert "BLOCKED" in result.error
+
+
+def test_bash_exec_captures_stderr():
+    tool = BashExecTool()
+    result = tool.execute(BashExecTool.Input(command="ls /nonexistent_path_xyz"))
+    assert result.success is False
+    assert result.exit_code != 0
+
+
+def test_bash_exec_timeout():
+    tool = BashExecTool()
+    result = tool.execute(BashExecTool.Input(command="sleep 10", timeout_seconds=1))
+    assert result.success is False
+    assert result.exit_code == 124
+    assert "timed out" in result.error.lower()
+
+
+# ── run_python tests ─────────────────────────────────────────────────
+
+
+def test_run_python_executes_file(tmp_path):
+    # Create a real Python file that prints a unique string
+    script = tmp_path / "test_script.py"
+    script.write_text('print("HERMES_RUN_PYTHON_TEST_OK")\n')
+
+    tool = RunPythonTool()
+    result = tool.execute(RunPythonTool.Input(file_path=str(script)))
+    assert result.success is True
+    assert "HERMES_RUN_PYTHON_TEST_OK" in result.output
+    assert result.exit_code == 0
+
+
+def test_run_python_captures_script_error(tmp_path):
+    script = tmp_path / "bad_script.py"
+    script.write_text('raise ValueError("intentional test error")\n')
+
+    tool = RunPythonTool()
+    result = tool.execute(RunPythonTool.Input(file_path=str(script)))
+    assert result.success is False
+    assert result.exit_code != 0
+
+
+def test_run_python_file_not_found():
+    tool = RunPythonTool()
+    result = tool.execute(RunPythonTool.Input(file_path="nonexistent_script.py"))
+    assert result.success is False
+    assert "not found" in result.error.lower()
+
+
+# ── run_tests tests ──────────────────────────────────────────────────
+
+
+def test_run_tests_on_passing_test(tmp_path):
+    # Create a simple passing test file
+    test_file = tmp_path / "test_simple.py"
+    test_file.write_text("def test_always_passes():\n    assert 1 + 1 == 2\n")
+
+    tool = RunTestsTool()
+    result = tool.execute(RunTestsTool.Input(test_path=str(test_file)))
+    assert result.success is True
+    assert "passed" in result.output.lower()
+
+
+def test_run_tests_on_failing_test(tmp_path):
+    test_file = tmp_path / "test_failing.py"
+    test_file.write_text("def test_always_fails():\n    assert 1 == 2\n")
+
+    tool = RunTestsTool()
+    result = tool.execute(RunTestsTool.Input(test_path=str(test_file)))
+    assert result.success is False
+    assert result.exit_code != 0
