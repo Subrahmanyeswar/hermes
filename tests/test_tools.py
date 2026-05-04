@@ -352,3 +352,40 @@ def test_git_commit_fails_without_repo(tmp_path):
     )
     assert result.success is False
     assert "git_init" in result.error.lower() or "repository" in result.error.lower()
+
+# ── memory tool tests ─────────────────────────────────────────────────
+from tools.memory_tools import SaveMemoryTool, ReadMemoryTool
+from unittest.mock import patch
+import pytest
+
+def test_save_memory_tool_writes_fact():
+    with patch("tools.memory_tools.write_fact", return_value=True) as mock_write:
+        tool = SaveMemoryTool()
+        result = tool.execute(SaveMemoryTool.Input(
+            fact_type="FACT",
+            content="Uses Flask 3.1 with SQLAlchemy",
+            project="testproject"
+        ))
+    assert result.success is True
+    assert mock_write.called
+    assert "FACT" in result.output
+
+def test_save_memory_tool_validates_max_length():
+    tool = SaveMemoryTool()
+    from pydantic import ValidationError
+    with pytest.raises(ValidationError):
+        SaveMemoryTool.Input(fact_type="FACT", content="A" * 151)  # over 150 chars
+
+def test_read_memory_tool_returns_content():
+    with patch("tools.memory_tools.read_layer2_topic", return_value="# DB Schema\nTable: users"):
+        tool = ReadMemoryTool()
+        result = tool.execute(ReadMemoryTool.Input(topic_name="database_schema", project="myapp"))
+    assert result.success is True
+    assert "users" in result.output
+
+def test_read_memory_tool_returns_failure_for_missing():
+    with patch("tools.memory_tools.read_layer2_topic", return_value=None):
+        tool = ReadMemoryTool()
+        result = tool.execute(ReadMemoryTool.Input(topic_name="nonexistent", project="myapp"))
+    assert result.success is False
+    assert result.exit_code == 1

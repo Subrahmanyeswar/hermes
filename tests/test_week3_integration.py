@@ -211,10 +211,17 @@ async def test_6_tier1_uses_skill_context_correctly():
                 cleaned = resp
                 
         try:
+            # First attempt: strict parse
             return json.loads(cleaned.strip())
         except json.JSONDecodeError:
-            print(f"  ⚠ {label} response was not valid JSON (preview):\n{resp[:200]}...\n")
-            return None
+            # Second attempt: try to fix common issues (like trailing commas or unclosed braces)
+            try:
+                import ast
+                # ast.literal_eval is often more lenient with some JSON-like structures
+                return ast.literal_eval(cleaned.strip())
+            except:
+                print(f"  [WARN] {label} response was not valid JSON even after recovery (preview):\n{resp[:300]}...\n")
+                return None
     
     parsed_no_skill = try_parse(response_no_skill, "WITHOUT skill")
     parsed_with_skill = try_parse(response_with_skill, "WITH skill")

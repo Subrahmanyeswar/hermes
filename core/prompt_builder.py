@@ -114,3 +114,50 @@ def truncate_memory_context(memory_lines: list[str], max_lines: int = 30) -> str
         len(kept_lines),
     )
     return "\n".join(kept_lines)
+
+def build_full_context_prompt(
+    user_task: str,
+    mode: str,
+    project: str = "default",
+    skill_ids: list[str] | None = None,
+    classifier=None  # IntentClassifier instance
+) -> tuple[str, str, list[str]]:
+    """
+    Build a complete system prompt with memory context and skill injection.
+    This is the main entry point for building prompts in the orchestrator.
+    
+    Returns: (system_prompt, user_message, loaded_skill_ids)
+    """
+    from tools.registry import tool_schema_for_prompt, list_tools
+    from memory.store import read_context_for_prompt
+    
+    # Get memory context
+    memory_context = read_context_for_prompt(project=project)
+    
+    # Get skill context
+    skill_content = ""
+    loaded_skill_ids: list[str] = []
+    active_skill_name = "none"
+    
+    if classifier is not None and skill_ids is None:
+        skill_ids = classifier.classify(user_task)
+    
+    if skill_ids and classifier is not None:
+        skill_content, loaded_skill_ids = classifier.build_skill_prompt_section(skill_ids)
+        active_skill_name = loaded_skill_ids[0] if loaded_skill_ids else "none"
+    
+    # Build context
+    ctx = PromptContext(
+        user_task=user_task,
+        mode=mode,
+        available_tools=list_tools(),
+        tool_descriptions=tool_schema_for_prompt(),
+        memory_context=memory_context,
+        skill_context=skill_content,
+        active_skill_name=active_skill_name
+    )
+    
+    system_prompt = build_system_prompt(ctx)
+    user_message = build_user_message(user_task)
+    
+    return system_prompt, user_message, loaded_skill_ids

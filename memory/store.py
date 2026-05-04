@@ -1,0 +1,157 @@
+# memory/store.py
+# Layer 1 and Layer 2 memory store for HERMES.
+# Layer 1: reads and writes MEMORY.md files.
+# Layer 2: reads and writes per-project topic files in data/memory/project/
+# CRITICAL RULE: write_fact() can only be called after fact.state == CONFIRMED.
+#                This is enforced with an assertion — not a suggestion.
+
+import re
+from pathlib import Path
+from datetime import datetime
+from typing import Optional
+from loguru import logger
+from memory.types import MemoryFact, MemoryState, FactType, MemoryIndex
+
+MEMORY_FILENAME = "MEMORY.md"
+LAYER2_BASE_DIR = Path("data/memory")
+MAX_CONTEXT_LINES = 30       # max lines of MEMORY.md to inject into Tier 1 prompt
+LINE_CHAR_LIMIT = 150        # enforced max characters per memory line
+
+
+def get_memory_path(project: str = "default") -> Path:
+    if project == "default":
+        path = Path(MEMORY_FILENAME)
+    else:
+        path = LAYER2_BASE_DIR / project / MEMORY_FILENAME
+    path.parent.mkdir(parents=True, exist_ok=True)
+    return path
+
+
+def read_memory_index(project: str = "default") -> MemoryIndex:
+    path = get_memory_path(project)
+    if not path.exists():
+        return MemoryIndex(project=project, facts=[], last_updated=None)
+    
+    lines = path.read_text(encoding='utf-8').splitlines()
+    facts = []
+    for line in lines:
+        fact = MemoryFact.from_memory_line(line, project=project)
+        if fact is not None:
+            facts.append(fact)
+            
+    last_updated = datetime.fromtimestamp(path.stat().st_mtime)
+    logger.debug(f"Memory: loaded {len(facts)} facts for project '{project}'")
+    return MemoryIndex(project=project, facts=facts, last_updated=last_updated)
+
+
+def write_fact(fact: MemoryFact, project: str = "default") -> bool:
+    assert fact.state == MemoryState.CONFIRMED, (
+        f"CRITICAL: write_fact() called with fact in state '{fact.state.value}'. "
+        f"The memory state machine was bypassed. This is a bug. "
+        f"Facts must be confirmed via fact.confirm(tool_name, exit_code=0) before writing."
+    )
+    
+    try:
+        path = get_memory_path(project)
+        index = read_memory_index(project)
+        
+        contradicting = index.find_contradicting(fact.content, fact.fact_type)
+        if contradicting is not None:
+            logger.info(
+                f"Memory: contradiction detected. "
+                f"Archiving old fact: {contradicting.content[:60]!r}. "
+                f"New fact: {fact.content[:60]!r}"
+            )
+            contradicting.fact_type = FactType.STALE
+            
+        for existing in index.facts:
+            if existing.content.strip() == fact.content.strip() and existing.fact_type == fact.fact_type:
+                logger.debug(f"Memory: skipping duplicate fact: {fact.content[:60]!r}")
+                fact.persist()  # Still mark as persisted even though we skip the write
+                return True
+                
+        if len(fact.content) > LINE_CHAR_LIMIT:
+            logger.error(f"Memory: fact content too long ({len(fact.content)} chars, max {LINE_CHAR_LIMIT}): {fact.content[:80]!r}")
+            return False
+            
+        fact.persist()
+        index.facts.append(fact)
+        
+        path.parent.mkdir(parents=True, exist_ok=True)
+        lines = [
+            f"# HERMES MEMORY INDEX",
+            f"## Project: {project}",
+            f"## Last Updated: {datetime.now().strftime('%Y-%m-%d %H:%M')}",
+            f"",
+        ]
+        for f in index.facts:
+            try:
+                lines.append(f.to_memory_line())
+            except ValueError:
+                logger.warning(f"Memory: skipping fact with invalid line format: {f.content[:40]!r}")
+                
+        path.write_text('\n'.join(lines) + '\n', encoding='utf-8')
+        logger.info(f"Memory: wrote fact [{fact.fact_type.value}]: {fact.content[:60]!r} to {path}")
+        return True
+    except Exception as e:
+        logger.error(f"Memory: unexpected error writing fact: {e}")
+        return False
+
+
+def read_context_for_prompt(project: str = "default") -> str:
+    index = read_memory_index(project)
+    if not index.facts:
+        return ""
+        
+    relevant_facts = [f for f in index.facts if f.fact_type != FactType.STALE]
+    relevant_facts = relevant_facts[-MAX_CONTEXT_LINES:]
+    
+    lines = ["## Project Memory", ""]
+    for fact in relevant_facts:
+        lines.append(fact.to_memory_line())
+        
+    context = '\n'.join(lines)
+    logger.debug(f"Memory: injected {len(relevant_facts)} lines into context")
+    return context
+
+
+def archive_stale_fact(fact: MemoryFact, project: str = "default") -> None:
+    index = read_memory_index(project)
+    for existing in index.facts:
+        if existing.content == fact.content and existing.fact_type == fact.fact_type:
+            existing.fact_type = FactType.STALE
+            
+    path = get_memory_path(project)
+    lines = [
+        f"# HERMES MEMORY INDEX",
+        f"## Project: {project}",
+        f"## Last Updated: {datetime.now().strftime('%Y-%m-%d %H:%M')}",
+        f"",
+    ]
+    for f in index.facts:
+        try:
+            lines.append(f.to_memory_line())
+        except ValueError:
+            pass
+            
+    path.write_text('\n'.join(lines) + '\n', encoding='utf-8')
+    logger.debug(f"Memory: archived stale fact {fact.content[:60]!r}")
+
+
+def write_layer2_topic(project: str, topic_name: str, content: str) -> bool:
+    try:
+        path = LAYER2_BASE_DIR / project / f"{topic_name}.md"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(content, encoding='utf-8')
+        logger.info(f"Memory: wrote Layer 2 topic {topic_name} to {path}")
+        return True
+    except Exception as e:
+        logger.error(f"Memory: error writing Layer 2 topic {topic_name}: {e}")
+        return False
+
+
+def read_layer2_topic(project: str, topic_name: str) -> Optional[str]:
+    path = LAYER2_BASE_DIR / project / f"{topic_name}.md"
+    if path.exists():
+        return path.read_text(encoding='utf-8')
+    return None
