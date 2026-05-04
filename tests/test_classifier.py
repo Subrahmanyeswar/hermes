@@ -1,104 +1,152 @@
 # tests/test_classifier.py
-# Test suite for core/intent_classifier.py
-# Run with: pytest tests/test_classifier.py -v
-
+import os
+import pytest
 from pathlib import Path
+from core.intent_classifier import IntentClassifier, SkillMeta, MIN_MATCHES
 
-from core.intent_classifier import IntentClassifier
+# ── Helper: create a temporary skills directory ──────────────────────
 
 
-def _write_skill(
-    skills_dir: Path,
-    skill_id: str,
-    triggers: list[str],
-    priority: int = 1,
-) -> None:
-    """Create a temporary skill with front matter for classifier tests."""
-    skill_dir: Path = skills_dir / skill_id
-    skill_dir.mkdir(parents=True)
-    trigger_text: str = ", ".join(f"'{trigger}'" for trigger in triggers)
-    skill_content: str = (
-        "---\n"
+def make_skill_dir(
+    tmp_path: Path, skill_id: str, triggers: list[str], priority: int = 1
+) -> Path:
+    """Create a minimal SKILL.md in a temp directory for testing."""
+    skill_dir = tmp_path / skill_id
+    skill_dir.mkdir()
+    triggers_str = ", ".join(triggers)
+    (skill_dir / "SKILL.md").write_text(
+        f"---\n"
         f"name: {skill_id}\n"
-        f"description: Test skill {skill_id}\n"
-        f"triggers: [{trigger_text}]\n"
+        f"description: Test skill for {skill_id}\n"
+        f"triggers: [{triggers_str}]\n"
         f"priority: {priority}\n"
-        "---\n"
-        "\n"
-        f"# {skill_id}\n"
+        f"max_tokens: 350\n"
+        f"---\n\n"
+        f"# {skill_id} Specialist\n\n"
+        f"You are an expert in {skill_id}. Apply best practices.\n"
     )
-    (skill_dir / "SKILL.md").write_text(skill_content, encoding="utf-8")
+    return skill_dir
 
 
-def test_classify_returns_correct_skill(tmp_path: Path) -> None:
-    """Classifier returns a skill ID when at least two triggers match."""
-    skills_dir: Path = tmp_path / "skills"
-    _write_skill(skills_dir, "flask-rest-api", ["flask", "rest api"])
-
-    classifier = IntentClassifier(str(skills_dir))
-
-    assert classifier.classify("build a flask rest api endpoint") == ["flask-rest-api"]
+# ── Tests ─────────────────────────────────────────────────────────────
 
 
-def test_classify_requires_min_two_matches(tmp_path: Path) -> None:
-    """Classifier returns no skills when only one trigger matches."""
-    skills_dir: Path = tmp_path / "skills"
-    _write_skill(skills_dir, "flask-rest-api", ["flask", "rest api"])
+def test_classifier_loads_skills_from_directory(tmp_path):
+    make_skill_dir(tmp_path, "flask-api", ["flask", "rest api", "api server"])
+    make_skill_dir(tmp_path, "debugging", ["debug", "error", "traceback"])
 
-    classifier = IntentClassifier(str(skills_dir))
-
-    assert classifier.classify("I want flask") == []
-
-
-def test_classify_handles_negation(tmp_path: Path) -> None:
-    """Classifier skips a trigger when it is preceded by negation."""
-    skills_dir: Path = tmp_path / "skills"
-    _write_skill(skills_dir, "flask-rest-api", ["flask", "rest api"])
-
-    classifier = IntentClassifier(str(skills_dir))
-
-    assert classifier.classify("build a rest api without flask") == []
+    classifier = IntentClassifier(skills_dir=str(tmp_path))
+    assert len(classifier.skills) == 2
+    skill_ids = [s.skill_id for s in classifier.skills]
+    assert "flask-api" in skill_ids
+    assert "debugging" in skill_ids
 
 
-def test_classify_matches_phrase_words_in_order(tmp_path: Path) -> None:
-    """Classifier matches multi-word triggers when words appear in order."""
-    skills_dir: Path = tmp_path / "skills"
-    _write_skill(skills_dir, "pytest-generation", ["pytest", "write tests"])
-
-    classifier = IntentClassifier(str(skills_dir))
-
-    assert classifier.classify("write pytest tests for my module") == [
-        "pytest-generation"
-    ]
+def test_classifier_returns_correct_skill(tmp_path):
+    make_skill_dir(tmp_path, "flask-api", ["flask", "rest api", "api server", "crud"])
+    classifier = IntentClassifier(skills_dir=str(tmp_path))
+    result = classifier.classify("build a flask rest api with crud endpoints")
+    assert result == ["flask-api"]
 
 
-def test_classify_caps_at_max_skills(tmp_path: Path) -> None:
-    """Classifier returns no more than two matching skill IDs."""
-    skills_dir: Path = tmp_path / "skills"
-    for index in range(4):
-        _write_skill(
-            skills_dir,
-            f"skill-{index}",
-            ["flask", "rest api"],
-            priority=index,
+def test_classifier_requires_minimum_two_matches(tmp_path):
+    make_skill_dir(tmp_path, "flask-api", ["flask", "rest api", "api server"])
+    classifier = IntentClassifier(skills_dir=str(tmp_path))
+    # Only one trigger word matches — should return empty
+    result = classifier.classify("I want to use flask for something")
+    assert result == []
+
+
+def test_classifier_handles_negation(tmp_path):
+    make_skill_dir(tmp_path, "flask-api", ["flask", "rest api", "api server", "crud"])
+    classifier = IntentClassifier(skills_dir=str(tmp_path))
+    # "not flask" — negation should prevent flask from matching
+    result = classifier.classify("build a rest api but not using flask, use fastapi instead")
+    # Only "rest api" matches without negation, which is < MIN_MATCHES
+    assert result == []
+
+
+def test_classifier_caps_at_max_two_skills(tmp_path):
+    for name, triggers in [
+        ("skill-a", ["alpha", "bravo", "charlie"]),
+        ("skill-b", ["delta", "echo", "foxtrot"]),
+        ("skill-c", ["golf", "hotel", "india"]),
+        ("skill-d", ["juliet", "kilo", "lima"]),
+    ]:
+        make_skill_dir(tmp_path, name, triggers)
+
+    # Craft a prompt that matches all 4 skills
+    classifier = IntentClassifier(skills_dir=str(tmp_path))
+    result = classifier.classify("alpha bravo delta echo golf hotel juliet kilo")
+    assert len(result) <= 2
+
+
+def test_classifier_no_match_returns_empty_list(tmp_path):
+    make_skill_dir(tmp_path, "flask-api", ["flask", "rest api", "api server"])
+    classifier = IntentClassifier(skills_dir=str(tmp_path))
+    result = classifier.classify("create a folder")
+    assert result == []
+
+
+def test_classifier_empty_skills_dir_returns_empty(tmp_path):
+    empty_dir = tmp_path / "empty_skills"
+    empty_dir.mkdir()
+    classifier = IntentClassifier(skills_dir=str(empty_dir))
+    result = classifier.classify("flask rest api backend")
+    assert result == []
+
+
+def test_classifier_missing_skills_dir_does_not_crash(tmp_path):
+    classifier = IntentClassifier(skills_dir=str(tmp_path / "nonexistent"))
+    result = classifier.classify("flask rest api")
+    assert result == []
+
+
+def test_load_skill_content_returns_string(tmp_path):
+    make_skill_dir(tmp_path, "debugging", ["debug", "error", "traceback", "fix"])
+    classifier = IntentClassifier(skills_dir=str(tmp_path))
+    content = classifier.load_skill_content("debugging")
+    assert content is not None
+    assert len(content) > 10
+
+
+def test_load_skill_content_returns_none_for_missing(tmp_path):
+    classifier = IntentClassifier(skills_dir=str(tmp_path))
+    content = classifier.load_skill_content("nonexistent-skill")
+    assert content is None
+
+
+def test_build_skill_prompt_section_returns_empty_for_no_match(tmp_path):
+    classifier = IntentClassifier(skills_dir=str(tmp_path))
+    content, loaded_ids = classifier.build_skill_prompt_section([])
+    assert content == ""
+    assert loaded_ids == []
+
+
+def test_build_skill_prompt_section_combines_two_skills(tmp_path):
+    make_skill_dir(tmp_path, "flask-api", ["flask", "rest api", "api server"])
+    make_skill_dir(tmp_path, "debugging", ["debug", "error", "traceback"])
+    classifier = IntentClassifier(skills_dir=str(tmp_path))
+    content, loaded_ids = classifier.build_skill_prompt_section(["flask-api", "debugging"])
+    assert "SKILL SEPARATOR" in content
+    assert len(loaded_ids) == 2
+
+
+def test_classifier_runs_fast(tmp_path):
+    """Classifier must complete in under 50ms for any prompt."""
+    for i in range(10):
+        make_skill_dir(
+            tmp_path, f"skill-{i}", [f"trigger{i}a", f"trigger{i}b", f"trigger{i}c"]
         )
 
-    classifier = IntentClassifier(str(skills_dir))
+    classifier = IntentClassifier(skills_dir=str(tmp_path))
 
-    assert len(classifier.classify("build a flask rest api endpoint")) <= 2
+    import time
 
+    start = time.monotonic()
+    for _ in range(100):
+        classifier.classify("build a trigger0a trigger0b application with trigger1a trigger1b")
+    elapsed = time.monotonic() - start
 
-def test_build_skill_prompt_section_empty_on_no_match(tmp_path: Path) -> None:
-    """Skill prompt section is empty when no skill IDs are provided."""
-    classifier = IntentClassifier(str(tmp_path / "skills"))
-
-    assert classifier.build_skill_prompt_section([]) == ""
-
-
-def test_load_skill_content_returns_none_for_missing(tmp_path: Path) -> None:
-    """Missing skills return None when content is requested."""
-    skills_dir: Path = tmp_path / "skills"
-    skills_dir.mkdir()
-    classifier = IntentClassifier(str(skills_dir))
-
-    assert classifier.load_skill_content("missing-skill") is None
+    # 100 classifications should complete in under 1 second total
+    assert elapsed < 1.0, f"Classifier too slow: 100 calls took {elapsed:.3f}s"

@@ -1,39 +1,40 @@
 ---
 name: flask-rest-api
-description: Expert patterns for building production-quality Flask REST APIs
-triggers: [flask, rest api, api server, fastapi, backend endpoints, crud api, flask app]
+description: Expert patterns for building production-quality Flask REST APIs with SQLAlchemy and JWT
+triggers: [flask, rest api, api server, backend, crud api, flask app, web api, endpoints]
 priority: 1
 max_tokens: 350
 ---
 
 # Flask REST API Specialist
 
-You are an expert in Flask 3.x REST APIs. Apply these rules exactly:
+You are an expert in Flask 3.x REST APIs. Apply every rule below without exception.
 
-## Project Structure
-1. Always use this folder layout: app/__init__.py, app/models.py, app/routes/__init__.py, app/routes/{resource}.py, config.py, run.py, requirements.txt
-2. Never put routes directly in app/__init__.py
-3. Use Flask Blueprints for every resource group
+## Project Structure (always use this layout)
+1. `app/__init__.py` — Flask app factory, register blueprints here
+2. `app/models.py` — All SQLAlchemy models
+3. `app/routes/` — One file per resource (e.g. routes/users.py, routes/todos.py)
+4. `app/services.py` — All business logic lives here, never in routes
+5. `config.py` — Configuration class with DATABASE_URI, SECRET_KEY, JWT settings
+6. `run.py` — Entry point: `from app import create_app; app = create_app(); app.run()`
+7. `requirements.txt` — flask, flask-sqlalchemy, flask-jwt-extended, flask-cors
 
-## Database
-4. Use SQLAlchemy 2.0 with Flask-SQLAlchemy. Never use legacy query API (Model.query.*)
-5. Use db.session.execute(select(Model)) for all queries
-6. Always define __repr__ on every model
+## Database Rules
+8. Use SQLAlchemy 2.0 syntax: `db.session.execute(select(Model).where(...))` — never `Model.query.*`
+9. Always define `__repr__` and `__tablename__` on every model
+10. Use `db.session.add()` + `db.session.commit()` for all writes
+11. Wrap all DB writes in try/except and call `db.session.rollback()` on error
 
-## Authentication
-7. Use flask-jwt-extended for all auth. Never implement JWT from scratch.
-8. Never use session cookies for APIs.
-9. Always protect routes with @jwt_required()
+## Authentication Rules
+12. Use `flask-jwt-extended`. Create access token with `create_access_token(identity=user.id)`
+13. Protect routes with `@jwt_required()` decorator
+14. Never implement JWT manually. Never use session cookies for APIs.
 
-## Code Quality
-10. Every route function must have: full type hints, a docstring, error handling with try/except, and an explicit HTTP status code in the return
-11. Never put business logic in route functions. Create a services.py file for business logic.
-12. Return JSON responses using jsonify() or flask.Response
+## Route Rules
+15. Every route function needs: `@blueprint.route(...)`, type hints, docstring, try/except, explicit HTTP status code
+16. Return JSON only: `return jsonify({"key": "value"}), 200`
+17. Validate request JSON with `.get()` and return 400 if required fields are missing
 
-## File Creation Order
-13. When creating a project, write files in this order: requirements.txt, config.py, app/__init__.py, app/models.py, app/routes/, run.py
-14. Use write_file tool for each file separately. Never combine multiple files into one write_file call.
-
-## Error Handling
-15. Always define custom error handlers for 400, 404, 422, and 500 errors
-16. Return error responses as JSON: {"error": "message", "code": 400}
+## File Creation Order (always follow this sequence)
+18. Write files in this order: requirements.txt → config.py → app/__init__.py → app/models.py → app/routes/*.py → run.py
+19. Use `write_file` tool once per file — never combine multiple files into one write_file call
