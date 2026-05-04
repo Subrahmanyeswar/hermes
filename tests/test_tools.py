@@ -3,10 +3,15 @@
 # Run with: pytest tests/test_tools.py -v
 
 from pathlib import Path
+from unittest.mock import MagicMock, patch
 
+import httpx
 import pytest
+import git as gitpython
 
 from tools.file_tools import ListDirectoryTool, ReadFileTool, WriteFileTool
+from tools.git_tools import GitAddCommitTool, GitInitTool
+from tools.network_tools import WebFetchTool, WebSearchTool
 from tools.shell_tools import BashExecTool, RunPythonTool, RunTestsTool
 
 
@@ -183,3 +188,167 @@ def test_run_tests_on_failing_test(tmp_path):
     result = tool.execute(RunTestsTool.Input(test_path=str(test_file)))
     assert result.success is False
     assert result.exit_code != 0
+
+
+# ── network tool tests ────────────────────────────────────────────────
+
+
+def test_web_search_returns_formatted_results():
+    """Mock the DuckDuckGo API response and verify formatting."""
+    mock_response_data = {
+        "AbstractText": "Python is a programming language.",
+        "AbstractURL": "https://python.org",
+        "RelatedTopics": [
+            {
+                "Text": "Python tutorial for beginners",
+                "FirstURL": "https://docs.python.org/tutorial",
+            },
+            {
+                "Text": "Python download page",
+                "FirstURL": "https://python.org/downloads",
+            },
+        ],
+    }
+    mock_response = MagicMock()
+    mock_response.json.return_value = mock_response_data
+    mock_response.raise_for_status = MagicMock()
+
+    with patch("httpx.get", return_value=mock_response):
+        tool = WebSearchTool()
+        result = tool.execute(
+            WebSearchTool.Input(query="Python programming", max_results=3)
+        )
+
+    assert result.success is True
+    assert "Python" in result.output
+    assert "https://python.org" in result.output
+    assert result.exit_code == 0
+
+
+def test_web_search_handles_timeout():
+    with patch("httpx.get", side_effect=httpx.TimeoutException("timeout")):
+        tool = WebSearchTool()
+        result = tool.execute(WebSearchTool.Input(query="test query"))
+    assert result.success is False
+    assert "timed out" in result.error.lower()
+
+
+def test_web_search_handles_connection_error():
+    with patch("httpx.get", side_effect=httpx.ConnectError("no connection")):
+        tool = WebSearchTool()
+        result = tool.execute(WebSearchTool.Input(query="test"))
+    assert result.success is False
+    assert "connect" in result.error.lower()
+
+
+def test_web_fetch_returns_text_content():
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_response.headers = {"content-type": "text/html"}
+    mock_response.text = (
+        "<html><body><h1>Hello World</h1><p>This is a test page.</p></body></html>"
+    )
+    mock_response.raise_for_status = MagicMock()
+
+    with patch("httpx.get", return_value=mock_response):
+        tool = WebFetchTool()
+        result = tool.execute(WebFetchTool.Input(url="https://example.com"))
+
+    assert result.success is True
+    assert "Hello World" in result.output
+    assert "<html>" not in result.output  # HTML tags should be stripped
+
+
+def test_web_fetch_rejects_non_http_url():
+    tool = WebFetchTool()
+    result = tool.execute(WebFetchTool.Input(url="ftp://example.com/file.txt"))
+    assert result.success is False
+    assert "http" in result.error.lower()
+
+
+def test_web_fetch_truncates_at_max_chars():
+    long_content = "A" * 10000
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_response.headers = {"content-type": "text/plain"}
+    mock_response.text = long_content
+    mock_response.raise_for_status = MagicMock()
+
+    with patch("httpx.get", return_value=mock_response):
+        tool = WebFetchTool()
+        result = tool.execute(WebFetchTool.Input(url="https://example.com", max_chars=500))
+
+    assert result.success is True
+    assert len(result.output) <= 500
+
+
+# ── git tool tests ────────────────────────────────────────────────────
+
+
+def test_git_init_creates_repository(tmp_path):
+    tool = GitInitTool()
+    result = tool.execute(GitInitTool.Input(directory=str(tmp_path / "myrepo")))
+    assert result.success is True
+    assert "initialised" in result.output.lower() or "already exists" in result.output.lower()
+    # Verify it's actually a git repo
+    repo = gitpython.Repo(str(tmp_path / "myrepo"))
+    assert repo.git_dir is not None
+
+
+def test_git_init_on_existing_repo_returns_success(tmp_path):
+    """Calling git_init twice should succeed both times."""
+    tool = GitInitTool()
+    tool.execute(GitInitTool.Input(directory=str(tmp_path)))
+    result = tool.execute(GitInitTool.Input(directory=str(tmp_path)))
+    assert result.success is True
+
+
+def test_git_init_creates_gitignore(tmp_path):
+    tool = GitInitTool()
+    tool.execute(GitInitTool.Input(directory=str(tmp_path)))
+    gitignore = tmp_path / ".gitignore"
+    assert gitignore.exists()
+    assert "__pycache__" in gitignore.read_text()
+
+
+def test_git_add_commit_creates_commit(tmp_path):
+    # Set up: init repo and create a file
+    gitpython.Repo.init(str(tmp_path))
+    test_file = tmp_path / "hello.py"
+    test_file.write_text('print("hello")\n')
+
+    tool = GitAddCommitTool()
+    result = tool.execute(
+        GitAddCommitTool.Input(directory=str(tmp_path), message="Add hello.py")
+    )
+    assert result.success is True
+    assert "hello.py" in result.output or "1 file" in result.output.lower()
+    assert "SHA" in result.output  # should include short SHA
+
+
+def test_git_add_commit_nothing_to_commit(tmp_path):
+    """Clean working tree should return success with 'nothing to commit' message."""
+    repo = gitpython.Repo.init(str(tmp_path))
+    test_file = tmp_path / "file.py"
+    test_file.write_text("x = 1\n")
+    repo.index.add(["file.py"])
+    repo.index.commit("initial commit")
+
+    tool = GitAddCommitTool()
+    result = tool.execute(
+        GitAddCommitTool.Input(directory=str(tmp_path), message="nothing should happen")
+    )
+    assert result.success is True
+    assert "nothing" in result.output.lower() or "clean" in result.output.lower()
+
+
+def test_git_commit_fails_without_repo(tmp_path):
+    """Committing in a non-repo directory should fail gracefully."""
+    non_repo = tmp_path / "not_a_repo"
+    non_repo.mkdir()
+    tool = GitAddCommitTool()
+    result = tool.execute(
+        GitAddCommitTool.Input(directory=str(non_repo), message="this should fail")
+    )
+    assert result.success is False
+    assert "git_init" in result.error.lower() or "repository" in result.error.lower()
