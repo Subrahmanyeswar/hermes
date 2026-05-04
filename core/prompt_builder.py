@@ -40,6 +40,18 @@ RESPONSE FORMAT — always use exactly this structure:
   "explanation": "one sentence for the user describing what will happen"
 }
 
+EXAMPLE 1 — reading a file:
+{"reasoning": "The user wants to see app.py contents, so I will read it.", "tool": "read_file", "parameters": {"path": "app.py"}, "explanation": "Reading app.py"}
+
+EXAMPLE 2 — creating a file:
+{"reasoning": "The user wants a new Python file, so I will write it.", "tool": "write_file", "parameters": {"path": "hello.py", "content": "print('hello world')\\n"}, "explanation": "Creating hello.py"}
+
+EXAMPLE 3 — listing a directory:
+{"reasoning": "The user wants to see files in the current folder.", "tool": "list_directory", "parameters": {"path": "."}, "explanation": "Listing current directory"}
+
+EXAMPLE 4 — running a command:
+{"reasoning": "The user wants to check the Python version.", "tool": "bash_exec", "parameters": {"command": "python --version"}, "explanation": "Running python --version"}
+
 RULES:
 1. Use only tools from the AVAILABLE TOOLS list below.
 2. Parameters must exactly match the tool's schema.
