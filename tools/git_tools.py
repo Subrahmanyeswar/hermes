@@ -211,3 +211,60 @@ class GitAddCommitTool(BaseTool):
                 exit_code=1,
                 duration_seconds=duration,
             )
+
+
+@tool(name="git_push", description="Push committed changes to a remote GitHub repository. Requires GITHUB_TOKEN in environment.", permissions=["network_write"], risk_score=0.7, blocked_in=["safe", "plan"])
+class GitPushTool(BaseTool):
+    class Input(BaseModel):
+        directory: str = Field(default=".", description="Path to the git repository")
+        remote: str = Field(default="origin", description="Remote name to push to")
+        branch: str = Field(default="main", description="Branch to push")
+        github_token: str = Field(default="", description="Leave empty — read from GITHUB_TOKEN env var")
+
+    def execute(self, inp: Input) -> ToolResult:
+        if not GIT_AVAILABLE:
+            return ToolResult(success=False, output="", error="GitPython not installed", exit_code=1, duration_seconds=0.0)
+        
+        import os
+        token = os.environ.get("GITHUB_TOKEN", "")
+        if not token:
+            return ToolResult(success=False, output="", error="GITHUB_TOKEN environment variable is not set. Set it before using git_push.", exit_code=1, duration_seconds=0.0)
+        
+        # NEVER log the token value
+        logger.info(f"git_push: pushing {inp.directory} to {inp.remote}/{inp.branch} [token=REDACTED]")
+        
+        try:
+            repo = git.Repo(inp.directory, search_parent_directories=True)
+        except git.InvalidGitRepositoryError:
+            return ToolResult(success=False, output="", error=f"No git repo found at: {inp.directory}", exit_code=1, duration_seconds=0.0)
+        
+        try:
+            # Get remote URL and inject token for HTTPS auth
+            remote = repo.remote(inp.remote)
+            original_url = remote.url
+            
+            # Inject token into URL if it's a github.com HTTPS URL
+            if "github.com" in original_url and original_url.startswith("https://"):
+                authed_url = original_url.replace("https://", f"https://{token}@")
+                remote.set_url(authed_url)
+            
+            push_info = remote.push(refspec=f"{inp.branch}:{inp.branch}")
+            
+            # Restore original URL immediately (never leave token in config)
+            if "github.com" in original_url and original_url.startswith("https://"):
+                remote.set_url(original_url)
+            
+            # Check for push errors
+            for info in push_info:
+                if info.flags & info.ERROR:
+                    return ToolResult(success=False, output="", error=f"Push failed: {info.summary}", exit_code=1, duration_seconds=0.0)
+            
+            return ToolResult(success=True, output=f"Pushed to {inp.remote}/{inp.branch} successfully", exit_code=0, duration_seconds=0.0)
+        
+        except git.GitCommandError as e:
+            # Mask token in error messages
+            error_msg = str(e).replace(token, "[GITHUB_TOKEN]") if token else str(e)
+            return ToolResult(success=False, output="", error=f"Git push failed: {error_msg}", exit_code=1, duration_seconds=0.0)
+        except Exception as e:
+            error_msg = str(e).replace(token, "[GITHUB_TOKEN]") if token else str(e)
+            return ToolResult(success=False, output="", error=str(error_msg), exit_code=1, duration_seconds=0.0)

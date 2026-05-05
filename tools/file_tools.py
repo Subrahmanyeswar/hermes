@@ -247,3 +247,73 @@ class ListDirectoryTool(BaseTool):
                 exit_code=2,
                 duration_seconds=duration_seconds,
             )
+
+
+@tool(name="append_file", description="Append content to an existing file. Creates the file if it does not exist.", permissions=["filesystem_write"], risk_score=0.2, blocked_in=["safe"])
+class AppendFileTool(BaseTool):
+    class Input(BaseModel):
+        path: str = Field(..., min_length=1, max_length=500)
+        content: str = Field(..., max_length=100_000)
+    def execute(self, inp: Input) -> ToolResult:
+        import time
+        start = time.monotonic()
+        try:
+            Path(inp.path).parent.mkdir(parents=True, exist_ok=True)
+            with open(inp.path, 'a', encoding='utf-8') as f:
+                f.write(inp.content)
+            duration = time.monotonic() - start
+            logger.debug(f"append_file: {inp.path} | appended {len(inp.content)} chars")
+            return ToolResult(success=True, output=f"Appended {len(inp.content)} characters to {inp.path}", exit_code=0, duration_seconds=duration)
+        except Exception as e:
+            return ToolResult(success=False, output="", error=str(e), exit_code=1, duration_seconds=0.0)
+
+
+@tool(name="create_folder", description="Create a directory and all required parent directories.", permissions=["filesystem_write"], risk_score=0.1, blocked_in=["safe"])
+class CreateFolderTool(BaseTool):
+    class Input(BaseModel):
+        path: str = Field(..., min_length=1, max_length=500)
+    def execute(self, inp: Input) -> ToolResult:
+        try:
+            Path(inp.path).mkdir(parents=True, exist_ok=True)
+            return ToolResult(success=True, output=f"Created directory: {inp.path}", exit_code=0, duration_seconds=0.0)
+        except Exception as e:
+            return ToolResult(success=False, output="", error=str(e), exit_code=1, duration_seconds=0.0)
+
+
+@tool(name="move_file", description="Move or rename a file or directory.", permissions=["filesystem_write"], risk_score=0.3, blocked_in=["safe"])
+class MoveFileTool(BaseTool):
+    class Input(BaseModel):
+        source: str = Field(..., min_length=1, max_length=500)
+        destination: str = Field(..., min_length=1, max_length=500)
+    def execute(self, inp: Input) -> ToolResult:
+        import shutil
+        try:
+            src = Path(inp.source)
+            if not src.exists():
+                return ToolResult(success=False, output="", error=f"Source not found: {inp.source}", exit_code=1, duration_seconds=0.0)
+            Path(inp.destination).parent.mkdir(parents=True, exist_ok=True)
+            shutil.move(str(src), inp.destination)
+            return ToolResult(success=True, output=f"Moved {inp.source} → {inp.destination}", exit_code=0, duration_seconds=0.0)
+        except Exception as e:
+            return ToolResult(success=False, output="", error=str(e), exit_code=1, duration_seconds=0.0)
+
+
+@tool(name="delete_file", description="Delete a file. Requires explicit confirmation in Auto mode. Never deletes directories.", permissions=["filesystem_write"], risk_score=0.8, blocked_in=["safe", "plan"])
+class DeleteFileTool(BaseTool):
+    class Input(BaseModel):
+        path: str = Field(..., min_length=1, max_length=500)
+        confirm: bool = Field(..., description="Must be explicitly True to confirm deletion")
+    def execute(self, inp: Input) -> ToolResult:
+        if not inp.confirm:
+            return ToolResult(success=False, output="", error="Deletion requires confirm=True", exit_code=1, duration_seconds=0.0)
+        try:
+            p = Path(inp.path)
+            if not p.exists():
+                return ToolResult(success=False, output="", error=f"File not found: {inp.path}", exit_code=1, duration_seconds=0.0)
+            if p.is_dir():
+                return ToolResult(success=False, output="", error="delete_file cannot delete directories. Use bash_exec with caution.", exit_code=1, duration_seconds=0.0)
+            p.unlink()
+            logger.warning(f"delete_file: DELETED {inp.path}")
+            return ToolResult(success=True, output=f"Deleted: {inp.path}", exit_code=0, duration_seconds=0.0)
+        except Exception as e:
+            return ToolResult(success=False, output="", error=str(e), exit_code=1, duration_seconds=0.0)

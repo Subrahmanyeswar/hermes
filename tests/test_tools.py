@@ -9,8 +9,8 @@ import httpx
 import pytest
 import git as gitpython
 
-from tools.file_tools import ListDirectoryTool, ReadFileTool, WriteFileTool
-from tools.git_tools import GitAddCommitTool, GitInitTool
+from tools.file_tools import ListDirectoryTool, ReadFileTool, WriteFileTool, AppendFileTool, CreateFolderTool, MoveFileTool, DeleteFileTool
+from tools.git_tools import GitAddCommitTool, GitInitTool, GitPushTool
 from tools.network_tools import WebFetchTool, WebSearchTool
 from tools.shell_tools import BashExecTool, RunPythonTool, RunTestsTool
 
@@ -389,3 +389,67 @@ def test_read_memory_tool_returns_failure_for_missing():
         result = tool.execute(ReadMemoryTool.Input(topic_name="nonexistent", project="myapp"))
     assert result.success is False
     assert result.exit_code == 1
+
+
+# ── File System tool additions tests ──────────────────────────────────
+
+def test_append_file_creates_if_missing(tmp_path):
+    tool = AppendFileTool()
+    result = tool.execute(AppendFileTool.Input(path=str(tmp_path/"new.txt"), content="hello"))
+    assert result.success and (tmp_path/"new.txt").read_text() == "hello"
+
+def test_append_file_adds_to_existing(tmp_path):
+    p = tmp_path/"log.txt"
+    p.write_text("line1\n")
+    tool = AppendFileTool()
+    tool.execute(AppendFileTool.Input(path=str(p), content="line2\n"))
+    assert p.read_text() == "line1\nline2\n"
+
+def test_create_folder_creates_nested(tmp_path):
+    result = CreateFolderTool().execute(CreateFolderTool.Input(path=str(tmp_path/"a/b/c")))
+    assert result.success and (tmp_path/"a/b/c").is_dir()
+
+def test_move_file_succeeds(tmp_path):
+    src = tmp_path/"src.txt"; src.write_text("data")
+    result = MoveFileTool().execute(MoveFileTool.Input(source=str(src), destination=str(tmp_path/"dst.txt")))
+    assert result.success and (tmp_path/"dst.txt").exists() and not src.exists()
+
+def test_delete_file_requires_confirm(tmp_path):
+    p = tmp_path/"del.txt"; p.write_text("x")
+    result = DeleteFileTool().execute(DeleteFileTool.Input(path=str(p), confirm=False))
+    assert not result.success and p.exists()
+
+def test_delete_file_succeeds_with_confirm(tmp_path):
+    p = tmp_path/"del.txt"; p.write_text("x")
+    result = DeleteFileTool().execute(DeleteFileTool.Input(path=str(p), confirm=True))
+    assert result.success and not p.exists()
+
+
+def test_git_push_fails_without_token(monkeypatch):
+    monkeypatch.delenv("GITHUB_TOKEN", raising=False)
+    result = GitPushTool().execute(GitPushTool.Input(directory="."))
+    assert result.success is False
+    assert "GITHUB_TOKEN" in result.error
+
+
+from tools.export_tools import ExportZipTool, OpenInVSCodeTool
+
+def test_export_zip_creates_zip(tmp_path):
+    proj = tmp_path / "myproject"
+    proj.mkdir()
+    (proj / "app.py").write_text("print('hello')")
+    import sys; sys.modules.pop('tools.export_tools', None)
+    result = ExportZipTool().execute(ExportZipTool.Input(project_path=str(proj), output_name="test_export"))
+    assert result.success is True
+    assert ".zip" in result.output
+
+def test_export_zip_fails_for_missing_path():
+    result = ExportZipTool().execute(ExportZipTool.Input(project_path="/nonexistent/path"))
+    assert result.success is False
+
+def test_open_in_vscode_handles_missing_code_command(monkeypatch):
+    import subprocess
+    monkeypatch.setattr(subprocess, "Popen", lambda *a, **kw: (_ for _ in ()).throw(FileNotFoundError()))
+    result = OpenInVSCodeTool().execute(OpenInVSCodeTool.Input(path="."))
+    assert result.success is False
+    assert "VS Code" in result.error

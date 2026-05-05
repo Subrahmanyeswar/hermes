@@ -5,3 +5,10 @@ HEREMES (things to do later)
 })
 
 2. ollama should run everytime i run Hermes or doing the project
+
+
+
+& "C:\Users\SUBBU\AppData\Local\Programs\Ollama\ollama.exe" serve
+
+cd C:\Users\SUBBU\Downloads\hermes
+venv\Scripts\activate
