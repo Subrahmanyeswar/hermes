@@ -207,3 +207,58 @@ def test_orchestrator_set_mode_invalid():
     orch = Orchestrator(mode="auto")
     with pytest.raises(ValueError):
         orch.set_mode("turbo")
+
+
+# ── Orchestrator + KAIROS integration tests ────────────────────────────
+
+@pytest.mark.asyncio
+async def test_orchestrator_registers_task_in_queue(tmp_path, monkeypatch):
+    """After run(), the task should appear in the SQLite queue."""
+    from kairos.db import init_db, execute_read
+    from kairos.daemon import KairosDaemon
+    
+    test_db = tmp_path / "test.db"
+    monkeypatch.setattr("kairos.task_queue.DB_PATH", test_db)
+    monkeypatch.setattr("kairos.daemon.DB_PATH", test_db)
+    monkeypatch.setattr("core.orchestrator.DB_PATH", test_db)
+    init_db(db_path=test_db)
+    
+    # Mock the heavy parts so we don't need Ollama running
+    with patch("core.orchestrator.OllamaClient") as mock_ollama_cls:
+        mock_ollama = AsyncMock()
+        mock_ollama.generate = AsyncMock(return_value=(
+            '{"tool": "list_directory", "parameters": {"path": "."}, '
+            '"reasoning": "list files", "explanation": "Listing directory"}'
+        ))
+        mock_ollama_cls.return_value = mock_ollama
+        
+        with patch("core.orchestrator.Tier2Verifier") as mock_verifier_cls:
+            mock_verifier = AsyncMock()
+            mock_verifier.verify = AsyncMock(return_value=VerificationResult(
+                agree=True, confidence=0.95, critical_issues=[], risk_score=0.1,
+                reasoning="looks good"
+            ))
+            mock_verifier_cls.return_value = mock_verifier
+            
+            orch = Orchestrator(mode="auto")
+            # Don't start KAIROS for this test — just test queue registration
+            result = await orch.run("list the files in this directory")
+    
+    # Verify task was registered
+    tasks = execute_read("SELECT * FROM tasks", db_path=test_db)
+    assert len(tasks) >= 1
+
+@pytest.mark.asyncio
+async def test_kairos_starts_and_stops_with_orchestrator(tmp_path, monkeypatch):
+    from kairos.db import init_db
+    test_db = tmp_path / "test.db"
+    monkeypatch.setattr("kairos.daemon.DB_PATH", test_db)
+    monkeypatch.setattr("core.orchestrator.DB_PATH", test_db)
+    init_db(db_path=test_db)
+    
+    orch = Orchestrator(mode="auto")
+    await orch.start_kairos()
+    assert orch.kairos.is_running is True
+    await orch.stop_kairos()
+    assert orch.kairos.is_running is False
+

@@ -47,41 +47,44 @@ async def _run_interactive(mode: str, project: str):
         raise typer.Exit(1)
     
     orch = Orchestrator(mode=mode, project=project)
-    
-    typer.echo(f"HERMES ready | mode={mode.upper()} | project={project}")
-    typer.echo("Type your request and press Enter. Type 'quit' or Ctrl+C to exit.")
-    typer.echo("-" * 60)
-    
-    while True:
-        try:
-            user_input = input(f"\n[{mode.upper()}] > ").strip()
-        except (KeyboardInterrupt, EOFError):
-            typer.echo("\nExiting HERMES.")
-            break
+    await orch.start_kairos()  # Start KAIROS before the interactive loop
+    try:
+        typer.echo(f"HERMES ready | mode={mode.upper()} | project={project}")
+        typer.echo("Type your request and press Enter. Type 'quit' or Ctrl+C to exit.")
+        typer.echo("-" * 60)
         
-        if not user_input:
-            continue
-        if user_input.lower() in ("quit", "exit", "q"):
-            typer.echo("Exiting HERMES.")
-            break
-        if user_input.startswith("/mode "):
-            new_mode = user_input.split()[-1]
+        while True:
             try:
-                orch.set_mode(new_mode)
-                mode = new_mode
-                typer.echo(f"Mode changed to: {mode.upper()}")
-            except ValueError as e:
-                typer.echo(f"Error: {e}")
-            continue
-        
-        typer.echo("Working...")
-        result = await orch.run(user_input)
-        typer.echo(f"\n{result.final_output}")
-        if result.tool_name:
-            typer.echo(f"[Tool: {result.tool_name} | Exit: {result.tool_result.exit_code if result.tool_result else 'N/A'}]")
-        if result.tier3_was_called:
-            cost = orch.claude.get_cost_summary()
-            typer.echo(f"[Tier 3 called | Total cost: ${cost['total_spent']:.4f}]")
+                user_input = input(f"\n[{mode.upper()}] > ").strip()
+            except (KeyboardInterrupt, EOFError):
+                typer.echo("\nExiting HERMES.")
+                break
+            
+            if not user_input:
+                continue
+            if user_input.lower() in ("quit", "exit", "q"):
+                typer.echo("Exiting HERMES.")
+                break
+            if user_input.startswith("/mode "):
+                new_mode = user_input.split()[-1]
+                try:
+                    orch.set_mode(new_mode)
+                    mode = new_mode
+                    typer.echo(f"Mode changed to: {mode.upper()}")
+                except ValueError as e:
+                    typer.echo(f"Error: {e}")
+                continue
+            
+            typer.echo("Working...")
+            result = await orch.run(user_input)
+            typer.echo(f"\n{result.final_output}")
+            if result.tool_name:
+                typer.echo(f"[Tool: {result.tool_name} | Exit: {result.tool_result.exit_code if result.tool_result else 'N/A'}]")
+            if result.tier3_was_called:
+                cost = orch.claude.get_cost_summary()
+                typer.echo(f"[Tier 3 called | Total cost: ${cost['total_spent']:.4f}]")
+    finally:
+        await orch.stop_kairos()
 
 @app.command()
 def test_pipeline(

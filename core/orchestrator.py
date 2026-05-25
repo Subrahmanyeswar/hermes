@@ -37,6 +37,9 @@ from tools.base import ToolResult
 from memory.store import read_context_for_prompt
 from memory.extractor import confirm_and_write_facts, extract_memories
 from memory.session_logger import SessionLogger
+from kairos.db import init_db, DB_PATH
+from kairos.task_queue import register_task, mark_running, mark_completed, mark_failed
+from kairos.daemon import KairosDaemon
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -83,6 +86,24 @@ class Orchestrator:
             f"Orchestrator ready | mode={mode} | project={project} | "
             f"session={self.session_logger.session_id}"
         )
+        # Initialise database and KAIROS daemon
+        init_db()
+        self.kairos = KairosDaemon(db_path=DB_PATH)
+        self._kairos_started = False
+        logger.info("Orchestrator: KAIROS daemon attached (not yet started)")
+
+    async def start_kairos(self) -> None:
+        """Start the KAIROS background daemon. Call this once after creating the Orchestrator."""
+        if not self._kairos_started:
+            await self.kairos.start()
+            self._kairos_started = True
+            logger.info("Orchestrator: KAIROS daemon running in background")
+
+    async def stop_kairos(self) -> None:
+        """Stop the KAIROS daemon gracefully. Call this on application shutdown."""
+        if self._kairos_started:
+            await self.kairos.stop()
+            self._kairos_started = False
 
     async def run(self, user_request: str) -> OrchestratorResult:
         """
@@ -104,6 +125,20 @@ class Orchestrator:
             task = self.planner.plan(sanitised, session_id=self.session_logger.session_id)
             result.task = task
             logger.debug(f"Stage 2 complete: task planned | complexity={task.complexity_score:.2f}")
+
+            # Register task in SQLite queue
+            db_task_id = register_task(
+                session_id=self.session_logger.session_id,
+                title=sanitised[:100],
+                description=sanitised,
+                priority=task.priority,
+                complexity=task.complexity_score,
+                max_retries=task.max_retries,
+                tool_name=None,  # Will be updated after Stage 4
+                db_path=DB_PATH
+            )
+            mark_running(db_task_id, db_path=DB_PATH)
+            logger.debug(f"Stage 2: task registered in queue as db_task_id={db_task_id}")
 
             # ── Stage 3: Skill + Memory injection ─────────────────────
             result.pipeline_stage_reached = 3
@@ -163,9 +198,16 @@ class Orchestrator:
                         "Please try rephrasing your request."
                     )
                     result.pipeline_stage_reached = 4
+                    mark_failed(db_task_id, error=result.error or "Early exit at stage 4", db_path=DB_PATH)
                     return result
 
             tool_name = tier1_parsed.get("tool", "")
+            # Update tool name in task record now that we know it
+            from kairos.db import execute_write
+            execute_write(
+                "UPDATE tasks SET tool_name=? WHERE id=?",
+                (tool_name, db_task_id)
+            )
             tool_params = tier1_parsed.get("parameters", {})
             tier1_reasoning = tier1_parsed.get("reasoning", "")
 
@@ -183,6 +225,7 @@ class Orchestrator:
                     f"I tried to use a tool called '{tool_name}' which doesn't exist. "
                     f"Available tools: {', '.join(list_tools()[:5])}"
                 )
+                mark_failed(db_task_id, error=result.error or "Early exit at stage 5", db_path=DB_PATH)
                 return result
 
             gate = PermissionGate(self.mode)
@@ -190,6 +233,7 @@ class Orchestrator:
             if not allowed:
                 result.final_output = f"Action blocked in {self.mode.upper()} mode: {gate_reason}"
                 result.success = False
+                mark_failed(db_task_id, error=result.error or "Early exit at stage 5", db_path=DB_PATH)
                 return result
 
             try:
@@ -197,6 +241,7 @@ class Orchestrator:
             except Exception as e:
                 result.error = f"Tool parameter validation failed: {e}"
                 result.final_output = f"Invalid parameters for tool '{tool_name}': {e}"
+                mark_failed(db_task_id, error=result.error or "Early exit at stage 5", db_path=DB_PATH)
                 return result
 
             self.session_logger.log_tool_call(tool_name, tool_params, self.mode)
@@ -256,6 +301,7 @@ class Orchestrator:
                     f"Please confirm you want to proceed."
                 )
                 result.success = False
+                mark_failed(db_task_id, error=result.error or "Early exit at stage 8", db_path=DB_PATH)
                 return result
 
             elif routing.decision == RoutingDecision.ESCALATE and routing.tier3_needed:
@@ -344,6 +390,12 @@ class Orchestrator:
                 f"stages=12 | tier3={result.tier3_was_called} | "
                 f"latency={result.total_latency_seconds:.2f}s"
             )
+            # Update task queue status
+            if result.success:
+                mark_completed(db_task_id, db_path=DB_PATH)
+            else:
+                mark_failed(db_task_id, error=result.error or result.final_output[:200], db_path=DB_PATH)
+
             return result
 
         except Exception as e:
