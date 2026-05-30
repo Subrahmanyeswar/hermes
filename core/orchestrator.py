@@ -179,11 +179,9 @@ class Orchestrator:
             if tier1_parsed is None:
                 # Re-prompt once with stronger instruction
                 logger.warning("Stage 4: Tier 1 produced invalid JSON — re-prompting once")
-                retry_system = (
-                    system_prompt +
-                    "\n\nCRITICAL: Your previous response was not valid JSON. "
-                    "You MUST respond with ONLY the JSON object. Nothing else."
-                )
+                from core.prompt_builder import build_system_prompt_v2
+                retry_system = build_system_prompt_v2(ctx)
+                logger.info("Stage 4 retry: switching to v2 prompt with two-shot examples")
                 tier1_raw = await self.ollama.generate(
                     model="qwen2.5-coder:7b",
                     prompt=user_message,

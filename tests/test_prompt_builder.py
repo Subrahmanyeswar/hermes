@@ -26,7 +26,7 @@ def test_system_prompt_contains_role():
     ctx = make_ctx()
     prompt = build_system_prompt(ctx)
     assert "HERMES" in prompt
-    assert "json.loads()" in prompt
+    assert "valid JSON" in prompt
 
 
 def test_system_prompt_contains_tool_descriptions():
