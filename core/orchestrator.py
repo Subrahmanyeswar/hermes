@@ -424,24 +424,22 @@ class Orchestrator:
         return sanitised[:2000]  # Hard cap on input length
 
     def _parse_tier1_response(self, response: str) -> Optional[dict]:
-        """Parse Tier 1 JSON response. Returns None if invalid or missing required keys."""
-        cleaned = response.strip()
-        cleaned = re.sub(r'^```json\s*', '', cleaned)
-        cleaned = re.sub(r'^```\s*', '', cleaned)
-        cleaned = re.sub(r'\s*```$', '', cleaned)
-        cleaned = cleaned.strip()
-
-        try:
-            parsed = json.loads(cleaned)
-            required_keys = {"tool", "parameters"}
-            if not required_keys.issubset(parsed.keys()):
-                logger.warning(
-                    f"Tier 1 response missing required keys. Got: {list(parsed.keys())}"
-                )
-                return None
-            return parsed
-        except json.JSONDecodeError as e:
-            logger.warning(f"Tier 1 JSON parse failed: {e} | response={response[:100]!r}")
+        """Parse Tier 1 response using the hardened ResponseParser."""
+        from core.response_parser import ResponseParser
+        parser = ResponseParser()
+        result = parser.parse(response)
+        
+        if hasattr(result, 'to_dict'):  # ParseSuccess
+            if result.method_used != "direct_parse":
+                logger.info(f"ResponseParser: used fallback strategy '{result.method_used}'")
+            return result.to_dict()
+        else:  # ParseFailure
+            logger.warning(
+                f"ResponseParser: all strategies failed | "
+                f"reason={result.failure_reason} | "
+                f"plain_text={result.is_plain_text} | "
+                f"has_fragment={result.has_json_fragment}"
+            )
             return None
 
     def set_mode(self, mode: str) -> None:
