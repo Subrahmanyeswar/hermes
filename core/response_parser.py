@@ -260,14 +260,23 @@ class ResponseParser:
             raw_response=response
         )
 
+    def _is_conversational_prose(self, response: str) -> bool:
+        r = response.strip()
+        prefixes = ("i ", "sure", "of course", "i'll", "i will", "let me", "to ", "ok", "here", "using", "the ", "we ", "this ")
+        return r.lower().startswith(prefixes)
+
     def _try_emergency_extraction(self, response: str) -> Optional[ParseSuccess]:
         # Last resort: look for any known tool name in the response
+        if not self._is_conversational_prose(response):
+            return None
+
         from tools.registry import list_tools
         available_tools = list_tools()
 
         response_lower = response.lower()
         for tool_name in available_tools:
-            if tool_name in response_lower:
+            # Use word boundaries to ensure we match the exact tool name
+            if re.search(r'\b' + re.escape(tool_name) + r'\b', response_lower):
                 logger.warning(f"ResponseParser: emergency extraction — found tool name '{tool_name}' in plain text response")
                 return ParseSuccess(
                     tool=tool_name,
