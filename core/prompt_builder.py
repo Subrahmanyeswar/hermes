@@ -64,8 +64,21 @@ RULES FOR TOOL SELECTION:
 RULES FOR JSON OUTPUT:
 7. Start your response with the opening brace { immediately — no preamble.
 8. End your response with the closing brace } — nothing after it.
-9. All string values must use double quotes.
-10. The parameters field must always be a JSON object {}, even if empty: "parameters": {}
+9. All string values must use standard double quotes (\"). NEVER use triple-quotes (\'\'\' or \"\"\") or raw unescaped multiline strings.
+10. All newlines inside string values MUST be escaped as \n.
+11. The parameters field must always be a JSON object {}, even if empty: "parameters": {}
+
+TOOL DISAMBIGUATION — follow these rules when choosing between similar tools:
+- "create a folder/directory" → use create_folder (NOT write_file or bash_exec)
+- "count lines in a file" or "wc -l" (numeric line/character counting ONLY) → use bash_exec (NOT read_file)
+- "look at code", "analyze code", "show me the code", or questions about code structures/contents (e.g. "how many stages/functions/routes/classes are in the code") → use read_file (NOT bash_exec, as wc -l cannot count semantic stages)
+- "pip install" or "install a package" → use bash_exec (NOT run_python)
+- "git log" or "show commits" → use bash_exec (NOT a git tool — there is no git_log tool)
+- "build/create/write a file with code" → use write_file (NOT create_folder)
+- "run a .py script" → use run_python (NOT bash_exec)
+- "run tests" or "pytest" → use run_tests (NOT run_python or bash_exec)
+- "remember" or "keep in mind" or "note that" → use save_memory (NOT read_memory)
+- "recall" or "what did we save" or "read memory" → use read_memory (NOT save_memory)
 """
 
 

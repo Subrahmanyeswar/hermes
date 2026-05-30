@@ -14,7 +14,7 @@ from loguru import logger
 
 @tool(
     name="save_memory",
-    description="Save a specific fact to project memory. Only use for important project decisions that should persist across sessions.",
+    description="Save a fact to project memory. Use when the user says 'remember', 'keep in mind', 'note that', or wants to store a decision. Do NOT use read_memory for saving.",
     permissions=["memory_write"],
     risk_score=0.1,
     blocked_in=[]

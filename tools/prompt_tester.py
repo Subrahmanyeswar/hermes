@@ -286,8 +286,10 @@ class PromptReliabilityTester:
             if result.parsed_successfully:
                 tool_status_char = "OK" if result.tool_correct else "WRONG"
                 tool_status = f" | tool={tool_status_char} ({result.actual_tool})"
+                if not result.tool_correct:
+                    tool_status += f"\n    [EXPECTED]: {result.expected_tool}\n    [RAW RESPONSE]: {result.raw_response.strip()}"
             else:
-                tool_status = f" | FAIL: {result.failure_reason}"
+                tool_status = f" | FAIL: {result.failure_reason}\n    [RAW RESPONSE]: {result.raw_response.strip()}"
             
             try:
                 print(f"[{i+1:02d}/{len(TEST_PROMPTS)}] {result.prompt_id} {status_char} "

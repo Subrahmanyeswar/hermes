@@ -31,7 +31,7 @@ def _resolve_project_path(path: str) -> Path:
 
 @tool(
     name="read_file",
-    description="Read the contents of a file and return them as a string",
+    description="Read and display the contents of a file. Use when the user wants to see, open, or view a file. Do NOT use for counting lines — use bash_exec with wc -l instead.",
     permissions=["filesystem_read"],
     risk_score=0.1,
     blocked_in=[],
@@ -100,7 +100,7 @@ class ReadFileTool(BaseTool):
 
 @tool(
     name="write_file",
-    description="Write content to a file. Creates the file and any parent directories if they do not exist",
+    description="Write or create a file with content. Use for creating new code files, config files, scripts, Dockerfiles, or any file the user wants to build/generate/write. Also creates parent directories automatically.",
     permissions=["filesystem_write"],
     risk_score=0.3,
     blocked_in=["safe"],
@@ -161,7 +161,7 @@ class WriteFileTool(BaseTool):
 
 @tool(
     name="list_directory",
-    description="List all files and folders in a directory",
+    description="List all files and folders in a directory. Use for showing project structure, checking what files exist, or giving an overview of a folder.",
     permissions=["filesystem_read"],
     risk_score=0.0,
     blocked_in=[],
@@ -268,7 +268,7 @@ class AppendFileTool(BaseTool):
             return ToolResult(success=False, output="", error=str(e), exit_code=1, duration_seconds=0.0)
 
 
-@tool(name="create_folder", description="Create a directory and all required parent directories.", permissions=["filesystem_write"], risk_score=0.1, blocked_in=["safe"])
+@tool(name="create_folder", description="Create a new directory/folder and any parent directories. Use when the user asks to create folders, directories, or project structure without file content.", permissions=["filesystem_write"], risk_score=0.1, blocked_in=["safe"])
 class CreateFolderTool(BaseTool):
     class Input(BaseModel):
         path: str = Field(..., min_length=1, max_length=500)

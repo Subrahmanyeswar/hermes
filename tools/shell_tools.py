@@ -29,7 +29,7 @@ def _command_for_platform(command: str) -> str:
 
 @tool(
     name="bash_exec",
-    description="Execute a shell command. All commands pass through 15 security gates before execution.",
+    description="Execute any shell command (pip install, git log, wc -l, echo, curl, grep, find, pwd, ls). Use this for installing packages, viewing git history, counting lines in a file, checking ports, and any system command that is not running a .py file or pytest.",
     permissions=["shell"],
     risk_score=0.7,
     blocked_in=["safe"],
@@ -133,7 +133,7 @@ class BashExecTool(BaseTool):
 
 @tool(
     name="run_python",
-    description="Execute a Python file using the current virtual environment's Python interpreter.",
+    description="Execute a .py Python script file. ONLY use when the user asks to run/execute a specific .py file. Do NOT use for pip install or shell commands.",
     permissions=["shell"],
     risk_score=0.5,
     blocked_in=["safe"],
@@ -253,7 +253,7 @@ class RunPythonTool(BaseTool):
 
 @tool(
     name="run_tests",
-    description="Run a pytest test file and return the results including pass/fail counts.",
+    description="Run pytest on a test file or test directory. ONLY use when the user explicitly asks to run tests or pytest. Do NOT use for running regular Python scripts.",
     permissions=["shell"],
     risk_score=0.4,
     blocked_in=["safe"],
