@@ -24,6 +24,8 @@ from typing import Optional, Any
 
 from loguru import logger
 
+from core.error_handler import ErrorHandler, FailureMode, RecoveryAction
+
 from models.ollama_client import OllamaClient
 from models.claude_client import ClaudeClient
 from core.verifier import Tier2Verifier
@@ -86,6 +88,7 @@ class Orchestrator:
             f"Orchestrator ready | mode={mode} | project={project} | "
             f"session={self.session_logger.session_id}"
         )
+        self.error_handler = ErrorHandler()
         # Initialise database and KAIROS daemon
         init_db()
         self.kairos = KairosDaemon(db_path=DB_PATH)
@@ -140,20 +143,26 @@ class Orchestrator:
             mark_running(db_task_id, db_path=DB_PATH)
             logger.debug(f"Stage 2: task registered in queue as db_task_id={db_task_id}")
 
-            # ── Stage 3: Skill + Memory injection ─────────────────────
+            # ── Stage 3: Skill + Memory injection (with memory parse error fallback) ──
             result.pipeline_stage_reached = 3
+
             skill_ids = self.classifier.classify(sanitised)
             skill_content, loaded_skill_ids = self.classifier.build_skill_prompt_section(skill_ids)
             result.skill_ids_used = loaded_skill_ids
-            memory_context = read_context_for_prompt(project=self.project)
             active_skill_name = loaded_skill_ids[0] if loaded_skill_ids else "none"
-            logger.debug(
-                f"Stage 3 complete: skills={loaded_skill_ids} | "
-                f"memory_lines={memory_context.count(chr(10))}"
-            )
 
-            # ── Stage 4: Tier 1 generation ────────────────────────────
+            try:
+                memory_context = read_context_for_prompt(project=self.project)
+            except Exception as mem_exc:
+                mem_err = self.error_handler.memory_parse_error(str(mem_exc), self.project)
+                logger.warning(f"Stage 3: {mem_err.technical_detail}")
+                memory_context = ""  # Empty fallback — session continues normally
+
+            logger.debug(f"Stage 3 complete: skills={loaded_skill_ids} | memory_lines={memory_context.count(chr(10))}")
+
+            # ── Stage 4: Tier 1 generation (with JSON parse failure handling) ──────
             result.pipeline_stage_reached = 4
+
             ctx = PromptContext(
                 user_task=sanitised,
                 mode=self.mode,
@@ -164,48 +173,75 @@ class Orchestrator:
                 active_skill_name=active_skill_name
             )
             system_prompt = build_system_prompt(ctx)
-            user_message = build_user_message(sanitised)
+            user_message_text = build_user_message(sanitised)
 
+            # ── Attempt 1: standard prompt ──────────────────────────────────────
             t1_start = time.monotonic()
-            tier1_raw = await self.ollama.generate(
-                model="qwen2.5-coder:7b",
-                prompt=user_message,
-                system=system_prompt,
-                keep_alive=0
-            )
-            t1_latency = time.monotonic() - t1_start
-
-            tier1_parsed = self._parse_tier1_response(tier1_raw)
-            if tier1_parsed is None:
-                # Re-prompt once with stronger instruction
-                logger.warning("Stage 4: Tier 1 produced invalid JSON — re-prompting once")
-                from core.prompt_builder import build_system_prompt_v2
-                retry_system = build_system_prompt_v2(ctx)
-                logger.info("Stage 4 retry: switching to v2 prompt with two-shot examples")
+            try:
                 tier1_raw = await self.ollama.generate(
                     model="qwen2.5-coder:7b",
-                    prompt=user_message,
-                    system=retry_system,
+                    prompt=user_message_text,
+                    system=system_prompt,
                     keep_alive=0
                 )
-                tier1_parsed = self._parse_tier1_response(tier1_raw)
-                if tier1_parsed is None:
-                    result.error = "Tier 1 failed to produce valid JSON after 2 attempts"
-                    result.final_output = (
-                        "I was unable to understand how to complete this task. "
-                        "Please try rephrasing your request."
+                t1_latency = time.monotonic() - t1_start
+            except Exception as t1_exc:
+                # Check if this is a timeout
+                t1_latency = time.monotonic() - t1_start
+                from models.ollama_client import OllamaTimeoutError
+                if isinstance(t1_exc, OllamaTimeoutError):
+                    err = self.error_handler.ollama_timeout("qwen2.5-coder:7b", 120, "stage_4_attempt_1")
+                else:
+                    err = self.error_handler.unknown_error(t1_exc, "stage_4_t1_generation")
+                result.final_output = err.tagged_output(err.user_message)
+                result.error = err.technical_detail
+                mark_failed(db_task_id, error=err.technical_detail[:300], db_path=DB_PATH)
+                return result
+
+            tier1_parsed = self._parse_tier1_response(tier1_raw)
+
+            # ── Attempt 2: V2 prompt on parse failure ───────────────────────────
+            if tier1_parsed is None:
+                parse_err = self.error_handler.json_parse_failure(tier1_raw, attempt=0)
+                logger.warning(f"Stage 4: {parse_err.technical_detail}")
+                self.session_logger.log_tier1_response("qwen2.5-coder:7b", tier1_raw[:300], t1_latency, None)
+
+                from core.prompt_builder import build_system_prompt_v2
+                retry_system = build_system_prompt_v2(ctx)
+                retry_user = user_message_text + "\n\n" + parse_err.context_for_retry
+
+                t1_retry_start = time.monotonic()
+                try:
+                    tier1_raw = await self.ollama.generate(
+                        model="qwen2.5-coder:7b",
+                        prompt=retry_user,
+                        system=retry_system,
+                        keep_alive=0
                     )
-                    result.pipeline_stage_reached = 4
-                    mark_failed(db_task_id, error=result.error or "Early exit at stage 4", db_path=DB_PATH)
+                    t1_latency = time.monotonic() - t1_retry_start
+                except Exception as retry_exc:
+                    t1_latency = time.monotonic() - t1_retry_start
+                    from models.ollama_client import OllamaTimeoutError
+                    if isinstance(retry_exc, OllamaTimeoutError):
+                        err = self.error_handler.ollama_timeout("qwen2.5-coder:7b", 120, "stage_4_attempt_2")
+                    else:
+                        err = self.error_handler.unknown_error(retry_exc, "stage_4_t1_retry")
+                    result.final_output = err.tagged_output(err.user_message)
+                    result.error = err.technical_detail
+                    mark_failed(db_task_id, error=err.technical_detail[:300], db_path=DB_PATH)
+                    return result
+
+                tier1_parsed = self._parse_tier1_response(tier1_raw)
+
+                if tier1_parsed is None:
+                    # Both attempts failed
+                    final_err = self.error_handler.json_parse_failure(tier1_raw, attempt=1)
+                    result.final_output = final_err.user_message
+                    result.error = final_err.technical_detail
+                    mark_failed(db_task_id, error=final_err.technical_detail[:300], db_path=DB_PATH)
                     return result
 
             tool_name = tier1_parsed.get("tool", "")
-            # Update tool name in task record now that we know it
-            from kairos.db import execute_write
-            execute_write(
-                "UPDATE tasks SET tool_name=? WHERE id=?",
-                (tool_name, db_task_id)
-            )
             tool_params = tier1_parsed.get("parameters", {})
             tier1_reasoning = tier1_parsed.get("reasoning", "")
 
@@ -214,71 +250,221 @@ class Orchestrator:
             )
             logger.debug(f"Stage 4 complete: tool={tool_name} | latency={t1_latency:.2f}s")
 
-            # ── Stage 5: Tool validation + safety gates ───────────────
+            # ── Stage 5: Tool validation + safety gates (with tool-not-found handling) ──
             result.pipeline_stage_reached = 5
+
+            # ── Tool registry lookup ──────────────────────────────────────────────
             tool_class = get_tool(tool_name)
             if tool_class is None:
-                result.error = f"Unknown tool: {tool_name}"
-                result.final_output = (
-                    f"I tried to use a tool called '{tool_name}' which doesn't exist. "
-                    f"Available tools: {', '.join(list_tools()[:5])}"
-                )
-                mark_failed(db_task_id, error=result.error or "Early exit at stage 5", db_path=DB_PATH)
-                return result
+                tool_err = self.error_handler.tool_not_found(tool_name, list_tools(), attempt=0)
+                logger.warning(f"Stage 5: {tool_err.technical_detail}")
 
+                # Re-prompt once with correction injected
+                correction_prompt = build_user_message(sanitised) + "\n\n" + tool_err.context_for_retry
+
+                try:
+                    tier1_raw_retry = await self.ollama.generate(
+                        model="qwen2.5-coder:7b",
+                        prompt=correction_prompt,
+                        system=system_prompt,
+                        keep_alive=0
+                    )
+                except Exception as retry_exc:
+                    final_tool_err = self.error_handler.unknown_error(retry_exc, "stage_5_tool_retry")
+                    result.final_output = final_tool_err.tagged_output(final_tool_err.user_message)
+                    result.error = final_tool_err.technical_detail
+                    mark_failed(db_task_id, error=final_tool_err.technical_detail[:300], db_path=DB_PATH)
+                    return result
+
+                tier1_parsed_retry = self._parse_tier1_response(tier1_raw_retry)
+                if tier1_parsed_retry is None:
+                    final_tool_err = self.error_handler.tool_not_found(tool_name, list_tools(), attempt=1)
+                    result.final_output = final_tool_err.user_message
+                    result.error = final_tool_err.technical_detail
+                    mark_failed(db_task_id, error=final_tool_err.technical_detail[:300], db_path=DB_PATH)
+                    return result
+
+                tool_name = tier1_parsed_retry.get("tool", "")
+                tool_params = tier1_parsed_retry.get("parameters", {})
+                tier1_reasoning = tier1_parsed_retry.get("reasoning", "")
+                tool_class = get_tool(tool_name)
+
+                if tool_class is None:
+                    final_tool_err = self.error_handler.tool_not_found(tool_name, list_tools(), attempt=1)
+                    result.final_output = final_tool_err.user_message
+                    result.error = final_tool_err.technical_detail
+                    mark_failed(db_task_id, error=final_tool_err.technical_detail[:300], db_path=DB_PATH)
+                    return result
+
+            # ── Permission gate check ─────────────────────────────────────────────
+            from tools.registry import PermissionGate
             gate = PermissionGate(self.mode)
             allowed, gate_reason = gate.check(tool_class)
             if not allowed:
                 result.final_output = f"Action blocked in {self.mode.upper()} mode: {gate_reason}"
                 result.success = False
-                mark_failed(db_task_id, error=result.error or "Early exit at stage 5", db_path=DB_PATH)
+                mark_failed(db_task_id, error=f"Permission gate: {gate_reason}", db_path=DB_PATH)
                 return result
 
+            # ── Pydantic schema validation ─────────────────────────────────────────
             try:
                 tool_input = tool_class.Input(**tool_params)
-            except Exception as e:
-                result.error = f"Tool parameter validation failed: {e}"
-                result.final_output = f"Invalid parameters for tool '{tool_name}': {e}"
-                mark_failed(db_task_id, error=result.error or "Early exit at stage 5", db_path=DB_PATH)
+            except Exception as validation_exc:
+                validation_err = self.error_handler.unknown_error(
+                    validation_exc, f"stage_5_validation_{tool_name}"
+                )
+                result.final_output = f"Invalid parameters for tool '{tool_name}': {str(validation_exc)[:200]}"
+                result.error = validation_err.technical_detail
+                mark_failed(db_task_id, error=validation_err.technical_detail[:300], db_path=DB_PATH)
                 return result
 
             self.session_logger.log_tool_call(tool_name, tool_params, self.mode)
             logger.debug(f"Stage 5 complete: tool={tool_name} validated")
 
-            # ── Stage 6: Tool execution ───────────────────────────────
+            # ── Stage 6: Tool execution (with up-to-3 retries on exit_code != 0) ──
             result.pipeline_stage_reached = 6
+
             tool_instance = tool_class()
-            t_exec_start = time.monotonic()
-            tool_result: ToolResult = tool_instance.execute(tool_input)
-            t_exec_dur = time.monotonic() - t_exec_start
+            tool_exec_retry_count = 0
+            tool_result = None
+
+            while tool_exec_retry_count <= 3:
+                t_exec_start = time.monotonic()
+                try:
+                    current_tool_result = tool_instance.execute(tool_input)
+                    t_exec_dur = time.monotonic() - t_exec_start
+                except Exception as exec_exc:
+                    t_exec_dur = time.monotonic() - t_exec_start
+                    exec_err = self.error_handler.unknown_error(exec_exc, f"stage_6_{tool_name}_execute")
+                    result.final_output = exec_err.tagged_output(exec_err.user_message)
+                    result.error = exec_err.technical_detail
+                    self.session_logger.log_tool_result(tool_name, False, 1, str(exec_exc)[:200], t_exec_dur)
+                    mark_failed(db_task_id, error=exec_err.technical_detail[:300], db_path=DB_PATH)
+                    return result
+
+                self.session_logger.log_tool_result(
+                    tool_name, current_tool_result.success,
+                    current_tool_result.exit_code,
+                    current_tool_result.output[:300],
+                    t_exec_dur
+                )
+
+                if current_tool_result.success or current_tool_result.exit_code == 0:
+                    # Success — exit the retry loop
+                    tool_result = current_tool_result
+                    logger.debug(
+                        f"Stage 6: tool={tool_name} succeeded | "
+                        f"exit={current_tool_result.exit_code} | attempt={tool_exec_retry_count + 1}"
+                    )
+                    break
+
+                # Tool failed — decide whether to retry
+                stderr = current_tool_result.error or current_tool_result.output or "Unknown error"
+                exec_failure = self.error_handler.tool_execution_failure(
+                    tool_name, current_tool_result.exit_code, stderr, retry_count=tool_exec_retry_count
+                )
+
+                logger.warning(
+                    f"Stage 6: tool failure | tool={tool_name} | "
+                    f"exit={current_tool_result.exit_code} | "
+                    f"retry={tool_exec_retry_count}/3 | stderr={stderr[:80]!r}"
+                )
+
+                if exec_failure.is_final:
+                    # Max retries exceeded
+                    tool_result = current_tool_result
+                    result.final_output = exec_failure.tagged_output(exec_failure.user_message)
+                    result.error = exec_failure.technical_detail
+                    result.tool_name = tool_name
+                    result.tool_result = current_tool_result
+                    mark_failed(db_task_id, error=exec_failure.technical_detail[:300], db_path=DB_PATH)
+                    return result
+
+                # Retry: ask T1 to fix the error
+                tool_exec_retry_count += 1
+                correction_sys = build_system_prompt(ctx)
+                correction_prompt = (
+                    build_user_message(sanitised) + "\n\n" +
+                    exec_failure.context_for_retry
+                )
+
+                logger.info(f"Stage 6: retrying with error context (attempt {tool_exec_retry_count}/3)")
+
+                try:
+                    tier1_retry_raw = await self.ollama.generate(
+                        model="qwen2.5-coder:7b",
+                        prompt=correction_prompt,
+                        system=correction_sys,
+                        keep_alive=0
+                    )
+                except Exception as retry_gen_exc:
+                    from models.ollama_client import OllamaTimeoutError
+                    if isinstance(retry_gen_exc, OllamaTimeoutError):
+                        timeout_err = self.error_handler.ollama_timeout("qwen2.5-coder:7b", 120, f"stage_6_retry_{tool_exec_retry_count}")
+                        result.final_output = timeout_err.tagged_output(timeout_err.user_message)
+                    else:
+                        unk_err = self.error_handler.unknown_error(retry_gen_exc, f"stage_6_retry_{tool_exec_retry_count}")
+                        result.final_output = unk_err.tagged_output(unk_err.user_message)
+                    mark_failed(db_task_id, error=str(retry_gen_exc)[:300], db_path=DB_PATH)
+                    return result
+
+                retry_parsed = self._parse_tier1_response(tier1_retry_raw)
+                if retry_parsed:
+                    tool_name_retry = retry_parsed.get("tool", tool_name)
+                    tool_params_retry = retry_parsed.get("parameters", tool_params)
+                    retry_tool_class = get_tool(tool_name_retry)
+                    if retry_tool_class:
+                        try:
+                            tool_input = retry_tool_class.Input(**tool_params_retry)
+                            tool_instance = retry_tool_class()
+                            tool_name = tool_name_retry
+                        except Exception:
+                            pass  # Keep existing tool_input if retry parse fails
+
+            if tool_result is None:
+                # Should never happen but defensive fallback
+                result.final_output = "Tool execution produced no result. Please try again."
+                mark_failed(db_task_id, error="tool_result is None after loop", db_path=DB_PATH)
+                return result
 
             result.tool_name = tool_name
             result.tool_result = tool_result
+            logger.debug(f"Stage 6 complete: tool={tool_name} | success={tool_result.success} | exit={tool_result.exit_code}")
 
-            self.session_logger.log_tool_result(
-                tool_name, tool_result.success, tool_result.exit_code,
-                tool_result.output[:300], t_exec_dur
-            )
-            logger.debug(
-                f"Stage 6 complete: tool={tool_name} | "
-                f"success={tool_result.success} | exit={tool_result.exit_code}"
-            )
-
-            # ── Stage 7: Tier 2 verification ──────────────────────────
+            # ── Stage 7: Tier 2 verification (with timeout handling) ──────────────
             result.pipeline_stage_reached = 7
-            verification = await self.verifier.verify(
-                task=sanitised,
-                tier1_reasoning=tier1_reasoning,
-                tool_name=tool_name,
-                tool_parameters=tool_params,
-                tool_result_output=tool_result.output[:600],
-                tool_exit_code=tool_result.exit_code
-            )
+
+            try:
+                verification = await self.verifier.verify(
+                    task=sanitised,
+                    tier1_reasoning=tier1_reasoning,
+                    tool_name=tool_name,
+                    tool_parameters=tool_params,
+                    tool_result_output=tool_result.output[:600],
+                    tool_exit_code=tool_result.exit_code
+                )
+            except Exception as t2_exc:
+                from models.ollama_client import OllamaTimeoutError
+                if isinstance(t2_exc, OllamaTimeoutError):
+                    t2_err = self.error_handler.ollama_timeout("mistral:7b-instruct-q4_K_M", 120, "stage_7")
+                else:
+                    t2_err = self.error_handler.unknown_error(t2_exc, "stage_7_tier2")
+                logger.warning(f"Stage 7: Tier 2 failed — {t2_err.technical_detail}. Proceeding with T1 output.")
+                # Fall through with a synthetic "agree" verification so pipeline continues
+                from core.verifier import VerificationResult
+                verification = VerificationResult(
+                    agree=True,
+                    confidence=0.5,
+                    critical_issues=[f"T2 unavailable: {t2_err.failure_mode.value}"],
+                    risk_score=0.3,
+                    reasoning="Tier 2 verification unavailable — proceeding with reduced confidence."
+                )
+
             self.session_logger.log_tier2_verification(
                 "mistral:7b-instruct-q4_K_M",
                 verification.agree, verification.confidence,
                 verification.critical_issues, verification.risk_score,
-                verification.latency_seconds
+                verification.latency_seconds if hasattr(verification, 'latency_seconds') else 0.0
             )
             logger.debug(f"Stage 7 complete: {verification.summary()}")
 
@@ -287,41 +473,61 @@ class Orchestrator:
             routing = self.router.route(verification, tool_name, self.mode)
             logger.info(f"Stage 8 complete: {routing.summary()}")
 
-            # ── Stage 9: Tier 3 arbitration (conditional) ─────────────
+            # ── Stage 9: Tier 3 arbitration (with API failure handling) ──────────
             result.pipeline_stage_reached = 9
-            final_decision_text = ""
+
+            tier3_decision_text = ""
 
             if routing.decision == RoutingDecision.BLOCK:
                 result.final_output = (
-                    f"[WARNING] This action requires your explicit confirmation.\n"
+                    f"⚠ This action requires your explicit confirmation.\n"
                     f"Tool: {tool_name}\n"
                     f"Reason: {routing.reason}\n"
                     f"Please confirm you want to proceed."
                 )
                 result.success = False
-                mark_failed(db_task_id, error=result.error or "Early exit at stage 8", db_path=DB_PATH)
+                mark_failed(db_task_id, error=f"Blocked: {routing.reason}", db_path=DB_PATH)
                 return result
 
             elif routing.decision == RoutingDecision.ESCALATE and routing.tier3_needed:
-                tier3_response = await self.claude.arbitrate(
-                    task=sanitised,
-                    tier1_output=str(tier1_parsed),
-                    tier2_issues=verification.critical_issues,
-                    tool_result=tool_result.output[:400],
-                    escalation_reason=routing.reason
-                )
-                result.tier3_was_called = True
-                self.session_logger.log_tier3_arbitration(
-                    tier3_response.content[:200],
-                    tier3_response.input_tokens,
-                    tier3_response.output_tokens,
-                    tier3_response.cost_usd
-                )
-                final_decision_text = tier3_response.content
-                logger.info(
-                    f"Stage 9 complete: Tier 3 arbitrated | "
-                    f"cost=${tier3_response.cost_usd:.4f}"
-                )
+                try:
+                    tier3_response = await self.claude.arbitrate(
+                        task=sanitised,
+                        tier1_output=str(tier1_parsed),
+                        tier2_issues=verification.critical_issues,
+                        tool_result=tool_result.output[:400],
+                        escalation_reason=routing.reason
+                    )
+                    result.tier3_was_called = True
+
+                    if not tier3_response.success:
+                        # Tier 3 API failed — use T1 output with UNVERIFIED tag
+                        t3_err = self.error_handler.tier3_api_failure(
+                            "APIError",
+                            tier3_response.error or "unknown error",
+                            tier1_parsed.get("explanation", "Action proceeding with T1 output.")
+                        )
+                        logger.warning(f"Stage 9: {t3_err.technical_detail}")
+                        tier3_decision_text = f"[{t3_err.tag}] {t3_err.user_message}"
+                    else:
+                        self.session_logger.log_tier3_arbitration(
+                            tier3_response.content[:200],
+                            tier3_response.input_tokens,
+                            tier3_response.output_tokens,
+                            tier3_response.cost_usd
+                        )
+                        tier3_decision_text = tier3_response.content
+                        logger.info(f"Stage 9 complete: Tier 3 arbitrated | cost=${tier3_response.cost_usd:.4f}")
+
+                except Exception as t3_exc:
+                    t3_err = self.error_handler.tier3_api_failure(
+                        type(t3_exc).__name__,
+                        str(t3_exc)[:200],
+                        tier1_parsed.get("explanation", "Action proceeding.")
+                    )
+                    logger.warning(f"Stage 9: Tier 3 exception — {t3_err.technical_detail}")
+                    tier3_decision_text = t3_err.tagged_output(t3_err.user_message)
+                    result.tier3_was_called = True
 
             # ── Stage 10: Memory update ───────────────────────────────
             result.pipeline_stage_reached = 10
@@ -379,8 +585,8 @@ class Orchestrator:
                     f"Error: {error_msg[:300]}"
                 )
 
-            if final_decision_text:
-                result.final_output += f"\n\n[Tier 3 review]: {final_decision_text[:200]}"
+            if tier3_decision_text:
+                result.final_output += f"\n\n[Tier 3 review]: {tier3_decision_text[:200]}"
 
             result.total_latency_seconds = time.monotonic() - start_time
             logger.info(
