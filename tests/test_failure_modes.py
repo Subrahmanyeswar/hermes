@@ -297,37 +297,54 @@ class TestRobustness:
         except Exception as e:
             pytest.fail(f"CRITICAL: All components failed and run() raised {type(e).__name__}: {e}")
 
+    @pytest.mark.asyncio
     async def test_run_100_consecutive_requests_no_crash(self, orch, mock_db):
-        """100 consecutive requests must all return OrchestratorResult."""
-        tasks = [
-            "list all files",
-            "read config.yaml",
-            "create a hello.py file",
-            "run python --version",
-            "search for flask tutorial",
-        ]
-        
-        orch.ollama.generate = AsyncMock(return_value=
-            '{"tool": "list_dir", "parameters": {"DirectoryPath": "."}, "reasoning": "done", "explanation": "ok"}'
+        """
+        100 consecutive requests must all return OrchestratorResult.
+        Uses read_file and list_directory which are safe for repeated calls.
+        Mock ensures tool results are predictable across all 100 calls.
+        """
+        from tools.base import ToolResult
+
+        # Override T1 to always return list_directory (no filesystem risk)
+        orch.ollama.generate = AsyncMock(
+            return_value=(
+                '{"tool": "list_directory", "parameters": {"path": "."}, '
+                '"reasoning": "listing the directory", "explanation": "Here are the files"}'
+            )
         )
-        orch.verifier.verify = AsyncMock(return_value=VerificationResult(
-            agree=True, confidence=0.9, critical_issues=[], risk_score=0.1, reasoning="looks good"
-        ))
-        
-        with patch("core.orchestrator.get_tool", return_value=DummyTool):
-            crashes = []
+
+        # Mock list_directory to always succeed without filesystem access
+        success_result = ToolResult(
+            success=True,
+            output="core/\ntools/\nmemory/\nhermes.md\nmain.py",
+            exit_code=0
+        )
+
+        crashes = []
+        wrong_types = []
+
+        with patch("tools.file_tools.ListDirectoryTool.execute", return_value=success_result):
             for i in range(100):
-                task = tasks[i % len(tasks)]
                 try:
-                    result = await orch.run(task)
+                    result = await orch.run(f"list all files request number {i}")
                     if not isinstance(result, OrchestratorResult):
-                        crashes.append(f"Request {i}: returned {type(result).__name__} instead of OrchestratorResult")
+                        wrong_types.append(
+                            f"Request {i}: returned {type(result).__name__} "
+                            f"instead of OrchestratorResult"
+                        )
                 except Exception as e:
-                    crashes.append(f"Request {i}: raised {type(e).__name__}: {str(e)[:80]}")
-            
-            if crashes:
-                for c in crashes[:5]:  # Show first 5 failures
-                    print(f"  ✗ {c}")
-                pytest.fail(f"{len(crashes)}/100 requests caused crashes or wrong return type")
-            
-            print(f"  ✓ 100 consecutive requests all returned OrchestratorResult safely")
+                    crashes.append(
+                        f"Request {i}: raised {type(e).__name__}: {str(e)[:80]}"
+                    )
+
+        total_issues = crashes + wrong_types
+        if total_issues:
+            for issue in total_issues[:5]:
+                print(f"  ✗ {issue}")
+            pytest.fail(
+                f"{len(total_issues)}/100 requests had issues "
+                f"({len(crashes)} crashes, {len(wrong_types)} wrong types)"
+            )
+
+        print(f"  ✓ 100 consecutive requests all returned OrchestratorResult safely")
