@@ -25,7 +25,8 @@ def init_db(db_path: Path = DB_PATH) -> None:
     Called once at startup.
     """
     db_path.parent.mkdir(parents=True, exist_ok=True)
-    with sqlite3.connect(str(db_path)) as conn:
+    conn = sqlite3.connect(str(db_path))
+    try:
         conn.execute("PRAGMA journal_mode=WAL")    # Write-Ahead Logging for concurrent access
         conn.execute("PRAGMA foreign_keys=ON")      # Enforce foreign key constraints
 
@@ -103,6 +104,8 @@ def init_db(db_path: Path = DB_PATH) -> None:
         conn.execute("CREATE INDEX IF NOT EXISTS idx_api_costs_timestamp ON api_costs(timestamp)")
 
         conn.commit()
+    finally:
+        conn.close()
 
     logger.info(f"Database initialised: {db_path}")
 
