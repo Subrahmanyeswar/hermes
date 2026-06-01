@@ -40,12 +40,18 @@ AUDIT_RESULTS: list[AuditResult] = []
 
 
 def audit(name: str):
-    """Decorator that wraps an audit check and records its result."""
+    """Decorator that wraps any function (sync or async) in an async audit check."""
     def decorator(fn):
         async def wrapper(*args, **kwargs):
             print(f"\n[AUDIT] {name}")
             try:
-                result = await fn(*args, **kwargs) if asyncio.iscoroutinefunction(fn) else fn(*args, **kwargs)
+                # Handle both sync and async underlying functions
+                import asyncio as _asyncio
+                if _asyncio.iscoroutinefunction(fn):
+                    result = await fn(*args, **kwargs)
+                else:
+                    result = fn(*args, **kwargs)
+
                 if isinstance(result, AuditResult):
                     AUDIT_RESULTS.append(result)
                     status = "[OK] PASS" if result.passed else "[FAIL] FAIL"
@@ -53,6 +59,7 @@ def audit(name: str):
                     if result.fix_applied:
                         print(f"  [FIX] Fix applied: {result.fix_description}")
                     return result
+                return result
             except Exception as e:
                 tb = traceback.format_exc()
                 result = AuditResult(
@@ -609,7 +616,7 @@ async def main():
     print("=" * 70)
     print("Running all audit checks...")
 
-    # Run all audit checks
+    # ── All checks must be awaited — the @audit decorator is always async ──
     await check_response_parser_completeness()
     await check_orchestrator_uses_parser()
     await check_v2_prompt_on_retry()
