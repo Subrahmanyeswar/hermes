@@ -65,12 +65,14 @@ def isolated_env(tmp_path, monkeypatch):
     Create a completely isolated environment for one integration test.
     Returns a dict with all paths and the configured orchestrator.
     """
+    from pathlib import Path
+
     # ── Directory structure ───────────────────────────────────────────
-    db_path         = tmp_path / "tasks.db"
-    memory_dir      = tmp_path / "memory"
-    sessions_dir    = tmp_path / "sessions"
-    generated_dir   = tmp_path / "generated_projects"
-    skills_dir      = Path("skills")   # Real skills — read only
+    db_path      = tmp_path / "tasks.db"
+    memory_dir   = tmp_path / "memory"
+    sessions_dir = tmp_path / "sessions"
+    generated_dir = tmp_path / "generated_projects"
+    skills_dir   = Path("skills")   # Real skills directory — read only
 
     memory_dir.mkdir(parents=True, exist_ok=True)
     sessions_dir.mkdir(parents=True, exist_ok=True)
@@ -101,22 +103,39 @@ def isolated_env(tmp_path, monkeypatch):
 
     monkeypatch.setattr("memory.store.get_memory_path", mock_get_memory_path)
 
+    # ── Patch KairosDaemon so it never actually starts ────────────────
+    # CRITICAL: must use monkeypatch, NOT a context manager with block,
+    # because the context manager exits before the test runs.
+    from unittest.mock import MagicMock, AsyncMock
+
+    mock_kairos = MagicMock()
+    mock_kairos.start = AsyncMock()
+    mock_kairos.stop  = AsyncMock()
+    mock_kairos.is_running = False
+    mock_kairos.get_stats = MagicMock(return_value={
+        "is_running": False, "loop_count": 0,
+        "stuck_tasks_detected": 0, "tasks_retried": 0,
+        "consolidations_run": 0, "total_api_cost": 0.0,
+        "pending_tasks": 0,
+    })
+
+    monkeypatch.setattr("core.orchestrator.KairosDaemon", MagicMock(return_value=mock_kairos))
+
     # ── Build the orchestrator ────────────────────────────────────────
     from core.orchestrator import Orchestrator
-    from unittest.mock import patch as _patch
+    orch = Orchestrator(mode="auto", project="integration_test")
 
-    with _patch("core.orchestrator.KairosDaemon"):
-        orch = Orchestrator(mode="auto", project="integration_test")
-
-    return {
-        "tmp_path": tmp_path,
-        "db_path": db_path,
-        "memory_md": memory_md,
+    yield {
+        "tmp_path":     tmp_path,
+        "db_path":      db_path,
+        "memory_md":    memory_md,
         "sessions_dir": sessions_dir,
-        "generated_dir": generated_dir,
-        "skills_dir": skills_dir,
+        "generated_dir":generated_dir,
+        "skills_dir":   skills_dir,
         "orchestrator": orch,
     }
+    # monkeypatch automatically undoes all patches after the test
+
 
 
 # ── Result validation helpers ─────────────────────────────────────────
