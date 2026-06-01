@@ -1,0 +1,89 @@
+{
+  "generated_at": "2026-06-02T01:08:20.167063",
+  "total_checks": 11,
+  "passed": 11,
+  "failed": 0,
+  "pass_rate": 1.0,
+  "system_stable": true,
+  "all_checks": [
+    {
+      "name": "FM1-A: ResponseParser handles all 6 known formats",
+      "passed": true,
+      "failure_mode": null,
+      "detail": "All 6 formats handled correctly",
+      "fix_applied": false
+    },
+    {
+      "name": "FM1-B: Orchestrator _parse_tier1_response uses ResponseParser",
+      "passed": true,
+      "failure_mode": null,
+      "detail": "ResponseParser is used in _parse_tier1_response",
+      "fix_applied": false
+    },
+    {
+      "name": "FM1-C: V2 prompt used on parse failure retry",
+      "passed": true,
+      "failure_mode": null,
+      "detail": "build_system_prompt_v2 is used for the retry attempt",
+      "fix_applied": false
+    },
+    {
+      "name": "FM2-A: ErrorHandler instantiated in Orchestrator",
+      "passed": true,
+      "failure_mode": null,
+      "detail": "self.error_handler = ErrorHandler() found in __init__",
+      "fix_applied": false
+    },
+    {
+      "name": "FM2-B: Ollama timeout produces [TIMEOUT] tag not exception",
+      "passed": true,
+      "failure_mode": null,
+      "detail": "Timeout handled cleanly | has_tag=True | result_type=OrchestratorResult",
+      "fix_applied": false
+    },
+    {
+      "name": "FM2-C: Memory parse error is transparent to user",
+      "passed": true,
+      "failure_mode": null,
+      "detail": "stage=12 transparent=True output_preview='Listing files\\n\\n[DIR]  benchmarks\\n[DIR]  config\\n[DIR]  core\\n['",
+      "fix_applied": false
+    },
+    {
+      "name": "FM3-A: OrchestratorResult always has trace_id field",
+      "passed": true,
+      "failure_mode": null,
+      "detail": "trace_id field present | all fields: ['error', 'final_output', 'pipeline_stage_reached', 'skill_ids_used', 'success', 'task', 'tier3_was_called', 'tool_name', 'tool_result', 'total_latency_seconds', 'trace_id']",
+      "fix_applied": false
+    },
+    {
+      "name": "FM3-B: KAIROS task queue never leaks state between runs",
+      "passed": true,
+      "failure_mode": null,
+      "detail": "Sessions properly isolated | KAIROS counter=3",
+      "fix_applied": false
+    },
+    {
+      "name": "FM3-C: All 12 skills load without error",
+      "passed": true,
+      "failure_mode": null,
+      "detail": "All 12 skills loaded with triggers",
+      "fix_applied": false
+    },
+    {
+      "name": "FM3-D: Security gates block all 15 known attack patterns",
+      "passed": true,
+      "failure_mode": null,
+      "detail": "All 14 attack patterns blocked | 4 safe commands pass",
+      "fix_applied": false
+    },
+    {
+      "name": "FM3-E: Disagreement router uses calibrated threshold",
+      "passed": true,
+      "failure_mode": null,
+      "detail": "Calibrated threshold=0.7 | calibration_file_exists=True",
+      "fix_applied": false
+    }
+  ],
+  "top_3_failures": [],
+  "fix_instructions": []
+}
