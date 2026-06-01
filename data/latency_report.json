@@ -1,0 +1,656 @@
+{
+  "generated_at": "2026-06-02T00:57:47.000424",
+  "total_measurements": 56,
+  "overall_by_stage": {
+    "t1_generation": {
+      "count": 15,
+      "mean": 9.975,
+      "median": 9.313,
+      "min": 8.203,
+      "max": 14.422,
+      "p95": 14.422
+    },
+    "t2_verification": {
+      "count": 5,
+      "mean": 7.094,
+      "median": 6.532,
+      "min": 6.11,
+      "max": 9.578,
+      "p95": 9.578
+    },
+    "tool_execution": {
+      "count": 5,
+      "mean": 0.022,
+      "median": 0.016,
+      "min": 0.015,
+      "max": 0.047,
+      "p95": 0.047
+    },
+    "memory_injection": {
+      "count": 0,
+      "mean": null,
+      "median": null,
+      "min": null,
+      "max": null,
+      "p95": null
+    },
+    "response_parsing": {
+      "count": 5,
+      "mean": 0.015,
+      "median": 0.0,
+      "min": 0.0,
+      "max": 0.074,
+      "p95": 0.074
+    },
+    "full_pipeline": {
+      "count": 6,
+      "mean": 31.43,
+      "median": 31.507,
+      "min": 28.657,
+      "max": 34.234,
+      "p95": 34.234
+    }
+  },
+  "by_difficulty_by_stage": {
+    "L1_trivial": {
+      "t1_generation": {
+        "count": 5,
+        "mean": 8.794,
+        "median": 8.391,
+        "min": 8.203,
+        "max": 9.687,
+        "p95": 9.687
+      },
+      "t2_verification": {
+        "count": 0,
+        "mean": null,
+        "median": null,
+        "min": null,
+        "max": null,
+        "p95": null
+      },
+      "tool_execution": {
+        "count": 5,
+        "mean": 0.022,
+        "median": 0.016,
+        "min": 0.015,
+        "max": 0.047,
+        "p95": 0.047
+      },
+      "memory_injection": {
+        "count": 0,
+        "mean": null,
+        "median": null,
+        "min": null,
+        "max": null,
+        "p95": null
+      },
+      "response_parsing": {
+        "count": 5,
+        "mean": 0.015,
+        "median": 0.0,
+        "min": 0.0,
+        "max": 0.074,
+        "p95": 0.074
+      },
+      "full_pipeline": {
+        "count": 2,
+        "mean": 30.61,
+        "median": 30.61,
+        "min": 28.657,
+        "max": 32.562,
+        "p95": 32.562
+      }
+    },
+    "L2_simple": {
+      "t1_generation": {
+        "count": 5,
+        "mean": 8.959,
+        "median": 8.938,
+        "min": 8.5,
+        "max": 9.687,
+        "p95": 9.687
+      },
+      "t2_verification": {
+        "count": 0,
+        "mean": null,
+        "median": null,
+        "min": null,
+        "max": null,
+        "p95": null
+      },
+      "tool_execution": {
+        "count": 0,
+        "mean": null,
+        "median": null,
+        "min": null,
+        "max": null,
+        "p95": null
+      },
+      "memory_injection": {
+        "count": 0,
+        "mean": null,
+        "median": null,
+        "min": null,
+        "max": null,
+        "p95": null
+      },
+      "response_parsing": {
+        "count": 0,
+        "mean": null,
+        "median": null,
+        "min": null,
+        "max": null,
+        "p95": null
+      },
+      "full_pipeline": {
+        "count": 2,
+        "mean": 30.289,
+        "median": 30.289,
+        "min": 30.11,
+        "max": 30.468,
+        "p95": 30.468
+      }
+    },
+    "L3_medium": {
+      "t1_generation": {
+        "count": 5,
+        "mean": 12.172,
+        "median": 11.531,
+        "min": 11.125,
+        "max": 14.422,
+        "p95": 14.422
+      },
+      "t2_verification": {
+        "count": 5,
+        "mean": 7.094,
+        "median": 6.532,
+        "min": 6.11,
+        "max": 9.578,
+        "p95": 9.578
+      },
+      "tool_execution": {
+        "count": 0,
+        "mean": null,
+        "median": null,
+        "min": null,
+        "max": null,
+        "p95": null
+      },
+      "memory_injection": {
+        "count": 0,
+        "mean": null,
+        "median": null,
+        "min": null,
+        "max": null,
+        "p95": null
+      },
+      "response_parsing": {
+        "count": 0,
+        "mean": null,
+        "median": null,
+        "min": null,
+        "max": null,
+        "p95": null
+      },
+      "full_pipeline": {
+        "count": 2,
+        "mean": 33.39,
+        "median": 33.39,
+        "min": 32.547,
+        "max": 34.234,
+        "p95": 34.234
+      }
+    }
+  },
+  "raw_measurements": [
+    {
+      "task_id": "STAGE_01",
+      "difficulty": "L1_trivial",
+      "stage": "memory_injection",
+      "latency_seconds": 0.0,
+      "success": false,
+      "notes": "context_chars=0"
+    },
+    {
+      "task_id": "STAGE_01",
+      "difficulty": "L1_trivial",
+      "stage": "response_parsing",
+      "latency_seconds": 0.07424999999784632,
+      "success": true,
+      "notes": "avg_of_4_responses"
+    },
+    {
+      "task_id": "STAGE_01_list_directory",
+      "difficulty": "L1_trivial",
+      "stage": "tool_execution",
+      "latency_seconds": 0.0,
+      "success": false,
+      "notes": "list_directory exit_code=2"
+    },
+    {
+      "task_id": "STAGE_01_write_file",
+      "difficulty": "L1_trivial",
+      "stage": "tool_execution",
+      "latency_seconds": 0.0,
+      "success": false,
+      "notes": "write_file exit_code=1"
+    },
+    {
+      "task_id": "STAGE_01_read_file",
+      "difficulty": "L1_trivial",
+      "stage": "tool_execution",
+      "latency_seconds": 0.0,
+      "success": false,
+      "notes": "read_file exit_code=2"
+    },
+    {
+      "task_id": "STAGE_01_bash_exec",
+      "difficulty": "L1_trivial",
+      "stage": "tool_execution",
+      "latency_seconds": 0.046999999991385266,
+      "success": true,
+      "notes": "bash_exec exit_code=0"
+    },
+    {
+      "task_id": "STAGE_02",
+      "difficulty": "L1_trivial",
+      "stage": "memory_injection",
+      "latency_seconds": 0.0,
+      "success": false,
+      "notes": "context_chars=0"
+    },
+    {
+      "task_id": "STAGE_02",
+      "difficulty": "L1_trivial",
+      "stage": "response_parsing",
+      "latency_seconds": 0.0,
+      "success": true,
+      "notes": "avg_of_4_responses"
+    },
+    {
+      "task_id": "STAGE_02_list_directory",
+      "difficulty": "L1_trivial",
+      "stage": "tool_execution",
+      "latency_seconds": 0.0,
+      "success": false,
+      "notes": "list_directory exit_code=2"
+    },
+    {
+      "task_id": "STAGE_02_write_file",
+      "difficulty": "L1_trivial",
+      "stage": "tool_execution",
+      "latency_seconds": 0.0,
+      "success": false,
+      "notes": "write_file exit_code=1"
+    },
+    {
+      "task_id": "STAGE_02_read_file",
+      "difficulty": "L1_trivial",
+      "stage": "tool_execution",
+      "latency_seconds": 0.0,
+      "success": false,
+      "notes": "read_file exit_code=2"
+    },
+    {
+      "task_id": "STAGE_02_bash_exec",
+      "difficulty": "L1_trivial",
+      "stage": "tool_execution",
+      "latency_seconds": 0.01600000000325963,
+      "success": true,
+      "notes": "bash_exec exit_code=0"
+    },
+    {
+      "task_id": "STAGE_03",
+      "difficulty": "L1_trivial",
+      "stage": "memory_injection",
+      "latency_seconds": 0.015000000013969839,
+      "success": false,
+      "notes": "context_chars=0"
+    },
+    {
+      "task_id": "STAGE_03",
+      "difficulty": "L1_trivial",
+      "stage": "response_parsing",
+      "latency_seconds": 0.0,
+      "success": true,
+      "notes": "avg_of_4_responses"
+    },
+    {
+      "task_id": "STAGE_03_list_directory",
+      "difficulty": "L1_trivial",
+      "stage": "tool_execution",
+      "latency_seconds": 0.0,
+      "success": false,
+      "notes": "list_directory exit_code=2"
+    },
+    {
+      "task_id": "STAGE_03_write_file",
+      "difficulty": "L1_trivial",
+      "stage": "tool_execution",
+      "latency_seconds": 0.0,
+      "success": false,
+      "notes": "write_file exit_code=1"
+    },
+    {
+      "task_id": "STAGE_03_read_file",
+      "difficulty": "L1_trivial",
+      "stage": "tool_execution",
+      "latency_seconds": 0.0,
+      "success": false,
+      "notes": "read_file exit_code=2"
+    },
+    {
+      "task_id": "STAGE_03_bash_exec",
+      "difficulty": "L1_trivial",
+      "stage": "tool_execution",
+      "latency_seconds": 0.0159999999741558,
+      "success": true,
+      "notes": "bash_exec exit_code=0"
+    },
+    {
+      "task_id": "STAGE_04",
+      "difficulty": "L1_trivial",
+      "stage": "memory_injection",
+      "latency_seconds": 0.0,
+      "success": false,
+      "notes": "context_chars=0"
+    },
+    {
+      "task_id": "STAGE_04",
+      "difficulty": "L1_trivial",
+      "stage": "response_parsing",
+      "latency_seconds": 0.0,
+      "success": true,
+      "notes": "avg_of_4_responses"
+    },
+    {
+      "task_id": "STAGE_04_list_directory",
+      "difficulty": "L1_trivial",
+      "stage": "tool_execution",
+      "latency_seconds": 0.0,
+      "success": false,
+      "notes": "list_directory exit_code=2"
+    },
+    {
+      "task_id": "STAGE_04_write_file",
+      "difficulty": "L1_trivial",
+      "stage": "tool_execution",
+      "latency_seconds": 0.0,
+      "success": false,
+      "notes": "write_file exit_code=1"
+    },
+    {
+      "task_id": "STAGE_04_read_file",
+      "difficulty": "L1_trivial",
+      "stage": "tool_execution",
+      "latency_seconds": 0.0,
+      "success": false,
+      "notes": "read_file exit_code=2"
+    },
+    {
+      "task_id": "STAGE_04_bash_exec",
+      "difficulty": "L1_trivial",
+      "stage": "tool_execution",
+      "latency_seconds": 0.015000000013969839,
+      "success": true,
+      "notes": "bash_exec exit_code=0"
+    },
+    {
+      "task_id": "STAGE_05",
+      "difficulty": "L1_trivial",
+      "stage": "memory_injection",
+      "latency_seconds": 0.0,
+      "success": false,
+      "notes": "context_chars=0"
+    },
+    {
+      "task_id": "STAGE_05",
+      "difficulty": "L1_trivial",
+      "stage": "response_parsing",
+      "latency_seconds": 0.0,
+      "success": true,
+      "notes": "avg_of_4_responses"
+    },
+    {
+      "task_id": "STAGE_05_list_directory",
+      "difficulty": "L1_trivial",
+      "stage": "tool_execution",
+      "latency_seconds": 0.0,
+      "success": false,
+      "notes": "list_directory exit_code=2"
+    },
+    {
+      "task_id": "STAGE_05_write_file",
+      "difficulty": "L1_trivial",
+      "stage": "tool_execution",
+      "latency_seconds": 0.0,
+      "success": false,
+      "notes": "write_file exit_code=1"
+    },
+    {
+      "task_id": "STAGE_05_read_file",
+      "difficulty": "L1_trivial",
+      "stage": "tool_execution",
+      "latency_seconds": 0.0,
+      "success": false,
+      "notes": "read_file exit_code=2"
+    },
+    {
+      "task_id": "STAGE_05_bash_exec",
+      "difficulty": "L1_trivial",
+      "stage": "tool_execution",
+      "latency_seconds": 0.01600000000325963,
+      "success": true,
+      "notes": "bash_exec exit_code=0"
+    },
+    {
+      "task_id": "T1_L1_trivial_01",
+      "difficulty": "L1_trivial",
+      "stage": "t1_generation",
+      "latency_seconds": 9.687000000005355,
+      "success": true,
+      "notes": "response_chars=271"
+    },
+    {
+      "task_id": "T1_L1_trivial_02",
+      "difficulty": "L1_trivial",
+      "stage": "t1_generation",
+      "latency_seconds": 9.312999999994645,
+      "success": true,
+      "notes": "response_chars=291"
+    },
+    {
+      "task_id": "T1_L1_trivial_03",
+      "difficulty": "L1_trivial",
+      "stage": "t1_generation",
+      "latency_seconds": 8.39100000000326,
+      "success": true,
+      "notes": "response_chars=250"
+    },
+    {
+      "task_id": "T1_L1_trivial_04",
+      "difficulty": "L1_trivial",
+      "stage": "t1_generation",
+      "latency_seconds": 8.375,
+      "success": true,
+      "notes": "response_chars=250"
+    },
+    {
+      "task_id": "T1_L1_trivial_05",
+      "difficulty": "L1_trivial",
+      "stage": "t1_generation",
+      "latency_seconds": 8.202999999979511,
+      "success": true,
+      "notes": "response_chars=275"
+    },
+    {
+      "task_id": "T1_L2_simple_01",
+      "difficulty": "L2_simple",
+      "stage": "t1_generation",
+      "latency_seconds": 9.687000000005355,
+      "success": true,
+      "notes": "response_chars=423"
+    },
+    {
+      "task_id": "T1_L2_simple_02",
+      "difficulty": "L2_simple",
+      "stage": "t1_generation",
+      "latency_seconds": 8.937999999994645,
+      "success": true,
+      "notes": "response_chars=347"
+    },
+    {
+      "task_id": "T1_L2_simple_03",
+      "difficulty": "L2_simple",
+      "stage": "t1_generation",
+      "latency_seconds": 8.5,
+      "success": true,
+      "notes": "response_chars=277"
+    },
+    {
+      "task_id": "T1_L2_simple_04",
+      "difficulty": "L2_simple",
+      "stage": "t1_generation",
+      "latency_seconds": 8.51500000001397,
+      "success": true,
+      "notes": "response_chars=263"
+    },
+    {
+      "task_id": "T1_L2_simple_05",
+      "difficulty": "L2_simple",
+      "stage": "t1_generation",
+      "latency_seconds": 9.155999999988126,
+      "success": true,
+      "notes": "response_chars=352"
+    },
+    {
+      "task_id": "T1_L3_medium_01",
+      "difficulty": "L3_medium",
+      "stage": "t1_generation",
+      "latency_seconds": 11.328999999997905,
+      "success": true,
+      "notes": "response_chars=541"
+    },
+    {
+      "task_id": "T1_L3_medium_02",
+      "difficulty": "L3_medium",
+      "stage": "t1_generation",
+      "latency_seconds": 11.125,
+      "success": true,
+      "notes": "response_chars=500"
+    },
+    {
+      "task_id": "T1_L3_medium_03",
+      "difficulty": "L3_medium",
+      "stage": "t1_generation",
+      "latency_seconds": 12.452999999979511,
+      "success": true,
+      "notes": "response_chars=741"
+    },
+    {
+      "task_id": "T1_L3_medium_04",
+      "difficulty": "L3_medium",
+      "stage": "t1_generation",
+      "latency_seconds": 14.422000000020489,
+      "success": true,
+      "notes": "response_chars=798"
+    },
+    {
+      "task_id": "T1_L3_medium_05",
+      "difficulty": "L3_medium",
+      "stage": "t1_generation",
+      "latency_seconds": 11.530999999988126,
+      "success": true,
+      "notes": "response_chars=574"
+    },
+    {
+      "task_id": "T2_01",
+      "difficulty": "L3_medium",
+      "stage": "t2_verification",
+      "latency_seconds": 9.577999999979511,
+      "success": true,
+      "notes": "agree=True conf=0.95"
+    },
+    {
+      "task_id": "T2_02",
+      "difficulty": "L3_medium",
+      "stage": "t2_verification",
+      "latency_seconds": 6.532000000006519,
+      "success": true,
+      "notes": "agree=True conf=0.90"
+    },
+    {
+      "task_id": "T2_03",
+      "difficulty": "L3_medium",
+      "stage": "t2_verification",
+      "latency_seconds": 7.014999999984866,
+      "success": true,
+      "notes": "agree=True conf=0.95"
+    },
+    {
+      "task_id": "T2_04",
+      "difficulty": "L3_medium",
+      "stage": "t2_verification",
+      "latency_seconds": 6.235000000015134,
+      "success": true,
+      "notes": "agree=True conf=0.95"
+    },
+    {
+      "task_id": "T2_05",
+      "difficulty": "L3_medium",
+      "stage": "t2_verification",
+      "latency_seconds": 6.110000000015134,
+      "success": true,
+      "notes": "agree=True conf=0.95"
+    },
+    {
+      "task_id": "PIPELINE_L1_trivial_01",
+      "difficulty": "L1_trivial",
+      "stage": "full_pipeline",
+      "latency_seconds": 32.562000000005355,
+      "success": true,
+      "notes": "stage=12 tool=list_directory success=True tier3=False"
+    },
+    {
+      "task_id": "PIPELINE_L1_trivial_02",
+      "difficulty": "L1_trivial",
+      "stage": "full_pipeline",
+      "latency_seconds": 28.65700000000652,
+      "success": true,
+      "notes": "stage=12 tool=list_directory success=True tier3=False"
+    },
+    {
+      "task_id": "PIPELINE_L2_simple_01",
+      "difficulty": "L2_simple",
+      "stage": "full_pipeline",
+      "latency_seconds": 30.46799999999348,
+      "success": true,
+      "notes": "stage=12 tool=write_file success=True tier3=True"
+    },
+    {
+      "task_id": "PIPELINE_L2_simple_02",
+      "difficulty": "L2_simple",
+      "stage": "full_pipeline",
+      "latency_seconds": 30.10999999998603,
+      "success": true,
+      "notes": "stage=12 tool=write_file success=True tier3=False"
+    },
+    {
+      "task_id": "PIPELINE_L3_medium_01",
+      "difficulty": "L3_medium",
+      "stage": "full_pipeline",
+      "latency_seconds": 34.23399999999674,
+      "success": true,
+      "notes": "stage=12 tool=write_file success=True tier3=False"
+    },
+    {
+      "task_id": "PIPELINE_L3_medium_02",
+      "difficulty": "L3_medium",
+      "stage": "full_pipeline",
+      "latency_seconds": 32.546999999991385,
+      "success": true,
+      "notes": "stage=12 tool=write_file success=True tier3=False"
+    }
+  ]
+}
