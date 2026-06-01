@@ -24,6 +24,7 @@ from pathlib import Path
 from typing import Optional, TYPE_CHECKING
 
 from loguru import logger
+from utils.logging import log_kairos_event
 
 from kairos.db import init_db, get_total_api_cost, DB_PATH
 from kairos.task_queue import (
@@ -149,6 +150,11 @@ class KairosDaemon:
                 reason=f"KAIROS: task exceeded {STUCK_THRESHOLD_MINUTES}-minute limit",
                 db_path=self.db_path,
             )
+            log_kairos_event(
+                "stuck_detected",
+                f"task_id={task.id} title={task.title[:40]!r}",
+                {"task_id": task.id}
+            )
             self.stuck_tasks_detected += 1
 
     async def _handle_failed_tasks(self) -> None:
@@ -158,6 +164,11 @@ class KairosDaemon:
             success = requeue_for_retry(task.id, db_path=self.db_path)
             if success:
                 self.tasks_retried += 1
+                log_kairos_event(
+                    "task_requeued",
+                    f"task_id={task.id} retry={task.retry_count + 1}/{task.max_retries}",
+                    {"task_id": task.id, "retry_count": task.retry_count}
+                )
                 logger.info(
                     f"KAIROS: requeued task {task.id} for retry "
                     f"#{task.retry_count + 1}/{task.max_retries} | "
@@ -168,11 +179,21 @@ class KairosDaemon:
         """Check total API costs and log warnings/errors if approaching or exceeding cap."""
         total_cost = get_total_api_cost(db_path=self.db_path)
         if total_cost >= API_COST_CAP_USD:
+            log_kairos_event(
+                "cost_alert",
+                f"total_cost=${total_cost:.4f} cap=${API_COST_CAP_USD}",
+                {"total_cost_usd": total_cost, "cap_usd": API_COST_CAP_USD}
+            )
             logger.error(
                 f"KAIROS: API cost cap REACHED (${total_cost:.4f} / ${API_COST_CAP_USD}). "
                 f"Tier 3 calls will be blocked."
             )
         elif total_cost >= API_COST_ALERT_USD:
+            log_kairos_event(
+                "cost_alert",
+                f"total_cost=${total_cost:.4f} cap=${API_COST_CAP_USD}",
+                {"total_cost_usd": total_cost, "cap_usd": API_COST_CAP_USD}
+            )
             logger.warning(
                 f"KAIROS: API cost alert (${total_cost:.4f} / ${API_COST_ALERT_USD}). "
                 f"Approaching cap — review Tier 3 escalation frequency."
@@ -231,6 +252,11 @@ class KairosDaemon:
             # Record in database
             reset_kairos_counter(db_path=self.db_path)
             self.consolidations_run += 1
+            log_kairos_event(
+                "consolidation_complete",
+                f"total_consolidations={self.consolidations_run}",
+                stats
+            )
 
             logger.info(
                 f"KAIROS: consolidation complete | "

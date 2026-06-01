@@ -25,6 +25,13 @@ from typing import Optional, Any
 from loguru import logger
 
 from core.error_handler import ErrorHandler, FailureMode, RecoveryAction
+from utils.logging import (
+    generate_trace_id, setup_logging,
+    log_pipeline_start, log_pipeline_complete,
+    log_tier1_call, log_tier2_call, log_tier3_call,
+    log_tool_call, log_tool_result, log_memory_event,
+    log_security_gate, get_trace_logger
+)
 
 from models.ollama_client import OllamaClient
 from models.claude_client import ClaudeClient
@@ -61,6 +68,7 @@ class OrchestratorResult:
     total_latency_seconds: float = 0.0
     error: Optional[str] = None
     pipeline_stage_reached: int = 0      # Which stage completed last
+    trace_id: str = ""                   # Unique trace ID for this pipeline run
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -114,14 +122,24 @@ class Orchestrator:
         Never raises — always returns OrchestratorResult.
         """
         start_time = time.monotonic()
-        result = OrchestratorResult(success=False, final_output="")
+        # Generate unique trace ID for this pipeline run
+        trace_id = generate_trace_id()
+        tlog = get_trace_logger(trace_id)
+        result = OrchestratorResult(success=False, final_output="", trace_id=trace_id)
 
         try:
             # ── Stage 1: Sanitise input ───────────────────────────────
             result.pipeline_stage_reached = 1
             sanitised = self._sanitise_input(user_request)
             self.session_logger.log_user_input(sanitised)
-            logger.debug(f"Stage 1 complete: input sanitised ({len(sanitised)} chars)")
+            log_pipeline_start(
+                trace_id=trace_id,
+                user_request=sanitised,
+                mode=self.mode,
+                project=self.project,
+                session_id=self.session_logger.session_id
+            )
+            tlog.debug(f"Stage 1 complete | sanitised_length={len(sanitised)}")
 
             # ── Stage 2: Task planner ─────────────────────────────────
             result.pipeline_stage_reached = 2
@@ -248,7 +266,18 @@ class Orchestrator:
             self.session_logger.log_tier1_response(
                 "qwen2.5-coder:7b", tier1_raw[:500], t1_latency, tool_name
             )
-            logger.debug(f"Stage 4 complete: tool={tool_name} | latency={t1_latency:.2f}s")
+            log_tier1_call(
+                trace_id=trace_id,
+                model="qwen2.5-coder:7b",
+                prompt_tokens_estimate=len(system_prompt) // 4,
+                latency=t1_latency,
+                parsed_tool=tool_name,
+                parse_method=getattr(
+                    getattr(tier1_parsed, '_parse_method', None),
+                    '__name__', 'direct'
+                ) if hasattr(tier1_parsed, '_parse_method') else "parsed"
+            )
+            tlog.debug(f"Stage 4 complete | tool={tool_name} | latency={t1_latency:.2f}s")
 
             # ── Stage 5: Tool validation + safety gates (with tool-not-found handling) ──
             result.pipeline_stage_reached = 5
@@ -319,7 +348,14 @@ class Orchestrator:
                 return result
 
             self.session_logger.log_tool_call(tool_name, tool_params, self.mode)
-            logger.debug(f"Stage 5 complete: tool={tool_name} validated")
+            log_tool_call(
+                trace_id=trace_id,
+                tool_name=tool_name,
+                mode=self.mode,
+                risk_score=getattr(tool_class, 'risk_score', 0.0),
+                parameters_preview=json.dumps(tool_params)[:200]
+            )
+            tlog.debug(f"Stage 5 complete | tool={tool_name} validated")
 
             # ── Stage 6: Tool execution (with up-to-3 retries on exit_code != 0) ──
             result.pipeline_stage_reached = 6
@@ -347,6 +383,15 @@ class Orchestrator:
                     current_tool_result.exit_code,
                     current_tool_result.output[:300],
                     t_exec_dur
+                )
+                log_tool_result(
+                    trace_id=trace_id,
+                    tool_name=tool_name,
+                    success=current_tool_result.success,
+                    exit_code=current_tool_result.exit_code,
+                    duration=t_exec_dur,
+                    output_preview=current_tool_result.output[:200] if current_tool_result.output else "",
+                    retry_count=tool_exec_retry_count
                 )
 
                 if current_tool_result.success or current_tool_result.exit_code == 0:
@@ -466,7 +511,16 @@ class Orchestrator:
                 verification.critical_issues, verification.risk_score,
                 verification.latency_seconds if hasattr(verification, 'latency_seconds') else 0.0
             )
-            logger.debug(f"Stage 7 complete: {verification.summary()}")
+            log_tier2_call(
+                trace_id=trace_id,
+                model="mistral:7b-instruct-q4_K_M",
+                latency=verification.latency_seconds if hasattr(verification, 'latency_seconds') else 0.0,
+                agree=verification.agree,
+                confidence=verification.confidence,
+                risk_score=verification.risk_score,
+                escalated=verification.should_escalate
+            )
+            tlog.debug(f"Stage 7 complete | {verification.summary()}")
 
             # ── Stage 8: Disagreement router ──────────────────────────
             result.pipeline_stage_reached = 8
@@ -517,6 +571,15 @@ class Orchestrator:
                             tier3_response.cost_usd
                         )
                         tier3_decision_text = tier3_response.content
+                        log_tier3_call(
+                            trace_id=trace_id,
+                            latency=tier3_response.latency_seconds,
+                            input_tokens=tier3_response.input_tokens,
+                            output_tokens=tier3_response.output_tokens,
+                            cost_usd=tier3_response.cost_usd,
+                            success=True,
+                            escalation_reason=routing.reason
+                        )
                         logger.info(f"Stage 9 complete: Tier 3 arbitrated | cost=${tier3_response.cost_usd:.4f}")
 
                 except Exception as t3_exc:
@@ -556,10 +619,17 @@ class Orchestrator:
                     exit_code=tool_result.exit_code,
                     project=self.project
                 )
+                log_memory_event(
+                    trace_id=trace_id,
+                    event_type="write",
+                    facts_count=written,
+                    project=self.project,
+                    detail=f"tool={tool_name} exit_code={tool_result.exit_code}"
+                )
 
                 if written > 0:
                     self.session_logger.log_memory_update(written, self.project)
-                logger.debug(f"Stage 10 complete: {written} facts written to memory")
+                tlog.debug(f"Stage 10 complete | {written} facts written to memory")
 
             # ── Stage 11: Task queue update ───────────────────────────
             result.pipeline_stage_reached = 11
@@ -588,12 +658,18 @@ class Orchestrator:
             if tier3_decision_text:
                 result.final_output += f"\n\n[Tier 3 review]: {tier3_decision_text[:200]}"
 
-            result.total_latency_seconds = time.monotonic() - start_time
-            logger.info(
-                f"Pipeline complete | success={result.success} | "
-                f"stages=12 | tier3={result.tier3_was_called} | "
-                f"latency={result.total_latency_seconds:.2f}s"
+            total_latency = time.monotonic() - start_time
+            log_pipeline_complete(
+                trace_id=trace_id,
+                success=result.success,
+                stage_reached=12,
+                total_latency=total_latency,
+                tool_name=result.tool_name,
+                tier3_called=result.tier3_was_called,
+                cost_usd=self.claude.get_cost_summary().get("total_spent", 0.0)
             )
+            tlog.info(f"Pipeline complete | success={result.success} | latency={total_latency:.2f}s")
+            result.total_latency_seconds = total_latency
             # Update task queue status
             if result.success:
                 mark_completed(db_task_id, db_path=DB_PATH)
@@ -608,6 +684,15 @@ class Orchestrator:
             result.final_output = (
                 f"An unexpected error occurred at stage "
                 f"{result.pipeline_stage_reached}: {str(e)[:200]}"
+            )
+            log_pipeline_complete(
+                trace_id=trace_id,
+                success=False,
+                stage_reached=result.pipeline_stage_reached,
+                total_latency=time.monotonic() - start_time,
+                tool_name=None,
+                tier3_called=False,
+                cost_usd=0.0
             )
             logger.error(
                 f"Orchestrator error at stage {result.pipeline_stage_reached}: "

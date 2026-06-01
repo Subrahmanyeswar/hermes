@@ -10,6 +10,7 @@ Usage:
   python main.py info              # Show model and config info
 """
 import asyncio
+import json
 import sys
 from pathlib import Path
 import typer
@@ -137,6 +138,99 @@ async def _show_info():
     classifier = IntentClassifier("skills/")
     typer.echo(f"Skills loaded: {len(classifier.skills)}")
     typer.echo(f"Skills: {', '.join(s.skill_id for s in classifier.skills)}")
+
+@app.command()
+def logs(
+    query: str = typer.Argument(..., help="Search query to find in session logs"),
+    max_results: int = typer.Option(20, help="Maximum results to return"),
+    show_full: bool = typer.Option(False, "--full", help="Show full JSON record, not just summary")
+):
+    """Search HERMES session logs (Layer 3 grep access)."""
+    from utils.logging import search_session_logs, SESSION_LOG_DIR
+    
+    typer.echo(f"Searching session logs for: {query!r}")
+    typer.echo(f"Log directory: {SESSION_LOG_DIR}")
+    typer.echo("-" * 60)
+    
+    results = search_session_logs(query, max_results=max_results)
+    
+    if not results:
+        typer.echo("No results found.")
+        return
+    
+    typer.echo(f"Found {len(results)} matching records:\n")
+    
+    for i, record in enumerate(results, 1):
+        if show_full:
+            typer.echo(f"[{i}] {json.dumps(record, indent=2)}")
+        else:
+            timestamp = record.get("timestamp", "")[:19]
+            level = record.get("level", "").ljust(7)
+            trace_id = record.get("trace_id", "--------")[:8]
+            event = record.get("event", "")
+            message = record.get("message", "")[:80]
+            typer.echo(f"[{i}] {timestamp} {level} {trace_id} | {event or message}")
+        
+        if i < len(results):
+            typer.echo("")
+
+@app.command()
+def trace(
+    trace_id: str = typer.Argument(..., help="Trace ID to show full pipeline trace for"),
+):
+    """Show the complete pipeline trace for a specific trace_id."""
+    from utils.logging import search_session_logs, SESSION_LOG_DIR
+    
+    typer.echo(f"Pipeline trace for trace_id: {trace_id}")
+    typer.echo("=" * 60)
+    
+    results = search_session_logs(trace_id, max_results=100)
+    
+    if not results:
+        typer.echo(f"No trace found for trace_id: {trace_id}")
+        typer.echo(f"Make sure logs exist in: {SESSION_LOG_DIR}")
+        return
+    
+    # Sort by timestamp
+    results.sort(key=lambda r: r.get("timestamp", ""))
+    
+    start_time = None
+    for record in results:
+        if record.get("trace_id") != trace_id:
+            continue
+        
+        timestamp = record.get("timestamp", "")[:19]
+        level = record.get("level", "INFO").ljust(7)
+        event = record.get("event", "")
+        message = record.get("message", "")
+        
+        # Compute elapsed time
+        elapsed = ""
+        if start_time is None and event == "pipeline_start":
+            start_time = timestamp
+        
+        # Format key events specially
+        if event == "pipeline_start":
+            typer.echo(f"\n{timestamp} ▶ PIPELINE START")
+            typer.echo(f"  Request: {record.get('user_request_preview', '')}")
+            typer.echo(f"  Mode: {record.get('mode', '')} | Project: {record.get('project', '')}")
+        elif event == "pipeline_complete":
+            typer.echo(f"\n{timestamp} ■ PIPELINE COMPLETE")
+            typer.echo(f"  Success: {record.get('success')} | Stage: {record.get('stage_reached')}/12")
+            typer.echo(f"  Latency: {record.get('total_latency_seconds', 0):.2f}s | Cost: ${record.get('cost_usd', 0):.4f}")
+        elif event == "tier1_call":
+            typer.echo(f"  T1: {record.get('model', '')} | {record.get('latency_seconds', 0):.2f}s → {record.get('parsed_tool', 'N/A')}")
+        elif event == "tier2_call":
+            typer.echo(f"  T2: agree={record.get('agree')} | conf={record.get('confidence', 0):.2f} | escalate={record.get('escalated')}")
+        elif event == "tier3_call":
+            typer.echo(f"  T3: {record.get('latency_seconds', 0):.2f}s | ${record.get('cost_usd', 0):.4f} | success={record.get('success')}")
+        elif event == "tool_call":
+            typer.echo(f"  ⚙ TOOL: {record.get('tool_name')} | mode={record.get('mode')} | risk={record.get('risk_score', 0):.1f}")
+        elif event == "tool_result":
+            success_icon = "✓" if record.get("success") else "✗"
+            typer.echo(f"  {success_icon} RESULT: exit={record.get('exit_code')} | {record.get('duration_seconds', 0):.2f}s | retry={record.get('retry_count', 0)}")
+        elif event and "memory" in event:
+            typer.echo(f"  📝 MEMORY: {record.get('event_type')} | facts={record.get('facts_count', 0)}")
 
 if __name__ == "__main__":
     app()
