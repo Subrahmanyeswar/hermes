@@ -1,0 +1,95 @@
+{
+  "calibration_run_timestamp": "2026-06-02T00:38:41.215034",
+  "total_scenarios": 48,
+  "thresholds_tested": [
+    0.6,
+    0.7,
+    0.72,
+    0.8,
+    0.9
+  ],
+  "results_by_threshold": [
+    {
+      "threshold": 0.6,
+      "total_scenarios": 48,
+      "accept_count": 29,
+      "escalate_count": 18,
+      "block_count": 1,
+      "accept_rate": 0.6042,
+      "false_escalation_rate": 0.3333,
+      "missed_error_rate": 0.5,
+      "f1_score": 0.5714,
+      "correct_accepted": 20,
+      "incorrect_accepted": 9,
+      "correct_escalated": 10,
+      "incorrect_escalated": 9
+    },
+    {
+      "threshold": 0.7,
+      "total_scenarios": 48,
+      "accept_count": 22,
+      "escalate_count": 25,
+      "block_count": 1,
+      "accept_rate": 0.4583,
+      "false_escalation_rate": 0.4667,
+      "missed_error_rate": 0.3333,
+      "f1_score": 0.5926,
+      "correct_accepted": 16,
+      "incorrect_accepted": 6,
+      "correct_escalated": 14,
+      "incorrect_escalated": 12
+    },
+    {
+      "threshold": 0.72,
+      "total_scenarios": 48,
+      "accept_count": 20,
+      "escalate_count": 27,
+      "block_count": 1,
+      "accept_rate": 0.4167,
+      "false_escalation_rate": 0.5,
+      "missed_error_rate": 0.2778,
+      "f1_score": 0.5909,
+      "correct_accepted": 15,
+      "incorrect_accepted": 5,
+      "correct_escalated": 15,
+      "incorrect_escalated": 13
+    },
+    {
+      "threshold": 0.8,
+      "total_scenarios": 48,
+      "accept_count": 14,
+      "escalate_count": 33,
+      "block_count": 1,
+      "accept_rate": 0.2917,
+      "false_escalation_rate": 0.6,
+      "missed_error_rate": 0.1111,
+      "f1_score": 0.5517,
+      "correct_accepted": 12,
+      "incorrect_accepted": 2,
+      "correct_escalated": 18,
+      "incorrect_escalated": 16
+    },
+    {
+      "threshold": 0.9,
+      "total_scenarios": 48,
+      "accept_count": 5,
+      "escalate_count": 42,
+      "block_count": 1,
+      "accept_rate": 0.1042,
+      "false_escalation_rate": 0.8333,
+      "missed_error_rate": 0.0,
+      "f1_score": 0.2857,
+      "correct_accepted": 5,
+      "incorrect_accepted": 0,
+      "correct_escalated": 25,
+      "incorrect_escalated": 18
+    }
+  ],
+  "recommended_threshold": 0.7,
+  "recommended_threshold_justification": "Threshold 0.7 achieves the best F1 score (0.593), balancing false escalation rate (46.7%) against missed error rate (33.3%). Accept rate of 45.8% means 45.8% of tasks run locally without Tier 3 API cost.",
+  "scenario_breakdown": {
+    "total": 48,
+    "truly_correct": 30,
+    "truly_incorrect": 18
+  }
+}

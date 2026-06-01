@@ -69,6 +69,45 @@ ALWAYS_CONFIRM_TOOLS: frozenset[str] = frozenset({
 })
 
 
+def load_calibrated_threshold(results_path: str = "data/threshold_calibration_results.json") -> float:
+    """
+    Load the recommended confidence threshold from the calibration results file.
+    Falls back to the default CONFIDENCE_THRESHOLD if the file does not exist.
+    Call this at application startup to use the data-driven threshold.
+    
+    Usage in main.py or orchestrator startup:
+        from core.disagreement_router import load_calibrated_threshold
+        threshold = load_calibrated_threshold()
+        router = DisagreementRouter(confidence_threshold=threshold)
+    """
+    import json
+    from pathlib import Path
+    
+    path = Path(results_path)
+    if not path.exists():
+        logger.debug(
+            f"Calibration results not found at {path}. "
+            f"Using default threshold: {CONFIDENCE_THRESHOLD}"
+        )
+        return CONFIDENCE_THRESHOLD
+    
+    try:
+        with open(path) as f:
+            data = json.load(f)
+        recommended = float(data.get("recommended_threshold", CONFIDENCE_THRESHOLD))
+        logger.info(
+            f"Loaded calibrated threshold: {recommended} "
+            f"(from {path})"
+        )
+        return recommended
+    except (json.JSONDecodeError, KeyError, ValueError, IOError) as e:
+        logger.warning(
+            f"Could not load calibrated threshold from {path}: {e}. "
+            f"Using default: {CONFIDENCE_THRESHOLD}"
+        )
+        return CONFIDENCE_THRESHOLD
+
+
 # ──────────────────────────────────────────────────────────────────────
 # Disagreement Router
 # ──────────────────────────────────────────────────────────────────────

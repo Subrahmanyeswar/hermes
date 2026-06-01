@@ -262,3 +262,60 @@ async def test_kairos_starts_and_stops_with_orchestrator(tmp_path, monkeypatch):
     await orch.stop_kairos()
     assert orch.kairos.is_running is False
 
+
+# ── Calibrated threshold loader tests ─────────────────────────────────
+
+def test_load_calibrated_threshold_uses_default_when_no_file(tmp_path, monkeypatch):
+    """Returns default threshold when calibration file does not exist."""
+    from core.disagreement_router import load_calibrated_threshold, CONFIDENCE_THRESHOLD
+    nonexistent = str(tmp_path / "nonexistent.json")
+    result = load_calibrated_threshold(results_path=nonexistent)
+    assert result == CONFIDENCE_THRESHOLD
+
+def test_load_calibrated_threshold_reads_from_file(tmp_path):
+    """Reads and returns the recommended_threshold from the JSON file."""
+    import json
+    from core.disagreement_router import load_calibrated_threshold
+    
+    calibration_file = tmp_path / "calibration.json"
+    calibration_file.write_text(json.dumps({
+        "recommended_threshold": 0.80,
+        "results_by_threshold": [],
+        "thresholds_tested": [0.72, 0.80]
+    }))
+    
+    result = load_calibrated_threshold(results_path=str(calibration_file))
+    assert result == 0.80
+
+def test_load_calibrated_threshold_handles_corrupt_file(tmp_path):
+    """Falls back to default when JSON file is corrupt."""
+    from core.disagreement_router import load_calibrated_threshold, CONFIDENCE_THRESHOLD
+    
+    corrupt_file = tmp_path / "corrupt.json"
+    corrupt_file.write_text("{this is not valid json")
+    
+    result = load_calibrated_threshold(results_path=str(corrupt_file))
+    assert result == CONFIDENCE_THRESHOLD
+
+def test_calibrated_threshold_applied_to_router():
+    """Router correctly applies a newly calibrated threshold."""
+    from core.disagreement_router import DisagreementRouter, RoutingDecision
+    from core.verifier import VerificationResult
+    
+    router = DisagreementRouter(confidence_threshold=0.72)
+    assert router.confidence_threshold == 0.72
+    
+    router.calibrate_threshold(0.80)
+    assert router.confidence_threshold == 0.80
+    
+    # Verify routing changes
+    v = VerificationResult(agree=True, confidence=0.75, critical_issues=[], risk_score=0.1, reasoning="ok")
+    
+    router.calibrate_threshold(0.72)
+    result_72 = router.route(v, "read_file")
+    assert result_72.decision == RoutingDecision.ACCEPT   # 0.75 >= 0.72
+    
+    router.calibrate_threshold(0.80)
+    result_80 = router.route(v, "read_file")
+    assert result_80.decision == RoutingDecision.ESCALATE  # 0.75 < 0.80
+

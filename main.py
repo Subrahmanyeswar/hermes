@@ -48,6 +48,14 @@ async def _run_interactive(mode: str, project: str):
         raise typer.Exit(1)
     
     orch = Orchestrator(mode=mode, project=project)
+    
+    # Apply calibrated threshold from Week 13 calibration data
+    from core.disagreement_router import load_calibrated_threshold
+    calibrated_threshold = load_calibrated_threshold()
+    orch.router.calibrate_threshold(calibrated_threshold)
+    if calibrated_threshold != 0.72:
+        typer.echo(f"Threshold calibrated to {calibrated_threshold} (from calibration data)")
+
     await orch.start_kairos()  # Start KAIROS before the interactive loop
     try:
         typer.echo(f"HERMES ready | mode={mode.upper()} | project={project}")
