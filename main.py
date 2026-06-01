@@ -188,57 +188,94 @@ def trace(
 ):
     """Show the complete pipeline trace for a specific trace_id."""
     from utils.logging import search_session_logs, SESSION_LOG_DIR
-    
+
     typer.echo(f"Pipeline trace for trace_id: {trace_id}")
     typer.echo("=" * 60)
-    
+
     results = search_session_logs(trace_id, max_results=100)
-    
+
     if not results:
         typer.echo(f"No trace found for trace_id: {trace_id}")
         typer.echo(f"Make sure logs exist in: {SESSION_LOG_DIR}")
+        typer.echo("Tip: run 'python main.py test-pipeline ...' first to generate a trace")
         return
-    
-    # Sort by timestamp
-    results.sort(key=lambda r: r.get("timestamp", ""))
-    
-    start_time = None
-    for record in results:
-        if record.get("trace_id") != trace_id:
-            continue
-        
+
+    # Filter to only this trace_id and sort by timestamp
+    trace_records = [r for r in results if r.get("trace_id") == trace_id]
+    if not trace_records:
+        # Try showing all results that contained the trace_id string
+        trace_records = results
+    trace_records.sort(key=lambda r: r.get("timestamp", ""))
+
+    for record in trace_records:
         timestamp = record.get("timestamp", "")[:19]
-        level = record.get("level", "INFO").ljust(7)
-        event = record.get("event", "")
-        message = record.get("message", "")
-        
-        # Compute elapsed time
-        elapsed = ""
-        if start_time is None and event == "pipeline_start":
-            start_time = timestamp
-        
-        # Format key events specially
+        event     = record.get("event", "")
+        level     = record.get("level", "INFO").ljust(7)
+
         if event == "pipeline_start":
-            typer.echo(f"\n{timestamp} ▶ PIPELINE START")
+            typer.echo(f"\n{timestamp} >>> PIPELINE START")
             typer.echo(f"  Request: {record.get('user_request_preview', '')}")
             typer.echo(f"  Mode: {record.get('mode', '')} | Project: {record.get('project', '')}")
+
         elif event == "pipeline_complete":
-            typer.echo(f"\n{timestamp} ■ PIPELINE COMPLETE")
+            typer.echo(f"\n{timestamp} === PIPELINE COMPLETE")
             typer.echo(f"  Success: {record.get('success')} | Stage: {record.get('stage_reached')}/12")
-            typer.echo(f"  Latency: {record.get('total_latency_seconds', 0):.2f}s | Cost: ${record.get('cost_usd', 0):.4f}")
+            typer.echo(
+                f"  Latency: {record.get('total_latency_seconds', 0):.2f}s "
+                f"| Cost: ${record.get('cost_usd', 0):.4f}"
+            )
+
         elif event == "tier1_call":
-            typer.echo(f"  T1: {record.get('model', '')} | {record.get('latency_seconds', 0):.2f}s → {record.get('parsed_tool', 'N/A')}")
+            typer.echo(
+                f"  T1: {record.get('model', '')} | "
+                f"{record.get('latency_seconds', 0):.2f}s -> {record.get('parsed_tool', 'N/A')}"
+            )
+
         elif event == "tier2_call":
-            typer.echo(f"  T2: agree={record.get('agree')} | conf={record.get('confidence', 0):.2f} | escalate={record.get('escalated')}")
+            typer.echo(
+                f"  T2: agree={record.get('agree')} | "
+                f"conf={record.get('confidence', 0):.2f} | "
+                f"escalate={record.get('escalated')}"
+            )
+
         elif event == "tier3_call":
-            typer.echo(f"  T3: {record.get('latency_seconds', 0):.2f}s | ${record.get('cost_usd', 0):.4f} | success={record.get('success')}")
+            typer.echo(
+                f"  T3: {record.get('latency_seconds', 0):.2f}s | "
+                f"${record.get('cost_usd', 0):.4f} | "
+                f"success={record.get('success')}"
+            )
+
         elif event == "tool_call":
-            typer.echo(f"  ⚙ TOOL: {record.get('tool_name')} | mode={record.get('mode')} | risk={record.get('risk_score', 0):.1f}")
+            typer.echo(
+                f"  * TOOL: {record.get('tool_name')} | "
+                f"mode={record.get('mode')} | "
+                f"risk={record.get('risk_score', 0):.1f}"
+            )
+
         elif event == "tool_result":
-            success_icon = "✓" if record.get("success") else "✗"
-            typer.echo(f"  {success_icon} RESULT: exit={record.get('exit_code')} | {record.get('duration_seconds', 0):.2f}s | retry={record.get('retry_count', 0)}")
+            success_icon = "[OK]" if record.get("success") else "[FAIL]"
+            typer.echo(
+                f"  {success_icon} RESULT: exit={record.get('exit_code')} | "
+                f"{record.get('duration_seconds', 0):.2f}s | "
+                f"retry={record.get('retry_count', 0)}"
+            )
+
         elif event and "memory" in event:
-            typer.echo(f"  📝 MEMORY: {record.get('event_type')} | facts={record.get('facts_count', 0)}")
+            typer.echo(
+                f"  * MEMORY: {record.get('event_type')} | "
+                f"facts={record.get('facts_count', 0)}"
+            )
+
+        elif event and "kairos" in event:
+            typer.echo(f"  * KAIROS: {event} | {record.get('detail', '')[:60]}")
+
+        else:
+            # Generic record — show level + message preview
+            msg = record.get("message", "")
+            if isinstance(msg, str) and len(msg) > 0:
+                # Skip raw JSONL lines (message is the full JSON)
+                if not msg.startswith("{"):
+                    typer.echo(f"  {level} {msg[:80]}")
 
 if __name__ == "__main__":
     app()
