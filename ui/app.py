@@ -175,12 +175,18 @@ class HermesApp(App):
     # ── Layout ────────────────────────────────────────────────────────
 
     def compose(self) -> ComposeResult:
-        """Build the TUI layout."""
+        """Build the complete 4-panel TUI layout."""
+        from ui.panels.status_bar import StatusBar
+        from ui.panels.chat import ChatPanel
+        from ui.panels.right_panel import RightPanel
+
         yield StatusBar(id="status-bar")
         with Horizontal(id="main-layout"):
-            from ui.panels.chat import ChatPanel
             yield ChatPanel(id="chat-panel")
-            # RightPanel added in Week 16
+            yield RightPanel(
+                project=self._project,
+                id="right-panel",
+            )
         yield Footer()
 
     # ── Request processing ────────────────────────────────────────────
@@ -240,6 +246,11 @@ class HermesApp(App):
                 skill_ids=result.skill_ids_used,
                 error=result.error,
             ))
+
+            # Log the trace_id for the logs command
+            from utils.logging import get_trace_logger
+            tlog = get_trace_logger(result.trace_id)
+            tlog.info(f"TUI response posted | tool={result.tool_name} | success={result.success}")
 
         except Exception as e:
             logger.error(f"HermesApp: orchestrator error: {type(e).__name__}: {e}")

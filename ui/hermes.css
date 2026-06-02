@@ -143,3 +143,83 @@ Screen {
     color: $text-muted;
     text-style: italic;
 }
+
+/* ── Right panel ─────────────────────────────────────────────────── */
+
+#right-panel {
+    width: 45%;
+    height: 100%;
+}
+
+/* ── TabbedContent styling ───────────────────────────────────────── */
+
+TabbedContent {
+    height: 100%;
+}
+
+TabPane {
+    height: 100%;
+    padding: 0;
+}
+
+Tabs {
+    background: $panel;
+    height: 2;
+}
+
+Tab {
+    background: $panel;
+    color: $text-muted;
+}
+
+Tab.-active {
+    background: $background;
+    color: $text;
+    text-style: bold;
+}
+
+/* ── Tool trace tab ──────────────────────────────────────────────── */
+
+#tool-trace-scroll {
+    height: 1fr;
+    overflow-y: auto;
+    padding: 0 1;
+}
+
+/* ── Memory view tab ─────────────────────────────────────────────── */
+
+#memory-scroll {
+    height: 1fr;
+    overflow-y: auto;
+    padding: 0 1;
+}
+
+#memory-header {
+    color: $text-muted;
+    padding: 0 1;
+    height: 1;
+}
+
+/* ── Task queue tab ──────────────────────────────────────────────── */
+
+#task-scroll {
+    height: 1fr;
+    overflow-y: auto;
+    padding: 0 1;
+}
+
+#task-queue-header {
+    color: $text-muted;
+    padding: 0 1;
+    height: 1;
+}
+
+/* ── StatusBar ───────────────────────────────────────────────────── */
+
+StatusBar {
+    height: 1;
+    width: 100%;
+    background: $panel;
+    padding: 0 1;
+    dock: top;
+}
