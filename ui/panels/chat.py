@@ -41,7 +41,7 @@ SPINNER_VERBS: list[str] = [
     "Calculating", "Processing", "Deducing", "Inferring",
     "Contextualising", "Correlating", "Distilling", "Formulating",
     "Constructing", "Orchestrating", "Coordinating", "Evaluating",
-    "Deliberating", "Integrating",
+    "Pondering", "Integrating",
 ]
 
 _spinner_cycle = itertools.cycle(SPINNER_VERBS)

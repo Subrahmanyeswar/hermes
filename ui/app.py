@@ -86,6 +86,7 @@ class HermesApp(App):
     """
 
     CSS_PATH = Path(__file__).parent / "hermes.css"
+    ENABLE_COMMAND_PALETTE = False
 
     BINDINGS = [
         Binding("ctrl+s", "set_mode_safe",  "Safe mode",  show=True),
@@ -201,7 +202,6 @@ class HermesApp(App):
             name=f"request-{message.text[:20]}",
         )
 
-    @work(thread=False)
     async def _process_request(self, user_request: str) -> None:
         """Worker that runs the orchestrator and posts the result."""
         if self._orchestrator is None:
