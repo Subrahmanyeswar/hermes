@@ -292,39 +292,45 @@ class HermesApp(App):
 
     # ── Watch reactive changes ────────────────────────────────────────
 
-    def watch_current_mode(self, new_mode: str) -> None:
-        self.sub_title = f"mode:{new_mode.upper()}"
-        try:
-            self.query_one("#status-bar", StatusBar).mode = new_mode
-        except Exception:
-            pass
-
-    def watch_current_skill(self, new_skill: str) -> None:
-        try:
-            self.query_one("#status-bar", StatusBar).skill = new_skill
-        except Exception:
-            pass
-
-    def watch_session_cost(self, new_cost: float) -> None:
-        try:
-            self.query_one("#status-bar", StatusBar).cost = new_cost
-        except Exception:
-            pass
-
-    def watch_kairos_status(self, new_status: str) -> None:
-        try:
-            self.query_one("#status-bar", StatusBar).kairos = new_status
-        except Exception:
-            pass
-
     def watch_is_processing(self, processing: bool) -> None:
+        """Sync processing state to StatusBar and ChatPanel input."""
+        try:
+            status_bar = self.query_one("#status-bar", StatusBar)
+            status_bar.set_processing(processing)
+        except Exception:
+            pass
         try:
             from ui.panels.chat import ChatPanel
             panel = self.query_one(ChatPanel)
             panel.set_input_enabled(not processing)
         except Exception:
             pass
+
+    def watch_current_mode(self, new_mode: str) -> None:
+        self.sub_title = f"mode:{new_mode.upper()}"
         try:
-            self.query_one("#status-bar", StatusBar).processing = processing
+            status_bar = self.query_one("#status-bar", StatusBar)
+            status_bar.mode = new_mode
+        except Exception:
+            pass
+
+    def watch_current_skill(self, new_skill: str) -> None:
+        try:
+            status_bar = self.query_one("#status-bar", StatusBar)
+            status_bar.skill = new_skill
+        except Exception:
+            pass
+
+    def watch_session_cost(self, new_cost: float) -> None:
+        try:
+            status_bar = self.query_one("#status-bar", StatusBar)
+            status_bar.cost = new_cost
+        except Exception:
+            pass
+
+    def watch_kairos_status(self, new_status: str) -> None:
+        try:
+            status_bar = self.query_one("#status-bar", StatusBar)
+            status_bar.kairos_status = new_status
         except Exception:
             pass
