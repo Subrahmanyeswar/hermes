@@ -360,3 +360,256 @@ async def test_hermes_message_widget_error_renders():
     widget = HermesMessageWidget(response)
     assert "error" in widget.classes
     assert "success" not in widget.classes
+
+
+# ══════════════════════════════════════════════════════════════════════
+# Week 16 additional tests
+# ══════════════════════════════════════════════════════════════════════
+
+# ── StatusBar tests ────────────────────────────────────────────────────
+
+def test_status_bar_has_30_verbs():
+    """StatusBar must have exactly 30 spinner verbs."""
+    from ui.panels.status_bar import SPINNER_VERBS
+    assert len(SPINNER_VERBS) == 30
+    assert len(set(SPINNER_VERBS)) == 30, "All verbs must be unique"
+
+
+def test_random_verb_function():
+    """_random_verb must return a verb from the list."""
+    from ui.panels.status_bar import SPINNER_VERBS, _random_verb
+    for _ in range(50):
+        verb = _random_verb()
+        assert verb in SPINNER_VERBS, f"Got verb not in list: {verb}"
+
+
+def test_status_bar_render_all_modes():
+    """StatusBar._render must include mode text for all 3 modes."""
+    from ui.panels.status_bar import StatusBar
+    bar = StatusBar()
+    for mode in ("safe", "plan", "auto"):
+        bar.mode = mode
+        rendered = bar._render_status()
+        assert mode.upper() in rendered.plain, f"{mode.upper()} not in render"
+
+
+def test_status_bar_render_shows_skill():
+    """StatusBar must show active skill name when skill != 'none'."""
+    from ui.panels.status_bar import StatusBar
+    bar = StatusBar()
+    bar.skill = "flask-rest-api"
+    rendered = bar._render_status()
+    assert "flask-rest-api" in rendered.plain
+
+
+def test_status_bar_render_shows_cost():
+    """StatusBar must show the session cost."""
+    from ui.panels.status_bar import StatusBar
+    bar = StatusBar()
+    bar.cost = 0.042
+    rendered = bar._render_status()
+    assert "0.042" in rendered.plain
+
+
+@pytest.mark.asyncio
+async def test_status_bar_shows_cogitating_when_processing():
+    """StatusBar must show spinner verb (not Ready) when processing."""
+    from ui.panels.status_bar import StatusBar
+    bar = StatusBar()
+    bar.processing = True
+    bar.spinner_verb = "Cogitating"
+    rendered = bar._render_status()
+    assert "Cogitating" in rendered.plain
+    assert "Ready" not in rendered.plain
+
+
+@pytest.mark.asyncio
+async def test_status_bar_shows_ready_when_idle():
+    """StatusBar must show 'Ready' when not processing."""
+    from ui.panels.status_bar import StatusBar
+    bar = StatusBar()
+    bar.processing = False
+    bar.spinner_verb = "Ready"
+    rendered = bar._render_status()
+    assert "Ready" in rendered.plain
+
+
+# ── RightPanel tests ──────────────────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_right_panel_mounts_with_3_tabs(mock_orch_patch):
+    """RightPanel must mount with Tool Trace, Memory, and Tasks tabs."""
+    from ui.app import HermesApp
+    from ui.panels.right_panel import RightPanel, ToolTracePane, MemoryViewPane, TaskQueuePane
+    from textual.widgets import TabbedContent
+
+    app = HermesApp(mode="auto", project="test")
+    app._orchestrator = make_mock_orchestrator()
+
+    async with app.run_test(size=(160, 50)) as pilot:
+        right_panels = app.query(RightPanel)
+        assert len(right_panels) == 1, f"Expected 1 RightPanel, got {len(right_panels)}"
+
+        tabbed = app.query(TabbedContent)
+        assert len(tabbed) >= 1, "TabbedContent must be present"
+
+
+@pytest.mark.asyncio
+async def test_tool_trace_pane_renders(mock_orch_patch):
+    """ToolTracePane must render without crashing."""
+    from ui.app import HermesApp
+    from ui.panels.right_panel import ToolTracePane
+
+    app = HermesApp(mode="auto", project="test")
+    app._orchestrator = make_mock_orchestrator()
+
+    async with app.run_test(size=(160, 50)) as pilot:
+        trace_panes = app.query(ToolTracePane)
+        assert len(trace_panes) == 1
+
+
+@pytest.mark.asyncio
+async def test_memory_pane_renders(mock_orch_patch):
+    """MemoryViewPane must render without crashing."""
+    from ui.app import HermesApp
+    from ui.panels.right_panel import MemoryViewPane
+
+    app = HermesApp(mode="auto", project="test")
+    app._orchestrator = make_mock_orchestrator()
+
+    async with app.run_test(size=(160, 50)) as pilot:
+        mem_panes = app.query(MemoryViewPane)
+        assert len(mem_panes) == 1
+
+
+@pytest.mark.asyncio
+async def test_task_queue_pane_renders(mock_orch_patch):
+    """TaskQueuePane must render without crashing."""
+    from ui.app import HermesApp
+    from ui.panels.right_panel import TaskQueuePane
+
+    app = HermesApp(mode="auto", project="test")
+    app._orchestrator = make_mock_orchestrator()
+
+    async with app.run_test(size=(160, 50)) as pilot:
+        task_panes = app.query(TaskQueuePane)
+        assert len(task_panes) == 1
+
+
+@pytest.mark.asyncio
+async def test_orchestrator_response_updates_tool_trace(mock_orch_patch):
+    """OrchestratorResponse message must add an entry to Tool Trace."""
+    from ui.app import HermesApp, OrchestratorResponse
+    from ui.panels.right_panel import RightPanel, ToolTracePane, ToolTraceEntry
+
+    app = HermesApp(mode="auto", project="test")
+    app._orchestrator = make_mock_orchestrator()
+
+    async with app.run_test(size=(160, 50)) as pilot:
+        # Post a synthetic OrchestratorResponse directly to RightPanel
+        right_panel = app.query_one(RightPanel)
+        right_panel.post_message(OrchestratorResponse(
+            user_request="list files",
+            final_output="core/\ntools/\n",
+            tool_name="list_directory",
+            success=True,
+            stage_reached=12,
+            tier3_called=False,
+            latency_seconds=1.5,
+            trace_id="test1234",
+            skill_ids=[],
+        ))
+        await pilot.pause()
+
+        # Check that ToolTracePane received it
+        trace_pane = app.query_one(ToolTracePane)
+        entries = trace_pane.query(ToolTraceEntry)
+        assert len(entries) >= 1, "ToolTraceEntry should have been added"
+
+
+# ── ToolTraceEntry unit tests ──────────────────────────────────────────
+
+def test_tool_trace_entry_success_render():
+    """ToolTraceEntry renders success with green border class."""
+    from ui.panels.right_panel import ToolTraceEntry
+    from rich.text import Text
+
+    entry = ToolTraceEntry(
+        tool_name="write_file",
+        success=True,
+        exit_code=0,
+        output_preview="Written 100 chars to app.py",
+        latency=0.45,
+        tier3_called=False,
+        trace_id="abc12345",
+        skill_ids=["flask-rest-api"],
+    )
+    assert "success" in entry.classes
+    assert "failure" not in entry.classes
+
+    rendered = entry.render()
+    assert isinstance(rendered, Text)
+    assert "write_file" in rendered.plain
+    assert "flask-rest-api" in rendered.plain
+
+
+def test_tool_trace_entry_failure_render():
+    """ToolTraceEntry renders failure with red border class."""
+    from ui.panels.right_panel import ToolTraceEntry
+
+    entry = ToolTraceEntry(
+        tool_name="bash_exec",
+        success=False,
+        exit_code=1,
+        output_preview="command not found",
+        latency=0.12,
+        tier3_called=False,
+        trace_id="fail1234",
+        skill_ids=[],
+    )
+    assert "failure" in entry.classes
+    assert "success" not in entry.classes
+
+
+def test_tool_trace_entry_tier3_shows_in_render():
+    """ToolTraceEntry must show [T3 called] when tier3_called is True."""
+    from ui.panels.right_panel import ToolTraceEntry
+
+    entry = ToolTraceEntry(
+        tool_name="write_file",
+        success=True,
+        exit_code=0,
+        output_preview="done",
+        latency=3.5,
+        tier3_called=True,
+        trace_id="t3abc123",
+        skill_ids=[],
+    )
+    rendered = entry.render()
+    assert "T3 called" in rendered.plain
+
+
+def test_memory_view_fact_rendering():
+    """MemoryViewPane._render_fact_line must colour facts by type."""
+    from ui.panels.right_panel import MemoryViewPane
+    from rich.text import Text
+
+    pane = MemoryViewPane()
+
+    fact_lines = [
+        "[FACT]: Uses Flask 3.1",
+        "[BUG]: Login has null pointer",
+        "[TASK_DONE]: Created REST API",
+        "[BLOCKED]: Auth depends on DB",
+        "[DETAIL]: See memory/schema.md",
+        "[STALE]: Old fact",
+    ]
+
+    for line in fact_lines:
+        rendered = pane._render_fact_line(line, is_new=False)
+        assert isinstance(rendered, Text)
+        assert line in rendered.plain or line.split(":")[1].strip() in rendered.plain
+
+    # New line should have ▶ marker
+    rendered_new = pane._render_fact_line("[FACT]: New fact", is_new=True)
+    assert "▶" in rendered_new.plain
