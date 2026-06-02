@@ -27,6 +27,7 @@ from textual.reactive import reactive
 from textual.widgets import Footer, Header
 from loguru import logger
 from textual.message import Message
+from ui.panels.status_bar import StatusBar
 
 
 class UserMessageSent(Message):
@@ -174,7 +175,7 @@ class HermesApp(App):
 
     def compose(self) -> ComposeResult:
         """Build the TUI layout."""
-        yield Header(show_clock=True)
+        yield StatusBar(id="status-bar")
         with Horizontal(id="main-layout"):
             from ui.panels.chat import ChatPanel
             yield ChatPanel(id="chat-panel")
@@ -281,14 +282,38 @@ class HermesApp(App):
     # ── Watch reactive changes ────────────────────────────────────────
 
     def watch_current_mode(self, new_mode: str) -> None:
-        """Update the footer when mode changes."""
         self.sub_title = f"mode:{new_mode.upper()}"
+        try:
+            self.query_one("#status-bar", StatusBar).mode = new_mode
+        except Exception:
+            pass
+
+    def watch_current_skill(self, new_skill: str) -> None:
+        try:
+            self.query_one("#status-bar", StatusBar).skill = new_skill
+        except Exception:
+            pass
+
+    def watch_session_cost(self, new_cost: float) -> None:
+        try:
+            self.query_one("#status-bar", StatusBar).cost = new_cost
+        except Exception:
+            pass
+
+    def watch_kairos_status(self, new_status: str) -> None:
+        try:
+            self.query_one("#status-bar", StatusBar).kairos = new_status
+        except Exception:
+            pass
 
     def watch_is_processing(self, processing: bool) -> None:
-        """Dim the chat input while processing."""
         try:
             from ui.panels.chat import ChatPanel
             panel = self.query_one(ChatPanel)
             panel.set_input_enabled(not processing)
-        except NoMatches:
+        except Exception:
+            pass
+        try:
+            self.query_one("#status-bar", StatusBar).processing = processing
+        except Exception:
             pass

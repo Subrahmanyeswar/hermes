@@ -15,6 +15,7 @@ import sys
 from pathlib import Path
 import typer
 from loguru import logger
+from textual.css.query import NoMatches
 
 app = typer.Typer(help="HERMES — Local-first agentic coding framework")
 
@@ -146,6 +147,30 @@ async def _show_info():
     classifier = IntentClassifier("skills/")
     typer.echo(f"Skills loaded: {len(classifier.skills)}")
     typer.echo(f"Skills: {', '.join(s.skill_id for s in classifier.skills)}")
+
+@app.command()
+def ui(
+    mode: str = typer.Option("auto", help="Permission mode: safe, plan, auto"),
+    project: str = typer.Option("default", help="Project name for memory context"),
+    debug: bool = typer.Option(False, help="Enable debug logging"),
+):
+    """Launch the HERMES Textual TUI."""
+    if mode not in ("safe", "plan", "auto"):
+        typer.echo(f"Invalid mode '{mode}'. Must be: safe, plan, auto", err=True)
+        raise typer.Exit(1)
+
+    setup_logging(debug=debug)
+
+    from utils.logging import setup_logging as _setup_logging
+    _setup_logging(debug=debug)
+
+    from ui.app import HermesApp
+    hermes_app = HermesApp(mode=mode, project=project, debug=debug)
+
+    typer.echo(f"Launching HERMES TUI | mode={mode} | project={project}")
+    typer.echo("Press Ctrl+Q to exit.")
+
+    hermes_app.run()
 
 @app.command()
 def logs(
