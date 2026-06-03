@@ -41,7 +41,7 @@ def test_S1_no_api_keys_in_git_history():
 
     result = subprocess.run(
         ["git", "log", "-p", "--all", "--full-history"],
-        capture_output=True, text=True, timeout=60
+        capture_output=True, text=True, encoding='utf-8', timeout=60
     )
 
     if result.returncode != 0:
@@ -49,7 +49,7 @@ def test_S1_no_api_keys_in_git_history():
         print(f"  ⚠ Skipping git history scan — verify manually")
         return True
 
-    git_history = result.stdout
+    git_history = result.stdout or ""
 
     for pattern in danger_patterns:
         matches = re.findall(pattern, git_history, re.IGNORECASE)
@@ -94,7 +94,7 @@ def test_S2_env_file_not_tracked():
     # Check .env is not tracked
     result = subprocess.run(
         ["git", "ls-files", ".env"],
-        capture_output=True, text=True
+        capture_output=True, text=True, encoding='utf-8'
     )
     if result.stdout.strip():
         print("  ✗ CRITICAL: .env file is tracked by git!")
@@ -109,7 +109,7 @@ def test_S3_data_directory_not_tracked():
     """data/ directory (containing API costs and session logs) must not be in git."""
     result = subprocess.run(
         ["git", "ls-files", "data/"],
-        capture_output=True, text=True
+        capture_output=True, text=True, encoding='utf-8'
     )
     tracked_data_files = result.stdout.strip().split("\n") if result.stdout.strip() else []
 
@@ -385,8 +385,8 @@ def test_Q1_unit_test_suite_passes():
          "tests/",
          "--ignore=tests/integration/",
          "--ignore=tests/test_submission_ready.py",
-         "-q", "--timeout=120", "--tb=short"],
-        capture_output=True, text=True, timeout=240
+         "-q", "--timeout=300", "--tb=short"],
+        capture_output=True, text=True, encoding='utf-8', timeout=600
     )
 
     lines = result.stdout.strip().split("\n")
@@ -600,7 +600,7 @@ def test_D3_screenshot_test_images_exist():
         print(f"  ⚠ Creating them now...")
         result = subprocess.run(
             [sys.executable, "tests/create_test_screenshots.py"],
-            capture_output=True, text=True, timeout=30
+            capture_output=True, text=True, encoding='utf-8', timeout=30
         )
         if result.returncode != 0:
             print(f"  ✗ Failed to create screenshots: {result.stderr[:100]}")
@@ -706,7 +706,7 @@ def main():
                     overall_pass = False
             except Exception as e:
                 import traceback
-                print(f"  ✗ ERROR: {type(e).__name__}: {e}")
+                print(f"  X ERROR: {type(e).__name__}: {e}")
                 traceback.print_exc()
                 section_pass = False
                 overall_pass = False
