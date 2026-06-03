@@ -1,0 +1,548 @@
+{
+  "metadata": {
+    "version": "1.0",
+    "total_tasks": 50,
+    "difficulty_distribution": {
+      "L1_trivial": 10,
+      "L2_simple": 10,
+      "L3_medium": 15,
+      "L4_complex": 10,
+      "L5_hard": 5
+    },
+    "domain_tasks_for_ablation": 30,
+    "description": "HERMES benchmark suite — 50 tasks across 5 difficulty levels. L3/L4 tasks are domain-specific and used for skill ablation study."
+  },
+  "tasks": [
+    {
+      "id": "L1-01",
+      "difficulty": "L1_trivial",
+      "domain": "file_ops",
+      "skill_relevant": false,
+      "prompt": "List all files and folders in the current directory",
+      "expected_tool": "list_directory",
+      "success_criterion": "output_contains_files",
+      "description": "Basic directory listing — no skill needed"
+    },
+    {
+      "id": "L1-02",
+      "difficulty": "L1_trivial",
+      "domain": "file_ops",
+      "skill_relevant": false,
+      "prompt": "Read the contents of the file HERMES.md",
+      "expected_tool": "read_file",
+      "success_criterion": "exit_code_0",
+      "description": "Simple file read"
+    },
+    {
+      "id": "L1-03",
+      "difficulty": "L1_trivial",
+      "domain": "file_ops",
+      "skill_relevant": false,
+      "prompt": "Show me all files in the tests directory",
+      "expected_tool": "list_directory",
+      "success_criterion": "exit_code_0",
+      "description": "Directory listing with specific path"
+    },
+    {
+      "id": "L1-04",
+      "difficulty": "L1_trivial",
+      "domain": "file_ops",
+      "skill_relevant": false,
+      "prompt": "Create a folder called generated_projects/benchmark_output",
+      "expected_tool": "create_folder",
+      "success_criterion": "exit_code_0",
+      "description": "Simple folder creation"
+    },
+    {
+      "id": "L1-05",
+      "difficulty": "L1_trivial",
+      "domain": "file_ops",
+      "skill_relevant": false,
+      "prompt": "Read the config/settings.yaml file and show me its contents",
+      "expected_tool": "read_file",
+      "success_criterion": "exit_code_0",
+      "description": "Read YAML config file"
+    },
+    {
+      "id": "L1-06",
+      "difficulty": "L1_trivial",
+      "domain": "shell",
+      "skill_relevant": false,
+      "prompt": "Run python --version to check the Python version installed",
+      "expected_tool": "bash_exec",
+      "success_criterion": "output_contains_python",
+      "description": "Basic shell command"
+    },
+    {
+      "id": "L1-07",
+      "difficulty": "L1_trivial",
+      "domain": "shell",
+      "skill_relevant": false,
+      "prompt": "Run the bash command echo HERMES_BENCHMARK_OK",
+      "expected_tool": "bash_exec",
+      "success_criterion": "output_contains_HERMES_BENCHMARK_OK",
+      "description": "Echo command"
+    },
+    {
+      "id": "L1-08",
+      "difficulty": "L1_trivial",
+      "domain": "file_ops",
+      "skill_relevant": false,
+      "prompt": "List all files in the core directory",
+      "expected_tool": "list_directory",
+      "success_criterion": "exit_code_0",
+      "description": "List core module directory"
+    },
+    {
+      "id": "L1-09",
+      "difficulty": "L1_trivial",
+      "domain": "file_ops",
+      "skill_relevant": false,
+      "prompt": "Read requirements.txt and show the installed packages",
+      "expected_tool": "read_file",
+      "success_criterion": "exit_code_0",
+      "description": "Read requirements file"
+    },
+    {
+      "id": "L1-10",
+      "difficulty": "L1_trivial",
+      "domain": "file_ops",
+      "skill_relevant": false,
+      "prompt": "Show me what is in the memory directory",
+      "expected_tool": "list_directory",
+      "success_criterion": "exit_code_0",
+      "description": "List memory module directory"
+    },
+    {
+      "id": "L2-01",
+      "difficulty": "L2_simple",
+      "domain": "file_ops",
+      "skill_relevant": false,
+      "prompt": "Create a Python file at generated_projects/benchmark_output/hello.py that prints hello world",
+      "expected_tool": "write_file",
+      "success_criterion": "exit_code_0",
+      "description": "Simple Python file creation"
+    },
+    {
+      "id": "L2-02",
+      "difficulty": "L2_simple",
+      "domain": "file_ops",
+      "skill_relevant": false,
+      "prompt": "Write a requirements.txt file at generated_projects/benchmark_output/requirements.txt with flask pydantic and requests on separate lines",
+      "expected_tool": "write_file",
+      "success_criterion": "exit_code_0",
+      "description": "Write requirements file"
+    },
+    {
+      "id": "L2-03",
+      "difficulty": "L2_simple",
+      "domain": "shell",
+      "skill_relevant": false,
+      "prompt": "Run the Python script generated_projects/benchmark_output/hello.py",
+      "expected_tool": "run_python",
+      "success_criterion": "exit_code_0",
+      "description": "Execute a Python script"
+    },
+    {
+      "id": "L2-04",
+      "difficulty": "L2_simple",
+      "domain": "web",
+      "skill_relevant": false,
+      "prompt": "Search the web for Python asyncio best practices",
+      "expected_tool": "web_search",
+      "success_criterion": "exit_code_0",
+      "description": "Web search"
+    },
+    {
+      "id": "L2-05",
+      "difficulty": "L2_simple",
+      "domain": "memory",
+      "skill_relevant": false,
+      "prompt": "Remember that this benchmark project uses Python 3.12 and the main entry point is main.py",
+      "expected_tool": "save_memory",
+      "success_criterion": "exit_code_0",
+      "description": "Save memory fact"
+    },
+    {
+      "id": "L2-06",
+      "difficulty": "L2_simple",
+      "domain": "file_ops",
+      "skill_relevant": false,
+      "prompt": "Create a simple config.py file at generated_projects/benchmark_output/config.py with DATABASE_URL and SECRET_KEY variables",
+      "expected_tool": "write_file",
+      "success_criterion": "exit_code_0",
+      "description": "Write config file"
+    },
+    {
+      "id": "L2-07",
+      "difficulty": "L2_simple",
+      "domain": "shell",
+      "skill_relevant": false,
+      "prompt": "Count the number of Python files in the current directory using bash",
+      "expected_tool": "bash_exec",
+      "success_criterion": "exit_code_0",
+      "description": "Shell file counting"
+    },
+    {
+      "id": "L2-08",
+      "difficulty": "L2_simple",
+      "domain": "file_ops",
+      "skill_relevant": false,
+      "prompt": "Write a .gitignore file at generated_projects/benchmark_output/.gitignore with __pycache__ .env and venv entries",
+      "expected_tool": "write_file",
+      "success_criterion": "exit_code_0",
+      "description": "Write gitignore"
+    },
+    {
+      "id": "L2-09",
+      "difficulty": "L2_simple",
+      "domain": "shell",
+      "skill_relevant": false,
+      "prompt": "Run all pytest tests in tests/test_tools.py and show the results",
+      "expected_tool": "run_tests",
+      "success_criterion": "exit_code_0",
+      "description": "Run existing test suite"
+    },
+    {
+      "id": "L2-10",
+      "difficulty": "L2_simple",
+      "domain": "git",
+      "skill_relevant": false,
+      "prompt": "Initialise a new git repository in the generated_projects/benchmark_output folder",
+      "expected_tool": "git_init",
+      "success_criterion": "exit_code_0",
+      "description": "Git init — tests git-workflow skill",
+      "skill_id": "git-workflow"
+    },
+    {
+      "id": "L3-01",
+      "difficulty": "L3_medium",
+      "domain": "flask",
+      "skill_relevant": true,
+      "prompt": "Create a Flask REST API at generated_projects/benchmark_output/flask_app.py with a /hello endpoint that returns JSON",
+      "expected_tool": "write_file",
+      "success_criterion": "output_contains_flask",
+      "description": "Flask hello endpoint — tests flask-rest-api skill",
+      "skill_id": "flask-rest-api"
+    },
+    {
+      "id": "L3-02",
+      "difficulty": "L3_medium",
+      "domain": "flask",
+      "skill_relevant": true,
+      "prompt": "Create a Flask app with a /users endpoint that returns a list of users from a SQLite database",
+      "expected_tool": "write_file",
+      "success_criterion": "output_contains_flask",
+      "description": "Flask with SQLite — tests flask-rest-api skill",
+      "skill_id": "flask-rest-api"
+    },
+    {
+      "id": "L3-03",
+      "difficulty": "L3_medium",
+      "domain": "flask",
+      "skill_relevant": true,
+      "prompt": "Write a Flask route that accepts POST requests with JSON body and validates the email field",
+      "expected_tool": "write_file",
+      "success_criterion": "output_contains_flask",
+      "description": "Flask POST route with validation",
+      "skill_id": "flask-rest-api"
+    },
+    {
+      "id": "L3-04",
+      "difficulty": "L3_medium",
+      "domain": "testing",
+      "skill_relevant": true,
+      "prompt": "Write pytest tests for a Python calculator module with add subtract multiply and divide functions",
+      "expected_tool": "write_file",
+      "success_criterion": "output_contains_pytest",
+      "description": "Pytest generation — tests pytest-generation skill",
+      "skill_id": "pytest-generation"
+    },
+    {
+      "id": "L3-05",
+      "difficulty": "L3_medium",
+      "domain": "testing",
+      "skill_relevant": true,
+      "prompt": "Generate a pytest test suite for a Flask login endpoint with edge cases for wrong password and missing fields",
+      "expected_tool": "write_file",
+      "success_criterion": "output_contains_pytest",
+      "description": "Flask endpoint pytest — tests pytest-generation skill",
+      "skill_id": "pytest-generation"
+    },
+    {
+      "id": "L3-06",
+      "difficulty": "L3_medium",
+      "domain": "testing",
+      "skill_relevant": true,
+      "prompt": "Write unit tests for a UserRepository class with methods get_by_id create and delete including edge cases",
+      "expected_tool": "write_file",
+      "success_criterion": "output_contains_pytest",
+      "description": "Repository pattern tests",
+      "skill_id": "pytest-generation"
+    },
+    {
+      "id": "L3-07",
+      "difficulty": "L3_medium",
+      "domain": "database",
+      "skill_relevant": true,
+      "prompt": "Design a SQLite database schema for a todo application with users tasks and tags tables",
+      "expected_tool": "write_file",
+      "success_criterion": "output_contains_create_table",
+      "description": "Database schema design — tests database-design skill",
+      "skill_id": "database-design"
+    },
+    {
+      "id": "L3-08",
+      "difficulty": "L3_medium",
+      "domain": "database",
+      "skill_relevant": true,
+      "prompt": "Write SQLAlchemy 2.0 models for a blog application with Post Author and Comment relationships",
+      "expected_tool": "write_file",
+      "success_criterion": "exit_code_0",
+      "description": "SQLAlchemy models — tests database-design skill",
+      "skill_id": "database-design"
+    },
+    {
+      "id": "L3-09",
+      "difficulty": "L3_medium",
+      "domain": "debugging",
+      "skill_relevant": true,
+      "prompt": "Debug this Python code that has a KeyError: the function get_user_name(users, user_id) tries to access users[user_id] but user_id might not exist",
+      "expected_tool": "write_file",
+      "success_criterion": "exit_code_0",
+      "description": "Debug KeyError — tests debugging skill",
+      "skill_id": "debugging"
+    },
+    {
+      "id": "L3-10",
+      "difficulty": "L3_medium",
+      "domain": "debugging",
+      "skill_relevant": true,
+      "prompt": "Fix this Python code that raises AttributeError: NoneType has no attribute strip — the variable username is sometimes None",
+      "expected_tool": "write_file",
+      "success_criterion": "exit_code_0",
+      "description": "Debug AttributeError on None",
+      "skill_id": "debugging"
+    },
+    {
+      "id": "L3-11",
+      "difficulty": "L3_medium",
+      "domain": "git",
+      "skill_relevant": true,
+      "prompt": "Stage all changes and create a git commit with message feat: add benchmark output files",
+      "expected_tool": "git_add_commit",
+      "success_criterion": "exit_code_0",
+      "description": "Git commit — tests git-workflow skill",
+      "skill_id": "git-workflow"
+    },
+    {
+      "id": "L3-12",
+      "difficulty": "L3_medium",
+      "domain": "docs",
+      "skill_relevant": true,
+      "prompt": "Write a README.md for a Flask REST API project with installation usage and API endpoint documentation",
+      "expected_tool": "write_file",
+      "success_criterion": "output_contains_readme",
+      "description": "README generation — tests auto-docs skill",
+      "skill_id": "auto-docs"
+    },
+    {
+      "id": "L3-13",
+      "difficulty": "L3_medium",
+      "domain": "refactoring",
+      "skill_relevant": true,
+      "prompt": "Refactor this function that is 50 lines long by extracting the validation logic into a separate helper function",
+      "expected_tool": "write_file",
+      "success_criterion": "exit_code_0",
+      "description": "Extract method refactoring — tests refactoring skill",
+      "skill_id": "refactoring"
+    },
+    {
+      "id": "L3-14",
+      "difficulty": "L3_medium",
+      "domain": "bash",
+      "skill_relevant": true,
+      "prompt": "Write a bash script that backs up all Python files in the current directory to a timestamped archive",
+      "expected_tool": "write_file",
+      "success_criterion": "output_contains_bash",
+      "description": "Bash backup script — tests bash-scripting skill",
+      "skill_id": "bash-scripting"
+    },
+    {
+      "id": "L3-15",
+      "difficulty": "L3_medium",
+      "domain": "security",
+      "skill_relevant": true,
+      "prompt": "Review this Flask route for security issues: it takes a filename from the user and reads that file directly from disk",
+      "expected_tool": "write_file",
+      "success_criterion": "exit_code_0",
+      "description": "Security audit path traversal — tests security-audit skill",
+      "skill_id": "security-audit"
+    },
+    {
+      "id": "L4-01",
+      "difficulty": "L4_complex",
+      "domain": "flask",
+      "skill_relevant": true,
+      "prompt": "Create a complete Flask REST API project structure with user authentication using JWT, SQLAlchemy models for User and Post, and CRUD endpoints for posts",
+      "expected_tool": "write_file",
+      "success_criterion": "output_contains_flask",
+      "description": "Full Flask API with auth — complex flask skill task",
+      "skill_id": "flask-rest-api"
+    },
+    {
+      "id": "L4-02",
+      "difficulty": "L4_complex",
+      "domain": "flask",
+      "skill_relevant": true,
+      "prompt": "Build a Flask todo application with user registration login JWT auth and endpoints to create read update delete todos stored in SQLite",
+      "expected_tool": "write_file",
+      "success_criterion": "output_contains_flask",
+      "description": "Complete Flask todo app with auth",
+      "skill_id": "flask-rest-api"
+    },
+    {
+      "id": "L4-03",
+      "difficulty": "L4_complex",
+      "domain": "testing",
+      "skill_relevant": true,
+      "prompt": "Generate a comprehensive pytest test suite for a Flask REST API with user auth including fixtures for authenticated client database setup and teardown and tests for all CRUD operations",
+      "expected_tool": "write_file",
+      "success_criterion": "output_contains_pytest",
+      "description": "Comprehensive Flask API test suite",
+      "skill_id": "pytest-generation"
+    },
+    {
+      "id": "L4-04",
+      "difficulty": "L4_complex",
+      "domain": "database",
+      "skill_relevant": true,
+      "prompt": "Design a complete database schema for an e-commerce system with users products orders order_items categories and reviews including all indexes and foreign keys",
+      "expected_tool": "write_file",
+      "success_criterion": "output_contains_create_table",
+      "description": "Full e-commerce database schema",
+      "skill_id": "database-design"
+    },
+    {
+      "id": "L4-05",
+      "difficulty": "L4_complex",
+      "domain": "debugging",
+      "skill_relevant": true,
+      "prompt": "Debug this multi-file Flask application where the login route returns 500 error — the error is sqlalchemy.exc.OperationalError: no such table: users",
+      "expected_tool": "write_file",
+      "success_criterion": "exit_code_0",
+      "description": "Multi-file debug — SQLAlchemy table missing",
+      "skill_id": "debugging"
+    },
+    {
+      "id": "L4-06",
+      "difficulty": "L4_complex",
+      "domain": "refactoring",
+      "skill_relevant": true,
+      "prompt": "Refactor a monolithic Flask app.py file into a proper package structure with blueprints models services and config following SOLID principles",
+      "expected_tool": "write_file",
+      "success_criterion": "exit_code_0",
+      "description": "Large-scale Flask refactoring",
+      "skill_id": "refactoring"
+    },
+    {
+      "id": "L4-07",
+      "difficulty": "L4_complex",
+      "domain": "docs",
+      "skill_relevant": true,
+      "prompt": "Write complete API documentation for a Flask REST API including authentication guide endpoint reference request response examples and error codes",
+      "expected_tool": "write_file",
+      "success_criterion": "output_contains_readme",
+      "description": "Complete API documentation",
+      "skill_id": "auto-docs"
+    },
+    {
+      "id": "L4-08",
+      "difficulty": "L4_complex",
+      "domain": "security",
+      "skill_relevant": true,
+      "prompt": "Perform a full security audit of a Flask REST API — check for SQL injection XSS CSRF insecure JWT configuration and missing input validation",
+      "expected_tool": "write_file",
+      "success_criterion": "exit_code_0",
+      "description": "Full API security audit",
+      "skill_id": "security-audit"
+    },
+    {
+      "id": "L4-09",
+      "difficulty": "L4_complex",
+      "domain": "bash",
+      "skill_relevant": true,
+      "prompt": "Write a bash deployment script that checks Python version pulls git changes installs requirements runs tests and starts the Flask app only if tests pass",
+      "expected_tool": "write_file",
+      "success_criterion": "output_contains_bash",
+      "description": "Full deployment bash script",
+      "skill_id": "bash-scripting"
+    },
+    {
+      "id": "L4-10",
+      "difficulty": "L4_complex",
+      "domain": "code_review",
+      "skill_relevant": true,
+      "prompt": "Review this Python class for correctness security performance and style issues — it is a UserService that handles registration login and profile updates",
+      "expected_tool": "write_file",
+      "success_criterion": "exit_code_0",
+      "description": "Full code review — tests code-review skill",
+      "skill_id": "code-review"
+    },
+    {
+      "id": "L5-01",
+      "difficulty": "L5_hard",
+      "domain": "flask",
+      "skill_relevant": true,
+      "prompt": "Debug a Flask application where authenticated API calls return 401 despite correct JWT token — the issue is in the token validation middleware that checks the wrong header",
+      "expected_tool": "write_file",
+      "success_criterion": "exit_code_0",
+      "description": "Complex JWT auth debugging",
+      "skill_id": "flask-rest-api"
+    },
+    {
+      "id": "L5-02",
+      "difficulty": "L5_hard",
+      "domain": "testing",
+      "skill_relevant": true,
+      "prompt": "Fix a failing pytest test suite — 12 tests fail with ImportError because the test fixtures assume a different database URL format than what the app uses",
+      "expected_tool": "write_file",
+      "success_criterion": "exit_code_0",
+      "description": "Fix complex failing test suite",
+      "skill_id": "pytest-generation"
+    },
+    {
+      "id": "L5-03",
+      "difficulty": "L5_hard",
+      "domain": "flask",
+      "skill_relevant": true,
+      "prompt": "Identify and fix the N+1 query problem in a Flask API endpoint that loads all posts with their authors — each request makes 101 database queries instead of 1",
+      "expected_tool": "write_file",
+      "success_criterion": "exit_code_0",
+      "description": "N+1 query performance fix",
+      "skill_id": "flask-rest-api"
+    },
+    {
+      "id": "L5-04",
+      "difficulty": "L5_hard",
+      "domain": "debugging",
+      "skill_relevant": true,
+      "prompt": "Debug a Python application with a race condition — the UserSession class fails intermittently when two requests arrive simultaneously because the session counter is not thread-safe",
+      "expected_tool": "write_file",
+      "success_criterion": "exit_code_0",
+      "description": "Thread safety debugging",
+      "skill_id": "debugging"
+    },
+    {
+      "id": "L5-05",
+      "difficulty": "L5_hard",
+      "domain": "refactoring",
+      "skill_relevant": true,
+      "prompt": "Refactor a 300-line Python class that violates SRP into 3 focused classes — UserValidator UserRepository and UserService — maintaining all existing behaviour",
+      "expected_tool": "write_file",
+      "success_criterion": "exit_code_0",
+      "description": "Large class SRP refactoring",
+      "skill_id": "refactoring"
+    }
+  ]
+}
