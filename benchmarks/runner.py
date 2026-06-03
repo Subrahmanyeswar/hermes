@@ -165,7 +165,7 @@ async def run_task_hermes(
         result.success = orch_result.success
         result.tool_name = orch_result.tool_name
         result.stage_reached = orch_result.pipeline_stage_reached
-        result.tier3_called = orch_result.tier3_called
+        result.tier3_called = getattr(orch_result, "tier3_called", False)
         result.trace_id = orch_result.trace_id
         result.error = orch_result.error
 
@@ -393,7 +393,7 @@ class BenchmarkRunner:
                     self.run.total_cost_usd += result.cost_usd
 
                     status = "[PASS]" if result.criterion_met else "[FAIL]"
-                    tier3_marker = " [T3]" if result.tier3_called else ""
+                    tier3_marker = " [T3]" if getattr(result, "tier3_called", False) else ""
                     print(
                         f"{status} "
                         f"stage:{result.stage_reached:02d} "
@@ -402,8 +402,8 @@ class BenchmarkRunner:
                     )
 
                     if result.error and not result.criterion_met:
-            print(f"         >>> {result.error[:80]}")
-                        print(f"         ↳ {result.error[:80]}")
+                        print(f"         >>> {result.error[:80]}")
+                        print(f"         -> {result.error[:80]}")
 
                     # Brief pause between runs
                     await asyncio.sleep(0.5)
