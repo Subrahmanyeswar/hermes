@@ -15,76 +15,93 @@ venv\Scripts\activate
 
 
 
-W9Jun 20
-KAIROS daemon + SQLite task queue
-SQLite schema: tasks, api_costs tables. kairos/task_queue.py: add, update, query, STUCK detection. kairos/daemon.py: asyncio loop with Triple-Gate, memory consolidation trigger, retry management, runaway detection (15-min cap). Lock file prevents double-run. Test KAIROS runs in background while orchestrator runs tasks.
-kairos/task_queue.py kairos/daemon.py Triple-Gate logic runaway detection concurrent test
+
+W15Aug 1
+
+Textual TUI — structure + chat panel
+
+Study Textual docs for 1 day before writing code. ui/app.py: main App class. ui/panels/chat.py: conversation history, user messages styled, tool calls as collapsible Rich panels, errors in amber. Left 55% layout with full height. Wire chat panel to the orchestrator — user types, HERMES responds, no other panels yet. Test on actual laptop terminal (80x40).
+
+ui/app.py skeleton chat.py panel orchestrator wired to TUI live on real terminal
+
 4–5
+
 prompts
-W10Jun 27
-Remaining 3 skills + prompt hardening
-Skills: react-frontend, code-review, screenshot-to-code. All 12 skills now complete. System prompt hardening: run 50 diverse prompts through Tier 1, measure JSON parse success rate. If below 90%, iterate on the JSON enforcement prompt. Log every parse failure reason. This week is about reliability, not new features.
-3 final SKILL.md files 50-prompt parse test prompt v2 if needed parse failure log
+
+W16Aug 8
+
+TUI — right panel (tabs) + status bar
+
+ui/panels/right_panel.py: TabbedContent with Tool Trace, Memory View, Task Queue tabs. Each tab live-updates from the orchestrator. ui/panels/status_bar.py: one line showing mode, active model tier, active skill name, KAIROS status, cost, spinner verb. 30 spinner verbs in a list, one picked randomly during generation. Safe/Plan/Auto mode switching with keyboard shortcuts (Ctrl+S/P/A).
+
+right_panel.py 3 tabs status_bar.py 30 spinner verbs mode switching all 4 panels live
+
+4–5
+
+prompts
+
+W17Aug 15
+
+WOW features — export, GitHub, screenshot-to-code
+
+export_tools.py: export_zip (shutil.make_archive), open_in_vscode (subprocess Popen). git_tools.py: git_push with GITHUB_TOKEN from env only, never in code. vision_tools.py: screenshot_to_code calls Ollama multimodal endpoint with image base64. Test with 3 real UI screenshots. /push, /export, /vscode slash commands in the TUI.
+
+export_zip working git_push working open_in_vscode working screenshot-to-code 3 tests
+
 3–4
+
 prompts
-W11Jul 4
-Full failure mode hardening
-Implement all error paths: JSON parse failure → re-prompt once → FAILED. Tool not found → structured error → re-prompt once. exit_code != 0 → inject error → retry up to 3 times. Ollama timeout (120s) → [TIMEOUT] tag. Tier 3 API failure → [UNVERIFIED] tag. Memory parse error → empty context fallback. Test each failure mode in isolation.
-5 error paths implemented retry logic up to 3x failure mode test suite session never crashes
-4–5
-prompts
-W12Jul 11
-Logging, observability, request tracing
-Loguru config: JSONL session logs with rotation. Every tool call gets a trace_id. Log: T1 latency, T2 latency, tool duration, cost per task. utils/logging.py emits structured records. Session JSONL is append-only. Full pipeline trace visible in logs for debugging. Layer 3 grep access working.
-utils/logging.py trace_id per call JSONL session logs latency metrics
+
+W18Aug 22
+
+50-task benchmark + ablation study
+
+benchmarks/tasks.json: 50 tasks defined (10 L1, 10 L2, 15 L3, 10 L4, 5 L5). benchmarks/runner.py: automated executor, runs each task under all 3 conditions (HERMES, T1+skill, T1-no-skill). Captures: completion, escalations, cost, latency. Ablation: same 30 domain tasks with and without skill injection. Run full benchmark. Save raw results to benchmarks/results.json.
+
+tasks.json 50 tasks runner.py automated 3 conditions per task ablation results results.json
+
 3–4
+
 prompts
-W13Jul 18
-Integration test suite + threshold calibration
-Write tests/integration/ test suite: 20 real tasks run end-to-end with assertions on output structure. test_routing.py: run disagreement router at thresholds 0.60, 0.70, 0.72, 0.80, 0.90. Record false escalation rate and missed error rate for each. Pick final threshold value for the paper (not necessarily 0.72 — let the data decide).
-20-task integration suite threshold calibration data final threshold chosen results.json
-4–5
-prompts
-W14Jul 25
-Performance measurement + stability week
-Measure: average T1 latency, T2 latency, tool execution time per difficulty level. Memory injection overhead. KAIROS consolidation time. Identify and fix the 3 most common failure modes from W11 test suite. This week is a deliberate buffer — use it to fix anything shaky before the TUI. No new features.
-latency per stage 3 biggest bugs fixed all tests green system is stable
+
+W19Aug 29
+
+Metrics, graphs, paper draft
+
+Compute all 6 metrics from results.json. Generate graphs using matplotlib: task completion rate bar chart, escalation rate comparison, skill accuracy lift, cost comparison, agreement rate histogram. Paper: draft all 8 sections using the structure from Section 11. Results stated honestly — if H1/H2/H3 are partially confirmed, document that. Limitations section written clearly.
+
+6 metrics computed 5 graphs generated paper 8 sections drafted honest H1/H2/H3 results
+
 2–3
+
 prompts
 
-bro now we have completed the phase 2 that is from week 9 to week 14
+W20Sep 5
 
-now i just gave you the everything that is in the implementation plan from week 9 to week 14 
+Demo rehearsal, final polish, submission
 
-now give me all the prompts for what we have missed from this phase 2 i know we have covered a lot but i also think some are missing now lets cover and complete those
+Run the 10-minute demo script 5 times minimum. Time each section. Fix any reliability issues found during rehearsal. All 8 viva answers rehearsed out loud. README.md with architecture overview. requirements.txt pinned. No API keys in git (verify with git log -p). Demo laptop: Ollama pre-loaded, both models pulled, battery checked. Submit.
+
+demo rehearsed 5 times README final security check passed all tests green submitted
+
+1–2
+
+prompts
+
+
+
+
+
+bro now we have completed the phase 3 that is from week 15 to week 20
+
+now i just gave you the everything that is in the implementation plan from week 15 to week 20 
+
+now give me all the prompts for what we have missed from this phase 3 i know we have covered a lot but i also think some are missing now lets cover and complete those
 
 now give me the prompts 
+
 yeah bro go on give me the very very very detailed large long prompts yeah bro go on... give me the very very very detailed prompts go on give me the very detailed best prompts yeah bro go on...... dont waste tokens on again reading the implementation plan pdf i already gave you what is inside the implementation plan document so based on that give me the prompts yeah bro go on....
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-Week 14 Jul 25
-Performance measurement + stability week
-Measure: average T1 latency, T2 latency, tool execution time per difficulty level. Memory injection overhead. KAIROS consolidation time. Identify and fix the 3 most common failure modes from W11 test suite. This week is a deliberate buffer — use it to fix anything shaky before the TUI. No new features.
-latency per stage 3 biggest bugs fixed all tests green system is stable
-2–3
-prompts
-
-yeah bro go on now lets start the week 14 give me the very very very detailed large long week 14 prompts yeah bro go on... give me the very very very detailed prompts as per our plan yeah bro go on give me the very detailed best prompts yeah bro go on...... dont waste tokens on again reading the implementation plan pdf i already gave you what is inside the implementation plan document for week 14 so based on that give me the prompts yeah bro go on...
 
 
 

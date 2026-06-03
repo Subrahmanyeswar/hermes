@@ -1,0 +1,100 @@
+{
+  "computed_at": "2026-06-03T18:20:53.456472",
+  "run_id": "20260603_181929",
+  "m1_task_completion_rate": {
+    "hermes": {
+      "overall": 0.0,
+      "by_difficulty": {
+        "L1_trivial": 0.0,
+        "L2_simple": 0.0,
+        "L3_medium": 0.0,
+        "L4_complex": 0.0,
+        "L5_hard": 0.0
+      }
+    },
+    "t1_skill": {
+      "overall": 0.0,
+      "by_difficulty": {
+        "L1_trivial": 0.0,
+        "L2_simple": 0.0,
+        "L3_medium": 0.0,
+        "L4_complex": 0.0,
+        "L5_hard": 0.0
+      }
+    },
+    "t1_no_skill": {
+      "overall": 1.0,
+      "by_difficulty": {
+        "L1_trivial": 1.0,
+        "L2_simple": 1.0,
+        "L3_medium": 0.0,
+        "L4_complex": 0.0,
+        "L5_hard": 0.0
+      }
+    }
+  },
+  "m2_tier3_escalation": {
+    "total_tasks": 0,
+    "tier3_calls": 0,
+    "escalation_rate": 0,
+    "local_resolution_rate": 0
+  },
+  "m3_skill_accuracy_lift": {
+    "with_skill_rate": 0.0,
+    "without_skill_rate": 0.0,
+    "skill_accuracy_lift": 0.0,
+    "domain_tasks_count": 0
+  },
+  "m4_latency_by_difficulty": {
+    "hermes": {
+      "L1_trivial": 0.0,
+      "L2_simple": 0.0,
+      "L3_medium": 0.0,
+      "L4_complex": 0.0,
+      "L5_hard": 0.0
+    },
+    "t1_skill": {
+      "L1_trivial": 0.0,
+      "L2_simple": 0.0,
+      "L3_medium": 0.0,
+      "L4_complex": 0.0,
+      "L5_hard": 0.0
+    },
+    "t1_no_skill": {
+      "L1_trivial": 4.696,
+      "L2_simple": 8.148,
+      "L3_medium": 0.0,
+      "L4_complex": 0.0,
+      "L5_hard": 0.0
+    },
+    "overall_mean": {
+      "hermes": 0.0,
+      "t1_skill": 0.0,
+      "t1_no_skill": 5.271
+    }
+  },
+  "m5_api_cost": {
+    "hermes_actual_cost_usd": 0,
+    "estimated_all_claude_cost_usd": 0.198,
+    "cost_reduction_pct": 100.0
+  },
+  "m6_agreement_rate": {
+    "estimated_agreement_rate": 0,
+    "note": "Agreement rate estimated from non-escalation rate. For exact T1/T2 agreement, parse session JSONL logs."
+  },
+  "hypothesis_validation": {
+    "H1_within_10pp_at_20pct_cost": {
+      "completion_delta_pp": -100.0,
+      "tier3_cost_pct": 0,
+      "supported": false
+    },
+    "H2_skill_lift_10pp": {
+      "skill_lift_pp": 0.0,
+      "supported": false
+    },
+    "H3_agreement_75pct": {
+      "agreement_rate_pct": 0,
+      "supported": false
+    }
+  }
+}

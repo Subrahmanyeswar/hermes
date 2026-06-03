@@ -392,7 +392,7 @@ class BenchmarkRunner:
                     self.run.total_latency_seconds += result.latency_seconds
                     self.run.total_cost_usd += result.cost_usd
 
-                    status = "✓" if result.criterion_met else "✗"
+                    status = "[PASS]" if result.criterion_met else "[FAIL]"
                     tier3_marker = " [T3]" if result.tier3_called else ""
                     print(
                         f"{status} "
@@ -402,6 +402,7 @@ class BenchmarkRunner:
                     )
 
                     if result.error and not result.criterion_met:
+            print(f"         >>> {result.error[:80]}")
                         print(f"         ↳ {result.error[:80]}")
 
                     # Brief pause between runs
@@ -698,7 +699,7 @@ def _print_metrics_summary(metrics: dict) -> None:
     print(f"\nHypothesis Validation:")
     for hyp_id, hyp_data in hyps.items():
         supported = hyp_data.get("supported", False)
-        print(f"  {hyp_id}: {'✓ SUPPORTED' if supported else '✗ NOT SUPPORTED'}")
+        print(f"  {hyp_id}: {'[PASS] SUPPORTED' if supported else '[FAIL] NOT SUPPORTED'}")
 
 
 if __name__ == "__main__":
