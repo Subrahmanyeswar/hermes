@@ -17,6 +17,14 @@ import typer
 from loguru import logger
 from textual.css.query import NoMatches
 
+# Ensure stdout/stderr use UTF-8 on Windows to avoid UnicodeEncodeError
+if sys.platform.startswith('win'):
+    try:
+        sys.stdout.reconfigure(encoding='utf-8')
+        sys.stderr.reconfigure(encoding='utf-8')
+    except Exception:
+        pass
+
 app = typer.Typer(help="HERMES — Local-first agentic coding framework")
 
 def setup_logging(debug: bool = False):
@@ -159,10 +167,8 @@ def ui(
         typer.echo(f"Invalid mode '{mode}'. Must be: safe, plan, auto", err=True)
         raise typer.Exit(1)
 
-    setup_logging(debug=debug)
-
     from utils.logging import setup_logging as _setup_logging
-    _setup_logging(debug=debug)
+    _setup_logging(debug=debug, tui=True)
 
     from ui.app import HermesApp
     hermes_app = HermesApp(mode=mode, project=project, debug=debug)

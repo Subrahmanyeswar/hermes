@@ -14,7 +14,7 @@ from loguru import logger
 from memory.types import MemoryFact, MemoryState, FactType
 
 EXTRACTION_SYSTEM_PROMPT = """You are a memory extraction agent for HERMES.
-Your job is to read a completed task conversation and extract facts worth remembering.
+Your job is to read a task conversation and extract facts worth remembering.
 
 You must respond with ONLY a valid JSON array. No explanation, no markdown, no text before or after.
 Your entire response must be parseable by json.loads().
@@ -28,6 +28,7 @@ Do NOT extract:
 - Things the user said that were questions or requests
 - Temporary debugging steps that were reverted
 - Generic programming advice
+- TASK_DONE facts for actions that were NOT actually executed in the tool results. ONLY extract TASK_DONE for actions that the tool results prove were completed. Do not assume the entire user task was completed if the tools only performed a subset of the work.
 
 Output format — a JSON array of objects:
 [
@@ -60,10 +61,10 @@ async def extract_memories(task_description: str, conversation_history: list[dic
     ])
     
     user_prompt = (
-        f"Task that was completed: {task_description}\n\n"
+        f"Proposed task context: {task_description}\n\n"
         f"Conversation:\n{history_text}\n\n"
         f"Tool results:\n{tool_results_text}\n\n"
-        f"Extract the facts worth remembering from this task."
+        f"Based ONLY on the actual tool results and what was successfully executed in the conversation, extract the facts worth remembering."
     )
     
     try:

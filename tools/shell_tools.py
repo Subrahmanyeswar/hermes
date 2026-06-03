@@ -90,6 +90,7 @@ class BashExecTool(BaseTool):
                 text=True,
                 cwd=str(work_dir),
                 timeout=inp.timeout_seconds,
+                stdin=subprocess.DEVNULL,
             )
             duration = time.monotonic() - start_time
         except subprocess.TimeoutExpired:
@@ -210,6 +211,7 @@ class RunPythonTool(BaseTool):
                 text=True,
                 cwd=str(work_dir),
                 timeout=inp.timeout_seconds,
+                stdin=subprocess.DEVNULL,
             )
             duration = time.monotonic() - start_time
         except subprocess.TimeoutExpired:
@@ -308,6 +310,7 @@ class RunTestsTool(BaseTool):
                 capture_output=True,
                 text=True,
                 timeout=inp.timeout_seconds,
+                stdin=subprocess.DEVNULL,
             )
             duration = time.monotonic() - start_time
         except subprocess.TimeoutExpired:

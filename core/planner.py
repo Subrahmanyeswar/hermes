@@ -42,6 +42,7 @@ class Task:
     max_retries: int = 3
     created_at: str = field(default_factory=lambda: datetime.now().isoformat())
     session_id: str = ""
+    subtasks: list[dict] = field(default_factory=list)
 
     def is_simple(self) -> bool:
         """Simple tasks: complexity < 0.4, only read or single write operations."""
@@ -182,6 +183,43 @@ class TaskPlanner:
             task.max_retries = 3
         else:
             task.max_retries = 3
+
+        # Populate subtasks based on request keywords
+        subtasks = []
+        if any(kw in request_lower for kw in ['flask', 'django', 'fastapi', 'api', 'web']):
+            subtasks = [
+                {"title": "Create project structure", "status": "pending"},
+                {"title": "Generate database models", "status": "pending"},
+                {"title": "Create API routes", "status": "pending"},
+                {"title": "Configure authentication", "status": "pending"},
+                {"title": "Generate requirements", "status": "pending"},
+                {"title": "Verify output", "status": "pending"},
+            ]
+        elif any(kw in request_lower for kw in ['git', 'repo', 'github', 'commit', 'push']):
+            subtasks = [
+                {"title": "Initialize repository", "status": "pending"},
+                {"title": "Stage and commit changes", "status": "pending"},
+                {"title": "Verify remote status", "status": "pending"},
+                {"title": "Push code to origin", "status": "pending"},
+                {"title": "Check commit history", "status": "pending"},
+            ]
+        elif any(kw in request_lower for kw in ['test', 'pytest']):
+            subtasks = [
+                {"title": "Scan test directories", "status": "pending"},
+                {"title": "Identify test targets", "status": "pending"},
+                {"title": "Execute test suite", "status": "pending"},
+                {"title": "Collect coverage data", "status": "pending"},
+                {"title": "Verify test pass rate", "status": "pending"},
+            ]
+        else:
+            subtasks = [
+                {"title": "Analyze codebase structure", "status": "pending"},
+                {"title": "Perform required modifications", "status": "pending"},
+                {"title": "Execute validation commands", "status": "pending"},
+                {"title": "Verify overall correctness", "status": "pending"},
+                {"title": "Update session memory", "status": "pending"},
+            ]
+        task.subtasks = subtasks
 
         logger.debug(
             f"Planner: task_id={task.task_id} | "

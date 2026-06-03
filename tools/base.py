@@ -14,7 +14,7 @@ class ToolResult:
     """Standardised return value for every tool execution in HERMES."""
 
     success: bool
-    output: str
+    output: str = ""
     error: str | None = None
     exit_code: int = 0
     duration_seconds: float = 0.0

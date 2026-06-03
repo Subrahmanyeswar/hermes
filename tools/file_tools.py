@@ -258,8 +258,9 @@ class AppendFileTool(BaseTool):
         import time
         start = time.monotonic()
         try:
-            Path(inp.path).parent.mkdir(parents=True, exist_ok=True)
-            with open(inp.path, 'a', encoding='utf-8') as f:
+            file_path = _resolve_project_path(inp.path)
+            file_path.parent.mkdir(parents=True, exist_ok=True)
+            with open(file_path, 'a', encoding='utf-8') as f:
                 f.write(inp.content)
             duration = time.monotonic() - start
             logger.debug(f"append_file: {inp.path} | appended {len(inp.content)} chars")
@@ -274,7 +275,8 @@ class CreateFolderTool(BaseTool):
         path: str = Field(..., min_length=1, max_length=500)
     def execute(self, inp: Input) -> ToolResult:
         try:
-            Path(inp.path).mkdir(parents=True, exist_ok=True)
+            folder_path = _resolve_project_path(inp.path)
+            folder_path.mkdir(parents=True, exist_ok=True)
             return ToolResult(success=True, output=f"Created directory: {inp.path}", exit_code=0, duration_seconds=0.0)
         except Exception as e:
             return ToolResult(success=False, output="", error=str(e), exit_code=1, duration_seconds=0.0)
@@ -288,11 +290,12 @@ class MoveFileTool(BaseTool):
     def execute(self, inp: Input) -> ToolResult:
         import shutil
         try:
-            src = Path(inp.source)
+            src = _resolve_project_path(inp.source)
+            dest = _resolve_project_path(inp.destination)
             if not src.exists():
                 return ToolResult(success=False, output="", error=f"Source not found: {inp.source}", exit_code=1, duration_seconds=0.0)
-            Path(inp.destination).parent.mkdir(parents=True, exist_ok=True)
-            shutil.move(str(src), inp.destination)
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            shutil.move(str(src), str(dest))
             return ToolResult(success=True, output=f"Moved {inp.source} → {inp.destination}", exit_code=0, duration_seconds=0.0)
         except Exception as e:
             return ToolResult(success=False, output="", error=str(e), exit_code=1, duration_seconds=0.0)
@@ -307,7 +310,7 @@ class DeleteFileTool(BaseTool):
         if not inp.confirm:
             return ToolResult(success=False, output="", error="Deletion requires confirm=True", exit_code=1, duration_seconds=0.0)
         try:
-            p = Path(inp.path)
+            p = _resolve_project_path(inp.path)
             if not p.exists():
                 return ToolResult(success=False, output="", error=f"File not found: {inp.path}", exit_code=1, duration_seconds=0.0)
             if p.is_dir():

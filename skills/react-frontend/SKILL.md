@@ -1,7 +1,7 @@
 ---
 name: react-frontend
 description: React 18 component patterns with Tailwind CSS, hooks, and state management
-triggers: [react, frontend, component, tailwind, jsx, ui, hooks, useState, useEffect, nextjs]
+triggers: [react, frontend, component, tailwind, jsx, ui, hooks, useState, useEffect, nextjs, website, site, web, robotics, robot, page, html, css]
 priority: 1
 max_tokens: 300
 ---

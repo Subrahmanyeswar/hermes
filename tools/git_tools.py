@@ -213,58 +213,156 @@ class GitAddCommitTool(BaseTool):
             )
 
 
-@tool(name="git_push", description="Push committed changes to a remote GitHub repository. Requires GITHUB_TOKEN in environment.", permissions=["network_write"], risk_score=0.7, blocked_in=["safe", "plan"])
+@tool(
+    name="git_push",
+    description=(
+        "Push committed changes to a remote GitHub repository. "
+        "Requires GITHUB_TOKEN environment variable to be set. "
+        "Never pass the token as a parameter — it is always read from the environment."
+    ),
+    permissions=["network_write"],
+    risk_score=0.7,
+    blocked_in=["safe", "plan"],
+)
 class GitPushTool(BaseTool):
+
     class Input(BaseModel):
-        directory: str = Field(default=".", description="Path to the git repository")
-        remote: str = Field(default="origin", description="Remote name to push to")
-        branch: str = Field(default="main", description="Branch to push")
-        github_token: str = Field(default="", description="Leave empty — read from GITHUB_TOKEN env var")
+        directory: str = Field(
+            default=".",
+            description="Path to the git repository, relative to project root",
+        )
+        remote: str = Field(
+            default="origin",
+            description="Remote name to push to",
+        )
+        branch: str = Field(
+            default="main",
+            description="Branch to push",
+        )
 
     def execute(self, inp: Input) -> ToolResult:
         if not GIT_AVAILABLE:
-            return ToolResult(success=False, output="", error="GitPython not installed", exit_code=1, duration_seconds=0.0)
-        
+            return ToolResult(
+                success=False,
+                error="GitPython not installed. Run: pip install gitpython",
+                exit_code=1,
+            )
+
         import os
-        token = os.environ.get("GITHUB_TOKEN", "")
+        token = os.environ.get("GITHUB_TOKEN", "").strip()
+
         if not token:
-            return ToolResult(success=False, output="", error="GITHUB_TOKEN environment variable is not set. Set it before using git_push.", exit_code=1, duration_seconds=0.0)
-        
-        # NEVER log the token value
-        logger.info(f"git_push: pushing {inp.directory} to {inp.remote}/{inp.branch} [token=REDACTED]")
-        
+            return ToolResult(
+                success=False,
+                error=(
+                    "GITHUB_TOKEN environment variable is not set. "
+                    "Create a Personal Access Token at github.com/settings/tokens "
+                    "and set it: export GITHUB_TOKEN=ghp_... in your shell."
+                ),
+                exit_code=1,
+            )
+
+        logger.info(
+            f"git_push: pushing {inp.directory} to {inp.remote}/{inp.branch} "
+            f"[token=REDACTED]"
+        )
+
         try:
             repo = git.Repo(inp.directory, search_parent_directories=True)
         except git.InvalidGitRepositoryError:
-            return ToolResult(success=False, output="", error=f"No git repo found at: {inp.directory}", exit_code=1, duration_seconds=0.0)
-        
+            return ToolResult(
+                success=False,
+                error=(
+                    f"No git repository found at or above: {inp.directory}. "
+                    f"Run git_init first."
+                ),
+                exit_code=1,
+            )
+
+        # Check there is something to push
         try:
-            # Get remote URL and inject token for HTTPS auth
-            remote = repo.remote(inp.remote)
-            original_url = remote.url
-            
-            # Inject token into URL if it's a github.com HTTPS URL
+            if not list(repo.iter_commits()):
+                return ToolResult(
+                    success=False,
+                    error="Repository has no commits. Create a commit with git_add_commit first.",
+                    exit_code=1,
+                )
+        except Exception:
+            pass
+
+        original_url: str = ""
+        try:
+            remote_obj = repo.remote(inp.remote)
+            original_url = remote_obj.url
+
+            # Inject token into HTTPS URL for authentication
             if "github.com" in original_url and original_url.startswith("https://"):
-                authed_url = original_url.replace("https://", f"https://{token}@")
-                remote.set_url(authed_url)
-            
-            push_info = remote.push(refspec=f"{inp.branch}:{inp.branch}")
-            
-            # Restore original URL immediately (never leave token in config)
+                # Remove any existing credentials from the URL first
+                clean_url = original_url
+                if "@github.com" in clean_url:
+                    clean_url = "https://github.com" + clean_url.split("@github.com")[1]
+                authed_url = clean_url.replace("https://", f"https://{token}@")
+                remote_obj.set_url(authed_url)
+
+            push_info_list = remote_obj.push(
+                refspec=f"{inp.branch}:{inp.branch}",
+                force=False,
+            )
+
+            # Restore original URL immediately — never leave token in config
             if "github.com" in original_url and original_url.startswith("https://"):
-                remote.set_url(original_url)
-            
-            # Check for push errors
-            for info in push_info:
+                remote_obj.set_url(original_url)
+
+            # Check for push errors in push_info_list
+            errors = []
+            for info in push_info_list:
                 if info.flags & info.ERROR:
-                    return ToolResult(success=False, output="", error=f"Push failed: {info.summary}", exit_code=1, duration_seconds=0.0)
-            
-            return ToolResult(success=True, output=f"Pushed to {inp.remote}/{inp.branch} successfully", exit_code=0, duration_seconds=0.0)
-        
+                    errors.append(str(info.summary).strip())
+
+            if errors:
+                error_msg = "; ".join(errors)
+                # Mask token in error message
+                error_msg = error_msg.replace(token, "[GITHUB_TOKEN]")
+                return ToolResult(
+                    success=False,
+                    error=f"Push failed: {error_msg}",
+                    exit_code=1,
+                )
+
+            logger.info(
+                f"git_push: successfully pushed to {inp.remote}/{inp.branch}"
+            )
+            return ToolResult(
+                success=True,
+                output=(
+                    f"Successfully pushed to {inp.remote}/{inp.branch}.\n"
+                    f"Repository: {original_url}"
+                ),
+                exit_code=0,
+            )
+
         except git.GitCommandError as e:
-            # Mask token in error messages
+            # Restore URL even on error
+            if original_url and "github.com" in original_url:
+                try:
+                    repo.remote(inp.remote).set_url(original_url)
+                except Exception:
+                    pass
             error_msg = str(e).replace(token, "[GITHUB_TOKEN]") if token else str(e)
-            return ToolResult(success=False, output="", error=f"Git push failed: {error_msg}", exit_code=1, duration_seconds=0.0)
+            return ToolResult(
+                success=False,
+                error=f"Git push failed: {error_msg[:300]}",
+                exit_code=1,
+            )
         except Exception as e:
+            if original_url and "github.com" in original_url:
+                try:
+                    repo.remote(inp.remote).set_url(original_url)
+                except Exception:
+                    pass
             error_msg = str(e).replace(token, "[GITHUB_TOKEN]") if token else str(e)
-            return ToolResult(success=False, output="", error=str(error_msg), exit_code=1, duration_seconds=0.0)
+            return ToolResult(
+                success=False,
+                error=f"Unexpected push error: {type(e).__name__}: {error_msg[:200]}",
+                exit_code=1,
+            )

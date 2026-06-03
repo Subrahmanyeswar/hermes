@@ -425,31 +425,174 @@ def test_delete_file_succeeds_with_confirm(tmp_path):
     assert result.success and not p.exists()
 
 
-def test_git_push_fails_without_token(monkeypatch):
+# ── Export tool tests (Week 17) ────────────────────────────────────────
+from tools.export_tools import ExportZipTool, OpenInVSCodeTool
+
+def test_export_zip_creates_valid_zip(tmp_path):
+    """export_zip must create a real, openable ZIP file."""
+    import zipfile
+
+    # Create a project with some files
+    proj = tmp_path / "myproject"
+    proj.mkdir()
+    (proj / "app.py").write_text('print("hello")\n')
+    (proj / "requirements.txt").write_text("flask==3.0.0\n")
+    sub = proj / "src"
+    sub.mkdir()
+    (sub / "models.py").write_text("# models\n")
+
+    tool = ExportZipTool()
+    result = tool.execute(ExportZipTool.Input(
+        project_path=str(proj),
+        output_name="test_export_week17",
+    ))
+
+    assert result.success is True, f"export_zip failed: {result.error}"
+    assert result.exit_code == 0
+
+    # Extract ZIP path from output
+    zip_path = None
+    for line in result.output.split("\n"):
+        if line.startswith("Path:"):
+            zip_path = line.split("Path:")[1].strip()
+            break
+
+    assert zip_path is not None, "ZIP path not in output"
+    assert Path(zip_path).exists(), f"ZIP file not found at {zip_path}"
+
+    # Verify it is a valid ZIP
+    assert zipfile.is_zipfile(zip_path), "Created file is not a valid ZIP"
+
+    # Verify contents
+    with zipfile.ZipFile(zip_path) as zf:
+        names = zf.namelist()
+        assert any("app.py" in n for n in names), f"app.py not in ZIP: {names}"
+
+def test_export_zip_fails_for_nonexistent_path():
+    tool = ExportZipTool()
+    result = tool.execute(ExportZipTool.Input(
+        project_path="/nonexistent/path/xyz",
+    ))
+    assert result.success is False
+    assert result.exit_code == 1
+    assert "not found" in result.error.lower()
+
+def test_export_zip_fails_for_file_not_directory(tmp_path):
+    """export_zip must reject a file path — only directories allowed."""
+    f = tmp_path / "single_file.py"
+    f.write_text("x = 1\n")
+    tool = ExportZipTool()
+    result = tool.execute(ExportZipTool.Input(project_path=str(f)))
+    assert result.success is False
+    assert "not a directory" in result.error.lower()
+
+def test_open_in_vscode_fails_gracefully_when_code_not_found(monkeypatch):
+    """open_in_vscode must return clean error when 'code' is not in PATH."""
+    import subprocess as sp
+    monkeypatch.setattr(
+        sp, "Popen",
+        lambda *a, **kw: (_ for _ in ()).throw(FileNotFoundError("code not found"))
+    )
+    tool = OpenInVSCodeTool()
+    result = tool.execute(OpenInVSCodeTool.Input(path="."))
+    assert result.success is False
+    assert result.exit_code == 127
+    assert "VS Code" in result.error
+
+def test_open_in_vscode_fails_for_nonexistent_path():
+    tool = OpenInVSCodeTool()
+    result = tool.execute(OpenInVSCodeTool.Input(path="/nonexistent/path/xyz"))
+    assert result.success is False
+    assert "does not exist" in result.error.lower()
+
+def test_git_push_fails_without_github_token(monkeypatch):
+    """git_push must return a clear error when GITHUB_TOKEN is not set."""
     monkeypatch.delenv("GITHUB_TOKEN", raising=False)
-    result = GitPushTool().execute(GitPushTool.Input(directory="."))
+    from tools.git_tools import GitPushTool
+    tool = GitPushTool()
+    result = tool.execute(GitPushTool.Input(directory="."))
     assert result.success is False
     assert "GITHUB_TOKEN" in result.error
 
-
-from tools.export_tools import ExportZipTool, OpenInVSCodeTool
-
-def test_export_zip_creates_zip(tmp_path):
-    proj = tmp_path / "myproject"
-    proj.mkdir()
-    (proj / "app.py").write_text("print('hello')")
-    import sys; sys.modules.pop('tools.export_tools', None)
-    result = ExportZipTool().execute(ExportZipTool.Input(project_path=str(proj), output_name="test_export"))
-    assert result.success is True
-    assert ".zip" in result.output
-
-def test_export_zip_fails_for_missing_path():
-    result = ExportZipTool().execute(ExportZipTool.Input(project_path="/nonexistent/path"))
+def test_git_push_fails_without_repo(tmp_path, monkeypatch):
+    """git_push must fail cleanly when directory is not a git repo."""
+    monkeypatch.setenv("GITHUB_TOKEN", "ghp_test_token_for_testing_only")
+    non_repo = tmp_path / "not_a_repo"
+    non_repo.mkdir()
+    from tools.git_tools import GitPushTool
+    tool = GitPushTool()
+    result = tool.execute(GitPushTool.Input(directory=str(non_repo)))
     assert result.success is False
+    assert "git_init" in result.error.lower() or "repository" in result.error.lower()
 
-def test_open_in_vscode_handles_missing_code_command(monkeypatch):
-    import subprocess
-    monkeypatch.setattr(subprocess, "Popen", lambda *a, **kw: (_ for _ in ()).throw(FileNotFoundError()))
-    result = OpenInVSCodeTool().execute(OpenInVSCodeTool.Input(path="."))
+def test_git_push_token_never_in_error_message(monkeypatch, tmp_path):
+    """The GITHUB_TOKEN value must never appear in any error output."""
+    secret_token = "ghp_SUPER_SECRET_TOKEN_1234567890"
+    monkeypatch.setenv("GITHUB_TOKEN", secret_token)
+    from tools.git_tools import GitPushTool
+    tool = GitPushTool()
+    # Push to a non-repo — will fail before token is used in URL
+    result = tool.execute(GitPushTool.Input(directory=str(tmp_path)))
+    assert secret_token not in (result.error or "")
+    assert secret_token not in (result.output or "")
+
+
+# ── Vision tool tests (Week 17) ────────────────────────────────────────
+from tools.vision_tools import ScreenshotToCodeTool
+
+def test_screenshot_to_code_fails_for_missing_image():
+    tool = ScreenshotToCodeTool()
+    result = tool.execute(ScreenshotToCodeTool.Input(
+        image_path="/nonexistent/screenshot.png"
+    ))
     assert result.success is False
-    assert "VS Code" in result.error
+    assert "not found" in result.error.lower()
+    assert result.exit_code == 1
+
+def test_screenshot_to_code_fails_for_unsupported_format(tmp_path):
+    """Unsupported image format must return clear error."""
+    bad_file = tmp_path / "image.bmp"
+    bad_file.write_bytes(b"BM fake bitmap data")
+    tool = ScreenshotToCodeTool()
+    result = tool.execute(ScreenshotToCodeTool.Input(
+        image_path=str(bad_file)
+    ))
+    assert result.success is False
+    assert "unsupported" in result.error.lower()
+
+def test_screenshot_to_code_clean_code_output_strips_fences():
+    """_clean_code_output must strip markdown fences."""
+    tool = ScreenshotToCodeTool()
+    raw = "```html\n<!DOCTYPE html>\n<html>\n<body>test</body>\n</html>\n```"
+    cleaned = tool._clean_code_output(raw, "html")
+    assert cleaned.startswith("<!DOCTYPE html>")
+    assert "```" not in cleaned
+
+def test_screenshot_to_code_clean_code_react_strips_fences():
+    tool = ScreenshotToCodeTool()
+    raw = "```jsx\nimport React from 'react';\nexport default function App() { return <div/>; }\n```"
+    cleaned = tool._clean_code_output(raw, "react")
+    assert "import React" in cleaned
+    assert "```" not in cleaned
+
+def test_screenshot_to_code_handles_ollama_connection_error(tmp_path):
+    """Must return clean error when Ollama is not running."""
+    # Create a real PNG file
+    png_path = tmp_path / "test.png"
+    # Minimal valid PNG (1x1 red pixel)
+    import base64 as b64
+    minimal_png = b64.b64decode(
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8"
+        "z8BQDwADhQGAWjR9awAAAABJRU5ErkJggg=="
+    )
+    png_path.write_bytes(minimal_png)
+
+    tool = ScreenshotToCodeTool()
+    result = tool.execute(ScreenshotToCodeTool.Input(
+        image_path=str(png_path),
+        ollama_url="http://localhost:99999",  # Non-existent port
+        output_file=str(tmp_path / "output.html"),
+    ))
+    assert result.success is False
+    # Should be either connection error or timeout
+    assert result.exit_code != 0

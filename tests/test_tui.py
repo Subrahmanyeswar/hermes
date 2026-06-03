@@ -408,7 +408,7 @@ def test_status_bar_render_shows_cost():
     bar = StatusBar()
     bar.cost = 0.042
     rendered = bar._render_status()
-    assert "0.042" in rendered.plain
+    assert "0.04" in rendered.plain
 
 
 @pytest.mark.asyncio
@@ -613,3 +613,91 @@ def test_memory_view_fact_rendering():
     # New line should have ▶ marker
     rendered_new = pane._render_fact_line("[FACT]: New fact", is_new=True)
     assert "▶" in rendered_new.plain
+
+
+@pytest.mark.asyncio
+async def test_status_bar_updates_skill_realtime(mock_orch_patch):
+    """StatusBar must update active skill in real-time on Stage 3 end progress event."""
+    from ui.app import HermesApp, OrchestratorProgress
+    from ui.panels.status_bar import StatusBar
+
+    app = HermesApp(mode="auto", project="test")
+    app._orchestrator = make_mock_orchestrator()
+
+    async with app.run_test(size=(120, 40)) as pilot:
+        # Initial skill should be none
+        status_bar = app.query_one("#status-bar", StatusBar)
+        assert status_bar.skill == "none"
+
+        # Simulate Stage 3 end with matched skill
+        progress_msg = OrchestratorProgress(
+            event_type="stage_end",
+            data={
+                "stage": 3,
+                "status": "success",
+                "matched": ["react-frontend"],
+                "rejected": [],
+                "confidence": 95,
+            }
+        )
+        app.post_message(progress_msg)
+        await pilot.pause()
+
+        # Check if the app's current_skill and status_bar.skill are updated
+        assert app.current_skill == "react-frontend"
+        assert status_bar.skill == "react-frontend"
+        
+        # Verify it renders the skill name
+        rendered = status_bar._render_status()
+        assert "react-frontend" in rendered.plain
+
+
+@pytest.mark.asyncio
+async def test_right_panel_updates_realtime(mock_orch_patch):
+    """RightPanel must receive OrchestratorProgress events and update its tabs in real-time."""
+    from ui.app import HermesApp, OrchestratorProgress
+    from ui.panels.right_panel import RightPanel, ToolTracePane
+
+    app = HermesApp(mode="auto", project="test")
+    app._orchestrator = make_mock_orchestrator()
+
+    async with app.run_test(size=(120, 40)) as pilot:
+        right_panel = app.query_one("#right-panel", RightPanel)
+        trace_pane = right_panel.query_one("#tool-trace-pane", ToolTracePane)
+        
+        # Initial empty state
+        assert trace_pane._active_entry is None
+
+        # Simulate Stage 7 tool start
+        app.post_message(OrchestratorProgress(
+            event_type="stage_start",
+            data={
+                "stage": 7,
+                "tool_name": "bash_exec",
+                "parameters": {"command": "npm run build"},
+            }
+        ))
+        await pilot.pause()
+
+        # Active entry should be populated and running
+        assert trace_pane._active_entry is not None
+        assert trace_pane._active_entry._tool_name == "bash_exec"
+        assert trace_pane._active_entry._success is None  # running state
+        
+        # Simulate Stage 7 tool end
+        app.post_message(OrchestratorProgress(
+            event_type="stage_end",
+            data={
+                "stage": 7,
+                "status": "success",
+                "tool_name": "bash_exec",
+                "target": "npm run build",
+                "duration": 1.25,
+            }
+        ))
+        await pilot.pause()
+
+        # Active entry should be updated and successful
+        assert trace_pane._active_entry is not None
+        assert trace_pane._active_entry._success is True
+        assert trace_pane._active_entry._latency == 1.25

@@ -16,7 +16,7 @@ from rich.text import Text
 from textual.app import ComposeResult
 from textual.reactive import reactive
 from textual.widget import Widget
-from textual.widgets import Static
+from textual.widgets import Static, Button
 
 
 # ── 30 spinner verbs — exactly as specified in the master plan ────────
@@ -42,24 +42,7 @@ def _random_verb() -> str:
 
 class StatusBar(Widget):
     """
-    HERMES Status Bar — single line docked at the top.
-    Format: [MODE] [T1:Model] [Skill: name] [KAIROS:status] [$cost] | Verb...
-    All fields update reactively. Spinner cycles during generation.
-    """
-
-    DEFAULT_CSS = """
-    StatusBar {
-        height: 1;
-        width: 100%;
-        background: $panel;
-        padding: 0 1;
-        dock: top;
-        layer: above;
-    }
-    #status-line {
-        width: 100%;
-        height: 1;
-    }
+    StatusBar at the top, 1 line, full width.
     """
 
     # ── Reactive state ────────────────────────────────────────────────
@@ -77,8 +60,17 @@ class StatusBar(Widget):
 
     def compose(self) -> ComposeResult:
         yield Static(self._render_status_line(), id="status-line")
+        yield Button(Text("[ QUIT ]"), id="quit-btn")
 
     def on_mount(self) -> None:
+        try:
+            self.mode = self.app.current_mode
+            self.skill = self.app.current_skill
+            self.cost = self.app.session_cost
+            self.kairos_status = self.app.kairos_status
+            self.processing = self.app.is_processing
+        except Exception:
+            pass
         self._update_display()
 
     # ── Reactive watchers ─────────────────────────────────────────────
@@ -141,43 +133,35 @@ class StatusBar(Widget):
 
     def _render_status_line(self) -> Text:
         t = Text(no_wrap=True, overflow="ellipsis")
-
-        # ── Mode ──────────────────────────────────────────────────────
-        mode_colours = {
-            "safe": "#F59E0B",
-            "plan": "#4A90D9",
-            "auto": "#22C55E",
-        }
+        
+        mode_colours = {"safe": "#F59E0B", "plan": "#4A90D9", "auto": "#22C55E"}
         mode_colour = mode_colours.get(self.mode, "white")
         t.append(f"[{self.mode.upper()}]", style=f"bold {mode_colour}")
-
-        # ── Active model tier ─────────────────────────────────────────
-        t.append(f"  T1:{self.tier1_model}", style="dim")
-        t.append(f"+T2:{self.tier2_model}", style="dim")
-
-        # ── Active skill ──────────────────────────────────────────────
+        
+        t1_name = "Qwen2.5-Coder" if "Qwen" in self.tier1_model else self.tier1_model
+        t.append(f"  [T1: {t1_name}]", style="#4A90D9")
+        
         if self.skill and self.skill != "none":
-            t.append(f"  [Skill: {self.skill}]", style="#22C55E")
+            t.append(f"  [Skill: {self.skill}]", style="bold #4A90D9")
         else:
-            t.append("  [Skill: none]", style="dim")
-
-        # ── KAIROS status ─────────────────────────────────────────────
-        kairos_colour = "#22C55E" if self.kairos_status == "running" else "dim"
-        t.append(f"  [KAIROS:{self.kairos_status}]", style=kairos_colour)
-
-        # ── Session cost ──────────────────────────────────────────────
-        cost_colour = "#F59E0B" if self.cost > 15.0 else "dim"
-        t.append(f"  [${self.cost:.3f}]", style=cost_colour)
-
-        # ── Separator ─────────────────────────────────────────────────
-        t.append("  |  ", style="dim")
-
-        # ── Spinner verb or Ready ─────────────────────────────────────
+            t.append("  [Skill: none]", style="dim #6B7280")
+        
+        t.append("  [KAIROS: ")
+        if self.kairos_status == "running":
+            t.append("running", style="bold #22C55E")
+        else:
+            t.append("idle", style="dim #6B7280")
+        t.append("]")
+        
+        t.append(f"  [Cost: ${self.cost:.2f}]", style="#F59E0B")
+        
+        t.append("  |  ", style="dim #6B7280")
+        
         if self.processing:
             t.append(f"{self.spinner_verb}...", style="italic dim #4A90D9")
         else:
-            t.append("Ready", style="dim")
-
+            t.append("Ready", style="dim #6B7280")
+        
         return t
 
     def _update_display(self) -> None:

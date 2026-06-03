@@ -79,7 +79,7 @@ def _jsonl_sink_filter(record) -> bool:
 
 # ── Setup ─────────────────────────────────────────────────────────────
 
-def setup_logging(session_id: Optional[str] = None, debug: bool = False) -> str:
+def setup_logging(session_id: Optional[str] = None, debug: bool = False, tui: bool = False) -> str:
     """Configure Loguru for HERMES. Call once at application startup. Returns the session_id."""
     global _SESSION_ID
 
@@ -88,34 +88,52 @@ def setup_logging(session_id: Optional[str] = None, debug: bool = False) -> str:
     # ── Remove all default Loguru handlers ───────────────────────────────
     logger.remove()
 
-    # ── Handler 1: Human-readable to stderr ──────────────────────────────
     log_level = "DEBUG" if debug else "INFO"
-    logger.add(
-        sys.stderr,
-        level=log_level,
-        format=(
-            "<green>{time:HH:mm:ss}</green> | "
-            "<level>{level: <8}</level> | "
-            "<cyan>{extra[trace_id]}</cyan> | "
-            "{message}"
-        ),
-        colorize=True,
-        filter=lambda record: "trace_id" in record["extra"]
-    )
 
-    # Also add a handler without trace_id filter for records that don't have it
-    logger.add(
-        sys.stderr,
-        level=log_level,
-        format=(
-            "<green>{time:HH:mm:ss}</green> | "
-            "<level>{level: <8}</level> | "
-            "<dim>--------</dim> | "
-            "{message}"
-        ),
-        colorize=True,
-        filter=lambda record: "trace_id" not in record["extra"]
-    )
+    if not tui:
+        # ── Handler 1: Human-readable to stderr ──────────────────────────────
+        logger.add(
+            sys.stderr,
+            level=log_level,
+            format=(
+                "<green>{time:HH:mm:ss}</green> | "
+                "<level>{level: <8}</level> | "
+                "<cyan>{extra[trace_id]}</cyan> | "
+                "{message}"
+            ),
+            colorize=True,
+            filter=lambda record: "trace_id" in record["extra"]
+        )
+
+        # Also add a handler without trace_id filter for records that don't have it
+        logger.add(
+            sys.stderr,
+            level=log_level,
+            format=(
+                "<green>{time:HH:mm:ss}</green> | "
+                "<level>{level: <8}</level> | "
+                "<dim>--------</dim> | "
+                "{message}"
+            ),
+            colorize=True,
+            filter=lambda record: "trace_id" not in record["extra"]
+        )
+    else:
+        # TUI custom sink to route logs to active app
+        def tui_sink(message):
+            try:
+                from textual.app import App
+                app = App.get_current_app()
+                if app and hasattr(app, "handle_log_record"):
+                    app.call_from_thread(app.handle_log_record, message.record)
+            except Exception:
+                pass
+
+        logger.add(
+            tui_sink,
+            level=log_level,
+            serialize=False,
+        )
 
     # ── Handler 2: Structured JSONL to session file ───────────────────────
     SESSION_LOG_DIR.mkdir(parents=True, exist_ok=True)

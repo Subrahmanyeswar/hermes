@@ -1,0 +1,40 @@
+{
+  "test_run": "2026-06-03T18:06:28.554733",
+  "passed": 3,
+  "total": 3,
+  "results": [
+    {
+      "screenshot": "test_login_form.png",
+      "description": "login form",
+      "format": "html",
+      "passed": true,
+      "error": null,
+      "validation_message": "Valid HTML (3398 chars, 10 HTML indicators)",
+      "code_lines": 67,
+      "output_file": "generated_projects\\screenshot_test_login_form_html.html",
+      "latency_seconds": 38.89
+    },
+    {
+      "screenshot": "test_dashboard.png",
+      "description": "dashboard",
+      "format": "html",
+      "passed": true,
+      "error": null,
+      "validation_message": "Valid HTML (2691 chars, 10 HTML indicators)",
+      "code_lines": 54,
+      "output_file": "generated_projects\\screenshot_test_dashboard_html.html",
+      "latency_seconds": 32.03
+    },
+    {
+      "screenshot": "test_api_docs.png",
+      "description": "API documentation",
+      "format": "react",
+      "passed": true,
+      "error": null,
+      "validation_message": "Valid React (657 chars, 7 React indicators)",
+      "code_lines": 22,
+      "output_file": "generated_projects\\screenshot_test_api_docs_react.jsx",
+      "latency_seconds": 16.05
+    }
+  ]
+}

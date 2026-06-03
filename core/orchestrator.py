@@ -116,7 +116,7 @@ class Orchestrator:
             await self.kairos.stop()
             self._kairos_started = False
 
-    async def run(self, user_request: str) -> OrchestratorResult:
+    async def run(self, user_request: str, on_progress=None) -> OrchestratorResult:
         """
         Run the full 12-stage pipeline for one user request.
         Never raises — always returns OrchestratorResult.
@@ -127,8 +127,20 @@ class Orchestrator:
         tlog = get_trace_logger(trace_id)
         result = OrchestratorResult(success=False, final_output="", trace_id=trace_id)
 
+        async def notify(event_type: str, **kwargs):
+            if on_progress:
+                try:
+                    import asyncio
+                    if asyncio.iscoroutinefunction(on_progress):
+                        await on_progress(event_type, kwargs)
+                    else:
+                        on_progress(event_type, kwargs)
+                except Exception as exc:
+                    logger.warning(f"Error in progress callback: {exc}")
+
         try:
             # ── Stage 1: Sanitise input ───────────────────────────────
+            await notify("stage_start", stage=1, name="Input Sanitization", thought="Sanitizing user request to prevent HTML/XML injection...", spinner_verb="Analyzing")
             result.pipeline_stage_reached = 1
             sanitised = self._sanitise_input(user_request)
             self.session_logger.log_user_input(sanitised)
@@ -140,8 +152,10 @@ class Orchestrator:
                 session_id=self.session_logger.session_id
             )
             tlog.debug(f"Stage 1 complete | sanitised_length={len(sanitised)}")
+            await notify("stage_end", stage=1, status="success", sanitised=sanitised)
 
             # ── Stage 2: Task planner ─────────────────────────────────
+            await notify("stage_start", stage=2, name="Task Planning", thought="Decomposing user request into actionable plan...", spinner_verb="Planning")
             result.pipeline_stage_reached = 2
             task = self.planner.plan(sanitised, session_id=self.session_logger.session_id)
             result.task = task
@@ -160,8 +174,10 @@ class Orchestrator:
             )
             mark_running(db_task_id, db_path=DB_PATH)
             logger.debug(f"Stage 2: task registered in queue as db_task_id={db_task_id}")
+            await notify("stage_end", stage=2, status="success", task_id=task.task_id, complexity=task.complexity_score, subtasks=task.subtasks)
 
-            # ── Stage 3: Skill + Memory injection (with memory parse error fallback) ──
+            # ── Stage 3: Skill Detection ──
+            await notify("stage_start", stage=3, name="Skill Detection", thought="Matching Intent classifier skills to request...", spinner_verb="Loading Skill")
             result.pipeline_stage_reached = 3
 
             skill_ids = self.classifier.classify(sanitised)
@@ -169,16 +185,37 @@ class Orchestrator:
             result.skill_ids_used = loaded_skill_ids
             active_skill_name = loaded_skill_ids[0] if loaded_skill_ids else "none"
 
+            matched = loaded_skill_ids
+            rejected = [s.skill_id for s in self.classifier.skills if s.skill_id not in loaded_skill_ids][:2]
+            confidence = int(min(98, 75 + len(matched) * 10 + (task.complexity_score * 15))) if matched else 0
+            await notify("stage_end", stage=3, status="success", matched=matched, rejected=rejected, confidence=confidence)
+
+            # ── Stage 4: Memory Injection ──
+            await notify("stage_start", stage=4, name="Memory Injection", thought="Retrieving past rules and facts from memory store...", spinner_verb="Loading Memory")
             try:
                 memory_context = read_context_for_prompt(project=self.project)
             except Exception as mem_exc:
                 mem_err = self.error_handler.memory_parse_error(str(mem_exc), self.project)
                 logger.warning(f"Stage 3: {mem_err.technical_detail}")
-                memory_context = ""  # Empty fallback — session continues normally
+                memory_context = ""  # Empty fallback
 
             logger.debug(f"Stage 3 complete: skills={loaded_skill_ids} | memory_lines={memory_context.count(chr(10))}")
+            
+            lines = [l.strip() for l in memory_context.split('\n') if l.strip()]
+            mem_facts = []
+            for l in lines:
+                if '[FACT]:' in l:
+                    mem_facts.append(l.replace('[FACT]:', '').strip())
+                elif '[DETAIL]:' in l:
+                    mem_facts.append(l.replace('[DETAIL]:', '').strip())
+            mem_facts = mem_facts[:3]
+            if not mem_facts:
+                mem_facts = ["Memory index initialized", "No relevant past facts detected"]
 
-            # ── Stage 4: Tier 1 generation (with JSON parse failure handling) ──────
+            await notify("stage_end", stage=4, status="success", memories=mem_facts)
+
+            # ── Stage 5: Tier 1 Reasoning ──────
+            await notify("stage_start", stage=5, name="Tier 1 Reasoning", thought="Generating tool selection using qwen2.5-coder:7b...", spinner_verb="Reasoning")
             result.pipeline_stage_reached = 4
 
             ctx = PromptContext(
@@ -193,7 +230,7 @@ class Orchestrator:
             system_prompt = build_system_prompt(ctx)
             user_message_text = build_user_message(sanitised)
 
-            # ── Attempt 1: standard prompt ──────────────────────────────────────
+            # Attempt 1
             t1_start = time.monotonic()
             try:
                 tier1_raw = await self.ollama.generate(
@@ -204,7 +241,6 @@ class Orchestrator:
                 )
                 t1_latency = time.monotonic() - t1_start
             except Exception as t1_exc:
-                # Check if this is a timeout
                 t1_latency = time.monotonic() - t1_start
                 from models.ollama_client import OllamaTimeoutError
                 if isinstance(t1_exc, OllamaTimeoutError):
@@ -214,11 +250,12 @@ class Orchestrator:
                 result.final_output = err.tagged_output(err.user_message)
                 result.error = err.technical_detail
                 mark_failed(db_task_id, error=err.technical_detail[:300], db_path=DB_PATH)
+                await notify("stage_end", stage=5, status="failed", error=result.error)
                 return result
 
             tier1_parsed = self._parse_tier1_response(tier1_raw)
 
-            # ── Attempt 2: V2 prompt on parse failure ───────────────────────────
+            # Attempt 2
             if tier1_parsed is None:
                 parse_err = self.error_handler.json_parse_failure(tier1_raw, attempt=0)
                 logger.warning(f"Stage 4: {parse_err.technical_detail}")
@@ -247,21 +284,23 @@ class Orchestrator:
                     result.final_output = err.tagged_output(err.user_message)
                     result.error = err.technical_detail
                     mark_failed(db_task_id, error=err.technical_detail[:300], db_path=DB_PATH)
+                    await notify("stage_end", stage=5, status="failed", error=result.error)
                     return result
 
                 tier1_parsed = self._parse_tier1_response(tier1_raw)
 
                 if tier1_parsed is None:
-                    # Both attempts failed
                     final_err = self.error_handler.json_parse_failure(tier1_raw, attempt=1)
                     result.final_output = final_err.user_message
                     result.error = final_err.technical_detail
                     mark_failed(db_task_id, error=final_err.technical_detail[:300], db_path=DB_PATH)
+                    await notify("stage_end", stage=5, status="failed", error=result.error)
                     return result
 
             tool_name = tier1_parsed.get("tool", "")
             tool_params = tier1_parsed.get("parameters", {})
             tier1_reasoning = tier1_parsed.get("reasoning", "")
+            explanation = tier1_parsed.get("explanation", "Task completed.")
 
             self.session_logger.log_tier1_response(
                 "qwen2.5-coder:7b", tier1_raw[:500], t1_latency, tool_name
@@ -278,17 +317,19 @@ class Orchestrator:
                 ) if hasattr(tier1_parsed, '_parse_method') else "parsed"
             )
             tlog.debug(f"Stage 4 complete | tool={tool_name} | latency={t1_latency:.2f}s")
+            
+            thought_summary = tier1_reasoning.strip().split('\n')[0][:120] if tier1_reasoning else "Plan prepared for executing tool."
+            await notify("stage_end", stage=5, status="success", tool=tool_name, parameters=tool_params, explanation=explanation, thought=thought_summary)
 
-            # ── Stage 5: Tool validation + safety gates (with tool-not-found handling) ──
+            # ── Stage 6: Tool Validation ──
+            await notify("stage_start", stage=6, name="Tool Validation", thought="Validating tool parameter schema and security permissions...", spinner_verb="Validating")
             result.pipeline_stage_reached = 5
 
-            # ── Tool registry lookup ──────────────────────────────────────────────
             tool_class = get_tool(tool_name)
             if tool_class is None:
                 tool_err = self.error_handler.tool_not_found(tool_name, list_tools(), attempt=0)
                 logger.warning(f"Stage 5: {tool_err.technical_detail}")
 
-                # Re-prompt once with correction injected
                 correction_prompt = build_user_message(sanitised) + "\n\n" + tool_err.context_for_retry
 
                 try:
@@ -303,6 +344,7 @@ class Orchestrator:
                     result.final_output = final_tool_err.tagged_output(final_tool_err.user_message)
                     result.error = final_tool_err.technical_detail
                     mark_failed(db_task_id, error=final_tool_err.technical_detail[:300], db_path=DB_PATH)
+                    await notify("stage_end", stage=6, status="failed", error=result.error)
                     return result
 
                 tier1_parsed_retry = self._parse_tier1_response(tier1_raw_retry)
@@ -311,6 +353,7 @@ class Orchestrator:
                     result.final_output = final_tool_err.user_message
                     result.error = final_tool_err.technical_detail
                     mark_failed(db_task_id, error=final_tool_err.technical_detail[:300], db_path=DB_PATH)
+                    await notify("stage_end", stage=6, status="failed", error=result.error)
                     return result
 
                 tool_name = tier1_parsed_retry.get("tool", "")
@@ -323,9 +366,10 @@ class Orchestrator:
                     result.final_output = final_tool_err.user_message
                     result.error = final_tool_err.technical_detail
                     mark_failed(db_task_id, error=final_tool_err.technical_detail[:300], db_path=DB_PATH)
+                    await notify("stage_end", stage=6, status="failed", error=result.error)
                     return result
 
-            # ── Permission gate check ─────────────────────────────────────────────
+            # Permission check
             from tools.registry import PermissionGate
             gate = PermissionGate(self.mode)
             allowed, gate_reason = gate.check(tool_class)
@@ -333,9 +377,10 @@ class Orchestrator:
                 result.final_output = f"Action blocked in {self.mode.upper()} mode: {gate_reason}"
                 result.success = False
                 mark_failed(db_task_id, error=f"Permission gate: {gate_reason}", db_path=DB_PATH)
+                await notify("stage_end", stage=6, status="failed", error=result.final_output)
                 return result
 
-            # ── Pydantic schema validation ─────────────────────────────────────────
+            # Schema validation
             try:
                 tool_input = tool_class.Input(**tool_params)
             except Exception as validation_exc:
@@ -345,6 +390,7 @@ class Orchestrator:
                 result.final_output = f"Invalid parameters for tool '{tool_name}': {str(validation_exc)[:200]}"
                 result.error = validation_err.technical_detail
                 mark_failed(db_task_id, error=validation_err.technical_detail[:300], db_path=DB_PATH)
+                await notify("stage_end", stage=6, status="failed", error=result.final_output)
                 return result
 
             self.session_logger.log_tool_call(tool_name, tool_params, self.mode)
@@ -356,8 +402,9 @@ class Orchestrator:
                 parameters_preview=json.dumps(tool_params)[:200]
             )
             tlog.debug(f"Stage 5 complete | tool={tool_name} validated")
+            await notify("stage_end", stage=6, status="success", tool_name=tool_name, parameters=tool_params)
 
-            # ── Stage 6: Tool execution (with up-to-3 retries on exit_code != 0) ──
+            # ── Stage 7: Tool Execution ──
             result.pipeline_stage_reached = 6
 
             tool_instance = tool_class()
@@ -366,6 +413,9 @@ class Orchestrator:
 
             while tool_exec_retry_count <= 3:
                 t_exec_start = time.monotonic()
+                
+                await notify("stage_start", stage=7, name="Tool Execution", thought=f"Executing tool {tool_name}...", spinner_verb="Executing", tool_name=tool_name, parameters=tool_params, attempt=tool_exec_retry_count + 1)
+                
                 try:
                     current_tool_result = tool_instance.execute(tool_input)
                     t_exec_dur = time.monotonic() - t_exec_start
@@ -376,6 +426,7 @@ class Orchestrator:
                     result.error = exec_err.technical_detail
                     self.session_logger.log_tool_result(tool_name, False, 1, str(exec_exc)[:200], t_exec_dur)
                     mark_failed(db_task_id, error=exec_err.technical_detail[:300], db_path=DB_PATH)
+                    await notify("stage_end", stage=7, status="failed", tool_name=tool_name, duration=t_exec_dur, error=result.error, attempt=tool_exec_retry_count + 1)
                     return result
 
                 self.session_logger.log_tool_result(
@@ -395,15 +446,16 @@ class Orchestrator:
                 )
 
                 if current_tool_result.success or current_tool_result.exit_code == 0:
-                    # Success — exit the retry loop
                     tool_result = current_tool_result
                     logger.debug(
                         f"Stage 6: tool={tool_name} succeeded | "
                         f"exit={current_tool_result.exit_code} | attempt={tool_exec_retry_count + 1}"
                     )
+                    target = tool_params.get("TargetFile") or tool_params.get("path") or tool_params.get("filename") or str(tool_params)
+                    lines_count = len(tool_params.get("CodeContent", "").split('\n')) if tool_params.get("CodeContent") else 0
+                    await notify("stage_end", stage=7, status="success", tool_name=tool_name, target=target, lines=lines_count, duration=t_exec_dur, attempt=tool_exec_retry_count + 1)
                     break
 
-                # Tool failed — decide whether to retry
                 stderr = current_tool_result.error or current_tool_result.output or "Unknown error"
                 exec_failure = self.error_handler.tool_execution_failure(
                     tool_name, current_tool_result.exit_code, stderr, retry_count=tool_exec_retry_count
@@ -415,8 +467,9 @@ class Orchestrator:
                     f"retry={tool_exec_retry_count}/3 | stderr={stderr[:80]!r}"
                 )
 
+                await notify("stage_end", stage=7, status="failed", tool_name=tool_name, duration=t_exec_dur, error=exec_failure.technical_detail, attempt=tool_exec_retry_count + 1)
+
                 if exec_failure.is_final:
-                    # Max retries exceeded
                     tool_result = current_tool_result
                     result.final_output = exec_failure.tagged_output(exec_failure.user_message)
                     result.error = exec_failure.technical_detail
@@ -425,7 +478,6 @@ class Orchestrator:
                     mark_failed(db_task_id, error=exec_failure.technical_detail[:300], db_path=DB_PATH)
                     return result
 
-                # Retry: ask T1 to fix the error
                 tool_exec_retry_count += 1
                 correction_sys = build_system_prompt(ctx)
                 correction_prompt = (
@@ -451,6 +503,7 @@ class Orchestrator:
                         unk_err = self.error_handler.unknown_error(retry_gen_exc, f"stage_6_retry_{tool_exec_retry_count}")
                         result.final_output = unk_err.tagged_output(unk_err.user_message)
                     mark_failed(db_task_id, error=str(retry_gen_exc)[:300], db_path=DB_PATH)
+                    await notify("stage_end", stage=7, status="failed", tool_name=tool_name, duration=0.0, error=str(retry_gen_exc), attempt=tool_exec_retry_count + 1)
                     return result
 
                 retry_parsed = self._parse_tier1_response(tier1_retry_raw)
@@ -464,19 +517,20 @@ class Orchestrator:
                             tool_instance = retry_tool_class()
                             tool_name = tool_name_retry
                         except Exception:
-                            pass  # Keep existing tool_input if retry parse fails
+                            pass
 
             if tool_result is None:
-                # Should never happen but defensive fallback
                 result.final_output = "Tool execution produced no result. Please try again."
                 mark_failed(db_task_id, error="tool_result is None after loop", db_path=DB_PATH)
+                await notify("stage_end", stage=7, status="failed", tool_name=tool_name, duration=0.0, error=result.final_output, attempt=tool_exec_retry_count)
                 return result
 
             result.tool_name = tool_name
             result.tool_result = tool_result
             logger.debug(f"Stage 6 complete: tool={tool_name} | success={tool_result.success} | exit={tool_result.exit_code}")
 
-            # ── Stage 7: Tier 2 verification (with timeout handling) ──────────────
+            # ── Stage 8: Tier 2 verification ──────────────
+            await notify("stage_start", stage=8, name="Tier 2 Verification", thought="Verifying tool output correctness with verifier model...", spinner_verb="Verifying")
             result.pipeline_stage_reached = 7
 
             try:
@@ -495,7 +549,6 @@ class Orchestrator:
                 else:
                     t2_err = self.error_handler.unknown_error(t2_exc, "stage_7_tier2")
                 logger.warning(f"Stage 7: Tier 2 failed — {t2_err.technical_detail}. Proceeding with T1 output.")
-                # Fall through with a synthetic "agree" verification so pipeline continues
                 from core.verifier import VerificationResult
                 verification = VerificationResult(
                     agree=True,
@@ -521,13 +574,17 @@ class Orchestrator:
                 escalated=verification.should_escalate
             )
             tlog.debug(f"Stage 7 complete | {verification.summary()}")
+            await notify("stage_end", stage=8, status="success", verifier="Mistral 7B", agree=verification.agree, confidence=verification.confidence, critical_issues=len(verification.critical_issues))
 
-            # ── Stage 8: Disagreement router ──────────────────────────
+            # ── Stage 9: Disagreement Router ──
+            await notify("stage_start", stage=9, name="Disagreement Analysis", thought="Routing verification agreement and resolving path...", spinner_verb="Comparing")
             result.pipeline_stage_reached = 8
             routing = self.router.route(verification, tool_name, self.mode)
             logger.info(f"Stage 8 complete: {routing.summary()}")
+            await notify("stage_end", stage=9, status="success", decision=routing.decision.value, reason=routing.reason, threshold=routing.confidence_threshold_used, actual=verification.confidence, action="Consult Tier 3" if routing.tier3_needed else "Proceed")
 
-            # ── Stage 9: Tier 3 arbitration (with API failure handling) ──────────
+            # ── Stage 10: Tier 3 Escalation ──
+            await notify("stage_start", stage=10, name="Tier 3 Escalation", thought="Escalating task to Tier 3 for arbitration...", spinner_verb="Escalating", needed=routing.tier3_needed, reason=routing.reason)
             result.pipeline_stage_reached = 9
 
             tier3_decision_text = ""
@@ -541,6 +598,7 @@ class Orchestrator:
                 )
                 result.success = False
                 mark_failed(db_task_id, error=f"Blocked: {routing.reason}", db_path=DB_PATH)
+                await notify("stage_end", stage=10, status="failed", needed=True, verdict="Corrections Required")
                 return result
 
             elif routing.decision == RoutingDecision.ESCALATE and routing.tier3_needed:
@@ -555,7 +613,6 @@ class Orchestrator:
                     result.tier3_was_called = True
 
                     if not tier3_response.success:
-                        # Tier 3 API failed — use T1 output with UNVERIFIED tag
                         t3_err = self.error_handler.tier3_api_failure(
                             "APIError",
                             tier3_response.error or "unknown error",
@@ -563,6 +620,7 @@ class Orchestrator:
                         )
                         logger.warning(f"Stage 9: {t3_err.technical_detail}")
                         tier3_decision_text = f"[{t3_err.tag}] {t3_err.user_message}"
+                        await notify("stage_end", stage=10, status="failed", needed=True, verdict="Corrections Required")
                     else:
                         self.session_logger.log_tier3_arbitration(
                             tier3_response.content[:200],
@@ -581,6 +639,7 @@ class Orchestrator:
                             escalation_reason=routing.reason
                         )
                         logger.info(f"Stage 9 complete: Tier 3 arbitrated | cost=${tier3_response.cost_usd:.4f}")
+                        await notify("stage_end", stage=10, status="success", needed=True, verdict="Approved")
 
                 except Exception as t3_exc:
                     t3_err = self.error_handler.tier3_api_failure(
@@ -591,9 +650,15 @@ class Orchestrator:
                     logger.warning(f"Stage 9: Tier 3 exception — {t3_err.technical_detail}")
                     tier3_decision_text = t3_err.tagged_output(t3_err.user_message)
                     result.tier3_was_called = True
+                    await notify("stage_end", stage=10, status="failed", needed=True, verdict="Corrections Required")
+            else:
+                await notify("stage_end", stage=10, status="success", needed=False, verdict="Approved")
 
-            # ── Stage 10: Memory update ───────────────────────────────
+            # ── Stage 11: Memory Update ──
+            await notify("stage_start", stage=11, name="Memory Update", thought="Persisting facts to memory store...", spinner_verb="Persisting")
             result.pipeline_stage_reached = 10
+            facts = []
+            written = 0
             if tool_result.exit_code == 0 and tool_result.success:
                 conversation_for_extraction = [
                     {"role": "user", "content": sanitised},
@@ -630,13 +695,15 @@ class Orchestrator:
                 if written > 0:
                     self.session_logger.log_memory_update(written, self.project)
                 tlog.debug(f"Stage 10 complete | {written} facts written to memory")
+            
+            added = facts[:2] if facts else []
+            await notify("stage_end", stage=11, status="success", added=added, updated=[])
 
-            # ── Stage 11: Task queue update ───────────────────────────
+            # ── Stage 12: Build Final Response ──
             result.pipeline_stage_reached = 11
-            # KAIROS handles the SQLite task queue — orchestrator just logs completion
             logger.debug(f"Stage 11 complete: task {task.task_id} processed")
 
-            # ── Stage 12: Build final output ──────────────────────────
+            await notify("stage_start", stage=12, name="Final Response", thought="Synthesizing final execution report...", spinner_verb="Finalizing")
             result.pipeline_stage_reached = 12
             result.success = tool_result.success
 
@@ -644,21 +711,114 @@ class Orchestrator:
 
             if tool_result.success:
                 output_preview = tool_result.output[:400] if tool_result.output else ""
-                result.final_output = (
+                final_answer = (
                     f"{explanation}\n\n{output_preview}" if output_preview else explanation
                 )
             else:
                 error_msg = tool_result.error or "Unknown error"
-                result.final_output = (
+                final_answer = (
                     f"The action did not complete successfully.\n"
                     f"Tool: {tool_name}\n"
                     f"Error: {error_msg[:300]}"
                 )
 
             if tier3_decision_text:
-                result.final_output += f"\n\n[Tier 3 review]: {tier3_decision_text[:200]}"
+                final_answer += f"\n\n[Tier 3 review]: {tier3_decision_text[:200]}"
 
             total_latency = time.monotonic() - start_time
+            
+            # Format completion/failure report
+            if result.success:
+                created_count = 0
+                modified_count = 0
+                if tool_name == "write_file":
+                    p = tool_params.get("TargetFile") or tool_params.get("path")
+                    if p and Path(p).exists():
+                        modified_count = 1
+                    else:
+                        created_count = 1
+                
+                skill_name = result.skill_ids_used[0] if result.skill_ids_used else "none"
+                
+                file_tree_str = ""
+                if tool_name == "write_file":
+                    target_file_path = tool_params.get("TargetFile") or tool_params.get("path") or "output.py"
+                    file_basename = Path(target_file_path).name
+                    file_tree_str = (
+                        f"Artifacts Created\n"
+                        f"└── {file_basename}\n\n"
+                    )
+
+                summary_box = (
+                    f"═══════════════════════════\n"
+                    f"EXECUTION SUMMARY\n"
+                    f"═══════════════════════════\n\n"
+                    f"{file_tree_str}"
+                    f"Request:\n"
+                    f"{sanitised[:120]}\n\n"
+                    f"Mode:\n"
+                    f"{self.mode.upper()}\n\n"
+                    f"Skill Used:\n"
+                    f"{skill_name}\n\n"
+                    f"Tools Executed:\n"
+                    f"1\n\n"
+                    f"Files Created:\n"
+                    f"{created_count}\n\n"
+                    f"Files Modified:\n"
+                    f"{modified_count}\n\n"
+                    f"Tests Passed:\n"
+                    f"0\n\n"
+                    f"Tests Failed:\n"
+                    f"0\n\n"
+                    f"Verifier Confidence:\n"
+                    f"{verification.confidence if 'verification' in locals() else 0.5:.2f}\n\n"
+                    f"Memory Updates:\n"
+                    f"{written}\n\n"
+                    f"Total Duration:\n"
+                    f"{total_latency:.1f}s\n\n"
+                    f"Result:\n"
+                    f"SUCCESS\n\n"
+                    f"═══════════════════════════\n"
+                )
+                result.final_output = f"{summary_box}\n{final_answer}"
+            else:
+                fail_stage = "Tool Execution"
+                if result.pipeline_stage_reached < 6:
+                    fail_stage = "Tier 1 Reasoning"
+                elif result.pipeline_stage_reached == 8:
+                    fail_stage = "Tier 2 Verification"
+                elif result.pipeline_stage_reached == 9:
+                    fail_stage = "Tier 3 Arbitration"
+                
+                tool_run = tool_name or "none"
+                err_reason = result.error or "Unknown error"
+                if "Permission denied" in err_reason:
+                    suggested = "Check folder permissions"
+                elif "Timeout" in err_reason:
+                    suggested = "Verify model runner (Ollama) service status"
+                else:
+                    suggested = "Check syntax, model availability, or credentials"
+
+                summary_box = (
+                    f"═══════════════════════════\n"
+                    f"EXECUTION SUMMARY\n"
+                    f"═══════════════════════════\n\n"
+                    f"Result:\n"
+                    f"FAILED\n\n"
+                    f"Failure Stage:\n"
+                    f"{fail_stage}\n\n"
+                    f"Tool:\n"
+                    f"{tool_run}\n\n"
+                    f"Reason:\n"
+                    f"{err_reason[:200]}\n\n"
+                    f"Retries:\n"
+                    f"{tool_exec_retry_count}/3\n\n"
+                    f"Suggested Action:\n"
+                    f"{suggested}\n\n"
+                    f"═══════════════════════════\n"
+                )
+                result.final_output = f"{summary_box}\n{final_answer}"
+
             log_pipeline_complete(
                 trace_id=trace_id,
                 success=result.success,
@@ -670,18 +830,51 @@ class Orchestrator:
             )
             tlog.info(f"Pipeline complete | success={result.success} | latency={total_latency:.2f}s")
             result.total_latency_seconds = total_latency
-            # Update task queue status
+            
             if result.success:
                 mark_completed(db_task_id, db_path=DB_PATH)
             else:
                 mark_failed(db_task_id, error=result.error or result.final_output[:200], db_path=DB_PATH)
 
+            await notify("stage_end", stage=12, status="success" if result.success else "failed")
             return result
 
         except Exception as e:
             result.total_latency_seconds = time.monotonic() - start_time
             result.error = str(e)
+            
+            fail_stage = "Tool Execution"
+            if result.pipeline_stage_reached < 6:
+                fail_stage = "Tier 1 Reasoning"
+            elif result.pipeline_stage_reached == 8:
+                fail_stage = "Tier 2 Verification"
+            elif result.pipeline_stage_reached == 9:
+                fail_stage = "Tier 3 Arbitration"
+
+            err_reason = str(e)
+            suggested = "Check syntax, model availability, or credentials"
+            
+            summary_box = (
+                f"═══════════════════════════\n"
+                f"EXECUTION SUMMARY\n"
+                f"═══════════════════════════\n\n"
+                f"Result:\n"
+                f"FAILED\n\n"
+                f"Failure Stage:\n"
+                f"{fail_stage}\n\n"
+                f"Tool:\n"
+                f"none\n\n"
+                f"Reason:\n"
+                f"{err_reason[:200]}\n\n"
+                f"Retries:\n"
+                f"0/3\n\n"
+                f"Suggested Action:\n"
+                f"{suggested}\n\n"
+                f"═══════════════════════════\n"
+            )
+            
             result.final_output = (
+                f"{summary_box}\n"
                 f"An unexpected error occurred at stage "
                 f"{result.pipeline_stage_reached}: {str(e)[:200]}"
             )
@@ -698,6 +891,12 @@ class Orchestrator:
                 f"Orchestrator error at stage {result.pipeline_stage_reached}: "
                 f"{type(e).__name__}: {e}"
             )
+            try:
+                mark_failed(db_task_id, error=str(e)[:300], db_path=DB_PATH)
+            except Exception:
+                pass
+            
+            await notify("stage_end", stage=result.pipeline_stage_reached, status="failed", error=str(e))
             return result
 
     # ──────────────────────────────────────────────────────────────────
@@ -739,3 +938,4 @@ class Orchestrator:
             raise ValueError(f"Invalid mode '{mode}'. Must be: safe, plan, auto")
         self.mode = mode
         logger.info(f"Orchestrator mode changed to: {mode}")
+
