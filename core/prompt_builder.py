@@ -18,9 +18,9 @@ class PromptContext:
     mode: str  # "safe", "plan", or "auto"
     available_tools: list[str]
     tool_descriptions: str
-    memory_context: str
-    skill_context: str
-    active_skill_name: str
+    memory_context: str = ""
+    skill_context: str = ""
+    active_skill_name: str = "none"
 
 
 HERMES_ROLE = """You are HERMES, a precise agentic coding assistant. Your ONLY job is to call tools.

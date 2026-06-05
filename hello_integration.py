@@ -1,1 +1,0 @@
-print('HERMES_INTEGRATION_TEST')

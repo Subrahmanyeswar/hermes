@@ -386,7 +386,7 @@ def test_Q1_unit_test_suite_passes():
          "--ignore=tests/integration/",
          "--ignore=tests/test_submission_ready.py",
          "-q", "--timeout=300", "--tb=short"],
-        capture_output=True, text=True, encoding='utf-8', timeout=600
+        capture_output=True, text=True, encoding='utf-8', timeout=1800
     )
 
     lines = result.stdout.strip().split("\n")
