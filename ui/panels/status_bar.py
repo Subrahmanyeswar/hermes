@@ -54,6 +54,7 @@ class StatusBar(Widget):
     spinner_verb: reactive[str]  = reactive("Ready",  layout=False)
     tier1_model: reactive[str]   = reactive("Qwen",   layout=False)
     tier2_model: reactive[str]   = reactive("Mistral",layout=False)
+    _last_log_entry: reactive[str] = reactive("", layout=False)
 
     # Internal timer handle
     _spinner_timer: Optional[object] = None
@@ -95,6 +96,15 @@ class StatusBar(Widget):
         self._update_display()
 
     def watch_spinner_verb(self, _: str) -> None:
+        self._update_display()
+
+    def update_log_line(self, log_entry: str) -> None:
+        """Update the bottom log line with the latest pipeline event.
+        Truncate to 120 characters for brevity.
+        """
+        if len(log_entry) > 120:
+            log_entry = log_entry[:117] + "..."
+        self._last_log_entry = log_entry
         self._update_display()
 
     # ── Spinner management ────────────────────────────────────────────
@@ -164,11 +174,19 @@ class StatusBar(Widget):
         
         return t
 
+    def _render(self) -> Text:
+        """Render full status bar including bottom log line."""
+        status = self._render_status_line()
+        if self._last_log_entry:
+            status.append("\n")
+            status.append(self._last_log_entry, style="dim #6B7280")
+        return status
+
     def _update_display(self) -> None:
         """Re-render the status line."""
         try:
             label = self.query_one("#status-line", Static)
-            label.update(self._render_status_line())
+            label.update(self._render())
         except Exception:
             pass
 

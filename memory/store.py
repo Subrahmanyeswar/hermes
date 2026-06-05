@@ -10,13 +10,41 @@ from pathlib import Path
 from datetime import datetime
 from typing import Optional
 from loguru import logger
+from dataclasses import dataclass
 from memory.types import MemoryFact, MemoryState, FactType, MemoryIndex
+
 
 MEMORY_FILENAME = "MEMORY.md"
 LAYER2_BASE_DIR = Path("data/memory")
 MAX_CONTEXT_LINES = 30       # max lines of MEMORY.md to inject into Tier 1 prompt
 LINE_CHAR_LIMIT = 150        # enforced max characters per memory line
 
+
+@dataclass
+class SimpleFact:
+    """
+    A single parsed fact line from MEMORY.md.
+    Used by MemoryViewPane to render memory content.
+    """
+    raw_line: str
+    fact_type: str = "FACT"  # FACT, BUG, TASK_DONE, BLOCKED, DETAIL, STALE
+
+    def to_memory_line(self) -> str:
+        return self.raw_line
+
+    @classmethod
+    def from_line(cls, line: str) -> Optional["SimpleFact"]:
+        """Parse a line from MEMORY.md into a SimpleFact."""
+        line = line.strip()
+        if not line or line.startswith("#"):
+            return cls(raw_line=line, fact_type="HEADER")
+        for prefix in ["[FACT]", "[BUG]", "[TASK_DONE]", "[BLOCKED]", "[DETAIL]", "[STALE]"]:
+            if line.startswith(prefix):
+                fact_type = prefix.strip("[]:")
+                return cls(raw_line=line, fact_type=fact_type)
+        if line:
+            return cls(raw_line=line, fact_type="RAW")
+        return None
 
 def get_memory_path(project: str = "default") -> Path:
     if project == "default":
@@ -35,10 +63,11 @@ def read_memory_index(project: str = "default") -> MemoryIndex:
     lines = path.read_text(encoding='utf-8').splitlines()
     facts = []
     for line in lines:
-        fact = MemoryFact.from_memory_line(line, project=project)
-        if fact is not None:
-            facts.append(fact)
-            
+        # Parse each line into a MemoryFact if possible; ignore headers/comments.
+        mem_fact = MemoryFact.from_memory_line(line, project=project)
+        if mem_fact is not None:
+            facts.append(mem_fact)
+    
     last_updated = datetime.fromtimestamp(path.stat().st_mtime)
     logger.debug(f"Memory: loaded {len(facts)} facts for project '{project}'")
     return MemoryIndex(project=project, facts=facts, last_updated=last_updated)

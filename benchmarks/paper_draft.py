@@ -18,17 +18,23 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 
-def load_metrics(metrics_file: Path) -> dict:
-    """Load the metrics JSON file.
+def format_calibration_data(calib: dict) -> str:
+    """Format the calibration dictionary into a Markdown table."""
+    if not calib:
+        return "*(No calibration data available)*\n"
+    
+    md = "| Metric | Value |\n|---|---|\n"
+    for key, val in calib.items():
+        label = key.replace("_", " ").title()
+        md += f"| {label} | {val} |\n"
+    return md
 
-    If the file does not exist we fall back to synthetic placeholder data so the
-    script can still run (useful for CI where the benchmark may not have been
-    executed yet).
-    """
+
+def load_metrics(metrics_file: Path) -> dict:
+    """Load the metrics and calibration JSON files, with extra validation."""
     if not metrics_file.exists():
         print(f"WARNING: {metrics_file} not found – using synthetic metrics")
-        # Minimal synthetic structure that matches the fields used later.
-        return {
+        data = {
             "overall_completion_rate": 0.78,
             "local_resolution_rate": 0.78,
             "tier3_escalation_rate": 0.22,
@@ -44,8 +50,23 @@ def load_metrics(metrics_file: Path) -> dict:
                 "L5": 27.5,
             },
         }
-    with metrics_file.open(encoding="utf-8") as f:
-        return json.load(f)
+    else:
+        with metrics_file.open(encoding="utf-8") as f:
+            data = json.load(f)
+            # Basic schema validation
+            required = ["overall_completion_rate", "tier3_escalation_rate"]
+            for key in required:
+                if key not in data:
+                    raise ValueError(f"Metrics file missing required key: {key}")
+
+    calib_file = metrics_file.parent / "calibration.json"
+    if calib_file.exists():
+        with calib_file.open(encoding="utf-8") as f:
+            data["calibration"] = json.load(f)
+    else:
+        data["calibration"] = {}
+    
+    return data
 
 
 def generate_markdown(metrics: dict) -> str:

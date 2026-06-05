@@ -417,7 +417,10 @@ class Orchestrator:
                 await notify("stage_start", stage=7, name="Tool Execution", thought=f"Executing tool {tool_name}...", spinner_verb="Executing", tool_name=tool_name, parameters=tool_params, attempt=tool_exec_retry_count + 1)
                 
                 try:
-                    current_tool_result = tool_instance.execute(tool_input)
+                    if asyncio.iscoroutinefunction(tool_instance.execute):
+                        current_tool_result = await tool_instance.execute(tool_input)
+                    else:
+                        current_tool_result = tool_instance.execute(tool_input)
                     t_exec_dur = time.monotonic() - t_exec_start
                 except Exception as exec_exc:
                     t_exec_dur = time.monotonic() - t_exec_start

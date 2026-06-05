@@ -17,6 +17,8 @@ from pathlib import Path
 from typing import Optional
 
 from rich.text import Text
+
+from loguru import logger
 from textual import on
 from textual.app import ComposeResult
 from textual.containers import ScrollableContainer, Vertical
@@ -510,21 +512,30 @@ class TaskQueuePane(Widget):
         self.run_worker(self.refresh_tasks(), exclusive=False)
 
     async def refresh_tasks(self, session_id: Optional[str] = None) -> None:
-        """Re-read the task queue from SQLite and update display."""
+        """Re-read the task queue from SQLite and update display, handling missing DB gracefully."""
         try:
-            from kairos.task_queue import get_pending_tasks, get_running_tasks
-            from kairos.db import execute_read, DB_PATH
+            from kairos.db import DB_PATH, execute_read
+        except Exception as e:
+            logger.error(f"Failed to import DB utilities: {e}")
+            return
 
-            db_path = self._db_path or DB_PATH
+        db_path = self._db_path or DB_PATH
+        # If DB does not exist yet, show placeholder and exit
+        if not db_path.exists():
+            scroll = self.query_one("#task-scroll", ScrollableContainer)
+            await scroll.remove_children()
+            await scroll.mount(Static("Task queue initialising…"))
+            return
 
-            # Get all tasks (last 50)
+        # Query tasks (last 50)
+        try:
             rows = execute_read(
                 "SELECT * FROM tasks ORDER BY created_at DESC LIMIT 50",
-                db_path=db_path
+                db_path=db_path,
             )
-
         except Exception as e:
-            return  # Silently fail — DB may not exist yet
+            logger.error(f"Error reading tasks from DB: {e}")
+            rows = []
 
         scroll = self.query_one("#task-scroll", ScrollableContainer)
         await scroll.remove_children()
@@ -533,7 +544,7 @@ class TaskQueuePane(Widget):
             await scroll.mount(Static("No tasks yet. Send requests to populate."))
             return
 
-        # Status counts
+        # Count statuses
         counts = {"PENDING": 0, "RUNNING": 0, "COMPLETED": 0, "FAILED": 0, "STUCK": 0}
         for row in rows:
             status = row["status"] if row["status"] in counts else "COMPLETED"
@@ -548,7 +559,7 @@ class TaskQueuePane(Widget):
         summary.append(f"⚠:{counts['STUCK']}", style="#F59E0B")
         await scroll.mount(Static(summary))
 
-        # Individual task rows (most recent first)
+        # Render individual tasks (most recent first, limit 30)
         for row in rows[:30]:
             task_widget = Static(self._render_task_row(row))
             await scroll.mount(task_widget)

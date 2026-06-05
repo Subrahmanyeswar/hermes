@@ -31,6 +31,7 @@ from kairos.task_queue import (
     get_stuck_tasks,
     get_failed_retriable_tasks,
     get_running_tasks,
+    detect_tool_loop_runaway,
     mark_stuck,
     requeue_for_retry,
     get_kairos_state,
@@ -123,6 +124,7 @@ class KairosDaemon:
 
         # ── 1. Detect and mark STUCK tasks ───────────────────────────────────
         await self._handle_stuck_tasks()
+await self._handle_tool_loop_runaway()
 
         # ── 2. Retry failed tasks ─────────────────────────────────────────────
         await self._handle_failed_tasks()
@@ -156,6 +158,31 @@ class KairosDaemon:
                 {"task_id": task.id}
             )
             self.stuck_tasks_detected += 1
+
+    async def _handle_tool_loop_runaway(self) -> None:
+        """Detect pattern-based runaway: same tool called >3 times with identical params."""
+        try:
+            running = get_running_tasks(db_path=self.db_path)
+            for task in running:
+                patterns = detect_tool_loop_runaway(session_id=task.session_id, db_path=self.db_path)
+                if patterns:
+                    for pattern in patterns:
+                        logger.warning(
+                            f"KAIROS: tool loop runaway | session={task.session_id} | tool={pattern['tool_name']} | calls={pattern['call_count']}"
+                        )
+                        mark_stuck(
+                            task.id,
+                            reason=f"KAIROS: tool loop runaway — {pattern['tool_name']} called {pattern['call_count']} times",
+                            db_path=self.db_path,
+                        )
+                        log_kairos_event(
+                            "tool_loop_runaway",
+                            f"tool={pattern['tool_name']} calls={pattern['call_count']}",
+                            pattern,
+                        )
+                        self.stuck_tasks_detected += 1
+        except Exception as e:
+            logger.debug(f"KAIROS _handle_tool_loop_runaway: {e}")
 
     async def _handle_failed_tasks(self) -> None:
         """Requeue FAILED tasks that still have remaining retries."""

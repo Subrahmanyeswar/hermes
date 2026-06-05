@@ -294,6 +294,20 @@ def get_kairos_state(db_path: Path = DB_PATH) -> dict:
         "total_consolidations": r["total_consolidations"],
     }
 
+# Session resume backend – find RUNNING tasks from previous session
+def get_interrupted_tasks(db_path: Path = DB_PATH) -> list[QueuedTask]:
+    """Find tasks that were RUNNING when the previous session ended.
+    Returns a list of QueuedTask objects.
+    """
+    rows = execute_read(
+        "SELECT * FROM tasks WHERE status = 'RUNNING' ORDER BY started_at DESC",
+        db_path=db_path,
+    )
+    tasks = [QueuedTask.from_row(r) for r in rows]
+    if tasks:
+        logger.info(f"Session resume: found {len(tasks)} interrupted RUNNING tasks")
+    return tasks
+
 
 def reset_kairos_counter(db_path: Path = DB_PATH) -> None:
     """Reset the tasks_since_consolidation counter and record the consolidation timestamp.
@@ -308,3 +322,46 @@ def reset_kairos_counter(db_path: Path = DB_PATH) -> None:
            WHERE id=1""",
         db_path=db_path,
     )
+
+# Session resume backend – find RUNNING tasks from previous session
+def get_interrupted_tasks(db_path: Path = DB_PATH) -> list[QueuedTask]:
+    """Find tasks that were RUNNING when the previous session ended.
+    Returns a list of QueuedTask objects.
+    """
+    rows = execute_read(
+        "SELECT * FROM tasks WHERE status = 'RUNNING' ORDER BY started_at DESC",
+        db_path=db_path,
+    )
+    tasks = [QueuedTask.from_row(r) for r in rows]
+    if tasks:
+        logger.info(f"Session resume: found {len(tasks)} interrupted RUNNING tasks")
+    return tasks
+
+# Tool loop runaway detection – same tool called >3 times with identical params
+
+def detect_tool_loop_runaway(session_id: str, db_path: Path = DB_PATH) -> list[dict]:
+    """Detect runaway pattern: same tool called >3 times with identical parameters
+    in the same session within the last 30 minutes.
+    Returns list of suspected runaway tool patterns.
+    """
+    try:
+        rows = execute_read(
+            """SELECT tool_name, COUNT(*) as call_count
+               FROM tasks
+               WHERE session_id = ?
+               AND tool_name IS NOT NULL
+               AND status IN ('COMPLETED', 'FAILED', 'RUNNING')
+               AND created_at > datetime('now', '-30 minutes')
+               GROUP BY tool_name
+               HAVING COUNT(*) > 3
+               ORDER BY call_count DESC""",
+            (session_id,),
+            db_path=db_path,
+        )
+        if rows:
+            patterns = [{"tool_name": r["tool_name"], "call_count": r["call_count"]} for r in rows]
+            logger.warning(f"Tool loop runaway detected in session {session_id}: {patterns}")
+            return patterns
+    except Exception as e:
+        logger.debug(f"detect_tool_loop_runaway: {e}")
+    return []

@@ -503,7 +503,12 @@ class HermesApp(App):
                 pass
 
     def action_show_logs(self) -> None:
-        pass
+        """Show logs when Ctrl+L is pressed."""
+        try:
+            log_bar = self.query_one("#log-bar", LogBar)
+            logger.info(f"LogBar content: {log_bar._log_text}")
+        except Exception:
+            logger.info("LogBar not available.")
 
     # ── Watch reactive changes ──────────────────────────────────────────
 

@@ -66,6 +66,17 @@ async def _run_interactive(mode: str, project: str):
         typer.echo(f"Threshold calibrated to {calibrated_threshold} (from calibration data)")
 
     await orch.start_kairos()  # Start KAIROS before the interactive loop
+# Session resume check – see if there are RUNNING tasks from a previous session
+from kairos.task_queue import get_interrupted_tasks
+interrupted_tasks = get_interrupted_tasks()
+if interrupted_tasks:
+    typer.echo("🔄 Found interrupted tasks from previous session:")
+    for t in interrupted_tasks:
+        typer.echo(f"   • [{t.id}] {t.title} (started at {t.started_at or 'N/A'})")
+    if typer.confirm("Would you like to resume the previous session?", default=True):
+        typer.echo("Resuming previous session... (functionality to be implemented)")
+
+try:
     try:
         typer.echo(f"HERMES ready | mode={mode.upper()} | project={project}")
         typer.echo("Type your request and press Enter. Type 'quit' or Ctrl+C to exit.")
