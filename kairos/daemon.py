@@ -124,7 +124,7 @@ class KairosDaemon:
 
         # ── 1. Detect and mark STUCK tasks ───────────────────────────────────
         await self._handle_stuck_tasks()
-await self._handle_tool_loop_runaway()
+        await self._handle_tool_loop_runaway()
 
         # ── 2. Retry failed tasks ─────────────────────────────────────────────
         await self._handle_failed_tasks()

@@ -308,6 +308,21 @@ def get_interrupted_tasks(db_path: Path = DB_PATH) -> list[QueuedTask]:
         logger.info(f"Session resume: found {len(tasks)} interrupted RUNNING tasks")
     return tasks
 
+def get_session_summary(session_id: str | None = None, db_path: Path = DB_PATH) -> dict:
+    """Return a summary dict for the given session.
+    If `session_id` is None, attempts to infer the most recent session ID.
+    Returns an empty dict if no sessions are found.
+    """
+    if session_id is None:
+        rows = execute_read(
+            "SELECT session_id FROM tasks ORDER BY created_at DESC LIMIT 1",
+            db_path=db_path,
+        )
+        session_id = rows[0]["session_id"] if rows else None
+    if not session_id:
+        return {}
+    return get_session_stats(session_id, db_path=db_path)
+
 
 def reset_kairos_counter(db_path: Path = DB_PATH) -> None:
     """Reset the tasks_since_consolidation counter and record the consolidation timestamp.
@@ -324,18 +339,7 @@ def reset_kairos_counter(db_path: Path = DB_PATH) -> None:
     )
 
 # Session resume backend – find RUNNING tasks from previous session
-def get_interrupted_tasks(db_path: Path = DB_PATH) -> list[QueuedTask]:
-    """Find tasks that were RUNNING when the previous session ended.
-    Returns a list of QueuedTask objects.
-    """
-    rows = execute_read(
-        "SELECT * FROM tasks WHERE status = 'RUNNING' ORDER BY started_at DESC",
-        db_path=db_path,
-    )
-    tasks = [QueuedTask.from_row(r) for r in rows]
-    if tasks:
-        logger.info(f"Session resume: found {len(tasks)} interrupted RUNNING tasks")
-    return tasks
+
 
 # Tool loop runaway detection – same tool called >3 times with identical params
 
