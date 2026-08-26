@@ -34,6 +34,7 @@ from loguru import logger
 
 from core.mission_planner import Mission, MissionTask, TaskState
 from core.workspace import WorkspaceManager
+from core.context_builder import ContextBuilder
 
 
 class MissionPhase(str, Enum):
@@ -105,6 +106,8 @@ class MissionRunner:
         self.workspace = workspace_manager
         self.event_queue = event_queue or asyncio.Queue()
         self.abort_event = abort_event or asyncio.Event()
+        self._context_builder = ContextBuilder(workspace_manager)
+        self._recent_outputs: list[str] = []
         self._current_phase = MissionPhase.PLANNING
         self._start_time: float = 0.0
         self._total_cost: float = 0.0
@@ -265,6 +268,11 @@ class MissionRunner:
             # Track file changes
             self._track_file_changes(orch_result)
 
+            if orch_result.final_output:
+                self._recent_outputs.append(orch_result.final_output[:500])
+                if len(self._recent_outputs) > 10:
+                    self._recent_outputs = self._recent_outputs[-10:]  # Keep last 10 only
+
             # Determine task success
             if orch_result.success and orch_result.pipeline_stage_reached >= 6:
                 mission.mark_task_complete(task.task_id)
@@ -358,43 +366,29 @@ class MissionRunner:
 
     def _build_task_prompt(self, task: MissionTask, mission: Mission) -> str:
         """
-        Build an enriched prompt for this specific task.
-        Includes:
-          - Task description
-          - Workspace context (skeleton + relevant file signatures)
-          - Previous task results (brief)
-          - Acceptance criteria
+        Build enriched task prompt using ContextBuilder.
+        Budget-aware — never exceeds 6000 tokens of context.
         """
-        parts: list[str] = []
+        error_ctx = task.error_message if task.retry_count > 0 else ""
 
-        # Task instruction
-        parts.append(f"TASK: {task.description}")
+        context = self._context_builder.build(
+            task=task,
+            mission=mission,
+            memory_context=self._get_memory_context(),
+            previous_outputs=self._recent_outputs[-3:],
+            error_context=error_ctx,
+        )
 
-        # Workspace skeleton (context-efficient)
-        if self.workspace.is_locked:
-            skeleton = self.workspace.get_skeleton()
-            if skeleton:
-                parts.append(f"\nWORKSPACE STRUCTURE:\n{skeleton}")
+        logger.debug(context.summary())
+        return context.to_string() + f"\n\nTASK: {task.description}"
 
-            # Relevant file signatures
-            relevant_files = self.workspace.get_relevant_files(task.description, max_files=3)
-            for rel_path in relevant_files:
-                if rel_path.endswith(".py"):
-                    sigs = self.workspace.get_signatures(rel_path)
-                    if sigs:
-                        parts.append(f"\nFILE SIGNATURES ({rel_path}):\n{sigs}")
-
-        # Acceptance criteria
-        if task.acceptance_criteria:
-            parts.append(f"\nSUCCESS CRITERION: {task.acceptance_criteria}")
-
-        # Previous completed tasks (brief context)
-        completed = [t for t in mission.tasks if t.state == TaskState.COMPLETED]
-        if completed:
-            completed_titles = [t.title for t in completed[-3:]]  # Last 3 only
-            parts.append(f"\nALREADY COMPLETED: {', '.join(completed_titles)}")
-
-        return "\n".join(parts)
+    def _get_memory_context(self) -> str:
+        """Read current memory context for injection."""
+        try:
+            from memory.store import read_context_for_prompt
+            return read_context_for_prompt(project=self.workspace.root_str)
+        except Exception:
+            return ""
 
     def _track_file_changes(self, orch_result: Any) -> None:
         """Track which files were created or modified during task execution."""
