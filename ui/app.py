@@ -30,6 +30,7 @@ from ui.panels.status_bar import StatusBar
 from core.mission_planner import MissionPlanner, Mission, TaskState
 from core.mission_runner import MissionRunner, MissionEvent
 from core.workspace import workspace_manager as global_workspace
+from kairos.mission_driver import MissionDriver
 
 
 # ── Message types ─────────────────────────────────────────────────
@@ -251,10 +252,7 @@ class HermesApp(App):
         self._project = project
         self._debug = debug
         self._orchestrator: Optional[object] = None
-        self._mission_planner = MissionPlanner()
-        self._current_mission: Optional[Mission] = None
-        self._mission_runner: Optional[MissionRunner] = None
-        self._abort_event: Optional[asyncio.Event] = None
+        self._mission_driver: Optional[MissionDriver] = None
         self._event_queue: asyncio.Queue = asyncio.Queue()
 
     # ── Lifecycle ──────────────────────────────────────────────────
@@ -274,10 +272,12 @@ class HermesApp(App):
                 mode=self._mode,
                 project=self._project,
             )
-            logger.info(f"HermesApp: orchestrator ready | mode={self._mode} | project={self._project}")
+            self._mission_driver = MissionDriver(self._orchestrator)
+            logger.info(f"HermesApp: orchestrator + MissionDriver ready | mode={self._mode} | project={self._project}")
         except Exception as e:
             logger.error(f"HermesApp: failed to initialise orchestrator: {e}")
             self._orchestrator = None
+            self._mission_driver = None
 
     async def _start_kairos(self) -> None:
         if self._orchestrator is None:
@@ -285,8 +285,13 @@ class HermesApp(App):
         try:
             await self._orchestrator.start_kairos()
             logger.info("HermesApp: KAIROS daemon started")
+            # Initialise workspace on startup
+            if self._mission_driver:
+                summary = await self._mission_driver.initialise_workspace()
+                self.workspace_root = summary.get("root", "")
+                logger.info(f"Workspace ready: {self.workspace_root}")
         except Exception as e:
-            logger.error(f"HermesApp: KAIROS start failed: {e}")
+            logger.error(f"HermesApp startup error: {e}")
 
     async def _kairos_monitor(self) -> None:
         while True:
@@ -346,78 +351,49 @@ class HermesApp(App):
     @work(thread=False)
     async def _process_request(self, user_request: str) -> None:
         """
-        Mission-driven request handler.
-        Instead of one tool call, this creates a Mission and runs it to completion.
+        Mission-driven request handler using MissionDriver.
+        Delegates all planning and execution to MissionDriver.
         """
-        if self._orchestrator is None:
+        if self._mission_driver is None:
             self.post_message(OrchestratorResponse(
                 user_request=user_request,
-                final_output="HERMES orchestrator is not initialised.",
+                final_output="HERMES not initialised. Check logs.",
                 tool_name=None, success=False, stage_reached=0,
                 tier3_called=False, latency_seconds=0.0, trace_id="",
-                skill_ids=[], error="Orchestrator not initialised",
+                skill_ids=[], error="Not initialised",
             ))
             self.is_processing = False
             return
 
         try:
-            # ── 1. Create the Mission from the user prompt ─────────────────
-            mission = self._mission_planner.plan(
-                user_request,
-                workspace_root=global_workspace.root_str,
-            )
-            self._current_mission = mission
+            # Get the event queue from MissionDriver
+            self._event_queue = self._mission_driver.get_event_queue()
 
-            # ── 2. Post the plan to chat panel immediately ─────────────────
-            plan_lines = mission.get_status_lines()
-            plan_text = "\n".join(plan_lines)
-
-            from ui.app import OrchestratorResponse
-            self.post_message(OrchestratorResponse(
-                user_request=user_request,
-                final_output=f"Mission planned: {len(mission.tasks)} tasks\n{plan_text}",
-                tool_name=None,
-                success=True,
-                stage_reached=2,
-                tier3_called=False,
-                latency_seconds=0.0,
-                trace_id=mission.mission_id,
-                skill_ids=[],
-                is_plan_update=True,     # Signal to chat panel to render as live checklist
-            ))
-
-            # ── 3. Start MissionRunner ─────────────────────────────────────
-            self._abort_event = asyncio.Event()
-            self._event_queue = asyncio.Queue()
-            self._mission_runner = MissionRunner(
-                orchestrator=self._orchestrator,
-                workspace_manager=global_workspace,
-                event_queue=self._event_queue,
-                abort_event=self._abort_event,
+            # Post the mission plan as soon as it's ready
+            plan_task = asyncio.create_task(
+                self._wait_for_plan_and_post(user_request),
+                name="plan-poster"
             )
 
-            # ── 4. Start event consumer (updates TUI while mission runs) ───
+            # Start event consumer for live TUI updates
             consumer_task = asyncio.create_task(
-                self._consume_mission_events(mission),
-                name="mission-event-consumer"
+                self._consume_mission_events(None),
+                name="event-consumer"
             )
 
-            # ── 5. Run the mission ─────────────────────────────────────────
-            mission_result = await self._mission_runner.run(mission)
+            # Run the mission
+            mission_result = await self._mission_driver.run_mission(user_request)
 
-            # ── 6. Wait for event consumer to flush ───────────────────────
+            # Clean up background tasks
+            plan_task.cancel()
             consumer_task.cancel()
             try:
-                await consumer_task
-            except asyncio.CancelledError:
+                await asyncio.gather(plan_task, consumer_task, return_exceptions=True)
+            except Exception:
                 pass
 
-            # ── 7. Update cost ─────────────────────────────────────────────
-            cost_summary = self._orchestrator.claude.get_cost_summary()
-            self.session_cost = cost_summary.get("total_spent", 0.0)
-            self.current_skill = "none"
-
-            # ── 8. Post the final walkthrough to chat ─────────────────────
+            # Post final walkthrough
+            self.session_cost = mission_result.total_cost_usd
             self.post_message(OrchestratorResponse(
                 user_request=user_request,
                 final_output=mission_result.walkthrough_text,
@@ -426,37 +402,40 @@ class HermesApp(App):
                 stage_reached=12,
                 tier3_called=mission_result.tier3_calls > 0,
                 latency_seconds=mission_result.total_latency_seconds,
-                trace_id=mission.mission_id,
+                trace_id=mission_result.mission_id,
                 skill_ids=[],
-                is_walkthrough=True,    # Signal to chat panel to render as walkthrough
+                is_walkthrough=True,
             ))
 
-            # ── 9. Update right panel ──────────────────────────────────────
+            # Update right panel
             try:
                 from ui.panels.right_panel import RightPanel
                 right = self.query_one(RightPanel)
-                await right._update_all_tabs(
-                    OrchestratorResponse(
-                        user_request=user_request,
-                        final_output=mission_result.walkthrough_text,
-                        tool_name="mission_complete",
-                        success=mission_result.success,
-                        stage_reached=12,
-                        tier3_called=mission_result.tier3_calls > 0,
-                        latency_seconds=mission_result.total_latency_seconds,
-                        trace_id=mission.mission_id,
-                        skill_ids=[],
+                self.run_worker(
+                    right._update_all_tabs(
+                        OrchestratorResponse(
+                            user_request=user_request,
+                            final_output=mission_result.walkthrough_text,
+                            tool_name="mission_complete",
+                            success=mission_result.success,
+                            stage_reached=12,
+                            tier3_called=mission_result.tier3_calls > 0,
+                            latency_seconds=mission_result.total_latency_seconds,
+                            trace_id=mission_result.mission_id,
+                            skill_ids=[],
+                        ),
+                        self._project,
                     ),
-                    self._project,
+                    exclusive=False,
                 )
             except Exception:
                 pass
 
         except Exception as exc:
-            logger.error(f"HermesApp mission error: {type(exc).__name__}: {exc}")
+            logger.error(f"HermesApp._process_request error: {exc}")
             self.post_message(OrchestratorResponse(
                 user_request=user_request,
-                final_output=f"Mission error: {type(exc).__name__}: {str(exc)[:200]}",
+                final_output=f"Error: {type(exc).__name__}: {str(exc)[:200]}",
                 tool_name=None, success=False, stage_reached=0,
                 tier3_called=False, latency_seconds=0.0, trace_id="",
                 skill_ids=[], error=str(exc),
@@ -464,10 +443,37 @@ class HermesApp(App):
         finally:
             self.is_processing = False
 
-    async def _consume_mission_events(self, mission: Mission) -> None:
+    async def _wait_for_plan_and_post(self, user_request: str) -> None:
+        """Wait for mission_planned event and post the plan to the chat panel."""
+        try:
+            while True:
+                event = await asyncio.wait_for(self._event_queue.get(), timeout=30.0)
+                if event.event_type == "mission_planned":
+                    mission_tasks = event.payload.get("tasks", [])
+                    plan_lines = [
+                        f"  {i+1:2d}. {t.get('title',''):<45} ○ Pending"
+                        for i, t in enumerate(mission_tasks)
+                    ]
+                    plan_text = "\n".join(plan_lines)
+                    self.post_message(OrchestratorResponse(
+                        user_request=user_request,
+                        final_output=f"Mission: {len(mission_tasks)} tasks\n{plan_text}",
+                        tool_name=None, success=True, stage_reached=2,
+                        tier3_called=False, latency_seconds=0.0,
+                        trace_id=event.payload.get("mission_id", ""),
+                        skill_ids=[], is_plan_update=True,
+                    ))
+                    return
+        except asyncio.TimeoutError:
+            pass
+        except asyncio.CancelledError:
+            pass
+
+    async def _consume_mission_events(self, mission: Optional[Mission]) -> None:
         """
         Consume events from MissionRunner and update the TUI in real-time.
         Runs as a background task alongside the mission.
+        Gets mission state from MissionDriver.
         """
         try:
             while True:
@@ -493,17 +499,19 @@ class HermesApp(App):
 
                 elif event_type in ("task_start", "task_complete", "task_failed", "repair_attempt"):
                     # Update the checklist in the chat panel
-                    plan_lines = mission.get_status_lines()
-                    try:
-                        from ui.panels.chat import ChatPanel
-                        panel = self.query_one(ChatPanel)
-                        await panel.update_execution_plan(plan_lines, payload.get("title", ""))
-                    except Exception:
-                        pass
+                    current_mission = self._mission_driver.current_mission if self._mission_driver else mission
+                    if current_mission:
+                        plan_lines = current_mission.get_status_lines()
+                        try:
+                            from ui.panels.chat import ChatPanel
+                            panel = self.query_one(ChatPanel)
+                            await panel.update_execution_plan(plan_lines, payload.get("title", ""))
+                        except Exception:
+                            pass
 
-                    # Update mission progress reactive
-                    completed, total = mission.progress
-                    self.mission_progress = f"{completed}/{total}"
+                        # Update mission progress reactive
+                        completed, total = current_mission.progress
+                        self.mission_progress = f"{completed}/{total}"
                     if "title" in payload:
                         self.current_task_title = payload["title"]
 
@@ -515,8 +523,8 @@ class HermesApp(App):
 
     def action_stop_mission(self) -> None:
         """Stop the currently running mission at the next safe checkpoint."""
-        if self._mission_runner is not None and self._abort_event is not None:
-            self._mission_runner.abort()
+        if self._mission_driver:
+            self._mission_driver.abort_current_mission()
             logger.info("HermesApp: mission abort requested by user")
 
     def action_show_logs(self) -> None:
