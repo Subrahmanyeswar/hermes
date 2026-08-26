@@ -33,7 +33,7 @@ from typing import Callable, Optional, Any
 from loguru import logger
 
 from core.mission_planner import Mission, MissionTask, TaskState
-from core.workspace import WorkspaceManager
+from core.workspace import WorkspaceManager, workspace_manager
 from core.context_builder import ContextBuilder
 
 

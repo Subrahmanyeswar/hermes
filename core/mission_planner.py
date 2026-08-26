@@ -219,31 +219,41 @@ TASK_SEPARATOR_PATTERNS: list[str] = [
 
 # Domain keywords that map to skill hints
 SKILL_KEYWORD_MAP: dict[str, str] = {
-    "flask": "flask-rest-api",
-    "api": "flask-rest-api",
-    "rest": "flask-rest-api",
-    "backend": "flask-rest-api",
-    "endpoint": "flask-rest-api",
-    "route": "flask-rest-api",
+    # Testing (high priority)
     "pytest": "pytest-generation",
-    "test": "pytest-generation",
     "unit test": "pytest-generation",
+    "test": "pytest-generation",
+    # Security
+    "security": "security-audit",
+    "vulnerability": "security-audit",
+    "audit": "security-audit",
+    # Debugging
+    "debug": "debugging",
+    "fix": "debugging",
+    "error": "debugging",
+    # Git
     "git": "git-workflow",
     "github": "git-workflow",
     "push": "git-workflow",
     "commit": "git-workflow",
-    "security": "security-audit",
-    "vulnerability": "security-audit",
-    "readme": "auto-docs",
-    "documentation": "auto-docs",
-    "docs": "auto-docs",
+    # Frameworks & Core APIs (before database mentions)
+    "flask": "flask-rest-api",
+    "rest": "flask-rest-api",
+    "api": "flask-rest-api",
+    "backend": "flask-rest-api",
+    # Database
     "database": "database-design",
     "schema": "database-design",
     "sqlite": "database-design",
     "sql": "database-design",
-    "debug": "debugging",
-    "fix": "debugging",
-    "error": "debugging",
+    # Documentation
+    "readme": "auto-docs",
+    "documentation": "auto-docs",
+    "docs": "auto-docs",
+    # Specific route/endpoint
+    "endpoint": "flask-rest-api",
+    "route": "flask-rest-api",
+    # Refactoring & Scripts & Frontend
     "refactor": "refactoring",
     "clean": "refactoring",
     "bash": "bash-scripting",

@@ -411,11 +411,14 @@ class WorkspaceManager:
 
             elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
                 # Top-level functions only (not methods — those appear under class)
-                if not any(
-                    isinstance(parent, ast.ClassDef)
-                    for parent in ast.walk(tree)
-                    if hasattr(parent, "body") and node in getattr(parent, "body", [])
-                ):
+                is_method = False
+                for parent in ast.walk(tree):
+                    if isinstance(parent, ast.ClassDef):
+                        body = getattr(parent, "body", None)
+                        if isinstance(body, list) and node in body:
+                            is_method = True
+                            break
+                if not is_method:
                     try:
                         sig = f"def {node.name}({ast.unparse(node.args)})"
                         if node.returns:
