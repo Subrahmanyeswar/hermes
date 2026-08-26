@@ -13,7 +13,7 @@ HEREMES (things to do later)
 cd C:\Users\SUBBU\Downloads\hermes
 venv\Scripts\activate
 
-
+python main.py ui
 
 
 
