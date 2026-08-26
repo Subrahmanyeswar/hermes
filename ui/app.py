@@ -31,6 +31,7 @@ from core.mission_planner import MissionPlanner, Mission, TaskState
 from core.mission_runner import MissionRunner, MissionEvent
 from core.workspace import workspace_manager as global_workspace
 from kairos.mission_driver import MissionDriver
+from ui.panels.startup import StartupScreen
 
 
 # ── Message types ─────────────────────────────────────────────────
@@ -246,11 +247,13 @@ class HermesApp(App):
         mode: str = "auto",
         project: str = "default",
         debug: bool = False,
+        show_startup: bool = True,
     ) -> None:
         super().__init__()
         self._mode = mode
         self._project = project
         self._debug = debug
+        self._show_startup = show_startup
         self._orchestrator: Optional[object] = None
         self._mission_driver: Optional[MissionDriver] = None
         self._event_queue: asyncio.Queue = asyncio.Queue()
@@ -258,12 +261,61 @@ class HermesApp(App):
     # ── Lifecycle ──────────────────────────────────────────────────
 
     def on_mount(self) -> None:
+        """Show startup screen first, then initialise."""
         self.current_mode = self._mode
         self._init_orchestrator()
-        self.run_worker(self._start_kairos(),   exclusive=True,  name="kairos-starter")
+
+        if self._show_startup and not global_workspace.is_locked:
+            # Show startup screen — user picks workspace
+            self.push_screen(
+                StartupScreen(),
+                callback=self._on_startup_complete
+            )
+        else:
+            workspace_path = global_workspace.root_str if global_workspace.is_locked else str(Path.cwd())
+            self.run_worker(self._on_startup_complete(workspace_path), exclusive=True, name="startup-complete")
+
+    async def _on_startup_complete(self, workspace_path: str) -> None:
+        """Called when user dismisses startup screen with workspace path."""
+        # Start KAIROS
+        self.run_worker(self._start_kairos(), exclusive=True, name="kairos-starter")
         self.run_worker(self._kairos_monitor(), exclusive=False, name="kairos-monitor")
-        # Set initial active button state
-        self._update_mode_buttons(self._mode)
+
+        # Initialise workspace
+        if self._mission_driver:
+            summary = await self._mission_driver.initialise_workspace(workspace_path)
+            self.workspace_root = summary.get("root", workspace_path)
+
+            # Update status bar with workspace info
+            try:
+                from ui.panels.status_bar import StatusBar
+                sb = self.query_one("#status-bar", StatusBar)
+                sb.workspace_name = Path(self.workspace_root).name
+                sb.framework = summary.get("framework", "unknown")
+            except Exception:
+                pass
+
+            # Show welcome message in chat
+            try:
+                from ui.panels.chat import ChatPanel
+                panel = self.query_one(ChatPanel)
+                workspace_name = Path(self.workspace_root).name
+                framework = summary.get("framework", "unknown")
+                file_count = summary.get("total_files", 0)
+                await panel._add_system_message(
+                    f"Workspace locked: {workspace_name} [{framework}] — {file_count} files indexed\n"
+                    f"Type your request. Ctrl+Enter to submit. Ctrl+Q to quit."
+                )
+            except Exception:
+                pass
+
+    def watch_mission_progress(self, progress: str) -> None:
+        try:
+            from ui.panels.status_bar import StatusBar
+            sb = self.query_one("#status-bar", StatusBar)
+            sb.mission_tasks = progress
+        except Exception:
+            pass
 
     def _init_orchestrator(self) -> None:
         try:

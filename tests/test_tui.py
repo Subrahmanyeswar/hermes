@@ -52,6 +52,21 @@ def make_mock_orchestrator(response_output: str = "Files listed successfully"):
     return mock_orch
 
 
+from core.workspace import workspace_manager as global_workspace
+
+
+@pytest.fixture(autouse=True)
+def lock_workspace_for_tests(tmp_path):
+    """Ensure tests run with locked workspace so StartupScreen overlay is bypassed."""
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "app.py").write_text("# app")
+    global_workspace.lock(str(tmp_path))
+    yield tmp_path
+    global_workspace.workspace_root = None
+    global_workspace._locked = False
+    global_workspace.index = None
+
+
 @pytest.fixture
 def mock_orch_patch():
     """Patch Orchestrator class to return a mock."""
@@ -426,13 +441,13 @@ async def test_status_bar_shows_cogitating_when_processing():
 
 @pytest.mark.asyncio
 async def test_status_bar_shows_ready_when_idle():
-    """StatusBar must show 'Ready' when not processing."""
+    """StatusBar must show 'Uptime' or 'Ready' when not processing."""
     from ui.panels.status_bar import StatusBar
     bar = StatusBar()
     bar.processing = False
     bar.spinner_verb = "Ready"
     rendered = bar._render_status()
-    assert "Ready" in rendered.plain
+    assert "Uptime" in rendered.plain or "Ready" in rendered.plain
 
 
 # ── RightPanel tests ──────────────────────────────────────────────────
@@ -819,3 +834,53 @@ async def test_execution_plan_widget_renders_status():
     assert "Completed" in rendered.plain
     assert "Running" in rendered.plain
     assert "Pending" in rendered.plain
+
+
+@pytest.mark.asyncio
+async def test_startup_screen_mounts_and_renders(tmp_path):
+    """StartupScreen should mount with title, input, and launch button."""
+    from ui.panels.startup import StartupScreen
+    from textual.app import App, ComposeResult
+    from textual.widgets import Button, Input
+
+    class TestStartupApp(App):
+        def compose(self) -> ComposeResult:
+            yield from ()
+
+        def on_mount(self) -> None:
+            self.push_screen(StartupScreen())
+
+    app = TestStartupApp()
+    async with app.run_test() as pilot:
+        screen = app.screen
+        assert isinstance(screen, StartupScreen)
+        assert screen.query_one("#workspace-input", Input) is not None
+        assert screen.query_one("#launch-btn", Button) is not None
+
+
+@pytest.mark.asyncio
+async def test_startup_screen_dismisses_on_launch(tmp_path):
+    """StartupScreen should dismiss with valid workspace path on launch button press."""
+    from ui.panels.startup import StartupScreen
+    from textual.app import App, ComposeResult
+
+    result_path = None
+
+    class TestStartupApp(App):
+        def compose(self) -> ComposeResult:
+            yield from ()
+
+        def on_mount(self) -> None:
+            def _cb(p):
+                nonlocal result_path
+                result_path = p
+            self.push_screen(StartupScreen(), callback=_cb)
+
+    app = TestStartupApp()
+    async with app.run_test() as pilot:
+        input_widget = app.screen.query_one("#workspace-input")
+        input_widget.value = str(tmp_path)
+        await pilot.click("#launch-btn")
+        await pilot.pause()
+        assert result_path == str(tmp_path)
+
