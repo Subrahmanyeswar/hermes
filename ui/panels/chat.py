@@ -745,6 +745,12 @@ class ChatPanel(Widget):
                     f"Unknown mode '{mode}'. Use: /mode safe | /mode plan | /mode auto"
                 )
 
+        elif cmd == "/commit":
+            await self._run_git_commit_command(parts)
+
+        elif cmd == "/diff":
+            await self._run_git_diff_command()
+
         elif cmd == "/export":
             await self._run_export_command(parts)
 
@@ -762,6 +768,8 @@ class ChatPanel(Widget):
                 "Available slash commands:",
                 "  /clear              — Clear conversation history",
                 "  /mode safe|plan|auto — Switch permission mode",
+                "  /commit [msg]       — Stage and commit all changes to Git",
+                "  /diff               — View git diff stat",
                 "  /export [path]      — Export project folder as ZIP",
                 "                        Example: /export generated_projects/myapp",
                 "  /vscode [path]      — Open file or folder in VS Code",
@@ -779,6 +787,64 @@ class ChatPanel(Widget):
             await self._add_system_message(
                 f"Unknown command: {command}\nType /help for available commands."
             )
+
+    async def _run_git_commit_command(self, parts: list[str]) -> None:
+        """Handle /commit [message] — stage all and commit."""
+        from core.workspace import workspace_manager
+        if not workspace_manager.is_locked:
+            await self._add_system_message("No workspace locked. Cannot commit.")
+            return
+
+        workspace_root = workspace_manager.workspace_root
+        import subprocess
+
+        # Stage all
+        stage_result = subprocess.run(
+            ["git", "add", "-A"],
+            cwd=str(workspace_root),
+            capture_output=True, text=True, timeout=15
+        )
+
+        if stage_result.returncode != 0:
+            await self._add_system_message(f"git add failed: {stage_result.stderr[:200]}")
+            return
+
+        # Commit message from parts or auto-generate
+        if len(parts) > 1:
+            commit_msg = " ".join(parts[1:])
+        else:
+            commit_msg = f"feat: HERMES automated commit"
+
+        commit_result = subprocess.run(
+            ["git", "commit", "-m", commit_msg],
+            cwd=str(workspace_root),
+            capture_output=True, text=True, timeout=15
+        )
+
+        if commit_result.returncode == 0:
+            output = commit_result.stdout.strip()[:200]
+            await self._add_system_message(f"✓ Committed:\n{commit_msg}\n\n{output}")
+        else:
+            err = commit_result.stderr.strip()[:200]
+            await self._add_system_message(f"✗ Commit failed:\n{err}")
+
+    async def _run_git_diff_command(self) -> None:
+        """Handle /diff — show current git diff stat."""
+        from core.workspace import workspace_manager
+        if not workspace_manager.is_locked:
+            await self._add_system_message("No workspace locked.")
+            return
+
+        import subprocess
+        result = subprocess.run(
+            ["git", "diff", "--stat"],
+            cwd=str(workspace_manager.workspace_root),
+            capture_output=True, text=True, timeout=10
+        )
+        if result.stdout.strip():
+            await self._add_system_message(f"Git diff:\n{result.stdout[:800]}")
+        else:
+            await self._add_system_message("No changes since last commit.")
 
     async def _run_export_command(self, parts: list[str]) -> None:
         """Handle /export [path] command."""

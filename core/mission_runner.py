@@ -179,6 +179,10 @@ class MissionRunner:
         result = self._build_result(mission, success=mission.is_complete)
         result.walkthrough_text = walkthrough
 
+        git_summary = await self.post_mission_git_summary(mission)
+        if git_summary:
+            result.walkthrough_text = result.walkthrough_text + "\n" + git_summary
+
         event_type = "mission_complete" if mission.is_complete else "mission_failed"
         await self._emit(MissionEvent(
             event_type=event_type,
@@ -186,7 +190,7 @@ class MissionRunner:
                 "success": result.success,
                 "tasks_completed": result.tasks_completed,
                 "tasks_total": result.tasks_total,
-                "walkthrough": walkthrough,
+                "walkthrough": result.walkthrough_text,
                 "total_cost": result.total_cost_usd,
                 "latency": result.total_latency_seconds,
             }
@@ -509,3 +513,116 @@ class MissionRunner:
         """Signal the mission loop to stop at the next safe checkpoint."""
         self.abort_event.set()
         logger.info("MissionRunner: abort signal sent")
+
+    async def post_mission_git_summary(self, mission: Mission) -> str:
+        """
+        After mission completion:
+        1. Check if workspace has a git repo
+        2. Run git diff --stat to show what changed
+        3. Generate a conventional commit message from the mission
+        4. Optionally stage and commit (if AUTO mode)
+
+        Returns a formatted summary string for display in chat.
+        """
+        if not self.workspace.is_locked:
+            return ""
+
+        workspace_root = self.workspace.workspace_root
+        summary_lines: list[str] = []
+
+        # Check git status
+        try:
+            import subprocess
+            git_status = subprocess.run(
+                ["git", "status", "--short"],
+                cwd=str(workspace_root),
+                capture_output=True, text=True, timeout=10
+            )
+
+            if git_status.returncode != 0:
+                return ""  # Not a git repo
+
+            changed_files = [
+                line.strip() for line in git_status.stdout.strip().split("\n")
+                if line.strip()
+            ]
+
+            if not changed_files:
+                return ""  # Nothing changed
+
+            # Git diff stat
+            diff_stat = subprocess.run(
+                ["git", "diff", "--stat", "HEAD"],
+                cwd=str(workspace_root),
+                capture_output=True, text=True, timeout=10
+            )
+
+            # Generate commit message from mission
+            commit_msg = self._generate_commit_message(mission)
+
+            summary_lines.append("")
+            summary_lines.append("─" * 50)
+            summary_lines.append("  Git Status")
+            summary_lines.append("─" * 50)
+            for f in changed_files[:15]:
+                prefix = f[0:2].strip()
+                filename = f[2:].strip()
+                if "?" in prefix:
+                    summary_lines.append(f"  +  {filename}  [new]")
+                elif "M" in prefix:
+                    summary_lines.append(f"  ~  {filename}  [modified]")
+                elif "D" in prefix:
+                    summary_lines.append(f"  -  {filename}  [deleted]")
+                else:
+                    summary_lines.append(f"     {filename}")
+
+            if len(changed_files) > 15:
+                summary_lines.append(f"  ... and {len(changed_files) - 15} more files")
+
+            summary_lines.append("")
+            summary_lines.append(f"  Suggested commit: {commit_msg}")
+            summary_lines.append("")
+            summary_lines.append("  Type /commit to stage and commit all changes")
+            summary_lines.append("  Type /push to commit and push to GitHub")
+            summary_lines.append("─" * 50)
+
+        except subprocess.TimeoutExpired:
+            return ""
+        except FileNotFoundError:
+            return ""  # git not installed
+        except Exception as e:
+            logger.debug(f"post_mission_git_summary error: {e}")
+            return ""
+
+        return "\n".join(summary_lines)
+
+    def _generate_commit_message(self, mission: Mission) -> str:
+        """
+        Generate a conventional commit message from mission tasks.
+        Format: <type>: <summary>
+        """
+        prompt = mission.user_prompt.lower()
+        completed_titles = [
+            t.title for t in mission.tasks
+            if t.state.value == "COMPLETED"
+        ]
+
+        # Detect commit type
+        if any(kw in prompt for kw in ["fix", "debug", "repair", "resolve"]):
+            commit_type = "fix"
+        elif any(kw in prompt for kw in ["test", "spec", "pytest"]):
+            commit_type = "test"
+        elif any(kw in prompt for kw in ["doc", "readme", "comment"]):
+            commit_type = "docs"
+        elif any(kw in prompt for kw in ["refactor", "clean", "restructure"]):
+            commit_type = "refactor"
+        else:
+            commit_type = "feat"
+
+        # Build summary from mission prompt (first 60 chars, cleaned)
+        import re
+        summary = re.sub(r'[^\w\s-]', '', mission.user_prompt)
+        summary = " ".join(summary.split()[:8])
+        summary = summary.lower().strip()
+
+        return f"{commit_type}: {summary}"

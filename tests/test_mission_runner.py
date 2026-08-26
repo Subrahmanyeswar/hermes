@@ -147,3 +147,37 @@ async def test_result_has_correct_fields():
     assert hasattr(result, "total_cost_usd")
     assert hasattr(result, "walkthrough_text")
     assert result.total_latency_seconds >= 0
+
+
+@pytest.mark.asyncio
+async def test_generate_commit_message_types():
+    planner = MissionPlanner()
+    wm = WorkspaceManager()
+    runner = MissionRunner(MagicMock(), wm)
+
+    # feat
+    m1 = planner.plan("Build Flask API")
+    assert runner._generate_commit_message(m1).startswith("feat:")
+
+    # fix
+    m2 = planner.plan("Fix bug in database connection")
+    assert runner._generate_commit_message(m2).startswith("fix:")
+
+    # test
+    m3 = planner.plan("Write unit tests for authentication")
+    assert runner._generate_commit_message(m3).startswith("test:")
+
+    # docs
+    m4 = planner.plan("Add readme documentation")
+    assert runner._generate_commit_message(m4).startswith("docs:")
+
+
+@pytest.mark.asyncio
+async def test_post_mission_git_summary_empty_when_not_locked():
+    wm = WorkspaceManager()
+    runner = MissionRunner(MagicMock(), wm)
+    planner = MissionPlanner()
+    mission = planner.plan("Create code")
+    summary = await runner.post_mission_git_summary(mission)
+    assert summary == ""
+
