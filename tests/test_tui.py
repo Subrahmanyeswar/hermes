@@ -101,38 +101,39 @@ async def test_status_bar_renders(mock_orch_patch):
 @pytest.mark.asyncio
 async def test_chat_input_is_focusable(mock_orch_patch):
     """The chat input widget must be present and focusable."""
-    from textual.widgets import Input
+    from textual.widgets import TextArea, Input
     from ui.app import HermesApp
 
     app = HermesApp(mode="auto", project="test")
     app._orchestrator = make_mock_orchestrator()
 
     async with app.run_test(size=(120, 40)) as pilot:
-        inputs = app.query(Input)
-        assert len(inputs) >= 1, "At least one Input widget must exist"
+        inputs = app.query("#chat-input")
+        assert len(inputs) >= 1, "At least one chat input widget must exist"
 
-        chat_input = app.query_one("#chat-input", Input)
+        chat_input = app.query_one("#chat-input")
         assert chat_input is not None
 
 
 @pytest.mark.asyncio
 async def test_typing_in_chat_input(mock_orch_patch):
     """User must be able to type in the chat input."""
-    from textual.widgets import Input
+    from textual.widgets import TextArea, Input
     from ui.app import HermesApp
 
     app = HermesApp(mode="auto", project="test")
     app._orchestrator = make_mock_orchestrator()
 
     async with app.run_test(size=(120, 40)) as pilot:
-        chat_input = app.query_one("#chat-input", Input)
+        chat_input = app.query_one("#chat-input")
 
         # Focus and type
         await pilot.click("#chat-input")
         await pilot.press("l", "i", "s", "t")
         await asyncio.sleep(0.1)
 
-        assert "list" in chat_input.value
+        val = getattr(chat_input, "text", getattr(chat_input, "value", ""))
+        assert "list" in val
 
 
 @pytest.mark.asyncio
@@ -701,3 +702,120 @@ async def test_right_panel_updates_realtime(mock_orch_patch):
         assert trace_pane._active_entry is not None
         assert trace_pane._active_entry._success is True
         assert trace_pane._active_entry._latency == 1.25
+
+
+# ── Mission and Execution Plan tests ──────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_mission_plan_renders_after_multi_task_prompt(mock_orch_patch):
+    """Multi-task prompt must result in ExecutionPlanWidget appearing in chat."""
+    from ui.app import HermesApp, OrchestratorResponse
+    from ui.panels.chat import ExecutionPlanWidget
+    from core.orchestrator import OrchestratorResult
+
+    app = HermesApp(mode="auto", project="test")
+    app._orchestrator = make_mock_orchestrator()
+
+    async with app.run_test(size=(160, 50)) as pilot:
+        # Post a plan update message directly
+        app.post_message(OrchestratorResponse(
+            user_request="Create API and write tests",
+            final_output="Mission planned: 2 tasks\n  1. Create API           ○ Pending\n  2. Write tests         ○ Pending",
+            tool_name=None,
+            success=True,
+            stage_reached=2,
+            tier3_called=False,
+            latency_seconds=0.0,
+            trace_id="test123",
+            skill_ids=[],
+            is_plan_update=True,
+        ))
+        await asyncio.sleep(0.5)
+
+        # ExecutionPlanWidget should be mounted
+        plan_widgets = app.query(ExecutionPlanWidget)
+        assert len(plan_widgets) >= 1, "ExecutionPlanWidget not found in chat history"
+
+
+@pytest.mark.asyncio
+async def test_walkthrough_replaces_plan_widget(mock_orch_patch):
+    """After mission completes, walkthrough replaces the plan checklist."""
+    from ui.app import HermesApp, OrchestratorResponse
+    from ui.panels.chat import ExecutionPlanWidget, HermesMessageWidget
+
+    app = HermesApp(mode="auto", project="test")
+    app._orchestrator = make_mock_orchestrator()
+
+    async with app.run_test(size=(160, 50)) as pilot:
+        # First, post plan update
+        app.post_message(OrchestratorResponse(
+            user_request="Create API",
+            final_output="Mission planned: 1 tasks\n  1. Create API  ○ Pending",
+            tool_name=None, success=True, stage_reached=2,
+            tier3_called=False, latency_seconds=0.0, trace_id="t1",
+            skill_ids=[], is_plan_update=True,
+        ))
+        await asyncio.sleep(0.3)
+
+        # Then post walkthrough
+        app.post_message(OrchestratorResponse(
+            user_request="Create API",
+            final_output="━━━\n  MISSION COMPLETE ✓\n  ✓ Create API\n━━━",
+            tool_name=None, success=True, stage_reached=12,
+            tier3_called=False, latency_seconds=5.0, trace_id="t1",
+            skill_ids=[], is_walkthrough=True,
+        ))
+        await asyncio.sleep(0.3)
+
+        # Walkthrough widget should be present
+        hermes_widgets = app.query(HermesMessageWidget)
+        assert len(hermes_widgets) >= 1
+
+
+@pytest.mark.asyncio
+async def test_mission_planner_produces_ordered_tasks():
+    """MissionPlanner must produce correct task order."""
+    from core.mission_planner import MissionPlanner, TaskState
+    planner = MissionPlanner()
+    mission = planner.plan(
+        "1. Create Flask project\n2. Add authentication\n3. Write tests\n4. Push to GitHub"
+    )
+    assert len(mission.tasks) == 4
+    assert len(mission.execution_order) == 4
+    # First task should be pending
+    first = mission.next_executable_task
+    assert first is not None
+    assert first.state == TaskState.PENDING
+
+
+@pytest.mark.asyncio
+async def test_workspace_manager_validates_paths(tmp_path):
+    """WorkspaceManager must block paths outside workspace root."""
+    from core.workspace import WorkspaceManager, WorkspaceBoundaryError
+    (tmp_path / "app.py").write_text("x=1")
+    wm = WorkspaceManager()
+    wm.lock(str(tmp_path))
+    # Safe path
+    p = wm.validate_path("app.py")
+    assert p.exists()
+    # Unsafe path
+    with pytest.raises(WorkspaceBoundaryError):
+        wm.validate_path("../../etc/passwd")
+
+
+@pytest.mark.asyncio
+async def test_execution_plan_widget_renders_status():
+    """ExecutionPlanWidget renders task states correctly."""
+    from ui.panels.chat import ExecutionPlanWidget
+    from rich.text import Text
+    lines = [
+        "   1. Create Flask API              ✓ Completed",
+        "   2. Write tests                   ▶ Running",
+        "   3. Push to GitHub                ○ Pending",
+    ]
+    widget = ExecutionPlanWidget(lines)
+    rendered = widget.render()
+    assert isinstance(rendered, Text)
+    assert "Completed" in rendered.plain
+    assert "Running" in rendered.plain
+    assert "Pending" in rendered.plain

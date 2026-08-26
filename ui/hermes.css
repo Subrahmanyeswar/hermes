@@ -18,6 +18,7 @@
 Screen {
     background: #0a0a0a;
     layers: base overlay;
+    layout: vertical;
 }
 
 
@@ -43,7 +44,6 @@ Screen {
 StatusBar {
     height: 3;
     width: 100%;
-    dock: top;
     background: #0a0a0a;
     border: round #1a1a1a;
     padding: 0 1;
@@ -163,23 +163,56 @@ ProcessingIndicator {
     margin-right: 1;
 }
 
+/* Large multi-line input — supports 500-word prompts */
 #chat-input {
     width: 1fr;
-    height: 1;
-    border: none;
-    background: #0a0a0a;
-    color: #F0F0F0;
-    padding: 0;
-    margin: 0;
+    height: auto;
+    min-height: 3;
+    max-height: 12;        /* Expands up to 12 lines automatically */
+    border: tall #F59E0B;
+    background: #111111;
+    color: white;
+    scrollbar-size: 1 1;   /* Show scrollbar when content exceeds max-height */
 }
 
 #chat-input:focus {
-    border: none;
-    background: #0a0a0a;
+    border: tall #FBBF24;
 }
 
 #chat-input:disabled {
+    border: tall #1f2937;
     opacity: 0.5;
+}
+
+/* Execution plan widget */
+ExecutionPlanWidget {
+    width: 100%;
+    padding: 0 1;
+    border: round #22C55E;
+    background: #0d0d0d;
+    margin-bottom: 1;
+}
+
+/* Current task status indicator */
+#current-task-status {
+    color: #4A90D9;
+    padding: 0 1;
+    text-style: italic;
+    height: 1;
+}
+
+/* Walkthrough card */
+HermesMessageWidget.walkthrough {
+    border: round #22C55E;
+    background: #0d0d0d;
+    padding: 1;
+    margin-bottom: 1;
+}
+
+/* Mission progress in status bar */
+#mission-progress-label {
+    color: #4A90D9;
+    text-style: bold;
 }
 
 #stop-btn {
@@ -422,7 +455,6 @@ TaskQueuePane {
 LogBar {
     height: 3;
     width: 100%;
-    dock: bottom;
     background: #0a0a0a;
     border: round #1a1a1a;
     padding: 0 1;

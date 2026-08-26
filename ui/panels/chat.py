@@ -22,10 +22,11 @@ from rich.text import Text
 from textual import on, work
 from textual.app import ComposeResult
 from textual.containers import ScrollableContainer, Vertical, Horizontal
+from textual.events import Key
 from textual.message import Message
 from textual.reactive import reactive
 from textual.widget import Widget
-from textual.widgets import Input, Label, Static, Button
+from textual.widgets import Input, Label, Static, Button, TextArea
 
 from ui.app import (
     ModeChanged,
@@ -561,6 +562,47 @@ class ProcessingIndicator(Static):
         return t
 
 
+class ExecutionPlanWidget(Static):
+    """
+    Live-updating execution plan checklist.
+    Shows all mission tasks with their current state icons.
+    Updates in-place as tasks complete — does not scroll away.
+    """
+    DEFAULT_CSS = """
+    ExecutionPlanWidget {
+        width: 100%;
+        padding: 0 1;
+        border: round #22C55E;
+        background: #0d0d0d;
+        margin-bottom: 1;
+    }
+    """
+
+    def __init__(self, plan_lines: list[str], **kwargs) -> None:
+        super().__init__(**kwargs)
+        self._plan_lines = plan_lines
+
+    def render(self) -> Text:
+        t = Text()
+        t.append("  Execution Plan\n", style="bold #22C55E")
+        for line in self._plan_lines:
+            if "✓" in line:
+                t.append(f"{line}\n", style="#22C55E")
+            elif "▶" in line:
+                t.append(f"{line}\n", style="bold #4A90D9")
+            elif "✗" in line:
+                t.append(f"{line}\n", style="#EF4444")
+            elif "⊘" in line:
+                t.append(f"{line}\n", style="dim #F59E0B")
+            else:
+                t.append(f"{line}\n", style="dim")
+        return t
+
+    def update_lines(self, new_lines: list[str]) -> None:
+        self._plan_lines = new_lines
+        self.refresh()
+
+
 class ChatPanel(Widget):
     """
     The main chat panel — left 55% of the HERMES TUI.
@@ -597,65 +639,80 @@ class ChatPanel(Widget):
         with ScrollableContainer(id="chat-history"):
             pass
 
-        with Horizontal(id="chat-input-container"):
-            yield Label("Input command:", id="input-command-label")
-            yield Input(
-                placeholder="Type your request and press Enter...",
+        with Vertical(id="chat-input-container"):
+            yield Label("[AUTO] > ", id="mode-indicator")
+            yield TextArea(
                 id="chat-input",
+                language=None,            # Plain text, no syntax highlighting
+                show_line_numbers=False,
+                soft_wrap=True,
             )
-            yield Button(Text("[ SEND ]"), id="stop-btn")
+            yield Button("[ SEND ]", id="send-btn", variant="default")
 
     def on_mount(self) -> None:
         """Focus the input on mount and initialize SEND button."""
-        chat_input = self.query_one("#chat-input", Input)
+        chat_input = self.query_one("#chat-input")
         chat_input.focus()
         try:
-            stop_btn = self.query_one("#stop-btn", Button)
-            stop_btn.label = Text("[ SEND ]")
-            stop_btn.disabled = True
-            stop_btn.display = True
+            send_btn = self.query_one("#send-btn", Button)
+            send_btn.label = Text("[ SEND ]")
+            send_btn.disabled = False
+            send_btn.display = True
         except Exception:
             pass
 
     # ── Input handling ────────────────────────────────────────────────
 
-    @on(Input.Changed, "#chat-input")
-    def handle_input_changed(self, event: Input.Changed) -> None:
-        """Enable or disable the SEND button based on input value when idle."""
+    @on(Button.Pressed, "#send-btn")
+    async def handle_send_button(self, event: Button.Pressed) -> None:
+        """Handle SEND button click."""
+        await self._submit_input()
+
+    @on(Button.Pressed, "#stop-btn")
+    async def handle_stop_button(self, event: Button.Pressed) -> None:
+        """Handle STOP/SEND button click fallback."""
+        await self._submit_input()
+
+    async def _handle_key(self, key_event) -> None:
+        """Handle Ctrl+Enter to submit (Enter alone creates newlines in TextArea)."""
+        pass  # Handled via key binding
+
+    @on(Key)
+    async def handle_key_press(self, event: Key) -> None:
+        """Ctrl+Enter submits the prompt. Enter alone adds a newline."""
+        if event.key == "ctrl+j" or (event.key == "enter" and event.control):
+            await self._submit_input()
+            event.stop()
+
+    async def _submit_input(self) -> None:
+        """Extract text from TextArea and submit."""
         try:
-            chat_input = event.input
-            if chat_input.disabled:
-                if event.value != "":
-                    chat_input.value = ""
+            try:
+                text_area = self.query_one("#chat-input", TextArea)
+                text = text_area.text.strip()
+                text_area.clear()
+            except Exception:
+                # Fallback if input is Input widget
+                text_input = self.query_one("#chat-input", Input)
+                text = text_input.value.strip()
+                text_input.value = ""
+
+            if not text:
                 return
-            stop_btn = self.query_one("#stop-btn", Button)
-            stop_btn.disabled = not bool(event.value.strip())
-        except Exception:
-            pass
+
+            if text.startswith("/"):
+                await self._handle_slash_command(text)
+                return
+
+            self.post_message(UserMessageSent(text))
+            await self._add_user_message(text)
+            await self._show_processing_indicator()
+        except Exception as e:
+            logger.error(f"ChatPanel _submit_input error: {e}")
 
     async def submit_prompt(self) -> None:
-        """Submit the prompt typed in the input field."""
-        chat_input = self.query_one("#chat-input", Input)
-        text = chat_input.value.strip()
-        if not text:
-            return
-
-        # Clear the input immediately
-        chat_input.value = ""
-
-        # Handle slash commands
-        if text.startswith("/"):
-            await self._handle_slash_command(text)
-            return
-
-        # Post to App for orchestrator processing
-        self.post_message(UserMessageSent(text))
-
-        # Add user message to history immediately (optimistic UI)
-        await self._add_user_message(text)
-
-        # Show processing indicator
-        await self._show_processing_indicator()
+        """Submit the prompt typed in the input field (compatibility alias)."""
+        await self._submit_input()
 
     @on(Input.Submitted, "#chat-input")
     async def handle_input_submitted(self, event: Input.Submitted) -> None:
@@ -858,17 +915,69 @@ class ChatPanel(Widget):
         except Exception:
             pass
 
+    async def update_execution_plan(self, plan_lines: list[str], current_task: str = "") -> None:
+        """Update the live execution plan widget in-place."""
+        try:
+            plan_widget = self.query_one("#execution-plan-widget", ExecutionPlanWidget)
+            plan_widget.update_lines(plan_lines)
+        except Exception:
+            pass  # Widget not mounted yet — normal on first call
+
+        # Update the status indicator
+        if current_task:
+            try:
+                status = self.query_one("#current-task-status", Static)
+                status.update(Text(f"  ▶ {current_task}", style="italic #4A90D9"))
+            except Exception:
+                pass
+
     # ── App message handlers ──────────────────────────────────────────
 
     @on(OrchestratorResponse)
     async def handle_orchestrator_response(self, message: OrchestratorResponse) -> None:
-        """Received when orchestrator finishes. Replace spinner with response."""
+        """Received when orchestrator finishes or mission updates."""
         await self._remove_processing_indicator()
-
         history = self.query_one("#chat-history", ScrollableContainer)
-        response_widget = HermesMessageWidget(message)
-        await history.mount(response_widget)
-        history.scroll_end(animate=False)
+
+        if message.is_plan_update:
+            # Render as live execution plan checklist
+            plan_lines = [
+                line for line in message.final_output.split("\n")
+                if line.strip() and not line.startswith("Mission planned")
+            ]
+            try:
+                plan_widget = self.query_one("#execution-plan-widget", ExecutionPlanWidget)
+                plan_widget.update_lines(plan_lines)
+            except Exception:
+                plan_widget = ExecutionPlanWidget(plan_lines, id="execution-plan-widget")
+                current_status = Static("", id="current-task-status")
+                await history.mount(plan_widget)
+                await history.mount(current_status)
+            history.scroll_end(animate=False)
+
+        elif message.is_walkthrough:
+            # Remove the execution plan widget (replaced by walkthrough)
+            try:
+                plan_widget = self.query_one("#execution-plan-widget", ExecutionPlanWidget)
+                await plan_widget.remove()
+            except Exception:
+                pass
+            try:
+                status = self.query_one("#current-task-status", Static)
+                await status.remove()
+            except Exception:
+                pass
+
+            # Render walkthrough card
+            response_widget = HermesMessageWidget(message)
+            await history.mount(response_widget)
+            history.scroll_end(animate=False)
+
+        else:
+            # Normal response (error, info message, etc.)
+            response_widget = HermesMessageWidget(message)
+            await history.mount(response_widget)
+            history.scroll_end(animate=False)
 
     @on(ModeChanged)
     def handle_mode_changed(self, message: ModeChanged) -> None:
@@ -895,19 +1004,26 @@ class ChatPanel(Widget):
     def set_input_enabled(self, enabled: bool) -> None:
         """Enable or disable the text input (called by App while processing)."""
         try:
-            chat_input = self.query_one("#chat-input", Input)
+            chat_input = self.query_one("#chat-input")
             chat_input.disabled = not enabled
             
-            stop_btn = self.query_one("#stop-btn", Button)
-            if enabled:
-                stop_btn.label = Text("[ SEND ]")
-                stop_btn.disabled = not bool(chat_input.value.strip())
-                chat_input.focus()
-                # Ensure the thinking spinner is completely removed when going back to idle
-                self.run_worker(self._remove_processing_indicator())
-            else:
-                chat_input.blur()
-                stop_btn.label = Text("[ STOP ]")
-                stop_btn.disabled = False
+            btn = None
+            for btn_id in ("#send-btn", "#stop-btn"):
+                try:
+                    btn = self.query_one(btn_id, Button)
+                    break
+                except Exception:
+                    pass
+
+            if btn is not None:
+                if enabled:
+                    btn.label = Text("[ SEND ]")
+                    btn.disabled = False
+                    chat_input.focus()
+                    self.run_worker(self._remove_processing_indicator())
+                else:
+                    chat_input.blur()
+                    btn.label = Text("[ STOP ]")
+                    btn.disabled = False
         except Exception:
             pass

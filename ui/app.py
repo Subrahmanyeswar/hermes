@@ -27,6 +27,10 @@ from textual.message import Message
 from textual.screen import ModalScreen
 from ui.panels.status_bar import StatusBar
 
+from core.mission_planner import MissionPlanner, Mission, TaskState
+from core.mission_runner import MissionRunner, MissionEvent
+from core.workspace import workspace_manager as global_workspace
+
 
 # ── Message types ─────────────────────────────────────────────────
 
@@ -51,6 +55,8 @@ class OrchestratorResponse(Message):
         trace_id: str,
         skill_ids: list[str],
         error: Optional[str] = None,
+        is_plan_update: bool = False,
+        is_walkthrough: bool = False,
     ) -> None:
         super().__init__()
         self.user_request    = user_request
@@ -63,6 +69,8 @@ class OrchestratorResponse(Message):
         self.trace_id        = trace_id
         self.skill_ids       = skill_ids
         self.error           = error
+        self.is_plan_update  = is_plan_update
+        self.is_walkthrough  = is_walkthrough
 
 
 class ModeChanged(Message):
@@ -99,7 +107,6 @@ class LogBar(Widget):
     LogBar {
         height: 3;
         width: 100%;
-        dock: bottom;
         background: #0a0a0a;
         padding: 0 1;
         border: round #1a1a1a;
@@ -228,6 +235,10 @@ class HermesApp(App):
     is_processing:    reactive[bool]  = reactive(False)
     session_cost:     reactive[float] = reactive(0.0)
     kairos_status:    reactive[str]   = reactive("idle")
+    mission_phase:    reactive[str]   = reactive("idle")
+    mission_progress: reactive[str]   = reactive("")
+    current_task_title: reactive[str] = reactive("")
+    workspace_root:   reactive[str]   = reactive("")
 
     def __init__(
         self,
@@ -236,10 +247,15 @@ class HermesApp(App):
         debug: bool = False,
     ) -> None:
         super().__init__()
-        self._mode    = mode
+        self._mode = mode
         self._project = project
-        self._debug   = debug
+        self._debug = debug
         self._orchestrator: Optional[object] = None
+        self._mission_planner = MissionPlanner()
+        self._current_mission: Optional[Mission] = None
+        self._mission_runner: Optional[MissionRunner] = None
+        self._abort_event: Optional[asyncio.Event] = None
+        self._event_queue: asyncio.Queue = asyncio.Queue()
 
     # ── Lifecycle ──────────────────────────────────────────────────
 
@@ -325,17 +341,18 @@ class HermesApp(App):
         if self.is_processing:
             return
         self.is_processing = True
-        self._current_worker = self.run_worker(
-            self._process_request(message.text),
-            exclusive=False,
-            name=f"request-{message.text[:20]}",
-        )
+        self._current_worker = self._process_request(message.text)
 
+    @work(thread=False)
     async def _process_request(self, user_request: str) -> None:
+        """
+        Mission-driven request handler.
+        Instead of one tool call, this creates a Mission and runs it to completion.
+        """
         if self._orchestrator is None:
             self.post_message(OrchestratorResponse(
                 user_request=user_request,
-                final_output="HERMES orchestrator is not initialised. Check the logs.",
+                final_output="HERMES orchestrator is not initialised.",
                 tool_name=None, success=False, stage_reached=0,
                 tier3_called=False, latency_seconds=0.0, trace_id="",
                 skill_ids=[], error="Orchestrator not initialised",
@@ -343,73 +360,177 @@ class HermesApp(App):
             self.is_processing = False
             return
 
-        self.current_skill = "none"
-
         try:
-            def progress_handler(event_type: str, data: dict) -> None:
-                self.post_message(OrchestratorProgress(event_type, data))
+            # ── 1. Create the Mission from the user prompt ─────────────────
+            mission = self._mission_planner.plan(
+                user_request,
+                workspace_root=global_workspace.root_str,
+            )
+            self._current_mission = mission
 
-            result = await self._orchestrator.run(user_request, on_progress=progress_handler)
+            # ── 2. Post the plan to chat panel immediately ─────────────────
+            plan_lines = mission.get_status_lines()
+            plan_text = "\n".join(plan_lines)
 
-            if result.skill_ids_used:
-                self.current_skill = result.skill_ids_used[0]
-            else:
-                self.current_skill = "none"
-
-            if result.tier3_called:
-                try:
-                    cost = self._orchestrator.claude.get_cost_summary()
-                    self.session_cost = cost.get("total_spent", 0.0)
-                except Exception:
-                    pass
-
+            from ui.app import OrchestratorResponse
             self.post_message(OrchestratorResponse(
                 user_request=user_request,
-                final_output=result.final_output or "(no output)",
-                tool_name=result.tool_name,
-                success=result.success,
-                stage_reached=result.pipeline_stage_reached,
-                tier3_called=result.tier3_called,
-                latency_seconds=result.total_latency_seconds,
-                trace_id=result.trace_id,
-                skill_ids=result.skill_ids_used,
-                error=result.error,
+                final_output=f"Mission planned: {len(mission.tasks)} tasks\n{plan_text}",
+                tool_name=None,
+                success=True,
+                stage_reached=2,
+                tier3_called=False,
+                latency_seconds=0.0,
+                trace_id=mission.mission_id,
+                skill_ids=[],
+                is_plan_update=True,     # Signal to chat panel to render as live checklist
             ))
 
-            # Update log bar
+            # ── 3. Start MissionRunner ─────────────────────────────────────
+            self._abort_event = asyncio.Event()
+            self._event_queue = asyncio.Queue()
+            self._mission_runner = MissionRunner(
+                orchestrator=self._orchestrator,
+                workspace_manager=global_workspace,
+                event_queue=self._event_queue,
+                abort_event=self._abort_event,
+            )
+
+            # ── 4. Start event consumer (updates TUI while mission runs) ───
+            consumer_task = asyncio.create_task(
+                self._consume_mission_events(mission),
+                name="mission-event-consumer"
+            )
+
+            # ── 5. Run the mission ─────────────────────────────────────────
+            mission_result = await self._mission_runner.run(mission)
+
+            # ── 6. Wait for event consumer to flush ───────────────────────
+            consumer_task.cancel()
             try:
-                log_bar = self.query_one("#log-bar", LogBar)
-                tool_str = result.tool_name or "none"
-                log_bar.update_log(
-                    f"Tool: {tool_str} | "
-                    f"Stage: {result.pipeline_stage_reached}/12 | "
-                    f"Latency: {result.total_latency_seconds:.1f}s | "
-                    f"Cost: ${self.session_cost:.3f}"
+                await consumer_task
+            except asyncio.CancelledError:
+                pass
+
+            # ── 7. Update cost ─────────────────────────────────────────────
+            cost_summary = self._orchestrator.claude.get_cost_summary()
+            self.session_cost = cost_summary.get("total_spent", 0.0)
+            self.current_skill = "none"
+
+            # ── 8. Post the final walkthrough to chat ─────────────────────
+            self.post_message(OrchestratorResponse(
+                user_request=user_request,
+                final_output=mission_result.walkthrough_text,
+                tool_name=None,
+                success=mission_result.success,
+                stage_reached=12,
+                tier3_called=mission_result.tier3_calls > 0,
+                latency_seconds=mission_result.total_latency_seconds,
+                trace_id=mission.mission_id,
+                skill_ids=[],
+                is_walkthrough=True,    # Signal to chat panel to render as walkthrough
+            ))
+
+            # ── 9. Update right panel ──────────────────────────────────────
+            try:
+                from ui.panels.right_panel import RightPanel
+                right = self.query_one(RightPanel)
+                await right._update_all_tabs(
+                    OrchestratorResponse(
+                        user_request=user_request,
+                        final_output=mission_result.walkthrough_text,
+                        tool_name="mission_complete",
+                        success=mission_result.success,
+                        stage_reached=12,
+                        tier3_called=mission_result.tier3_calls > 0,
+                        latency_seconds=mission_result.total_latency_seconds,
+                        trace_id=mission.mission_id,
+                        skill_ids=[],
+                    ),
+                    self._project,
                 )
             except Exception:
                 pass
 
-        except asyncio.CancelledError:
-            self.current_skill = "none"
+        except Exception as exc:
+            logger.error(f"HermesApp mission error: {type(exc).__name__}: {exc}")
             self.post_message(OrchestratorResponse(
                 user_request=user_request,
-                final_output="Process stopped by user.",
+                final_output=f"Mission error: {type(exc).__name__}: {str(exc)[:200]}",
                 tool_name=None, success=False, stage_reached=0,
                 tier3_called=False, latency_seconds=0.0, trace_id="",
-                skill_ids=[], error="Cancelled",
-            ))
-        except Exception as e:
-            self.current_skill = "none"
-            logger.error(f"HermesApp: orchestrator error: {type(e).__name__}: {e}")
-            self.post_message(OrchestratorResponse(
-                user_request=user_request,
-                final_output=f"Unexpected error: {type(e).__name__}: {str(e)[:200]}",
-                tool_name=None, success=False, stage_reached=0,
-                tier3_called=False, latency_seconds=0.0, trace_id="",
-                skill_ids=[], error=str(e),
+                skill_ids=[], error=str(exc),
             ))
         finally:
             self.is_processing = False
+
+    async def _consume_mission_events(self, mission: Mission) -> None:
+        """
+        Consume events from MissionRunner and update the TUI in real-time.
+        Runs as a background task alongside the mission.
+        """
+        try:
+            while True:
+                try:
+                    event: MissionEvent = await asyncio.wait_for(
+                        self._event_queue.get(),
+                        timeout=0.5
+                    )
+                except asyncio.TimeoutError:
+                    continue
+
+                event_type = event.event_type
+                payload = event.payload
+
+                if event_type == "thought":
+                    # Update the spinner verb with the current thought
+                    try:
+                        from ui.panels.status_bar import StatusBar
+                        sb = self.query_one("#status-bar", StatusBar)
+                        sb.spinner_verb = payload.get("text", "Thinking")[:20]
+                    except Exception:
+                        pass
+
+                elif event_type in ("task_start", "task_complete", "task_failed", "repair_attempt"):
+                    # Update the checklist in the chat panel
+                    plan_lines = mission.get_status_lines()
+                    try:
+                        from ui.panels.chat import ChatPanel
+                        panel = self.query_one(ChatPanel)
+                        await panel.update_execution_plan(plan_lines, payload.get("title", ""))
+                    except Exception:
+                        pass
+
+                    # Update mission progress reactive
+                    completed, total = mission.progress
+                    self.mission_progress = f"{completed}/{total}"
+                    if "title" in payload:
+                        self.current_task_title = payload["title"]
+
+                elif event_type == "phase_change":
+                    self.mission_phase = payload.get("phase", "")
+
+        except asyncio.CancelledError:
+            pass
+
+    def action_stop_mission(self) -> None:
+        """Stop the currently running mission at the next safe checkpoint."""
+        if self._mission_runner is not None and self._abort_event is not None:
+            self._mission_runner.abort()
+            logger.info("HermesApp: mission abort requested by user")
+
+    def action_show_logs(self) -> None:
+        from utils.logging import search_session_logs
+        results = search_session_logs("pipeline", max_results=5)
+        if results:
+            lines = [f"{r.get('timestamp','')[:19]} | {r.get('event', r.get('message',''))[:60]}" for r in results]
+            log_text = "\n".join(lines)
+            try:
+                from ui.panels.chat import ChatPanel
+                panel = self.query_one(ChatPanel)
+                self.run_worker(panel._add_system_message(f"Recent logs:\n{log_text}"), exclusive=False)
+            except Exception:
+                pass
 
     # ── Mode button handlers ───────────────────────────────────────
 
@@ -486,29 +607,22 @@ class HermesApp(App):
     @on(Button.Pressed, "#stop-btn")
     async def on_stop_pressed(self) -> None:
         if self.is_processing:
+            self.action_stop_mission()
             if hasattr(self, "_current_worker") and self._current_worker:
                 self._current_worker.cancel()
-                try:
-                    log_bar = self.query_one("#log-bar", LogBar)
-                    log_bar.update_log("Generation stopped by user.")
-                except Exception:
-                    pass
-                self.is_processing = False
-                self._focus_chat_input()
+            try:
+                log_bar = self.query_one("#log-bar", LogBar)
+                log_bar.update_log("Generation stopped by user.")
+            except Exception:
+                pass
+            self.is_processing = False
+            self._focus_chat_input()
         else:
             try:
                 chat_panel = self.query_one("#chat-panel")
                 await chat_panel.submit_prompt()
             except Exception:
                 pass
-
-    def action_show_logs(self) -> None:
-        """Show logs when Ctrl+L is pressed."""
-        try:
-            log_bar = self.query_one("#log-bar", LogBar)
-            logger.info(f"LogBar content: {log_bar._log_text}")
-        except Exception:
-            logger.info("LogBar not available.")
 
     # ── Watch reactive changes ──────────────────────────────────────────
 
@@ -588,6 +702,20 @@ class HermesApp(App):
             chat_panel = self.query_one("#chat-panel")
             progress_widget = chat_panel.query_one("#processing-indicator")
             progress_widget.update_progress(message.event_type, message.data)
+        except Exception:
+            pass
+
+        try:
+            right_panel = self.query_one("#right-panel")
+            right_panel.post_message(message)
+        except Exception:
+            pass
+
+    @on(OrchestratorResponse)
+    def handle_orchestrator_response(self, message: OrchestratorResponse) -> None:
+        try:
+            chat_panel = self.query_one("#chat-panel")
+            chat_panel.post_message(message)
         except Exception:
             pass
 
