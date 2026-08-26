@@ -13,6 +13,7 @@ from pydantic import BaseModel, Field
 
 from tools.base import BaseTool, ToolResult
 from tools.registry import tool
+from core.workspace import workspace_manager
 
 try:
     import git
@@ -55,8 +56,20 @@ class GitInitTool(BaseTool):
                 exit_code=1,
             )
 
+        if workspace_manager.is_locked:
+            if not Path(inp.directory).is_absolute():
+                inp_directory = str(workspace_manager.workspace_root / inp.directory)
+            else:
+                try:
+                    workspace_manager.validate_path(inp.directory)
+                    inp_directory = inp.directory
+                except Exception as e:
+                    return ToolResult(success=False, error=f"SECURITY: {e}", exit_code=126)
+        else:
+            inp_directory = inp.directory
+
         try:
-            dir_path = Path(inp.directory).resolve()
+            dir_path = Path(inp_directory).resolve()
             dir_path.mkdir(parents=True, exist_ok=True)
 
             try:
@@ -151,9 +164,21 @@ class GitAddCommitTool(BaseTool):
                 exit_code=1,
             )
 
+        if workspace_manager.is_locked:
+            if not Path(inp.directory).is_absolute():
+                inp_directory = str(workspace_manager.workspace_root / inp.directory)
+            else:
+                try:
+                    workspace_manager.validate_path(inp.directory)
+                    inp_directory = inp.directory
+                except Exception as e:
+                    return ToolResult(success=False, error=f"SECURITY: {e}", exit_code=126)
+        else:
+            inp_directory = inp.directory
+
         try:
             try:
-                repo = git.Repo(inp.directory, search_parent_directories=True)
+                repo = git.Repo(inp_directory, search_parent_directories=True)
             except git.InvalidGitRepositoryError:
                 return ToolResult(
                     success=False,
@@ -262,13 +287,25 @@ class GitPushTool(BaseTool):
                 exit_code=1,
             )
 
+        if workspace_manager.is_locked:
+            if not Path(inp.directory).is_absolute():
+                inp_directory = str(workspace_manager.workspace_root / inp.directory)
+            else:
+                try:
+                    workspace_manager.validate_path(inp.directory)
+                    inp_directory = inp.directory
+                except Exception as e:
+                    return ToolResult(success=False, error=f"SECURITY: {e}", exit_code=126)
+        else:
+            inp_directory = inp.directory
+
         logger.info(
-            f"git_push: pushing {inp.directory} to {inp.remote}/{inp.branch} "
+            f"git_push: pushing {inp_directory} to {inp.remote}/{inp.branch} "
             f"[token=REDACTED]"
         )
 
         try:
-            repo = git.Repo(inp.directory, search_parent_directories=True)
+            repo = git.Repo(inp_directory, search_parent_directories=True)
         except git.InvalidGitRepositoryError:
             return ToolResult(
                 success=False,

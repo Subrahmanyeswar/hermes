@@ -1,29 +1,29 @@
 # tools/file_tools.py
 # File system tools for HERMES.
-# All file operations are sandboxed to the current working directory.
+# All file operations are sandboxed to the workspace root when locked.
 # Never operate on paths outside the project root.
 
 from __future__ import annotations
 
+import asyncio
 import time
 from pathlib import Path
 from typing import Literal
 
+import aiofiles
 from loguru import logger
 from pydantic import BaseModel, Field
 
+from core.workspace import workspace_manager, WorkspaceBoundaryError
 from tools.base import BaseTool, ToolResult
 from tools.registry import tool
-import aiofiles
-import asyncio
 
 
 def _resolve_project_path(path: str) -> Path:
-    """Resolve a user path and reject paths outside the current working directory."""
-    # Resolve the path relative to the current working directory.
-    # No restriction on being inside the project root – allows tests to use temporary directories.
-    resolved_path: Path = (Path.cwd() / path).resolve() if not Path(path).is_absolute() else Path(path).resolve()
-    return resolved_path
+    """Resolve a user path using workspace_manager when locked, or cwd."""
+    if workspace_manager.is_locked:
+        return workspace_manager.validate_path(path)
+    return (Path.cwd() / path).resolve() if not Path(path).is_absolute() else Path(path).resolve()
 
 
 @tool(
@@ -45,40 +45,40 @@ class ReadFileTool(BaseTool):
             min_length=1,
             max_length=500,
         )
+        encoding: str = Field(
+            default="utf-8",
+            description="File encoding, defaults to utf-8",
+        )
 
     async def execute(self, inp: Input) -> ToolResult:
         """Read the requested file asynchronously using aiofiles."""
-        start = time.perf_counter()
-        try:
-            p = _resolve_project_path(inp.path)
-            if not p.exists():
-                return ToolResult(success=False, error=f"File not found: {inp.path}", exit_code=1)
-            if not p.is_file():
-                return ToolResult(success=False, error=f"Path is not a file: {inp.path}", exit_code=1)
-            async with aiofiles.open(p, mode='r', encoding=inp.encoding, errors='replace') as f:
-                content = await f.read()
-            duration = time.perf_counter() - start
-            logger.debug(f"read_file: {inp.path} | {len(content)} chars | {duration:.3f}s")
-            return ToolResult(success=True, output=content, exit_code=0, duration_seconds=duration)
-        except PermissionError:
-            return ToolResult(success=False, error=f"Permission denied: {inp.path}", exit_code=1)
-        except UnicodeDecodeError as e:
-            return ToolResult(success=False, error=f"Encoding error: {e}", exit_code=1)
-        except Exception as e:
-            return ToolResult(success=False, error=str(e), exit_code=1)
+        return await self.execute_async(inp)
 
     async def execute_async(self, inp: Input) -> ToolResult:
-        """Async file read using aiofiles."""
-        start = time.perf_counter()
+        """Async file read using aiofiles with workspace boundary enforcement."""
+        start = time.monotonic()
         try:
-            p = _resolve_project_path(inp.path)
-            if not p.exists():
+            # ── Workspace boundary enforcement ──────────────────────────────
+            try:
+                safe_path = workspace_manager.validate_path(inp.path)
+            except WorkspaceBoundaryError as e:
+                return ToolResult(
+                    success=False,
+                    error=f"SECURITY: {e}",
+                    exit_code=126,
+                )
+
+            if not safe_path.exists():
                 return ToolResult(success=False, error=f"File not found: {inp.path}", exit_code=1)
-            if not p.is_file():
+            if not safe_path.is_file():
                 return ToolResult(success=False, error=f"Path is not a file: {inp.path}", exit_code=1)
-            async with aiofiles.open(p, mode='r', encoding='utf-8', errors='replace') as f:
+
+            encoding = getattr(inp, "encoding", "utf-8")
+            async with aiofiles.open(str(safe_path), mode='r',
+                                      encoding=encoding, errors='replace') as f:
                 content = await f.read()
-            duration = time.perf_counter() - start
+
+            duration = time.monotonic() - start
             logger.debug(f"read_file: {inp.path} | {len(content)} chars | {duration:.3f}s")
             return ToolResult(success=True, output=content, exit_code=0, duration_seconds=duration)
         except PermissionError:
@@ -108,45 +108,40 @@ class WriteFileTool(BaseTool):
 
     async def execute(self, inp: Input) -> ToolResult:
         """Write content to the requested file asynchronously using aiofiles."""
-        start_time = time.perf_counter()
-        write_mode = "w" if inp.mode == "overwrite" else "a"
-        logger.debug(
-            "Writing file: %s mode=%s characters=%d",
-            inp.path,
-            inp.mode,
-            len(inp.content),
-        )
+        return await self.execute_async(inp)
+
+    async def execute_async(self, inp: Input) -> ToolResult:
+        """Write content to the requested file with workspace boundary enforcement."""
+        start = time.monotonic()
         try:
-            file_path: Path = _resolve_project_path(inp.path)
-            file_path.parent.mkdir(parents=True, exist_ok=True)
-            async with aiofiles.open(file_path, write_mode, encoding="utf-8") as file_handle:
-                await file_handle.write(inp.content)
-            duration_seconds = time.perf_counter() - start_time
-            logger.debug("Wrote file: %s (%d bytes)", file_path, file_path.stat().st_size)
+            # ── Workspace boundary enforcement ──────────────────────────────
+            try:
+                safe_path = workspace_manager.validate_path(inp.path)
+            except WorkspaceBoundaryError as e:
+                return ToolResult(success=False, error=f"SECURITY: {e}", exit_code=126)
+
+            safe_path.parent.mkdir(parents=True, exist_ok=True)
+            file_mode = "w" if inp.mode == "overwrite" else "a"
+
+            async with aiofiles.open(str(safe_path), mode=file_mode, encoding="utf-8") as f:
+                await f.write(inp.content)
+
+            duration = time.monotonic() - start
+
+            # Refresh workspace index — new file detected
+            workspace_manager.refresh_index()
+
+            logger.debug(f"write_file: {inp.path} | {len(inp.content)} chars | {inp.mode} | {duration:.3f}s")
             return ToolResult(
                 success=True,
-                output=f"Written {len(inp.content)} characters to {inp.path}",
+                output=f"Written {len(inp.content)} characters to {safe_path}",
                 exit_code=0,
-                duration_seconds=duration_seconds,
+                duration_seconds=duration,
             )
-        except OSError as exc:
-            duration_seconds = time.perf_counter() - start_time
-            return ToolResult(
-                success=False,
-                output="",
-                error=str(exc),
-                exit_code=1,
-                duration_seconds=duration_seconds,
-            )
-        except UnicodeError as exc:
-            duration_seconds = time.perf_counter() - start_time
-            return ToolResult(
-                success=False,
-                output="",
-                error=str(exc),
-                exit_code=1,
-                duration_seconds=duration_seconds,
-            )
+        except PermissionError:
+            return ToolResult(success=False, error=f"Permission denied: {inp.path}", exit_code=1)
+        except Exception as e:
+            return ToolResult(success=False, error=str(e), exit_code=1)
 
 
 @tool(
@@ -178,8 +173,12 @@ class ListDirectoryTool(BaseTool):
         )
 
         try:
-            directory_path: Path = _resolve_project_path(inp.path)
-            entries: list[Path] = list(directory_path.iterdir())
+            safe_path = workspace_manager.validate_path(inp.path)
+        except WorkspaceBoundaryError as e:
+            return ToolResult(success=False, error=f"SECURITY: {e}", exit_code=126)
+
+        try:
+            entries: list[Path] = list(safe_path.iterdir())
             if not inp.include_hidden:
                 entries = [entry for entry in entries if not entry.name.startswith(".")]
 
@@ -201,7 +200,7 @@ class ListDirectoryTool(BaseTool):
             duration_seconds: float = time.perf_counter() - start_time
             logger.debug(
                 "Listed directory: {} entries={}",
-                directory_path,
+                safe_path,
                 len(lines),
             )
             return ToolResult(
@@ -244,15 +243,21 @@ class AppendFileTool(BaseTool):
     class Input(BaseModel):
         path: str = Field(..., min_length=1, max_length=500)
         content: str = Field(..., max_length=100_000)
+
     async def execute(self, inp: Input) -> ToolResult:
         """Append content to the requested file asynchronously using aiofiles. Creates the file if it does not exist."""
         start = time.monotonic()
         try:
-            file_path = _resolve_project_path(inp.path)
-            file_path.parent.mkdir(parents=True, exist_ok=True)
-            async with aiofiles.open(file_path, 'a', encoding='utf-8') as f:
+            safe_path = workspace_manager.validate_path(inp.path)
+        except WorkspaceBoundaryError as e:
+            return ToolResult(success=False, error=f"SECURITY: {e}", exit_code=126)
+
+        try:
+            safe_path.parent.mkdir(parents=True, exist_ok=True)
+            async with aiofiles.open(str(safe_path), 'a', encoding='utf-8') as f:
                 await f.write(inp.content)
             duration = time.monotonic() - start
+            workspace_manager.refresh_index()
             logger.debug(f"append_file: {inp.path} | appended {len(inp.content)} chars")
             return ToolResult(success=True, output=f"Appended {len(inp.content)} characters to {inp.path}", exit_code=0, duration_seconds=duration)
         except Exception as e:
@@ -264,10 +269,16 @@ class AppendFileTool(BaseTool):
 class CreateFolderTool(BaseTool):
     class Input(BaseModel):
         path: str = Field(..., min_length=1, max_length=500)
+
     def execute(self, inp: Input) -> ToolResult:
         try:
-            folder_path = _resolve_project_path(inp.path)
-            folder_path.mkdir(parents=True, exist_ok=True)
+            safe_path = workspace_manager.validate_path(inp.path)
+        except WorkspaceBoundaryError as e:
+            return ToolResult(success=False, error=f"SECURITY: {e}", exit_code=126)
+
+        try:
+            safe_path.mkdir(parents=True, exist_ok=True)
+            workspace_manager.refresh_index()
             return ToolResult(success=True, output=f"Created directory: {inp.path}", exit_code=0, duration_seconds=0.0)
         except Exception as e:
             return ToolResult(success=False, output="", error=str(e), exit_code=1, duration_seconds=0.0)
@@ -278,15 +289,25 @@ class MoveFileTool(BaseTool):
     class Input(BaseModel):
         source: str = Field(..., min_length=1, max_length=500)
         destination: str = Field(..., min_length=1, max_length=500)
+
     def execute(self, inp: Input) -> ToolResult:
         import shutil
         try:
-            src = _resolve_project_path(inp.source)
-            dest = _resolve_project_path(inp.destination)
+            src = workspace_manager.validate_path(inp.source)
+        except WorkspaceBoundaryError as e:
+            return ToolResult(success=False, error=f"SECURITY: {e}", exit_code=126)
+
+        try:
+            dest = workspace_manager.validate_path(inp.destination)
+        except WorkspaceBoundaryError as e:
+            return ToolResult(success=False, error=f"SECURITY: {e}", exit_code=126)
+
+        try:
             if not src.exists():
                 return ToolResult(success=False, output="", error=f"Source not found: {inp.source}", exit_code=1, duration_seconds=0.0)
             dest.parent.mkdir(parents=True, exist_ok=True)
             shutil.move(str(src), str(dest))
+            workspace_manager.refresh_index()
             return ToolResult(success=True, output=f"Moved {inp.source} → {inp.destination}", exit_code=0, duration_seconds=0.0)
         except Exception as e:
             return ToolResult(success=False, output="", error=str(e), exit_code=1, duration_seconds=0.0)
@@ -297,16 +318,22 @@ class DeleteFileTool(BaseTool):
     class Input(BaseModel):
         path: str = Field(..., min_length=1, max_length=500)
         confirm: bool = Field(..., description="Must be explicitly True to confirm deletion")
+
     def execute(self, inp: Input) -> ToolResult:
         if not inp.confirm:
             return ToolResult(success=False, output="", error="Deletion requires confirm=True", exit_code=1, duration_seconds=0.0)
         try:
-            p = _resolve_project_path(inp.path)
-            if not p.exists():
+            safe_path = workspace_manager.validate_path(inp.path)
+        except WorkspaceBoundaryError as e:
+            return ToolResult(success=False, error=f"SECURITY: {e}", exit_code=126)
+
+        try:
+            if not safe_path.exists():
                 return ToolResult(success=False, output="", error=f"File not found: {inp.path}", exit_code=1, duration_seconds=0.0)
-            if p.is_dir():
+            if safe_path.is_dir():
                 return ToolResult(success=False, output="", error="delete_file cannot delete directories. Use bash_exec with caution.", exit_code=1, duration_seconds=0.0)
-            p.unlink()
+            safe_path.unlink()
+            workspace_manager.refresh_index()
             logger.warning(f"delete_file: DELETED {inp.path}")
             return ToolResult(success=True, output=f"Deleted: {inp.path}", exit_code=0, duration_seconds=0.0)
         except Exception as e:

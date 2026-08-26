@@ -3,6 +3,7 @@
 # ALL shell commands pass through the 15 security gates in tools/security.py first.
 # Never call subprocess directly from orchestrator - always use these tools.
 
+import os
 import subprocess
 import time
 import shlex
@@ -11,6 +12,7 @@ from pathlib import Path
 
 from pydantic import BaseModel, Field
 
+from core.workspace import workspace_manager
 from tools.base import BaseTool, ToolResult
 from tools.registry import tool
 from tools.security import check_all_gates
@@ -20,10 +22,13 @@ from loguru import logger
 def _command_for_platform(command: str) -> str:
     """Translate minimal POSIX shell commands needed for Windows compatibility."""
     stripped_command = command.strip()
-    if Path("C:/Windows").exists() and stripped_command.startswith("sleep "):
-        parts = stripped_command.split()
-        if len(parts) == 2 and parts[1].isdigit():
-            return f'python -c "import time; time.sleep({parts[1]})"'
+    if sys.platform == "win32" or Path("C:/Windows").exists():
+        if stripped_command == "pwd":
+            return 'python -c "import os; print(os.getcwd())"'
+        if stripped_command.startswith("sleep "):
+            parts = stripped_command.split()
+            if len(parts) == 2 and parts[1].isdigit():
+                return f'python -c "import time; time.sleep({parts[1]})"'
     return command
 
 
@@ -71,7 +76,17 @@ class BashExecTool(BaseTool):
                 exit_code=126,
             )
 
-        work_dir = Path(inp.working_dir).resolve()
+        # Force working directory to workspace root for security
+        cwd = workspace_manager.workspace_root or Path.cwd()
+        if inp.working_dir and inp.working_dir != ".":
+            target_dir = Path(inp.working_dir)
+            if not target_dir.is_absolute():
+                work_dir = (cwd / target_dir).resolve()
+            else:
+                work_dir = target_dir.resolve()
+        else:
+            work_dir = Path(cwd).resolve()
+
         if not work_dir.exists():
             return ToolResult(
                 success=False,
@@ -89,6 +104,7 @@ class BashExecTool(BaseTool):
                 capture_output=True,
                 text=True,
                 cwd=str(work_dir),
+                env={**os.environ, "PWD": str(work_dir)},
                 timeout=inp.timeout_seconds,
                 stdin=subprocess.DEVNULL,
             )
