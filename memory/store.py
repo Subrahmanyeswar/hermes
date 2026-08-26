@@ -184,3 +184,47 @@ def read_layer2_topic(project: str, topic_name: str) -> Optional[str]:
     if path.exists():
         return path.read_text(encoding='utf-8')
     return None
+
+
+def search_layer3(
+    query: str,
+    project: str = "default",
+    max_results: int = 20,
+    session_dir: Optional[Path] = None,
+) -> list[dict]:
+    """
+    Search Layer 3 session logs line-by-line for matches against a query string.
+    Never loads entire JSONL files into memory.
+    Returns a list of matching parsed JSON event dictionaries.
+    """
+    import json
+    log_dir = session_dir or Path("data/sessions")
+    if not log_dir.exists():
+        return []
+
+    results: list[dict] = []
+    query_lower = query.lower()
+
+    # Iterate through session log files sorted by modification time descending
+    log_files = sorted(log_dir.glob("*.jsonl"), key=lambda p: p.stat().st_mtime, reverse=True)
+    for log_file in log_files:
+        if len(results) >= max_results:
+            break
+        try:
+            with open(log_file, "r", encoding="utf-8", errors="ignore") as f:
+                for line in f:
+                    if len(results) >= max_results:
+                        break
+                    line_str = line.strip()
+                    if not line_str or query_lower not in line_str.lower():
+                        continue
+                    try:
+                        data = json.loads(line_str)
+                        results.append(data)
+                    except json.JSONDecodeError:
+                        continue
+        except Exception as e:
+            logger.warning(f"Error reading session log {log_file}: {e}")
+            continue
+
+    return results

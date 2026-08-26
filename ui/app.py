@@ -224,11 +224,11 @@ class HermesApp(App):
     ENABLE_COMMAND_PALETTE = False
 
     BINDINGS = [
-        Binding("ctrl+s", "set_mode_safe",  "Safe mode",  show=False),
-        Binding("ctrl+p", "set_mode_plan",  "Plan mode",  show=False),
-        Binding("ctrl+a", "set_mode_auto",  "Auto mode",  show=False),
-        Binding("ctrl+q", "quit",           "Quit",       show=False),
-        Binding("ctrl+l", "show_logs",      "Logs",       show=False),
+        Binding("ctrl+s", "set_mode_safe",  "Safe mode",  priority=True, show=False),
+        Binding("ctrl+p", "set_mode_plan",  "Plan mode",  priority=True, show=False),
+        Binding("ctrl+a", "set_mode_auto",  "Auto mode",  priority=True, show=False),
+        Binding("ctrl+q", "quit",           "Quit",       priority=True, show=False),
+        Binding("ctrl+l", "show_logs",      "Logs",       priority=True, show=False),
     ]
 
     # ── Reactive state ─────────────────────────────────────────────
@@ -445,39 +445,40 @@ class HermesApp(App):
                 pass
 
             # Post final walkthrough
-            self.session_cost = mission_result.total_cost_usd
+            # Post final walkthrough / orchestrator result
+            result = mission_result
+            self.session_cost = getattr(result, "total_cost_usd", 0.0)
             self.post_message(OrchestratorResponse(
                 user_request=user_request,
-                final_output=mission_result.walkthrough_text,
-                tool_name=None,
-                success=mission_result.success,
-                stage_reached=12,
-                tier3_called=mission_result.tier3_calls > 0,
-                latency_seconds=mission_result.total_latency_seconds,
-                trace_id=mission_result.mission_id,
-                skill_ids=[],
+                final_output=getattr(result, "walkthrough_text", getattr(result, "final_output", "")),
+                tool_name=getattr(result, "tool_name", None),
+                success=result.success,
+                stage_reached=getattr(result, "pipeline_stage_reached", 12),
+                tier3_called=result.tier3_was_called if hasattr(result, "tier3_was_called") else (getattr(result, "tier3_calls", 0) > 0),
+                latency_seconds=getattr(result, "total_latency_seconds", 0.0),
+                trace_id=getattr(result, "mission_id", getattr(result, "trace_id", "")),
+                skill_ids=getattr(result, "skill_ids_used", []),
                 is_walkthrough=True,
             ))
 
             # Update right panel
             try:
                 from ui.panels.right_panel import RightPanel
-                right = self.query_one(RightPanel)
+                right_panel = self.query_one(RightPanel)
+                # Map fields from result / mission_result
+                resp = OrchestratorResponse(
+                    user_request=user_request,
+                    final_output=mission_result.walkthrough_text,
+                    tool_name="mission_complete",
+                    success=mission_result.success,
+                    stage_reached=getattr(mission_result, "pipeline_stage_reached", 12),
+                    tier3_called=getattr(mission_result, "tier3_was_called", mission_result.tier3_calls > 0),
+                    latency_seconds=getattr(mission_result, "total_latency_seconds", 0.0),
+                    trace_id=mission_result.mission_id,
+                    skill_ids=getattr(mission_result, "skill_ids_used", []),
+                )
                 self.run_worker(
-                    right._update_all_tabs(
-                        OrchestratorResponse(
-                            user_request=user_request,
-                            final_output=mission_result.walkthrough_text,
-                            tool_name="mission_complete",
-                            success=mission_result.success,
-                            stage_reached=12,
-                            tier3_called=mission_result.tier3_calls > 0,
-                            latency_seconds=mission_result.total_latency_seconds,
-                            trace_id=mission_result.mission_id,
-                            skill_ids=[],
-                        ),
-                        self._project,
-                    ),
+                    right_panel._update_all_tabs(resp, self._project),
                     exclusive=False,
                 )
             except Exception:
@@ -626,16 +627,24 @@ class HermesApp(App):
     def action_set_mode_auto(self) -> None:
         self._set_mode("auto")
 
+    def action_safe_mode(self) -> None:
+        self._set_mode("safe")
+
+    def action_plan_mode(self) -> None:
+        self._set_mode("plan")
+
+    def action_auto_mode(self) -> None:
+        self._set_mode("auto")
+
     def _set_mode(self, mode: str) -> None:
-        if self._orchestrator is None:
-            return
-        try:
-            self._orchestrator.set_mode(mode)
-            self.current_mode = mode
-            self.post_message(ModeChanged(mode))
-            logger.info(f"HermesApp: mode changed to {mode}")
-        except ValueError as e:
-            logger.error(f"HermesApp: invalid mode {mode}: {e}")
+        self.current_mode = mode
+        if self._orchestrator is not None:
+            try:
+                self._orchestrator.set_mode(mode)
+            except Exception as e:
+                logger.error(f"HermesApp: error setting mode on orchestrator: {e}")
+        self.post_message(ModeChanged(mode))
+        logger.info(f"HermesApp: mode changed to {mode}")
 
     def _update_mode_buttons(self, active_mode: str) -> None:
         """Update which mode button shows as active."""

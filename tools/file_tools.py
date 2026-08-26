@@ -50,9 +50,38 @@ class ReadFileTool(BaseTool):
             description="File encoding, defaults to utf-8",
         )
 
-    async def execute(self, inp: Input) -> ToolResult:
-        """Read the requested file asynchronously using aiofiles."""
-        return await self.execute_async(inp)
+    def execute(self, inp: Input) -> ToolResult:
+        """Read the requested file synchronously."""
+        start = time.monotonic()
+        try:
+            # ── Workspace boundary enforcement ──────────────────────────────
+            try:
+                safe_path = workspace_manager.validate_path(inp.path)
+            except WorkspaceBoundaryError as e:
+                return ToolResult(
+                    success=False,
+                    error=f"SECURITY: {e}",
+                    exit_code=126,
+                )
+
+            if not safe_path.exists():
+                return ToolResult(success=False, error=f"File not found: {inp.path}", exit_code=1)
+            if not safe_path.is_file():
+                return ToolResult(success=False, error=f"Path is not a file: {inp.path}", exit_code=1)
+
+            encoding = getattr(inp, "encoding", "utf-8")
+            with open(safe_path, mode="r", encoding=encoding, errors="replace") as f:
+                content = f.read()
+
+            duration = time.monotonic() - start
+            logger.debug(f"read_file: {inp.path} | {len(content)} chars | {duration:.3f}s")
+            return ToolResult(success=True, output=content, exit_code=0, duration_seconds=duration)
+        except PermissionError:
+            return ToolResult(success=False, error=f"Permission denied: {inp.path}", exit_code=1)
+        except UnicodeDecodeError as e:
+            return ToolResult(success=False, error=f"Encoding error: {e}", exit_code=1)
+        except Exception as e:
+            return ToolResult(success=False, error=str(e), exit_code=1)
 
     async def execute_async(self, inp: Input) -> ToolResult:
         """Async file read using aiofiles with workspace boundary enforcement."""
@@ -106,9 +135,38 @@ class WriteFileTool(BaseTool):
         content: str = Field(..., max_length=500_000)
         mode: Literal["overwrite", "append"] = "overwrite"
 
-    async def execute(self, inp: Input) -> ToolResult:
-        """Write content to the requested file asynchronously using aiofiles."""
-        return await self.execute_async(inp)
+    def execute(self, inp: Input) -> ToolResult:
+        """Write content to the requested file synchronously with workspace boundary enforcement."""
+        start = time.monotonic()
+        try:
+            # ── Workspace boundary enforcement ──────────────────────────────
+            try:
+                safe_path = workspace_manager.validate_path(inp.path)
+            except WorkspaceBoundaryError as e:
+                return ToolResult(success=False, error=f"SECURITY: {e}", exit_code=126)
+
+            safe_path.parent.mkdir(parents=True, exist_ok=True)
+            file_mode = "w" if inp.mode == "overwrite" else "a"
+
+            with open(safe_path, mode=file_mode, encoding="utf-8") as f:
+                f.write(inp.content)
+
+            duration = time.monotonic() - start
+
+            # Refresh workspace index — new file detected
+            workspace_manager.refresh_index()
+
+            logger.debug(f"write_file: {inp.path} | {len(inp.content)} chars | {inp.mode} | {duration:.3f}s")
+            return ToolResult(
+                success=True,
+                output=f"Written {len(inp.content)} characters to {safe_path}",
+                exit_code=0,
+                duration_seconds=duration,
+            )
+        except PermissionError:
+            return ToolResult(success=False, error=f"Permission denied: {inp.path}", exit_code=1)
+        except Exception as e:
+            return ToolResult(success=False, error=str(e), exit_code=1)
 
     async def execute_async(self, inp: Input) -> ToolResult:
         """Write content to the requested file with workspace boundary enforcement."""
@@ -244,7 +302,27 @@ class AppendFileTool(BaseTool):
         path: str = Field(..., min_length=1, max_length=500)
         content: str = Field(..., max_length=100_000)
 
-    async def execute(self, inp: Input) -> ToolResult:
+    def execute(self, inp: Input) -> ToolResult:
+        """Append content to the requested file synchronously. Creates the file if it does not exist."""
+        start = time.monotonic()
+        try:
+            safe_path = workspace_manager.validate_path(inp.path)
+        except WorkspaceBoundaryError as e:
+            return ToolResult(success=False, error=f"SECURITY: {e}", exit_code=126)
+
+        try:
+            safe_path.parent.mkdir(parents=True, exist_ok=True)
+            with open(safe_path, 'a', encoding='utf-8') as f:
+                f.write(inp.content)
+            duration = time.monotonic() - start
+            workspace_manager.refresh_index()
+            logger.debug(f"append_file: {inp.path} | appended {len(inp.content)} chars")
+            return ToolResult(success=True, output=f"Appended {len(inp.content)} characters to {inp.path}", exit_code=0, duration_seconds=duration)
+        except Exception as e:
+            duration = time.monotonic() - start
+            return ToolResult(success=False, output="", error=str(e), exit_code=1, duration_seconds=duration)
+
+    async def execute_async(self, inp: Input) -> ToolResult:
         """Append content to the requested file asynchronously using aiofiles. Creates the file if it does not exist."""
         start = time.monotonic()
         try:

@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-06-02T01:47:48.866621",
+  "generated_at": "2026-08-26T12:43:58.696374",
   "total_checks": 11,
   "passed": 11,
   "failed": 0,
@@ -45,7 +45,7 @@
       "name": "FM2-C: Memory parse error is transparent to user",
       "passed": true,
       "failure_mode": null,
-      "detail": "stage=12 transparent=True output_preview='Listing files\\n\\n[DIR]  benchmarks\\n[DIR]  config\\n[DIR]  core\\n['",
+      "detail": "stage=12 transparent=True output_preview='\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\\nEXECUTION SUMMARY\\n\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550'",
       "fix_applied": false
     },
     {

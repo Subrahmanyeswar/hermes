@@ -749,11 +749,9 @@ class RightPanel(Widget):
             except Exception:
                 pass
 
-    @on(OrchestratorResponse)
-    async def handle_response(self, response: OrchestratorResponse) -> None:
-        """Update all 3 tabs after every orchestrator response."""
-
-        # Tab 1: Tool Trace — update active entry or add a new one
+    async def _update_all_tabs(self, response: OrchestratorResponse, project: str = "default") -> None:
+        """Explicitly update all 3 tabs after an orchestrator response."""
+        # Tab 1: Tool Trace — add or complete trace entry
         try:
             trace_pane = self.query_one("#tool-trace-pane", ToolTracePane)
             if trace_pane._active_entry:
@@ -772,11 +770,11 @@ class RightPanel(Widget):
         except Exception:
             pass
 
-        # Tab 2: Memory View — refresh if tool succeeded
+        # Tab 2: Memory View — refresh if successful
         if response.success:
             try:
                 memory_pane = self.query_one("#memory-pane", MemoryViewPane)
-                await memory_pane.refresh_memory(self._project)
+                await memory_pane.refresh_memory(project or self._project)
             except Exception:
                 pass
 
@@ -786,3 +784,8 @@ class RightPanel(Widget):
             await task_pane.refresh_tasks()
         except Exception:
             pass
+
+    @on(OrchestratorResponse)
+    async def handle_response(self, response: OrchestratorResponse) -> None:
+        """Update all 3 tabs after every orchestrator response."""
+        await self._update_all_tabs(response, self._project)
