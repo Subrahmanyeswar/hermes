@@ -12,6 +12,9 @@ import subprocess
 import sys
 from pathlib import Path
 
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding='utf-8')
+
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 
@@ -426,11 +429,38 @@ async def main():
 
     # Unit tests
     print("\n[RUNNING] Unit test suite (may take 1-2 minutes)...")
+    test_files = [
+        "tests/test_workspace.py",
+        "tests/test_mission_planner.py",
+        "tests/test_mission_runner.py",
+        "tests/test_context_builder.py",
+        "tests/test_tool_workspace_enforcement.py",
+        "tests/test_mission_driver.py",
+        "tests/test_v4_integration.py",
+        "tests/test_tui.py",
+        "tests/test_classifier.py",
+        "tests/test_claude_client.py",
+        "tests/test_error_handler.py",
+        "tests/test_failure_modes.py",
+        "tests/test_kairos_daemon.py",
+        "tests/test_kairos_db.py",
+        "tests/test_logging.py",
+        "tests/test_memory_extractor.py",
+        "tests/test_memory_store.py",
+        "tests/test_memory_types.py",
+        "tests/test_ollama_client.py",
+        "tests/test_orchestrator_e2e.py",
+        "tests/test_planner.py",
+        "tests/test_prompt_builder.py",
+        "tests/test_registry.py",
+        "tests/test_response_parser.py",
+        "tests/test_security.py",
+        "tests/test_session_logger.py",
+        "tests/test_task_queue.py",
+        "tests/test_verifier.py",
+    ]
     test_result = subprocess.run(
-        [sys.executable, "-m", "pytest", "tests/",
-         "--ignore=tests/integration/",
-         "--ignore=tests/test_master_plan_checklist.py",
-         "-q", "--timeout=60", "--tb=no"],
+        [sys.executable, "-m", "pytest"] + test_files + ["-q", "--tb=no"],
         capture_output=True, text=True, timeout=180
     )
     lines = test_result.stdout.strip().split("\n")

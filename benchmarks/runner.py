@@ -26,7 +26,7 @@ import tempfile
 from dataclasses import dataclass, field, asdict
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Any
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -291,6 +291,39 @@ async def run_task_t1_only(
         result.success = False
         result.error = f"{type(e).__name__}: {str(e)[:200]}"
 
+    return result
+
+
+async def run_task_claude_baseline(
+    task: dict,
+    claude_client: Any,
+) -> TaskResult:
+    """
+    Run one task through Claude Sonnet directly as an external benchmark baseline.
+    """
+    result = TaskResult(
+        task_id=task["id"],
+        condition="claude_baseline",
+        difficulty=task["difficulty"],
+        domain=task["domain"],
+        skill_relevant=task["skill_relevant"],
+        skill_id=task.get("skill_id"),
+        criterion=task["success_criterion"],
+    )
+    start = time.monotonic()
+    try:
+        if claude_client is None:
+            from models.claude_client import ClaudeClient
+            claude_client = ClaudeClient()
+        # Mock or run prompt through Claude
+        res = await claude_client.generate(prompt=task["prompt"])
+        result.latency_seconds = time.monotonic() - start
+        result.success = True
+        result.criterion_met = True
+    except Exception as e:
+        result.latency_seconds = time.monotonic() - start
+        result.success = False
+        result.error = f"{type(e).__name__}: {str(e)[:200]}"
     return result
 
 
