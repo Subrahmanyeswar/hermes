@@ -32,7 +32,7 @@ from enum import Enum
 from typing import Callable, Optional, Any
 from loguru import logger
 
-from core.mission_planner import Mission, MissionTask, TaskState
+from core.mission_planner import Mission, MissionTask, TaskState, TaskPriority
 from core.workspace import WorkspaceManager, workspace_manager
 from core.context_builder import ContextBuilder
 
@@ -167,6 +167,55 @@ class MissionRunner:
             # Brief pause to allow UI to update and prevent hammering Ollama
             await asyncio.sleep(0.2)
 
+        # ── Final mission acceptance criteria check ────────────────────
+        if mission.is_complete and mission.acceptance_criteria:
+            self._current_phase = MissionPhase.VERIFYING
+            await self._emit(MissionEvent(
+                event_type="phase_change",
+                payload={"phase": "VERIFYING"}
+            ))
+
+            unmet = await self._check_acceptance_criteria(mission)
+            if unmet:
+                # Some criteria not met — add repair tasks if retries left
+                logger.warning(
+                    f"MissionRunner: {len(unmet)} acceptance criteria not met: {unmet}"
+                )
+                await self._emit(MissionEvent(
+                    event_type="thought",
+                    payload={
+                        "text": "Acceptance criteria not fully met — adding verification tasks",
+                        "detail": str(unmet[:2])
+                    }
+                ))
+                # Add repair tasks for unmet criteria
+                for criterion in unmet[:3]:  # Max 3 repair tasks
+                    repair_task = MissionTask(
+                        title=f"Fix: {criterion[:50]}",
+                        description=(
+                            f"The following requirement was not satisfied: {criterion}\n"
+                            f"Inspect the project files and implement what is missing.\n"
+                            f"Project path: {mission.project_root_path}"
+                        ),
+                        priority=TaskPriority.CRITICAL,
+                        max_retries=2,
+                    )
+                    mission.tasks.append(repair_task)
+                    mission.execution_order.append(repair_task.task_id)
+
+                # Continue the mission loop for repair tasks
+                while not mission.is_complete:
+                    if self.abort_event.is_set():
+                        break
+                    task = mission.next_executable_task
+                    if task is None:
+                        break
+                    await self._execute_task(mission, task)
+                    await asyncio.sleep(0.2)
+            else:
+                mission.verified_criteria = mission.acceptance_criteria.copy()
+                logger.info("MissionRunner: all acceptance criteria verified ✓")
+
         # ── Post-mission phase ────────────────────────────────────────────────
         self._current_phase = MissionPhase.SUMMARIZING
         await self._emit(MissionEvent(
@@ -211,7 +260,19 @@ class MissionRunner:
     async def _execute_task(self, mission: Mission, task: MissionTask) -> None:
         """
         Execute one task through the full Orchestrator pipeline.
-        Handles retries, error injection, and repair cycles.
+
+        CRITICAL DESIGN RULE:
+        Tool execution success (exit_code=0) is NOT the same as task completion.
+        Task completion requires evidence that the requested work was done.
+
+        This method:
+        1. Runs the orchestrator to generate and execute a tool call
+        2. Checks if the tool call was meaningful (not just folder creation)
+        3. If a write/implementation tool ran: verify the output exists and
+           is non-empty
+        4. If only a folder was created when files were needed: re-execute
+           with a more specific prompt demanding file content
+        5. Only marks COMPLETE when evidence exists
         """
         await self._emit(MissionEvent(
             event_type="task_start",
@@ -227,33 +288,35 @@ class MissionRunner:
         mission.mark_task_running(task.task_id)
         self._current_phase = MissionPhase.EXECUTING
 
-        # Build the enriched prompt for this specific task
+        # ── Build enriched prompt ─────────────────────────────────────────
         enriched_prompt = self._build_task_prompt(task, mission)
 
-        # Temporarily inject the skill hint into the orchestrator
-        original_skill = None
-        if task.skill_hint and hasattr(self.orchestrator, 'classifier'):
-            # Force the skill for this specific task
-            original_skill = task.skill_hint
-
-        # Emit thought about what we're doing
         await self._emit(MissionEvent(
             event_type="thought",
             payload={
-                "text": f"Executing: {task.title}",
-                "detail": f"Skill: {task.skill_hint or 'none'} | Retry: {task.retry_count}"
+                "text": f"Working on: {task.title}",
+                "detail": f"Skill: {task.skill_hint or 'none'} | Attempt: {task.retry_count + 1}"
             }
         ))
 
-        # Call the existing Orchestrator — it handles T1/T2/T3 pipeline
+        # ── Execute through orchestrator ──────────────────────────────────
         try:
             orch_result = await self.orchestrator.run(enriched_prompt)
 
-            # Update cost tracking
+            # Track costs
             if hasattr(orch_result, 'tier3_was_called') and orch_result.tier3_was_called:
                 self._tier3_calls += 1
-                cost = self.orchestrator.claude.get_cost_summary()
-                self._total_cost = cost.get("total_spent", 0.0)
+                try:
+                    cost = self.orchestrator.claude.get_cost_summary()
+                    self._total_cost = cost.get("total_spent", 0.0)
+                except Exception:
+                    pass
+
+            # Capture output for context continuity
+            if orch_result.final_output:
+                self._recent_outputs.append(orch_result.final_output[:600])
+                if len(self._recent_outputs) > 12:
+                    self._recent_outputs = self._recent_outputs[-12:]
 
             # Emit tool result
             await self._emit(MissionEvent(
@@ -263,46 +326,266 @@ class MissionRunner:
                     "tool_name": orch_result.tool_name,
                     "success": orch_result.success,
                     "stage_reached": orch_result.pipeline_stage_reached,
-                    "output_preview": (orch_result.final_output or "")[:200],
+                    "output_preview": (orch_result.final_output or "")[:300],
                     "tier3_called": orch_result.tier3_was_called,
                     "trace_id": orch_result.trace_id,
                 }
             ))
 
-            # Track file changes
             self._track_file_changes(orch_result)
 
-            if orch_result.final_output:
-                self._recent_outputs.append(orch_result.final_output[:500])
-                if len(self._recent_outputs) > 10:
-                    self._recent_outputs = self._recent_outputs[-10:]  # Keep last 10 only
-
-            # Determine task success
-            if orch_result.success and orch_result.pipeline_stage_reached >= 6:
-                mission.mark_task_complete(task.task_id)
-                await self._emit(MissionEvent(
-                    event_type="task_complete",
-                    payload={
-                        "task_id": task.task_id,
-                        "title": task.title,
-                        "output_preview": (orch_result.final_output or "")[:200],
-                    }
-                ))
-            else:
-                # Task failed — enter repair cycle
+            # ── CRITICAL: Evidence-based completion check ──────────────────
+            if not orch_result.success or orch_result.pipeline_stage_reached < 6:
+                # Tool execution failed
                 await self._handle_task_failure(
                     mission, task,
                     error=orch_result.error or "Tool execution did not succeed",
                     output=orch_result.final_output or "",
                 )
+                return
+
+            # Check for shallow execution: only folder created when
+            # implementation was required
+            tool_name = orch_result.tool_name or ""
+            task_needs_implementation = self._task_needs_implementation(task)
+
+            if task_needs_implementation and tool_name == "create_folder":
+                # Folder creation alone is not sufficient for implementation tasks
+                # Re-execute with a more demanding prompt
+                await self._emit(MissionEvent(
+                    event_type="thought",
+                    payload={
+                        "text": f"Folder created but implementation needed — re-executing",
+                        "detail": f"Task '{task.title}' requires file content, not just folders"
+                    }
+                ))
+                await self._handle_task_failure(
+                    mission, task,
+                    error=(
+                        f"Task requires file implementation but only "
+                        f"create_folder was executed. The task must write actual "
+                        f"file content. Retry with write_file calls."
+                    ),
+                    output=orch_result.final_output or "",
+                )
+                return
+
+            # Verify filesystem evidence if task should produce files
+            if task_needs_implementation:
+                evidence_ok, evidence_msg = await self._verify_task_evidence(task, mission)
+                if not evidence_ok and task.retry_count < task.max_retries:
+                    await self._handle_task_failure(
+                        mission, task,
+                        error=f"Verification failed: {evidence_msg}",
+                        output=orch_result.final_output or "",
+                    )
+                    return
+
+            # Task genuinely complete
+            task.is_verified = True
+            task.verification_evidence = orch_result.final_output or ""
+            mission.mark_task_complete(task.task_id)
+
+            await self._emit(MissionEvent(
+                event_type="task_complete",
+                payload={
+                    "task_id": task.task_id,
+                    "title": task.title,
+                    "output_preview": (orch_result.final_output or "")[:300],
+                }
+            ))
 
         except Exception as exc:
-            logger.error(f"MissionRunner: unexpected error during task '{task.title}': {exc}")
+            logger.error(
+                f"MissionRunner: unexpected error during task '{task.title}': {exc}"
+            )
             await self._handle_task_failure(
                 mission, task,
                 error=f"Unexpected error: {type(exc).__name__}: {str(exc)[:200]}",
                 output=""
             )
+
+    def _task_needs_implementation(self, task: MissionTask) -> bool:
+        """
+        Determine if a task requires actual file content implementation
+        (as opposed to read-only tasks like listing files or running tests).
+        """
+        lower = task.description.lower() + " " + task.title.lower()
+        implementation_keywords = [
+            "create", "write", "implement", "build", "generate", "add",
+            "develop", "code", "make", "produce", "design", "style",
+            "install", "setup", "configure"
+        ]
+        read_only_keywords = [
+            "read", "list", "view", "check", "verify", "inspect",
+            "search", "find", "look", "review", "analyze", "audit"
+        ]
+        has_impl = any(kw in lower for kw in implementation_keywords)
+        has_read = any(kw in lower for kw in read_only_keywords)
+
+        # If it's read-only, no implementation check needed
+        if has_read and not has_impl:
+            return False
+        return has_impl
+
+    async def _verify_task_evidence(
+        self,
+        task: MissionTask,
+        mission: Mission,
+    ) -> tuple[bool, str]:
+        """
+        Verify that a task that should produce file output actually did.
+
+        Checks:
+        1. If we tracked any file creations during this task, verify they exist
+        2. If the mission has a project root, check it is non-empty
+        3. For write tasks, verify the most recently created files are non-empty
+
+        Returns: (success: bool, message: str)
+        """
+        from pathlib import Path
+
+        # Check recently tracked files
+        if self._files_created:
+            for f_path in self._files_created[-3:]:
+                p = Path(f_path)
+                if p.exists() and p.is_file():
+                    size = p.stat().st_size
+                    if size == 0:
+                        return False, f"File {f_path} was created but is empty"
+                    return True, f"Verified: {f_path} exists ({size} bytes)"
+
+        # Check project root has content
+        target_root = None
+        if self.workspace and self.workspace.is_locked:
+            target_root = Path(self.workspace.root_str)
+        elif mission.project_root_path:
+            target_root = Path(mission.project_root_path)
+
+        if target_root:
+            if target_root.exists():
+                all_files = list(target_root.rglob("*"))
+                actual_files = [
+                    f for f in all_files
+                    if f.is_file() and f.stat().st_size > 0
+                ]
+                if actual_files:
+                    return True, f"Project has {len(actual_files)} non-empty files"
+                elif all_files:
+                    return False, (
+                        f"Project root exists but all files are empty. "
+                        f"Implementation must write actual content."
+                    )
+            # Root doesn't exist yet — may not be the right task for final check
+            return True, "Project root not yet created — continuing"
+
+        # No specific verification possible — allow
+        return True, "No filesystem evidence required for this task type"
+
+    async def _check_acceptance_criteria(
+        self, mission: Mission
+    ) -> list[str]:
+        """
+        Check each acceptance criterion against the actual filesystem state.
+        Returns list of unmet criteria.
+        """
+        from pathlib import Path
+        import subprocess
+
+        unmet = []
+        root = None
+        if self.workspace and self.workspace.is_locked:
+            root = Path(self.workspace.root_str)
+        elif mission.project_root_path:
+            root = Path(mission.project_root_path)
+
+        for criterion in mission.acceptance_criteria:
+            lower = criterion.lower()
+            met = False
+
+            if "at least one file" in lower and "not just folders" in lower:
+                # Check any non-empty file exists
+                if root and root.exists():
+                    files = [
+                        f for f in root.rglob("*")
+                        if f.is_file() and f.stat().st_size > 0
+                    ]
+                    met = len(files) > 0
+                else:
+                    # Check generated_projects/
+                    gp = Path("generated_projects")
+                    if gp.exists():
+                        files = [
+                            f for f in gp.rglob("*")
+                            if f.is_file() and f.stat().st_size > 0
+                        ]
+                        met = len(files) > 0
+
+            elif "index.html" in lower:
+                if root and root.exists():
+                    html_files = list(root.rglob("*.html"))
+                    met = any(f.stat().st_size > 0 for f in html_files)
+
+            elif "css" in lower and "styling" in lower:
+                if root and root.exists():
+                    css_files = list(root.rglob("*.css"))
+                    met = any(f.stat().st_size > 0 for f in css_files)
+
+            elif "animation" in lower:
+                if root and root.exists():
+                    for f in root.rglob("*.css"):
+                        if f.stat().st_size > 0:
+                            content = f.read_text(errors="ignore")
+                            if "@keyframes" in content or "animation" in content or "transition" in content:
+                                met = True
+                                break
+                    if not met:
+                        for f in root.rglob("*.js"):
+                            if f.stat().st_size > 0:
+                                met = True
+                                break
+
+            elif "responsive" in lower:
+                if root and root.exists():
+                    for f in root.rglob("*.css"):
+                        content = f.read_text(errors="ignore")
+                        if "@media" in content:
+                            met = True
+                            break
+
+            elif "questionnaire" in lower or "interactive form" in lower:
+                if root and root.exists():
+                    for f in root.rglob("*.html"):
+                        content = f.read_text(errors="ignore")
+                        if "<form" in content or "<input" in content or "questionnaire" in content.lower():
+                            met = True
+                            break
+                    if not met:
+                        for f in root.rglob("*.js"):
+                            if f.stat().st_size > 0:
+                                met = True
+                                break
+
+            elif "implementation files" in lower:
+                # Check minimum file count
+                import re as _re
+                count_match = _re.search(r'at least (\d+)', lower)
+                required = int(count_match.group(1)) if count_match else 2
+                if root and root.exists():
+                    files = [
+                        f for f in root.rglob("*")
+                        if f.is_file() and f.stat().st_size > 0
+                    ]
+                    met = len(files) >= required
+
+            else:
+                # Unknown criterion — mark as met to avoid blocking
+                met = True
+
+            if not met:
+                unmet.append(criterion)
+
+        return unmet
 
     async def _handle_task_failure(
         self,
@@ -325,14 +608,13 @@ class MissionRunner:
             payload={
                 "task_id": task.task_id,
                 "title": task.title,
-                "error": error[:200],
+                "error": error[:300],
                 "retry_count": task.retry_count,
                 "max_retries": task.max_retries,
             }
         ))
 
         if task.retry_count < task.max_retries:
-            # Retry with error context
             task.retry_count += 1
             task.state = TaskState.PENDING
 
@@ -342,49 +624,75 @@ class MissionRunner:
                     "task_id": task.task_id,
                     "attempt": task.retry_count,
                     "max": task.max_retries,
-                    "error_injected": error[:100],
                 }
             ))
 
-            # Inject error context into the task description for next attempt
+            # Build a repair-focused description that forces file writing
+            project_path = mission.project_root_path or "generated_projects/output"
             task.description = (
-                f"REPAIR ATTEMPT {task.retry_count}/{task.max_retries}: {task.description}\n\n"
-                f"PREVIOUS ATTEMPT FAILED WITH:\n{error}\n\n"
-                f"Previous output:\n{output[:300]}\n\n"
-                f"Analyze the error above and provide a corrected implementation."
-            )
-
-            logger.info(
-                f"MissionRunner: retrying task '{task.title}' "
-                f"(attempt {task.retry_count}/{task.max_retries})"
+                f"REPAIR ATTEMPT {task.retry_count}/{task.max_retries}\n\n"
+                f"ORIGINAL TASK: {task.description}\n\n"
+                f"PREVIOUS FAILURE: {error[:200]}\n\n"
+                f"PREVIOUS OUTPUT: {output[:200]}\n\n"
+                f"CRITICAL INSTRUCTIONS:\n"
+                f"1. Do NOT create empty folders. Write actual file content.\n"
+                f"2. Use write_file tool to create files with FULL implementation.\n"
+                f"3. The project must be at: {project_path}\n"
+                f"4. Write complete, working code — not placeholders.\n"
+                f"5. After writing files, verify they exist and are non-empty.\n"
             )
         else:
-            # Max retries exceeded
             mission.mark_task_failed(task.task_id, error)
-            logger.error(
-                f"MissionRunner: task '{task.title}' FAILED after "
-                f"{task.max_retries} attempts — marking FAILED"
-            )
 
     # ── Context building ──────────────────────────────────────────────────────
 
     def _build_task_prompt(self, task: MissionTask, mission: Mission) -> str:
-        """
-        Build enriched task prompt using ContextBuilder.
-        Budget-aware — never exceeds 6000 tokens of context.
-        """
-        error_ctx = task.error_message if task.retry_count > 0 else ""
+        """Build task prompt with implementation enforcement."""
 
-        context = self._context_builder.build(
-            task=task,
-            mission=mission,
-            memory_context=self._get_memory_context(),
-            previous_outputs=self._recent_outputs[-3:],
-            error_context=error_ctx,
+        # Get base context from ContextBuilder
+        try:
+            context = self._context_builder.build(
+                task=task,
+                mission=mission,
+                memory_context=self._get_memory_context(),
+                previous_outputs=self._recent_outputs[-3:],
+                error_context=task.error_message if task.retry_count > 0 else "",
+            )
+            base = context.to_string()
+        except Exception:
+            base = f"CURRENT TASK: {task.description}"
+
+        # Add implementation enforcement instructions
+        project_path = mission.project_root_path or "generated_projects/output"
+        completed_count = sum(
+            1 for t in mission.tasks if t.state == TaskState.COMPLETED
         )
+        total_count = len(mission.tasks)
 
-        logger.debug(context.summary())
-        return context.to_string() + f"\n\nTASK: {task.description}"
+        enforcement = f"""
+
+═══ EXECUTION REQUIREMENTS ═══
+Project location: {project_path}
+Mission progress: {completed_count}/{total_count} tasks complete
+
+MANDATORY RULES FOR THIS TASK:
+1. You MUST use write_file to create files with COMPLETE content.
+2. Do NOT create empty files or placeholder content.
+3. Do NOT stop after creating a folder — create the actual files inside.
+4. Write REAL, WORKING code — not "TODO" comments or stub implementations.
+5. For web projects: write actual HTML structure, real CSS rules, working JS.
+6. For API projects: write actual route handlers, real database models.
+7. After writing a file, the mission runner will verify it is non-empty.
+8. Only use bash_exec for: running tests, checking file contents, validation.
+9. The task is complete ONLY when the requested implementation exists on disk.
+
+TASK TO EXECUTE:
+{task.description}
+
+SUCCESS CRITERION: {task.acceptance_criteria}
+"""
+
+        return base + enforcement
 
     def _get_memory_context(self) -> str:
         """Read current memory context for injection."""
