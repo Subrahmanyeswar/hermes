@@ -47,8 +47,18 @@ class OllamaClient:
         prompt: str,
         system: str = "",
         keep_alive: int = 0,
+        temperature: float = 0.1,
+        num_ctx: int = 4096,
     ) -> str:
-        """Send a generation request to Ollama and return the response text.
+        """
+        Send a generation request to Ollama and return the response text.
+
+        Temperature guidelines:
+        - 0.05 - 0.1: Tool call generation (deterministic JSON required)
+        - 0.1 - 0.2:  Code writing (consistent implementation)
+        - 0.2 - 0.3:  Planning and decomposition (some creativity needed)
+        - 0.3 - 0.5:  Design decisions (flexibility needed)
+        Never go above 0.5 for tool-call generation — malformed JSON increases.
 
         Raises:
             OllamaTimeoutError: if the request exceeds timeout_seconds.
@@ -62,7 +72,10 @@ class OllamaClient:
             "system": system,
             "keep_alive": keep_alive,
             "stream": False,
-            "options": {"num_ctx": self.num_ctx},
+            "options": {
+                "num_ctx": num_ctx if num_ctx else self.num_ctx,
+                "temperature": temperature,
+            },
         }
 
         logger.debug(

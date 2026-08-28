@@ -218,6 +218,27 @@ class Orchestrator:
             await notify("stage_start", stage=5, name="Tier 1 Reasoning", thought="Generating tool selection using qwen2.5-coder:7b...", spinner_verb="Reasoning")
             result.pipeline_stage_reached = 4
 
+            # Add workspace skeleton to context
+            workspace_context = ""
+            try:
+                from core.workspace import workspace_manager
+                if workspace_manager.is_locked:
+                    skeleton = workspace_manager.get_skeleton()
+                    summary = workspace_manager.get_workspace_summary()
+                    workspace_context = (
+                        f"Workspace: {summary.get('root', 'unknown')}\n"
+                        f"Framework: {summary.get('framework', 'unknown')}\n"
+                        f"Files: {summary.get('total_files', 0)}\n\n"
+                        f"Structure:\n{skeleton}"
+                    )
+                else:
+                    workspace_context = (
+                        "Workspace: Not locked. Files will be created in "
+                        "generated_projects/ directory."
+                    )
+            except Exception as e:
+                workspace_context = "Workspace: generated_projects/ (default)"
+
             ctx = PromptContext(
                 user_task=sanitised,
                 mode=self.mode,
@@ -225,10 +246,20 @@ class Orchestrator:
                 tool_descriptions=tool_schema_for_prompt(),
                 memory_context=memory_context,
                 skill_context=skill_content,
-                active_skill_name=active_skill_name
+                active_skill_name=active_skill_name,
+                workspace_context=workspace_context,
             )
             system_prompt = build_system_prompt(ctx)
             user_message_text = build_user_message(sanitised)
+
+            # Determine appropriate temperature
+            task_desc = sanitised.lower()
+            if any(w in task_desc for w in ["design", "style", "create website", "animate", "visual"]):
+                t1_temperature = 0.25   # More creative for design tasks
+            elif any(w in task_desc for w in ["plan", "decompose", "analyze", "understand"]):
+                t1_temperature = 0.20   # Slightly creative for planning
+            else:
+                t1_temperature = 0.10   # Deterministic for code writing
 
             # Attempt 1
             t1_start = time.monotonic()
@@ -237,7 +268,9 @@ class Orchestrator:
                     model="qwen2.5-coder:7b",
                     prompt=user_message_text,
                     system=system_prompt,
-                    keep_alive=0
+                    keep_alive=0,
+                    temperature=t1_temperature,
+                    num_ctx=4096,
                 )
                 t1_latency = time.monotonic() - t1_start
             except Exception as t1_exc:
@@ -271,7 +304,9 @@ class Orchestrator:
                         model="qwen2.5-coder:7b",
                         prompt=retry_user,
                         system=retry_system,
-                        keep_alive=0
+                        keep_alive=0,
+                        temperature=0.05,
+                        num_ctx=4096,
                     )
                     t1_latency = time.monotonic() - t1_retry_start
                 except Exception as retry_exc:
