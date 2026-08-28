@@ -144,44 +144,79 @@ ProcessingIndicator {
     background: #0a0a0a;
 }
 
-/* --- Input area --- */
-#chat-input-container {
-    height: 4;
-    width: 100%;
-    background: #0a0a0a;
-    layout: horizontal;
-    align-vertical: middle;
-    padding: 0 1;
-    border-top: tall #1a1a1a;
-}
-
-#input-command-label {
-    width: auto;
-    height: 1;
-    color: #4B5563;
-    background: #0a0a0a;
-    margin-right: 1;
-}
-
-/* Large multi-line input — supports 500-word prompts */
+/* ── Chat input TextArea ────────────────────────────────────────── */
 #chat-input {
     width: 1fr;
+    min-height: 4;
+    max-height: 10;
     height: auto;
-    min-height: 3;
-    max-height: 12;        /* Expands up to 12 lines automatically */
     border: tall #F59E0B;
     background: #111111;
     color: white;
-    scrollbar-size: 1 1;   /* Show scrollbar when content exceeds max-height */
+    scrollbar-size-vertical: 1;
+    scrollbar-color: #F59E0B #111111;
 }
 
 #chat-input:focus {
     border: tall #FBBF24;
+    background: #0D0D0D;
 }
 
 #chat-input:disabled {
     border: tall #1f2937;
-    opacity: 0.5;
+    color: #4B5563;
+    opacity: 0.6;
+}
+
+/* The TextArea internal content area */
+#chat-input > .text-area--cursor {
+    color: #F59E0B;
+}
+
+/* Input container — holds TextArea and SEND/STOP button */
+#chat-input-container {
+    height: auto;
+    min-height: 6;
+    max-height: 12;
+    width: 100%;
+    padding: 0 1;
+    layout: horizontal;
+}
+
+#send-btn, #stop-btn {
+    width: 12;
+    height: 4;
+    min-height: 4;
+    background: #111111;
+    color: #22C55E;
+    border: tall #22C55E;
+    margin-left: 1;
+    align: center middle;
+}
+
+#stop-btn {
+    color: #EF4444;
+    border: tall #EF4444;
+    display: none;
+}
+
+#stop-btn.-visible {
+    display: block;
+}
+
+#send-btn:hover {
+    background: #1A2A1A;
+}
+
+#stop-btn:hover {
+    background: #2A1A1A;
+}
+
+#mode-indicator {
+    width: auto;
+    height: 1;
+    padding: 0 1;
+    color: #22C55E;
 }
 
 /* Execution plan widget */
@@ -213,28 +248,6 @@ HermesMessageWidget.walkthrough {
 #mission-progress-label {
     color: #4A90D9;
     text-style: bold;
-}
-
-#stop-btn {
-    width: auto;
-    height: 3;
-    background: #0a0a0a;
-    border: tall #22C55E;
-    color: #22C55E;
-    text-style: bold;
-    padding: 0 1;
-    margin: 0;
-    min-width: 10;
-}
-
-#stop-btn:disabled {
-    border: tall #1a3a1a;
-    color: #1a3a1a;
-}
-
-#stop-btn:hover {
-    background: #22C55E;
-    color: #0a0a0a;
 }
 
 

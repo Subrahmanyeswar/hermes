@@ -522,16 +522,12 @@ class HermesApp(App):
         except asyncio.CancelledError:
             pass
 
-    async def _consume_mission_events(self, mission: Optional[Mission]) -> None:
-        """
-        Consume events from MissionRunner and update the TUI in real-time.
-        Runs as a background task alongside the mission.
-        Gets mission state from MissionDriver.
-        """
+    async def _consume_mission_events(self, mission) -> None:
+        """Consume MissionRunner events and update TUI in real-time."""
         try:
             while True:
                 try:
-                    event: MissionEvent = await asyncio.wait_for(
+                    event = await asyncio.wait_for(
                         self._event_queue.get(),
                         timeout=0.5
                     )
@@ -542,37 +538,68 @@ class HermesApp(App):
                 payload = event.payload
 
                 if event_type == "thought":
-                    # Update the spinner verb with the current thought
                     try:
                         from ui.panels.status_bar import StatusBar
                         sb = self.query_one("#status-bar", StatusBar)
-                        sb.spinner_verb = payload.get("text", "Thinking")[:20]
+                        text = payload.get("text", "Working")
+                        # Keep it short for status bar
+                        sb.spinner_verb = text[:25] if text else "Working"
                     except Exception:
                         pass
 
-                elif event_type in ("task_start", "task_complete", "task_failed", "repair_attempt"):
-                    # Update the checklist in the chat panel
-                    current_mission = self._mission_driver.current_mission if self._mission_driver else mission
+                elif event_type == "phase_change":
+                    self.mission_phase = payload.get("phase", "")
+                    try:
+                        from ui.panels.status_bar import StatusBar
+                        sb = self.query_one("#status-bar", StatusBar)
+                        sb.spinner_verb = self.mission_phase.title()
+                    except Exception:
+                        pass
+
+                elif event_type in (
+                    "task_start", "task_complete", "task_failed", "repair_attempt"
+                ):
+                    # Get current mission for updated status lines
+                    current_mission = self._mission_driver.current_mission if self._mission_driver else None
                     if current_mission:
                         plan_lines = current_mission.get_status_lines()
+                    else:
+                        plan_lines = []
+
+                    title = payload.get("title", "")
+                    phase = self.mission_phase
+
+                    try:
+                        from ui.panels.chat import ChatPanel
+                        panel = self.query_one(ChatPanel)
+                        await panel.update_execution_plan(plan_lines, title, phase)
+                    except Exception:
+                        pass
+
+                    # Update reactive
+                    if current_mission:
+                        completed, total = current_mission.progress
+                        self.mission_progress = f"{completed}/{total}"
+                    self.current_task_title = title
+
+                elif event_type == "workspace_ready":
+                    workspace_name = payload.get("root", "")
+                    if workspace_name:
+                        from pathlib import Path
+                        self.workspace_root = workspace_name
                         try:
-                            from ui.panels.chat import ChatPanel
-                            panel = self.query_one(ChatPanel)
-                            await panel.update_execution_plan(plan_lines, payload.get("title", ""))
+                            from ui.panels.status_bar import StatusBar
+                            sb = self.query_one("#status-bar", StatusBar)
+                            sb.workspace_name = Path(workspace_name).name
+                            sb.framework = payload.get("framework", "")
                         except Exception:
                             pass
 
-                        # Update mission progress reactive
-                        completed, total = current_mission.progress
-                        self.mission_progress = f"{completed}/{total}"
-                    if "title" in payload:
-                        self.current_task_title = payload["title"]
-
-                elif event_type == "phase_change":
-                    self.mission_phase = payload.get("phase", "")
-
         except asyncio.CancelledError:
             pass
+        except Exception as e:
+            from loguru import logger
+            logger.debug(f"_consume_mission_events: {e}")
 
     def action_stop_mission(self) -> None:
         """Stop the currently running mission at the next safe checkpoint."""

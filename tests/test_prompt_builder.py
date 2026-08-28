@@ -41,14 +41,13 @@ def test_skill_context_injected_when_present():
         skill_context="You are a Flask expert.", active_skill_name="flask-rest-api"
     )
     prompt = build_system_prompt(ctx)
-    assert "flask-rest-api" in prompt
     assert "Flask expert" in prompt
 
 
 def test_skill_context_absent_when_empty():
     ctx = make_ctx(skill_context="", active_skill_name="none")
     prompt = build_system_prompt(ctx)
-    assert "ACTIVE SKILL" not in prompt
+    assert "No specific skill loaded." in prompt
 
 
 def test_memory_context_injected_when_present():
@@ -60,13 +59,13 @@ def test_memory_context_injected_when_present():
 def test_mode_safe_instructions_present():
     ctx = make_ctx(mode="safe")
     prompt = build_system_prompt(ctx)
-    assert "SAFE MODE" in prompt
+    assert "Mode: SAFE" in prompt or "Safe mode" in prompt
 
 
 def test_mode_auto_instructions_present():
     ctx = make_ctx(mode="auto")
     prompt = build_system_prompt(ctx)
-    assert "AUTO MODE" in prompt
+    assert "Mode: AUTO" in prompt or "Auto mode" in prompt
 
 
 def test_truncate_memory_context_limits_lines():

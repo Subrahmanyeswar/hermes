@@ -635,89 +635,113 @@ class ChatPanel(Widget):
     """
 
     def compose(self) -> ComposeResult:
-        yield Label("HERMES - Chat", id="chat-panel-header")
-        with ScrollableContainer(id="chat-history"):
-            pass
+        with Vertical(id="chat-panel"):
+            # Header
+            yield Label("HERMES — Chat", id="chat-panel-header")
 
-        with Vertical(id="chat-input-container"):
-            yield Label("[AUTO] > ", id="mode-indicator")
-            yield TextArea(
-                id="chat-input",
-                language=None,            # Plain text, no syntax highlighting
-                show_line_numbers=False,
-                soft_wrap=True,
-            )
-            yield Button("[ SEND ]", id="send-btn", variant="default")
+            # Scrollable conversation history
+            with ScrollableContainer(id="chat-history"):
+                pass
+
+            # Input area: TextArea + buttons
+            with Horizontal(id="chat-input-container"):
+                yield TextArea(
+                    id="chat-input",
+                    language=None,
+                    show_line_numbers=False,
+                    soft_wrap=True,
+                    tab_behavior="indent",
+                )
+                with Vertical(id="input-buttons"):
+                    yield Button("[ SEND ]", id="send-btn", variant="default")
+                    yield Button("[ STOP ]", id="stop-btn", variant="default")
 
     def on_mount(self) -> None:
-        """Focus the input on mount and initialize SEND button."""
+        """Focus the input on mount."""
         chat_input = self.query_one("#chat-input")
         chat_input.focus()
-        try:
-            send_btn = self.query_one("#send-btn", Button)
-            send_btn.label = Text("[ SEND ]")
-            send_btn.disabled = False
-            send_btn.display = True
-        except Exception:
-            pass
 
     # ── Input handling ────────────────────────────────────────────────
 
+    @on(Key)
+    async def handle_key_event(self, event: Key) -> None:
+        """
+        Key handling for the TextArea input:
+        - Enter alone:      insert newline (default TextArea behavior)
+        - Ctrl+Enter:       submit the prompt
+        - Ctrl+J:           submit the prompt (terminal Ctrl+Enter alias)
+        - Escape:           clear the input
+        """
+        # Only act when the TextArea has focus
+        try:
+            text_area = self.query_one("#chat-input", TextArea)
+            if not text_area.has_focus:
+                return
+        except Exception:
+            return
+
+        if event.key in ("ctrl+j", "ctrl+enter"):
+            event.prevent_default()
+            event.stop()
+            await self._submit_input()
+
+        elif event.key == "escape":
+            event.prevent_default()
+            text_area.clear()
+
     @on(Button.Pressed, "#send-btn")
-    async def handle_send_button(self, event: Button.Pressed) -> None:
-        """Handle SEND button click."""
+    async def handle_send_pressed(self, event: Button.Pressed) -> None:
         await self._submit_input()
 
     @on(Button.Pressed, "#stop-btn")
-    async def handle_stop_button(self, event: Button.Pressed) -> None:
-        """Handle STOP/SEND button click fallback."""
-        await self._submit_input()
-
-    async def _handle_key(self, key_event) -> None:
-        """Handle Ctrl+Enter to submit (Enter alone creates newlines in TextArea)."""
-        pass  # Handled via key binding
-
-    @on(Key)
-    async def handle_key_press(self, event: Key) -> None:
-        """Ctrl+Enter submits the prompt. Enter alone adds a newline."""
-        if event.key == "ctrl+j" or (event.key == "enter" and event.control):
-            await self._submit_input()
-            event.stop()
+    async def handle_stop_pressed(self, event: Button.Pressed) -> None:
+        """Stop the current mission."""
+        app = self.app
+        if hasattr(app, 'action_stop_mission'):
+            app.action_stop_mission()
+        # Update button states
+        try:
+            self.query_one("#stop-btn", Button).remove_class("-visible")
+            self.query_one("#send-btn", Button).add_class("-visible")
+        except Exception:
+            pass
 
     async def _submit_input(self) -> None:
-        """Extract text from TextArea and submit."""
+        """Extract text from TextArea and submit as a user request."""
         try:
-            try:
-                text_area = self.query_one("#chat-input", TextArea)
-                text = text_area.text.strip()
-                text_area.clear()
-            except Exception:
-                # Fallback if input is Input widget
-                text_input = self.query_one("#chat-input", Input)
-                text = text_input.value.strip()
-                text_input.value = ""
-
+            text_area = self.query_one("#chat-input", TextArea)
+            text = text_area.text.strip()
             if not text:
                 return
 
+            # Clear input BEFORE processing (immediate feedback)
+            text_area.clear()
+
+            # Handle slash commands separately
             if text.startswith("/"):
                 await self._handle_slash_command(text)
                 return
 
+            # Regular request: post to app
             self.post_message(UserMessageSent(text))
             await self._add_user_message(text)
+
+            # Show stop button during processing
+            try:
+                self.query_one("#stop-btn", Button).add_class("-visible")
+                self.query_one("#send-btn", Button).remove_class("-visible")
+            except Exception:
+                pass
+
             await self._show_processing_indicator()
+
         except Exception as e:
-            logger.error(f"ChatPanel _submit_input error: {e}")
+            from loguru import logger
+            logger.error(f"ChatPanel._submit_input error: {e}")
 
     async def submit_prompt(self) -> None:
         """Submit the prompt typed in the input field (compatibility alias)."""
         await self._submit_input()
-
-    @on(Input.Submitted, "#chat-input")
-    async def handle_input_submitted(self, event: Input.Submitted) -> None:
-        """User pressed Enter — submit the prompt."""
-        await self.submit_prompt()
 
     async def _handle_slash_command(self, command: str) -> None:
         """
@@ -981,66 +1005,95 @@ class ChatPanel(Widget):
         except Exception:
             pass
 
-    async def update_execution_plan(self, plan_lines: list[str], current_task: str = "") -> None:
-        """Update the live execution plan widget in-place."""
+    async def update_execution_plan(
+        self,
+        plan_lines: list[str],
+        current_task: str = "",
+        phase: str = "",
+    ) -> None:
+        """
+        Update the live execution plan checklist in-place.
+        This is called by HermesApp._consume_mission_events after
+        each task state change. Updates existing widget without remounting.
+        """
         try:
             plan_widget = self.query_one("#execution-plan-widget", ExecutionPlanWidget)
             plan_widget.update_lines(plan_lines)
-        except Exception:
-            pass  # Widget not mounted yet — normal on first call
 
-        # Update the status indicator
-        if current_task:
-            try:
-                status = self.query_one("#current-task-status", Static)
-                status.update(Text(f"  ▶ {current_task}", style="italic #4A90D9"))
-            except Exception:
-                pass
+            # Update current task indicator
+            if current_task or phase:
+                indicator_text = ""
+                if phase and phase not in ("SUMMARIZING", "COMPLETE"):
+                    indicator_text = f"  ▶ {phase}: {current_task}"
+                elif current_task:
+                    indicator_text = f"  ▶ {current_task}"
+
+                try:
+                    status = self.query_one("#current-task-status", Static)
+                    if indicator_text:
+                        status.update(Text(indicator_text, style="italic #4A90D9"))
+                    else:
+                        status.update(Text(""))
+                except Exception:
+                    pass
+
+        except Exception:
+            # Widget not mounted yet
+            pass
 
     # ── App message handlers ──────────────────────────────────────────
 
     @on(OrchestratorResponse)
     async def handle_orchestrator_response(self, message: OrchestratorResponse) -> None:
-        """Received when orchestrator finishes or mission updates."""
+        """Handle all orchestrator response types."""
         await self._remove_processing_indicator()
         history = self.query_one("#chat-history", ScrollableContainer)
 
+        # Restore send button, hide stop button
+        try:
+            self.query_one("#stop-btn", Button).remove_class("-visible")
+            self.query_one("#send-btn", Button).add_class("-visible")
+        except Exception:
+            pass
+
         if message.is_plan_update:
-            # Render as live execution plan checklist
+            # Render live execution plan checklist
             plan_lines = [
                 line for line in message.final_output.split("\n")
-                if line.strip() and not line.startswith("Mission planned")
+                if line.strip() and not line.startswith("Mission")
             ]
-            try:
-                plan_widget = self.query_one("#execution-plan-widget", ExecutionPlanWidget)
-                plan_widget.update_lines(plan_lines)
-            except Exception:
-                plan_widget = ExecutionPlanWidget(plan_lines, id="execution-plan-widget")
-                current_status = Static("", id="current-task-status")
-                await history.mount(plan_widget)
-                await history.mount(current_status)
+            if not plan_lines:
+                plan_lines = ["  Plan initializing..."]
+
+            plan_widget = ExecutionPlanWidget(plan_lines, id="execution-plan-widget")
+            status_widget = Static("  Preparing...", id="current-task-status")
+            await history.mount(plan_widget)
+            await history.mount(status_widget)
             history.scroll_end(animate=False)
 
         elif message.is_walkthrough:
-            # Remove the execution plan widget (replaced by walkthrough)
-            try:
-                plan_widget = self.query_one("#execution-plan-widget", ExecutionPlanWidget)
-                await plan_widget.remove()
-            except Exception:
-                pass
-            try:
-                status = self.query_one("#current-task-status", Static)
-                await status.remove()
-            except Exception:
-                pass
+            # Mission complete: remove plan widget, show walkthrough
+            for widget_id in ["#execution-plan-widget", "#current-task-status"]:
+                try:
+                    w = self.query_one(widget_id)
+                    await w.remove()
+                except Exception:
+                    pass
 
-            # Render walkthrough card
+            # Only show walkthrough if it has actual content
+            if message.final_output and len(message.final_output.strip()) > 20:
+                response_widget = HermesMessageWidget(message)
+                await history.mount(response_widget)
+                history.scroll_end(animate=False)
+
+        elif not message.success and message.error:
+            # Error response
             response_widget = HermesMessageWidget(message)
             await history.mount(response_widget)
             history.scroll_end(animate=False)
 
         else:
-            # Normal response (error, info message, etc.)
+            # General info response
             response_widget = HermesMessageWidget(message)
             await history.mount(response_widget)
             history.scroll_end(animate=False)
