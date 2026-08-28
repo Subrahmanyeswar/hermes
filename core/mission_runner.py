@@ -300,6 +300,68 @@ class MissionRunner:
         ))
 
         # ── Execute through orchestrator ──────────────────────────────────
+        # Set per-task progress callback on the orchestrator
+        # This wires Orchestrator stage events into our mission event queue
+        async def _pipeline_progress(event_type: str, payload: dict) -> None:
+            """Forward orchestrator stage events into the mission event queue."""
+            # Map pipeline events to mission events
+            if event_type == "skill_loaded":
+                # Skill was actually loaded — update TUI with real skill state
+                await self._emit(MissionEvent(
+                    event_type="skill_loaded",
+                    payload={
+                        "task_id": task.task_id,
+                        "skill_ids": payload.get("skill_ids", []),
+                        "verb": payload.get("verb", "Skill loaded"),
+                    }
+                ))
+            elif event_type in ("stage_start", "stage_complete"):
+                await self._emit(MissionEvent(
+                    event_type="pipeline_stage",
+                    payload={
+                        "task_id": task.task_id,
+                        "stage": payload.get("stage", 0),
+                        "stage_name": payload.get("name", ""),
+                        "verb": payload.get("verb", "Working"),
+                        "detail": payload.get("detail", ""),
+                        "model": payload.get("model", ""),
+                        "status": "start" if event_type == "stage_start" else "complete",
+                    }
+                ))
+            elif event_type == "tool_executing":
+                await self._emit(MissionEvent(
+                    event_type="tool_executing",
+                    payload={
+                        "task_id": task.task_id,
+                        "tool": payload.get("tool", ""),
+                        "verb": "Executing",
+                        "detail": payload.get("detail", ""),
+                    }
+                ))
+            elif event_type == "tool_complete":
+                await self._emit(MissionEvent(
+                    event_type="tool_complete",
+                    payload={
+                        "task_id": task.task_id,
+                        "tool": payload.get("tool", ""),
+                        "success": payload.get("success", False),
+                        "exit_code": payload.get("exit_code", -1),
+                        "output_preview": payload.get("output_preview", ""),
+                    }
+                ))
+            elif event_type == "escalating":
+                await self._emit(MissionEvent(
+                    event_type="escalating",
+                    payload={
+                        "task_id": task.task_id,
+                        "verb": "Escalating to Claude",
+                        "reason": payload.get("reason", ""),
+                    }
+                ))
+
+        # Register the callback on the orchestrator for this task execution
+        self.orchestrator._progress_callback = _pipeline_progress
+
         try:
             orch_result = await self.orchestrator.run(enriched_prompt)
 
@@ -404,6 +466,9 @@ class MissionRunner:
                 error=f"Unexpected error: {type(exc).__name__}: {str(exc)[:200]}",
                 output=""
             )
+        finally:
+            # Always clear the callback after task completes
+            self.orchestrator._progress_callback = None
 
     def _task_needs_implementation(self, task: MissionTask) -> bool:
         """

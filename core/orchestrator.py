@@ -82,9 +82,17 @@ class Orchestrator:
     Never raises — always returns an OrchestratorResult.
     """
 
-    def __init__(self, mode: str = "auto", project: str = "default"):
+    def __init__(
+        self,
+        mode: str = "auto",
+        project: str = "default",
+        progress_callback=None,
+    ) -> None:
         self.mode = mode        # "safe", "plan", or "auto"
+        self._mode = mode
         self.project = project
+        self._project = project
+        self._progress_callback = progress_callback
         self.ollama = OllamaClient()
         self.claude = ClaudeClient()
         self.verifier = Tier2Verifier(self.ollama)
@@ -102,6 +110,24 @@ class Orchestrator:
         self.kairos = KairosDaemon(db_path=DB_PATH)
         self._kairos_started = False
         logger.info("Orchestrator: KAIROS daemon attached (not yet started)")
+
+    async def _emit_progress(self, event_type: str, payload: dict) -> None:
+        """
+        Emit a pipeline progress event to the registered callback.
+        Silently does nothing if no callback is registered.
+        Never raises — progress emission must never crash the pipeline.
+        """
+        if self._progress_callback is None:
+            return
+        try:
+            import asyncio
+            if asyncio.iscoroutinefunction(self._progress_callback):
+                await self._progress_callback(event_type, payload)
+            else:
+                self._progress_callback(event_type, payload)
+        except Exception as e:
+            from loguru import logger
+            logger.debug(f"Orchestrator._emit_progress: callback error: {e}")
 
     async def start_kairos(self) -> None:
         """Start the KAIROS background daemon. Call this once after creating the Orchestrator."""
@@ -140,6 +166,12 @@ class Orchestrator:
 
         try:
             # ── Stage 1: Sanitise input ───────────────────────────────
+            await self._emit_progress("stage_start", {
+                "stage": 1,
+                "name": "Input Sanitisation",
+                "verb": "Sanitising",
+                "detail": "Escaping prompt injection vectors",
+            })
             await notify("stage_start", stage=1, name="Input Sanitization", thought="Sanitizing user request to prevent HTML/XML injection...", spinner_verb="Analyzing")
             result.pipeline_stage_reached = 1
             sanitised = self._sanitise_input(user_request)
@@ -153,8 +185,17 @@ class Orchestrator:
             )
             tlog.debug(f"Stage 1 complete | sanitised_length={len(sanitised)}")
             await notify("stage_end", stage=1, status="success", sanitised=sanitised)
+            await self._emit_progress("stage_complete", {
+                "stage": 1, "name": "Input Sanitisation",
+            })
 
             # ── Stage 2: Task planner ─────────────────────────────────
+            await self._emit_progress("stage_start", {
+                "stage": 2,
+                "name": "Task Planning",
+                "verb": "Planning",
+                "detail": "Decomposing request into atomic subtasks",
+            })
             await notify("stage_start", stage=2, name="Task Planning", thought="Decomposing user request into actionable plan...", spinner_verb="Planning")
             result.pipeline_stage_reached = 2
             task = self.planner.plan(sanitised, session_id=self.session_logger.session_id)
@@ -175,8 +216,17 @@ class Orchestrator:
             mark_running(db_task_id, db_path=DB_PATH)
             logger.debug(f"Stage 2: task registered in queue as db_task_id={db_task_id}")
             await notify("stage_end", stage=2, status="success", task_id=task.task_id, complexity=task.complexity_score, subtasks=task.subtasks)
+            await self._emit_progress("stage_complete", {
+                "stage": 2, "name": "Task Planning",
+            })
 
             # ── Stage 3: Skill Detection ──
+            await self._emit_progress("stage_start", {
+                "stage": 3,
+                "name": "Skill Detection",
+                "verb": "Detecting skills",
+                "detail": "Matching request to domain skill modules",
+            })
             await notify("stage_start", stage=3, name="Skill Detection", thought="Matching Intent classifier skills to request...", spinner_verb="Loading Skill")
             result.pipeline_stage_reached = 3
 
@@ -189,8 +239,20 @@ class Orchestrator:
             rejected = [s.skill_id for s in self.classifier.skills if s.skill_id not in loaded_skill_ids][:2]
             confidence = int(min(98, 75 + len(matched) * 10 + (task.complexity_score * 15))) if matched else 0
             await notify("stage_end", stage=3, status="success", matched=matched, rejected=rejected, confidence=confidence)
+            await self._emit_progress("skill_loaded", {
+                "stage": 3,
+                "skill_ids": loaded_skill_ids,       # actual list from classifier
+                "skill_names": loaded_skill_ids,
+                "verb": f"Loaded: {', '.join(loaded_skill_ids) if loaded_skill_ids else 'none'}",
+            })
 
             # ── Stage 4: Memory Injection ──
+            await self._emit_progress("stage_start", {
+                "stage": 3,
+                "name": "Memory Retrieval",
+                "verb": "Retrieving memory",
+                "detail": "Loading project context from MEMORY.md",
+            })
             await notify("stage_start", stage=4, name="Memory Injection", thought="Retrieving past rules and facts from memory store...", spinner_verb="Loading Memory")
             try:
                 memory_context = read_context_for_prompt(project=self.project)
@@ -213,8 +275,18 @@ class Orchestrator:
                 mem_facts = ["Memory index initialized", "No relevant past facts detected"]
 
             await notify("stage_end", stage=4, status="success", memories=mem_facts)
+            await self._emit_progress("stage_complete", {
+                "stage": 3, "name": "Skill + Memory Injection",
+            })
 
             # ── Stage 5: Tier 1 Reasoning ──────
+            await self._emit_progress("stage_start", {
+                "stage": 4,
+                "name": "Tier 1 Generation",
+                "verb": "Reasoning",
+                "model": "Qwen2.5-Coder 7B",
+                "detail": "Generating tool call...",
+            })
             await notify("stage_start", stage=5, name="Tier 1 Reasoning", thought="Generating tool selection using qwen2.5-coder:7b...", spinner_verb="Reasoning")
             result.pipeline_stage_reached = 4
 
@@ -355,8 +427,19 @@ class Orchestrator:
             
             thought_summary = tier1_reasoning.strip().split('\n')[0][:120] if tier1_reasoning else "Plan prepared for executing tool."
             await notify("stage_end", stage=5, status="success", tool=tool_name, parameters=tool_params, explanation=explanation, thought=thought_summary)
+            await self._emit_progress("stage_complete", {
+                "stage": 4,
+                "name": "Tier 1 Generation",
+                "tool_name": tool_name if tool_name else "unknown",
+            })
 
             # ── Stage 6: Tool Validation ──
+            await self._emit_progress("stage_start", {
+                "stage": 5,
+                "name": "Security Validation",
+                "verb": "Validating",
+                "detail": "Running 15 security gates",
+            })
             await notify("stage_start", stage=6, name="Tool Validation", thought="Validating tool parameter schema and security permissions...", spinner_verb="Validating")
             result.pipeline_stage_reached = 5
 
@@ -438,6 +521,9 @@ class Orchestrator:
             )
             tlog.debug(f"Stage 5 complete | tool={tool_name} validated")
             await notify("stage_end", stage=6, status="success", tool_name=tool_name, parameters=tool_params)
+            await self._emit_progress("stage_complete", {
+                "stage": 5, "name": "Security Validation",
+            })
 
             # ── Stage 7: Tool Execution ──
             result.pipeline_stage_reached = 6
@@ -449,6 +535,13 @@ class Orchestrator:
             while tool_exec_retry_count <= 3:
                 t_exec_start = time.monotonic()
                 
+                await self._emit_progress("tool_executing", {
+                    "stage": 6,
+                    "name": "Tool Execution",
+                    "verb": "Executing",
+                    "tool": tool_name,
+                    "detail": f"Running {tool_name}",
+                })
                 await notify("stage_start", stage=7, name="Tool Execution", thought=f"Executing tool {tool_name}...", spinner_verb="Executing", tool_name=tool_name, parameters=tool_params, attempt=tool_exec_retry_count + 1)
                 
                 try:
@@ -492,6 +585,13 @@ class Orchestrator:
                     target = tool_params.get("TargetFile") or tool_params.get("path") or tool_params.get("filename") or str(tool_params)
                     lines_count = len(tool_params.get("CodeContent", "").split('\n')) if tool_params.get("CodeContent") else 0
                     await notify("stage_end", stage=7, status="success", tool_name=tool_name, target=target, lines=lines_count, duration=t_exec_dur, attempt=tool_exec_retry_count + 1)
+                    await self._emit_progress("tool_complete", {
+                        "stage": 6,
+                        "tool": tool_name,
+                        "success": current_tool_result.success,
+                        "exit_code": current_tool_result.exit_code,
+                        "output_preview": (current_tool_result.output or "")[:120],
+                    })
                     break
 
                 stderr = current_tool_result.error or current_tool_result.output or "Unknown error"
@@ -568,6 +668,13 @@ class Orchestrator:
             logger.debug(f"Stage 6 complete: tool={tool_name} | success={tool_result.success} | exit={tool_result.exit_code}")
 
             # ── Stage 8: Tier 2 verification ──────────────
+            await self._emit_progress("stage_start", {
+                "stage": 7,
+                "name": "Tier 2 Verification",
+                "verb": "Verifying",
+                "model": "Mistral 7B",
+                "detail": "Cross-family model verification running",
+            })
             await notify("stage_start", stage=8, name="Tier 2 Verification", thought="Verifying tool output correctness with verifier model...", spinner_verb="Verifying")
             result.pipeline_stage_reached = 7
 
@@ -613,13 +720,38 @@ class Orchestrator:
             )
             tlog.debug(f"Stage 7 complete | {verification.summary()}")
             await notify("stage_end", stage=8, status="success", verifier="Mistral 7B", agree=verification.agree, confidence=verification.confidence, critical_issues=len(verification.critical_issues))
+            await self._emit_progress("stage_complete", {
+                "stage": 7,
+                "name": "Tier 2 Verification",
+                "confidence": getattr(verification, 'confidence', 0),
+                "agree": getattr(verification, 'agree', True),
+            })
 
             # ── Stage 9: Disagreement Router ──
+            await self._emit_progress("stage_start", {
+                "stage": 8,
+                "name": "Disagreement Routing",
+                "verb": "Routing",
+                "detail": "Checking local agreement threshold",
+            })
             await notify("stage_start", stage=9, name="Disagreement Analysis", thought="Routing verification agreement and resolving path...", spinner_verb="Comparing")
             result.pipeline_stage_reached = 8
             routing = self.router.route(verification, tool_name, self.mode)
             logger.info(f"Stage 8 complete: {routing.summary()}")
             await notify("stage_end", stage=9, status="success", decision=routing.decision.value, reason=routing.reason, threshold=routing.confidence_threshold_used, actual=verification.confidence, action="Consult Tier 3" if routing.tier3_needed else "Proceed")
+
+            if routing.decision == RoutingDecision.ESCALATE and routing.tier3_needed:
+                await self._emit_progress("escalating", {
+                    "stage": 8,
+                    "verb": "Escalating",
+                    "detail": "Disagreement detected — routing to Tier 3",
+                    "reason": routing.reason,
+                })
+            else:
+                await self._emit_progress("stage_complete", {
+                    "stage": 8, "name": "Disagreement Routing",
+                    "decision": "accepted locally",
+                })
 
             # ── Stage 10: Tier 3 Escalation ──
             await notify("stage_start", stage=10, name="Tier 3 Escalation", thought="Escalating task to Tier 3 for arbitration...", spinner_verb="Escalating", needed=routing.tier3_needed, reason=routing.reason)
@@ -640,6 +772,13 @@ class Orchestrator:
                 return result
 
             elif routing.decision == RoutingDecision.ESCALATE and routing.tier3_needed:
+                await self._emit_progress("stage_start", {
+                    "stage": 9,
+                    "name": "Tier 3 Arbitration",
+                    "verb": "Arbitrating",
+                    "model": "Claude Sonnet 4.6",
+                    "detail": "Frontier model resolving disagreement",
+                })
                 try:
                     tier3_response = await self.claude.arbitrate(
                         task=sanitised,
@@ -679,6 +818,12 @@ class Orchestrator:
                         logger.info(f"Stage 9 complete: Tier 3 arbitrated | cost=${tier3_response.cost_usd:.4f}")
                         await notify("stage_end", stage=10, status="success", needed=True, verdict="Approved")
 
+                    tier3_cost = getattr(tier3_response, 'cost_usd', 0.0) if hasattr(tier3_response, 'cost_usd') else 0.0
+                    await self._emit_progress("stage_complete", {
+                        "stage": 9, "name": "Tier 3 Arbitration",
+                        "cost_usd": tier3_cost,
+                    })
+
                 except Exception as t3_exc:
                     t3_err = self.error_handler.tier3_api_failure(
                         type(t3_exc).__name__,
@@ -693,6 +838,12 @@ class Orchestrator:
                 await notify("stage_end", stage=10, status="success", needed=False, verdict="Approved")
 
             # ── Stage 11: Memory Update ──
+            await self._emit_progress("stage_start", {
+                "stage": 10,
+                "name": "Memory Update",
+                "verb": "Updating memory",
+                "detail": "Writing confirmed facts to MEMORY.md",
+            })
             await notify("stage_start", stage=11, name="Memory Update", thought="Persisting facts to memory store...", spinner_verb="Persisting")
             result.pipeline_stage_reached = 10
             facts = []
@@ -736,6 +887,9 @@ class Orchestrator:
             
             added = facts[:2] if facts else []
             await notify("stage_end", stage=11, status="success", added=added, updated=[])
+            await self._emit_progress("stage_complete", {
+                "stage": 10, "name": "Memory Update",
+            })
 
             # ── Stage 12: Build Final Response ──
             result.pipeline_stage_reached = 11
@@ -869,12 +1023,30 @@ class Orchestrator:
             tlog.info(f"Pipeline complete | success={result.success} | latency={total_latency:.2f}s")
             result.total_latency_seconds = total_latency
             
+            # ── Stage 11: Task Queue Update ──
+            await self._emit_progress("stage_start", {
+                "stage": 11,
+                "name": "Task Queue Update",
+                "verb": "Updating queue",
+                "detail": "Recording task result in SQLite",
+            })
             if result.success:
                 mark_completed(db_task_id, db_path=DB_PATH)
             else:
                 mark_failed(db_task_id, error=result.error or result.final_output[:200], db_path=DB_PATH)
+            await self._emit_progress("stage_complete", {
+                "stage": 11, "name": "Task Queue Update",
+            })
 
+            # ── Stage 12: Output ──
             await notify("stage_end", stage=12, status="success" if result.success else "failed")
+            await self._emit_progress("stage_complete", {
+                "stage": 12,
+                "name": "Output",
+                "verb": "Ready",
+                "detail": "Pipeline complete",
+                "pipeline_stage_reached": 12,
+            })
             return result
 
         except Exception as e:
