@@ -259,13 +259,22 @@ class ContextBuilder:
         memory_context: str,
         previous_outputs: list[str],
     ) -> list[ContextSection]:
-        """
-        Build Tier B — task-relevant context.
-        Variable content, trimmed to budget.
-        """
         sections: list[ContextSection] = []
 
-        # 1. Memory context
+        # ── 1. Skill detection and loading (per-task) ──────────────────────
+        skill_content, loaded_skill_ids = self._load_skill_for_task(task)
+        if skill_content:
+            sections.append(ContextSection.from_content(
+                f"ACTIVE SKILL: {', '.join(loaded_skill_ids)}",
+                skill_content,
+                "B"
+            ))
+            # Store loaded skill IDs on the task so MissionRunner can
+            # include them in progress events
+            task.skill_hint = loaded_skill_ids[0] if loaded_skill_ids else ""
+            task._loaded_skill_ids = loaded_skill_ids  # runtime attr
+
+        # ── 2. Memory context ──────────────────────────────────────────────
         if memory_context and memory_context.strip():
             sections.append(ContextSection.from_content(
                 "PROJECT MEMORY",
@@ -273,7 +282,7 @@ class ContextBuilder:
                 "B"
             ))
 
-        # 2. File signatures for relevant files
+        # ── 3. File signatures for relevant files ─────────────────────────
         if self.workspace.is_locked:
             relevant_files = self.workspace.get_relevant_files(
                 task.description, max_files=4
@@ -293,28 +302,68 @@ class ContextBuilder:
                     "B"
                 ))
 
-        # 3. Recent tool outputs (continuity)
+        # ── 4. Recent tool outputs (continuity) ───────────────────────────
         if previous_outputs:
-            recent = previous_outputs[-2:]  # Last 2 outputs only
+            recent = previous_outputs[-2:]
             combined = "\n\n".join(
                 f"Previous output:\n{out[:400]}" for out in recent
             )
             sections.append(ContextSection.from_content(
-                "RECENT OUTPUTS",
-                combined,
-                "B"
+                "RECENT OUTPUTS", combined, "B"
             ))
 
-        # 4. Failed task context (if retry)
+        # ── 5. Retry context ───────────────────────────────────────────────
         if task.retry_count > 0 and task.error_message:
             sections.append(ContextSection.from_content(
                 f"RETRY {task.retry_count}/{task.max_retries}",
                 f"Previous error: {task.error_message[:300]}\n"
-                f"Correct the issue and try a different approach.",
+                f"Use a different approach.",
                 "B"
             ))
 
         return sections
+
+    def _load_skill_for_task(
+        self,
+        task: MissionTask,
+    ) -> tuple[str, list[str]]:
+        """
+        Run the intent classifier on the task description + title.
+        Load and return the matching SKILL.md content and skill IDs.
+
+        Returns (skill_content: str, skill_ids: list[str])
+        """
+        try:
+            from core.intent_classifier import IntentClassifier
+
+            # Use combined task text for better matching
+            task_text = f"{task.title} {task.description}"
+
+            # If the task already has a forced skill hint from the planner,
+            # use that first (planner-assigned skill takes priority)
+            if task.skill_hint:
+                # Still run classifier to potentially add more skills
+                forced = [task.skill_hint]
+            else:
+                forced = []
+
+            classifier = IntentClassifier("skills/")
+            detected = classifier.classify(task_text)
+
+            # Merge forced and detected, deduplicate, cap at 2
+            skill_ids = list(dict.fromkeys(forced + detected))[:2]
+
+            if not skill_ids:
+                return "", []
+
+            # Load skill content
+            skill_content, loaded_ids = classifier.build_skill_prompt_section(skill_ids)
+            return skill_content, loaded_ids
+
+        except Exception as e:
+            from loguru import logger
+            logger.warning(f"ContextBuilder._load_skill_for_task: {e}")
+            return "", []
 
     # ── Tier C builders ───────────────────────────────────────────────────────
 

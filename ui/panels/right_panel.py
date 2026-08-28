@@ -224,6 +224,31 @@ class ToolTracePane(Widget):
                 id="tool-trace-empty",
             )
 
+    async def add_trace_entry_direct(self, entry: "ToolTraceEntry") -> None:
+        """
+        Add a tool trace entry directly (called from live event stream).
+        This is separate from the batch update via _update_all_tabs.
+        Mounts the entry at the top of the trace scroll area.
+        """
+        try:
+            scroll = self.query_one("#tool-trace-scroll", ScrollableContainer)
+            # Remove empty placeholder on first entry if present
+            try:
+                empty = self.query_one("#tool-trace-empty", Static)
+                await empty.remove()
+            except Exception:
+                pass
+            widget = Static(entry.render(), markup=False)
+            await scroll.mount(widget, before=scroll.children[0]
+                              if scroll.children else None)
+            # Keep max 50 entries to prevent memory growth
+            children = list(scroll.children)
+            if len(children) > 50:
+                await children[-1].remove()
+        except Exception as e:
+            from loguru import logger
+            logger.debug(f"ToolTracePane.add_trace_entry_direct: {e}")
+
     async def add_trace_entry(self, response: OrchestratorResponse) -> None:
         """Add a new tool trace entry from an OrchestratorResponse."""
         scroll = self.query_one("#tool-trace-scroll", ScrollableContainer)

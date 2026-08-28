@@ -257,6 +257,7 @@ class HermesApp(App):
         self._orchestrator: Optional[object] = None
         self._mission_driver: Optional[MissionDriver] = None
         self._event_queue: asyncio.Queue = asyncio.Queue()
+        self._current_trace_id: str = ""
 
     # ── Lifecycle ──────────────────────────────────────────────────
 
@@ -594,6 +595,106 @@ class HermesApp(App):
                             sb.framework = payload.get("framework", "")
                         except Exception:
                             pass
+
+                elif event_type == "skill_loaded":
+                    skill_ids = payload.get("skill_ids", [])
+                    if skill_ids:
+                        # Update status bar with REAL loaded skill
+                        skill_display = skill_ids[0] if skill_ids else "none"
+                        self.current_skill = skill_display
+                        try:
+                            from ui.panels.status_bar import StatusBar
+                            sb = self.query_one("#status-bar", StatusBar)
+                            sb.skill = skill_display
+                        except Exception:
+                            pass
+
+                elif event_type == "pipeline_stage":
+                    stage_name = payload.get("stage_name", "")
+                    verb = payload.get("verb", "Working")
+                    status = payload.get("status", "start")
+                    model = payload.get("model", "")
+
+                    if status == "start":
+                        # Update spinner verb with actual stage verb
+                        try:
+                            from ui.panels.status_bar import StatusBar
+                            sb = self.query_one("#status-bar", StatusBar)
+                            sb.spinner_verb = verb
+                            if model:
+                                sb.update_log_line(
+                                    f"Stage {payload.get('stage', '?')}: {stage_name} "
+                                    f"({model})"
+                                )
+                            else:
+                                sb.update_log_line(
+                                    f"Stage {payload.get('stage', '?')}: {stage_name}"
+                                )
+                        except Exception:
+                            pass
+
+                        # Update chat panel thought display
+                        detail = payload.get("detail", "")
+                        if detail:
+                            try:
+                                from ui.panels.chat import ChatPanel
+                                panel = self.query_one(ChatPanel)
+                                await panel._update_thought(f"◌ {detail}")
+                            except Exception:
+                                pass
+
+                elif event_type == "tool_executing":
+                    tool = payload.get("tool", "")
+                    try:
+                        from ui.panels.status_bar import StatusBar
+                        sb = self.query_one("#status-bar", StatusBar)
+                        sb.spinner_verb = "Executing"
+                        sb.update_log_line(f"→ {tool}")
+                    except Exception:
+                        pass
+
+                elif event_type == "tool_complete":
+                    tool = payload.get("tool", "")
+                    success = payload.get("success", False)
+                    exit_code = payload.get("exit_code", -1)
+                    output = payload.get("output_preview", "")
+                    status_icon = "✓" if success else "✗"
+
+                    # Push live entry to ToolTracePane
+                    try:
+                        from ui.panels.right_panel import RightPanel, ToolTraceEntry
+                        right = self.query_one(RightPanel)
+                        trace_pane = right.query_one("#tool-trace-pane")
+                        entry = ToolTraceEntry(
+                            tool_name=tool,
+                            success=success,
+                            exit_code=exit_code,
+                            output_preview=output,
+                            latency=0.0,
+                            tier3_called=False,
+                            trace_id=self._current_trace_id or "",
+                            skill_ids=[self.current_skill] if self.current_skill else [],
+                        )
+                        await trace_pane.add_trace_entry_direct(entry)
+                    except Exception:
+                        pass
+
+                    # Update log line
+                    try:
+                        from ui.panels.status_bar import StatusBar
+                        sb = self.query_one("#status-bar", StatusBar)
+                        sb.update_log_line(f"{status_icon} {tool} exit={exit_code}")
+                    except Exception:
+                        pass
+
+                elif event_type == "escalating":
+                    try:
+                        from ui.panels.status_bar import StatusBar
+                        sb = self.query_one("#status-bar", StatusBar)
+                        sb.spinner_verb = "Escalating"
+                        sb.update_log_line("T3: Escalating to Claude Sonnet")
+                    except Exception:
+                        pass
 
         except asyncio.CancelledError:
             pass

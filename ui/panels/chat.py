@@ -986,24 +986,42 @@ class ChatPanel(Widget):
         ))
         history.scroll_end(animate=False)
 
+    async def _update_thought(self, thought_text: str) -> None:
+        """
+        Update the live thought/activity display during execution.
+        Updates an existing thought indicator — does NOT add a new widget.
+        """
+        try:
+            thought = self.query_one("#live-thought", Static)
+            thought.update(Text(thought_text, style="italic dim #4A90D9"))
+        except Exception:
+            pass  # Widget not mounted — normal before first request
+
     async def _show_processing_indicator(self) -> None:
-        """Mount the processing indicator while orchestrator runs."""
+        """Show the processing spinner and live thought display."""
         history = self.query_one("#chat-history", ScrollableContainer)
         try:
-            existing = self.query_one("#processing-indicator")
-            # Already showing — don't add another
-        except Exception:
-            indicator = ProcessingIndicator(id="processing-indicator")
-            await history.mount(indicator)
-            history.scroll_end(animate=False)
-
-    async def _remove_processing_indicator(self) -> None:
-        """Remove the processing indicator after response arrives."""
-        try:
-            indicator = self.query_one("#processing-indicator", ProcessingIndicator)
-            await indicator.remove()
+            self.query_one("#processing-indicator")
+            return  # Already showing
         except Exception:
             pass
+        indicator = ProcessingIndicator(id="processing-indicator")
+        thought = Static(
+            Text("◌ Initialising...", style="italic dim #4A90D9"),
+            id="live-thought"
+        )
+        await history.mount(indicator)
+        await history.mount(thought)
+        history.scroll_end(animate=False)
+
+    async def _remove_processing_indicator(self) -> None:
+        """Remove processing indicator and live thought display."""
+        for widget_id in ["#processing-indicator", "#live-thought"]:
+            try:
+                w = self.query_one(widget_id)
+                await w.remove()
+            except Exception:
+                pass
 
     async def update_execution_plan(
         self,
