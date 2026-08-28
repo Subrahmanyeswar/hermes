@@ -536,6 +536,61 @@ class TaskQueuePane(Widget):
         """Called by timer every 30 seconds."""
         self.run_worker(self.refresh_tasks(), exclusive=False)
 
+    async def refresh_from_mission(self, mission) -> None:
+        """
+        Refresh task queue display directly from Mission object.
+        Called after every task state change by _consume_mission_events.
+        More accurate than SQLite polling for in-progress missions.
+        """
+        if mission is None:
+            return
+
+        try:
+            scroll = self.query_one("#task-scroll", ScrollableContainer)
+            await scroll.remove_children()
+        except Exception:
+            return
+
+        completed, total = mission.progress
+
+        # Header
+        from rich.text import Text
+        header = Text()
+        header.append(f"  Mission: {completed}/{total} tasks  ", style="bold")
+        header.append(
+            "✓" * completed + "○" * (total - completed),
+            style="#22C55E" if completed == total else "#4A90D9"
+        )
+        try:
+            scroll = self.query_one("#task-scroll", ScrollableContainer)
+            await scroll.mount(Static(header))
+        except Exception:
+            pass
+
+        # Task rows
+        state_icons = {
+            "PENDING":   ("○", "dim"),
+            "RUNNING":   ("▶", "bold #4A90D9"),
+            "COMPLETED": ("✓", "#22C55E"),
+            "FAILED":    ("✗", "#EF4444"),
+            "BLOCKED":   ("⊘", "#F59E0B"),
+            "SKIPPED":   ("−", "dim"),
+        }
+
+        for i, task in enumerate(mission.tasks, 1):
+            state = task.state.value if hasattr(task.state, 'value') else str(task.state)
+            icon, style = state_icons.get(state, ("?", "dim"))
+            line = Text()
+            line.append(f"  {i:2d}. ", style="dim")
+            line.append(f"{icon} ", style=style)
+            line.append(f"{task.title[:45]:<45}", style="white" if state == "RUNNING" else "dim")
+            line.append(f" {state.title()}", style=style)
+            try:
+                scroll = self.query_one("#task-scroll", ScrollableContainer)
+                await scroll.mount(Static(line))
+            except Exception:
+                pass
+
     async def refresh_tasks(self, session_id: Optional[str] = None) -> None:
         """Re-read the task queue from SQLite and update display, handling missing DB gracefully."""
         try:

@@ -159,6 +159,17 @@ class StatusBar(Widget):
             new_verb = _random_verb()
         self.spinner_verb = new_verb
 
+    def _get_spinner_frame(self) -> str:
+        """Rotating Braille spinner frame."""
+        frames = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]
+        idx = int(self.uptime_seconds * 8) % len(frames)
+        return frames[idx]
+
+    def set_skill(self, skill_id: str) -> None:
+        """Set the active skill display. Call with empty string to clear."""
+        self.skill = skill_id if skill_id else "none"
+        self._update_display()
+
     # ── Rendering ─────────────────────────────────────────────────────
 
     def _render_status_text(self) -> Text:
@@ -169,17 +180,15 @@ class StatusBar(Widget):
         mc = mode_colours.get(self.mode, "white")
         t.append(f"[{self.mode.upper()}]", style=f"bold {mc}")
 
-        # Model tier
-        t.append(f"  [T1: {self.tier1_model}+T2: {self.tier2_model}]", style="dim")
+        # Model indicators
+        t.append(f"  [T1:{self.tier1_model}]", style="dim")
 
-        # Workspace + framework
-        if self.workspace_name:
-            fw = f"/{self.framework}" if self.framework and self.framework != "unknown" else ""
-            t.append(f"  [{self.workspace_name}{fw}]", style="#4A90D9")
-
-        # Skill
-        if self.skill and self.skill != "none":
-            t.append(f"  [Skill: {self.skill}]", style="#22C55E")
+        # Skill — show actual loaded skill or "none"
+        # "detecting..." shows during Stage 3 (skill detection stage)
+        if self.skill and self.skill not in ("none", ""):
+            t.append(f"  [Skill: {self.skill}]", style="bold #22C55E")
+        elif self.processing and "detecting" in self.spinner_verb.lower():
+            t.append("  [Skill: detecting...]", style="dim #F59E0B")
         else:
             t.append("  [Skill: none]", style="dim")
 
@@ -191,18 +200,26 @@ class StatusBar(Widget):
         cost_colour = "#F59E0B" if self.cost > 15.0 else "dim"
         t.append(f"  [${self.cost:.3f}]", style=cost_colour)
 
+        # Workspace
+        if self.workspace_name:
+            fw = f"/{self.framework}" if self.framework and self.framework != "unknown" else ""
+            t.append(f"  [{self.workspace_name}{fw}]", style="#4A90D9")
+
         # Mission progress
-        if self.mission_tasks:
+        if self.mission_tasks and self.processing:
             t.append(f"  [{self.mission_tasks}]", style="#4A90D9")
 
-        # Separator + verb/uptime
         t.append("  |  ", style="dim")
+
+        # Spinner + verb: MUST reflect actual backend state
         if self.processing:
-            t.append(f"{self.spinner_verb}...", style="italic dim #4A90D9")
+            spinner_frame = self._get_spinner_frame()
+            t.append(f"{spinner_frame} ", style="#4A90D9")
+            t.append(f"{self.spinner_verb}...", style="italic #4A90D9")
         else:
             mins = self.uptime_seconds // 60
             secs = self.uptime_seconds % 60
-            t.append(f"Uptime: {mins:02d}:{secs:02d}", style="dim")
+            t.append(f"Ready  {mins:02d}:{secs:02d}", style="dim")
 
         # Bottom log line
         if self._last_log_entry:
@@ -211,10 +228,6 @@ class StatusBar(Widget):
         return t
 
     def _render(self) -> Any:
-        """
-        Renders status text or delegates to Textual visual pipeline.
-        Contains workspace_name, framework, uptime_seconds, mission_tasks.
-        """
         try:
             caller_frame = sys._getframe(1)
             caller_file = caller_frame.f_code.co_filename.replace("\\", "/")
@@ -223,53 +236,7 @@ class StatusBar(Widget):
         except Exception:
             pass
 
-        t = Text(no_wrap=True, overflow="ellipsis")
-
-        # Mode
-        mode_colours = {"safe": "#F59E0B", "plan": "#4A90D9", "auto": "#22C55E"}
-        mc = mode_colours.get(self.mode, "white")
-        t.append(f"[{self.mode.upper()}]", style=f"bold {mc}")
-
-        # Model tier
-        t.append(f"  [T1: {self.tier1_model}+T2: {self.tier2_model}]", style="dim")
-
-        # Workspace + framework
-        if self.workspace_name:
-            fw = f"/{self.framework}" if self.framework and self.framework != "unknown" else ""
-            t.append(f"  [{self.workspace_name}{fw}]", style="#4A90D9")
-
-        # Skill
-        if self.skill and self.skill != "none":
-            t.append(f"  [Skill: {self.skill}]", style="#22C55E")
-        else:
-            t.append("  [Skill: none]", style="dim")
-
-        # KAIROS
-        kairos_colour = "#22C55E" if self.kairos_status == "running" else "dim"
-        t.append(f"  [KAIROS:{self.kairos_status}]", style=kairos_colour)
-
-        # Cost
-        cost_colour = "#F59E0B" if self.cost > 15.0 else "dim"
-        t.append(f"  [${self.cost:.3f}]", style=cost_colour)
-
-        # Mission progress
-        if self.mission_tasks:
-            t.append(f"  [{self.mission_tasks}]", style="#4A90D9")
-
-        # Separator + verb/uptime
-        t.append("  |  ", style="dim")
-        if self.processing:
-            t.append(f"{self.spinner_verb}...", style="italic dim #4A90D9")
-        else:
-            mins = self.uptime_seconds // 60
-            secs = self.uptime_seconds % 60
-            t.append(f"Uptime: {mins:02d}:{secs:02d}", style="dim")
-
-        # Bottom log line
-        if self._last_log_entry:
-            t.append(f"\n  {self._last_log_entry}", style="dim")
-
-        return t
+        return self._render_status_text()
 
     def _render_status(self) -> Text:
         """Alias for compatibility with test suites."""

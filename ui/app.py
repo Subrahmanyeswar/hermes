@@ -407,6 +407,17 @@ class HermesApp(App):
         Mission-driven request handler using MissionDriver.
         Delegates all planning and execution to MissionDriver.
         """
+        # Reset per-request state
+        self.current_skill = "none"
+        self._current_trace_id = ""
+        try:
+            from ui.panels.status_bar import StatusBar
+            sb = self.query_one("#status-bar", StatusBar)
+            sb.skill = "none"
+            sb.spinner_verb = "Initialising"
+        except Exception:
+            pass
+
         if self._mission_driver is None:
             self.post_message(OrchestratorResponse(
                 user_request=user_request,
@@ -496,6 +507,13 @@ class HermesApp(App):
             ))
         finally:
             self.is_processing = False
+            # Reset spinner verb when done
+            try:
+                from ui.panels.status_bar import StatusBar
+                sb = self.query_one("#status-bar", StatusBar)
+                sb.spinner_verb = "Ready"
+            except Exception:
+                pass
 
     async def _wait_for_plan_and_post(self, user_request: str) -> None:
         """Wait for mission_planned event and post the plan to the chat panel."""
@@ -560,28 +578,36 @@ class HermesApp(App):
                 elif event_type in (
                     "task_start", "task_complete", "task_failed", "repair_attempt"
                 ):
-                    # Get current mission for updated status lines
-                    current_mission = self._mission_driver.current_mission if self._mission_driver else None
+                    current_mission = (
+                        self._mission_driver.current_mission
+                        if self._mission_driver else None
+                    )
+
+                    # Update chat panel execution plan checklist
                     if current_mission:
                         plan_lines = current_mission.get_status_lines()
-                    else:
-                        plan_lines = []
+                        title = payload.get("title", "")
+                        phase = self.mission_phase
+                        try:
+                            from ui.panels.chat import ChatPanel
+                            panel = self.query_one(ChatPanel)
+                            await panel.update_execution_plan(plan_lines, title, phase)
+                        except Exception:
+                            pass
 
-                    title = payload.get("title", "")
-                    phase = self.mission_phase
+                        # Update task queue with live mission state
+                        try:
+                            from ui.panels.right_panel import RightPanel
+                            right = self.query_one(RightPanel)
+                            task_pane = right.query_one("#task-queue-pane")
+                            await task_pane.refresh_from_mission(current_mission)
+                        except Exception:
+                            pass
 
-                    try:
-                        from ui.panels.chat import ChatPanel
-                        panel = self.query_one(ChatPanel)
-                        await panel.update_execution_plan(plan_lines, title, phase)
-                    except Exception:
-                        pass
-
-                    # Update reactive
-                    if current_mission:
+                        # Update reactive values
                         completed, total = current_mission.progress
                         self.mission_progress = f"{completed}/{total}"
-                    self.current_task_title = title
+                        self.current_task_title = payload.get("title", "")
 
                 elif event_type == "workspace_ready":
                     workspace_name = payload.get("root", "")
@@ -825,8 +851,11 @@ class HermesApp(App):
 
     def watch_is_processing(self, processing: bool) -> None:
         try:
+            from ui.panels.status_bar import StatusBar
             status_bar = self.query_one("#status-bar", StatusBar)
+            status_bar.processing = processing
             status_bar.set_processing(processing)
+            status_bar._update_display()
         except Exception:
             pass
         try:
@@ -845,10 +874,13 @@ class HermesApp(App):
             pass
         self._update_mode_buttons(new_mode)
 
-    def watch_current_skill(self, new_skill: str) -> None:
+    def watch_current_skill(self, skill: str) -> None:
+        """When current_skill reactive changes, update StatusBar immediately."""
         try:
-            status_bar = self.query_one("#status-bar", StatusBar)
-            status_bar.skill = new_skill
+            from ui.panels.status_bar import StatusBar
+            sb = self.query_one("#status-bar", StatusBar)
+            sb.skill = skill if skill else "none"
+            sb._update_display()
         except Exception:
             pass
 
@@ -856,6 +888,15 @@ class HermesApp(App):
         try:
             status_bar = self.query_one("#status-bar", StatusBar)
             status_bar.cost = new_cost
+        except Exception:
+            pass
+
+    def watch_mission_progress(self, progress: str) -> None:
+        try:
+            from ui.panels.status_bar import StatusBar
+            sb = self.query_one("#status-bar", StatusBar)
+            sb.mission_tasks = progress
+            sb._update_display()
         except Exception:
             pass
 

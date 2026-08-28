@@ -1083,6 +1083,14 @@ class ChatPanel(Widget):
             if not plan_lines:
                 plan_lines = ["  Plan initializing..."]
 
+            # Remove existing plan / status widgets if already present to avoid DuplicateIds
+            for widget_id in ["#execution-plan-widget", "#current-task-status"]:
+                try:
+                    w = self.query_one(widget_id)
+                    await w.remove()
+                except Exception:
+                    pass
+
             plan_widget = ExecutionPlanWidget(plan_lines, id="execution-plan-widget")
             status_widget = Static("  Preparing...", id="current-task-status")
             await history.mount(plan_widget)
