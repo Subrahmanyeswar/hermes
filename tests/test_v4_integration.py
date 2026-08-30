@@ -19,6 +19,30 @@ from core.context_builder import ContextBuilder
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
 
+@pytest.fixture(autouse=True)
+def mock_quality_verifier(monkeypatch):
+    """Mock QualityVerifier for simulated integration tests without real filesystem output."""
+    from core.quality_verifier import QualityVerifier, TaskQualityResult
+    def mock_verify_task(self, *args, **kwargs):
+        return TaskQualityResult(
+            task_id=kwargs.get("task_id", "test"),
+            task_title=kwargs.get("task_title", "test"),
+            overall_verdict="COMPLETE",
+            requirements_checked=["test"],
+            requirements_met=["test"],
+        )
+    def mock_verify_project(self, *args, **kwargs):
+        return TaskQualityResult(
+            task_id="final",
+            task_title="Final",
+            overall_verdict="COMPLETE",
+            requirements_checked=["test"],
+            requirements_met=["test"],
+        )
+    monkeypatch.setattr(QualityVerifier, "verify_task", mock_verify_task)
+    monkeypatch.setattr(QualityVerifier, "verify_project_completeness", mock_verify_project)
+
+
 @pytest.fixture
 def project_workspace(tmp_path):
     """Create a realistic Flask project structure for testing."""

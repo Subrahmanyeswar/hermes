@@ -1,6 +1,6 @@
 # HERMES MEMORY INDEX
 ## Project: default
-## Last Updated: 2026-08-30 20:28
+## Last Updated: 2026-08-30 21:00
 ## Consolidated by KAIROS
 
-[FACT]: Fact B about the project
+[FACT]: Uses PostgreSQL database, migrated from SQLite
