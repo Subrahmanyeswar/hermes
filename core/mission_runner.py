@@ -973,14 +973,13 @@ SUCCESS CRITERION: {task.acceptance_criteria}
 
     async def _generate_walkthrough(self, mission: Mission) -> str:
         """
-        Generate the post-mission walkthrough summary.
-        This is what the user sees after HERMES completes the mission.
-        Inspired by Claude Code's execution summary.
+        Generate post-mission walkthrough from actual execution evidence.
+        Based on real task results, not model-generated summaries.
         """
+        from pathlib import Path
+
         completed = [t for t in mission.tasks if t.state == TaskState.COMPLETED]
         failed = [t for t in mission.tasks if t.state == TaskState.FAILED]
-        blocked = [t for t in mission.tasks if t.state == TaskState.BLOCKED]
-
         elapsed = time.monotonic() - self._start_time
         completed_count, total_count = mission.progress
 
@@ -988,42 +987,77 @@ SUCCESS CRITERION: {task.acceptance_criteria}
         lines.append("")
         lines.append("━" * 55)
 
-        if mission.is_complete:
+        if mission.is_complete and not failed:
             lines.append("  MISSION COMPLETE ✓")
-        else:
+        elif completed_count > 0:
             lines.append(f"  MISSION PARTIAL ({completed_count}/{total_count} tasks)")
+        else:
+            lines.append("  MISSION INCOMPLETE")
 
         lines.append("━" * 55)
         lines.append("")
 
+        # Completed tasks
         if completed:
             lines.append("  Completed:")
             for task in completed:
-                lines.append(f"    ✓  {task.title}")
+                quality = ""
+                if task.is_verified:
+                    quality = " ✓"
+                elif hasattr(task, 'verification_evidence') and task.verification_evidence:
+                    quality = " ~"
+                lines.append(f"    ✓{quality}  {task.title}")
         lines.append("")
 
+        # Files created
         if self._files_created:
             lines.append("  Created:")
-            for f in self._files_created[:10]:
-                lines.append(f"    +  {f}")
-            lines.append("")
+            for f in self._files_created[:12]:
+                p = Path(f)
+                if p.exists():
+                    size = p.stat().st_size
+                    lines.append(f"    +  {f}  ({size} bytes)")
+                else:
+                    lines.append(f"    +  {f}")
+        lines.append("")
 
+        # Files modified
         if self._files_modified:
             lines.append("  Modified:")
-            for f in self._files_modified[:10]:
+            for f in self._files_modified[:8]:
                 lines.append(f"    ~  {f}")
-            lines.append("")
+        lines.append("")
 
+        # Failed tasks
         if failed:
             lines.append("  Failed:")
             for task in failed:
                 lines.append(f"    ✗  {task.title}")
                 if task.error_message:
-                    lines.append(f"       {task.error_message[:60]}")
-            lines.append("")
+                    lines.append(f"       Reason: {task.error_message[:80]}")
+        lines.append("")
 
-        lines.append(f"  Time:   {elapsed:.1f}s")
-        lines.append(f"  Cost:   ${self._total_cost:.4f}")
+        # Project check
+        if mission.project_root_path:
+            root = Path(mission.project_root_path)
+            if root.exists():
+                all_files = list(root.rglob("*"))
+                impl_files = [
+                    f for f in all_files
+                    if f.is_file()
+                    and f.suffix.lower() in {".html",".css",".js",".jsx",".ts",".tsx",".py"}
+                    and f.stat().st_size > 50
+                ]
+                lines.append(f"  Project: {mission.project_root_path}")
+                lines.append(f"  Files:   {len(impl_files)} implementation files")
+                total_kb = sum(
+                    f.stat().st_size for f in impl_files
+                ) / 1024
+                lines.append(f"  Size:    {total_kb:.1f} KB total")
+                lines.append("")
+
+        lines.append(f"  Time:    {elapsed:.1f}s")
+        lines.append(f"  Cost:    ${self._total_cost:.4f}")
         if self._tier3_calls > 0:
             lines.append(f"  T3 calls: {self._tier3_calls}")
         lines.append("")

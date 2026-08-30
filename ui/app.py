@@ -722,6 +722,53 @@ class HermesApp(App):
                     except Exception:
                         pass
 
+                elif event_type == "quality_check":
+                    verdict = payload.get("verdict", "")
+                    coverage = payload.get("coverage_pct", 0)
+                    task_id_q = payload.get("task_id", "")
+                    issues = payload.get("issues", [])
+                    missing = payload.get("missing", [])
+
+                    # Update status bar
+                    try:
+                        from ui.panels.status_bar import StatusBar
+                        sb = self.query_one("#status-bar", StatusBar)
+                        if verdict == "COMPLETE":
+                            sb.spinner_verb = "Verified"
+                            sb.update_log_line(f"✓ Quality check passed ({coverage:.0f}% coverage)")
+                        elif verdict in ("SHALLOW", "NEEDS_IMPROVEMENT"):
+                            sb.spinner_verb = "Improving"
+                            sb.update_log_line(
+                                f"⚠ Quality: {verdict} — coverage {coverage:.0f}% — repairing"
+                            )
+                        elif verdict == "EMPTY":
+                            sb.spinner_verb = "Fixing"
+                            sb.update_log_line("✗ Empty output detected — re-executing")
+                    except Exception:
+                        pass
+
+                    # Update chat panel thought
+                    if verdict in ("SHALLOW", "NEEDS_IMPROVEMENT", "EMPTY"):
+                        detail = issues[0] if issues else f"Coverage: {coverage:.0f}%"
+                        try:
+                            from ui.panels.chat import ChatPanel
+                            panel = self.query_one(ChatPanel)
+                            icon = "⚠" if verdict == "NEEDS_IMPROVEMENT" else "✗"
+                            await panel._update_thought(
+                                f"{icon} Quality check: {verdict} — {detail}"
+                            )
+                        except Exception:
+                            pass
+                    else:
+                        try:
+                            from ui.panels.chat import ChatPanel
+                            panel = self.query_one(ChatPanel)
+                            await panel._update_thought(
+                                f"✓ Quality verified ({coverage:.0f}% coverage)"
+                            )
+                        except Exception:
+                            pass
+
         except asyncio.CancelledError:
             pass
         except Exception as e:
