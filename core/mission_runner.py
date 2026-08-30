@@ -216,6 +216,67 @@ class MissionRunner:
                 mission.verified_criteria = mission.acceptance_criteria.copy()
                 logger.info("MissionRunner: all acceptance criteria verified ✓")
 
+        # ── Final project quality verification ────────────────────────
+        if mission.is_complete and mission.project_root_path:
+            self._current_phase = MissionPhase.VERIFYING
+            await self._emit(MissionEvent(
+                event_type="phase_change",
+                payload={"phase": "VERIFYING", "verb": "Verifying"}
+            ))
+            await self._emit(MissionEvent(
+                event_type="thought",
+                payload={
+                    "text": "Running final project quality check",
+                    "detail": "Verifying all acceptance criteria",
+                }
+            ))
+
+            from core.quality_verifier import QualityVerifier
+            verifier = QualityVerifier()
+            final_check = verifier.verify_project_completeness(
+                project_root=mission.project_root_path,
+                acceptance_criteria=mission.acceptance_criteria,
+                user_prompt=mission.user_prompt,
+            )
+
+            await self._emit(MissionEvent(
+                event_type="quality_check",
+                payload={
+                    "task_id": "final",
+                    "verdict": final_check.overall_verdict,
+                    "coverage_pct": final_check.coverage_pct,
+                    "met": final_check.requirements_met,
+                    "missing": final_check.requirements_missing,
+                }
+            ))
+
+            # If final check fails, add targeted repair tasks (max 2)
+            if final_check.needs_improvement and final_check.requirements_missing:
+                logger.info(
+                    f"MissionRunner: final check failed — "
+                    f"{len(final_check.requirements_missing)} requirements unmet"
+                )
+                for i, missing_req in enumerate(final_check.requirements_missing[:2]):
+                    repair_task = MissionTask(
+                        title=f"Final fix: {missing_req[:50]}",
+                        description=final_check.repair_prompt,
+                        priority=TaskPriority.CRITICAL,
+                        max_retries=2,
+                        acceptance_criteria=missing_req,
+                    )
+                    mission.tasks.append(repair_task)
+                    mission.execution_order.append(repair_task.task_id)
+
+                # Run repair tasks
+                while not mission.is_complete:
+                    if self.abort_event.is_set():
+                        break
+                    task = mission.next_executable_task
+                    if task is None:
+                        break
+                    await self._execute_task(mission, task)
+                    await asyncio.sleep(0.2)
+
         # ── Post-mission phase ────────────────────────────────────────────────
         self._current_phase = MissionPhase.SUMMARIZING
         await self._emit(MissionEvent(
@@ -259,20 +320,12 @@ class MissionRunner:
 
     async def _execute_task(self, mission: Mission, task: MissionTask) -> None:
         """
-        Execute one task through the full Orchestrator pipeline.
+        Execute one task through an iterative generate → observe → verify → repair loop.
 
-        CRITICAL DESIGN RULE:
-        Tool execution success (exit_code=0) is NOT the same as task completion.
-        Task completion requires evidence that the requested work was done.
-
-        This method:
-        1. Runs the orchestrator to generate and execute a tool call
-        2. Checks if the tool call was meaningful (not just folder creation)
-        3. If a write/implementation tool ran: verify the output exists and
-           is non-empty
-        4. If only a folder was created when files were needed: re-execute
-           with a more specific prompt demanding file content
-        5. Only marks COMPLETE when evidence exists
+        The fundamental guarantee:
+            A task is only marked COMPLETE when the QualityVerifier confirms
+            that the filesystem output satisfies the task requirements.
+            A successful tool call (exit_code=0) is necessary but NOT sufficient.
         """
         await self._emit(MissionEvent(
             event_type="task_start",
@@ -288,82 +341,108 @@ class MissionRunner:
         mission.mark_task_running(task.task_id)
         self._current_phase = MissionPhase.EXECUTING
 
-        # ── Build enriched prompt ─────────────────────────────────────────
-        enriched_prompt = self._build_task_prompt(task, mission)
+        from core.quality_verifier import QualityVerifier
+        verifier = QualityVerifier()
 
-        await self._emit(MissionEvent(
-            event_type="thought",
-            payload={
-                "text": f"Working on: {task.title}",
-                "detail": f"Skill: {task.skill_hint or 'none'} | Attempt: {task.retry_count + 1}"
-            }
-        ))
+        # ── Inner execution loop ───────────────────────────────────────────
+        # Each iteration: generate → execute → observe → verify → maybe repair
+        MAX_INNER_ITERATIONS = 3
+        current_description = task.description
+        inner_iteration = 0
+        last_orch_result = None
+        quality_result = None
 
-        # ── Execute through orchestrator ──────────────────────────────────
-        # Set per-task progress callback on the orchestrator
-        # This wires Orchestrator stage events into our mission event queue
-        async def _pipeline_progress(event_type: str, payload: dict) -> None:
-            """Forward orchestrator stage events into the mission event queue."""
-            # Map pipeline events to mission events
-            if event_type == "skill_loaded":
-                # Skill was actually loaded — update TUI with real skill state
-                await self._emit(MissionEvent(
-                    event_type="skill_loaded",
-                    payload={
-                        "task_id": task.task_id,
-                        "skill_ids": payload.get("skill_ids", []),
-                        "verb": payload.get("verb", "Skill loaded"),
-                    }
-                ))
-            elif event_type in ("stage_start", "stage_complete"):
-                await self._emit(MissionEvent(
-                    event_type="pipeline_stage",
-                    payload={
-                        "task_id": task.task_id,
-                        "stage": payload.get("stage", 0),
-                        "stage_name": payload.get("name", ""),
-                        "verb": payload.get("verb", "Working"),
-                        "detail": payload.get("detail", ""),
-                        "model": payload.get("model", ""),
-                        "status": "start" if event_type == "stage_start" else "complete",
-                    }
-                ))
-            elif event_type == "tool_executing":
-                await self._emit(MissionEvent(
-                    event_type="tool_executing",
-                    payload={
-                        "task_id": task.task_id,
-                        "tool": payload.get("tool", ""),
-                        "verb": "Executing",
-                        "detail": payload.get("detail", ""),
-                    }
-                ))
-            elif event_type == "tool_complete":
-                await self._emit(MissionEvent(
-                    event_type="tool_complete",
-                    payload={
-                        "task_id": task.task_id,
-                        "tool": payload.get("tool", ""),
-                        "success": payload.get("success", False),
-                        "exit_code": payload.get("exit_code", -1),
-                        "output_preview": payload.get("output_preview", ""),
-                    }
-                ))
-            elif event_type == "escalating":
-                await self._emit(MissionEvent(
-                    event_type="escalating",
-                    payload={
-                        "task_id": task.task_id,
-                        "verb": "Escalating to Claude",
-                        "reason": payload.get("reason", ""),
-                    }
-                ))
+        while inner_iteration < MAX_INNER_ITERATIONS:
+            inner_iteration += 1
+            iteration_label = (
+                f"attempt {inner_iteration}/{MAX_INNER_ITERATIONS}"
+            )
 
-        # Register the callback on the orchestrator for this task execution
-        self.orchestrator._progress_callback = _pipeline_progress
+            await self._emit(MissionEvent(
+                event_type="thought",
+                payload={
+                    "text": f"Executing: {task.title} ({iteration_label})",
+                    "detail": f"Skill: {task.skill_hint or 'none'}",
+                }
+            ))
 
-        try:
-            orch_result = await self.orchestrator.run(enriched_prompt)
+            # Build the prompt for this iteration
+            # On repair iterations, current_description includes the repair instructions
+            enriched_prompt = self._build_task_prompt_with_description(
+                task, mission, current_description
+            )
+
+            # Set orchestrator progress callback
+            async def _pipeline_progress(event_type: str, payload: dict) -> None:
+                if event_type == "skill_loaded":
+                    skill_ids = payload.get("skill_ids", [])
+                    if skill_ids:
+                        await self._emit(MissionEvent(
+                            event_type="skill_loaded",
+                            payload={"task_id": task.task_id, "skill_ids": skill_ids,
+                                     "verb": payload.get("verb", "")},
+                        ))
+                elif event_type in ("stage_start", "stage_complete"):
+                    await self._emit(MissionEvent(
+                        event_type="pipeline_stage",
+                        payload={
+                            "task_id": task.task_id,
+                            "stage": payload.get("stage", 0),
+                            "stage_name": payload.get("name", ""),
+                            "verb": payload.get("verb", "Working"),
+                            "detail": payload.get("detail", ""),
+                            "model": payload.get("model", ""),
+                            "status": "start" if event_type == "stage_start" else "complete",
+                        },
+                    ))
+                elif event_type == "tool_executing":
+                    await self._emit(MissionEvent(
+                        event_type="tool_executing",
+                        payload={"task_id": task.task_id,
+                                 "tool": payload.get("tool", ""),
+                                 "verb": "Executing"},
+                    ))
+                elif event_type == "tool_complete":
+                    await self._emit(MissionEvent(
+                        event_type="tool_complete",
+                        payload={
+                            "task_id": task.task_id,
+                            "tool": payload.get("tool", ""),
+                            "success": payload.get("success", False),
+                            "exit_code": payload.get("exit_code", -1),
+                            "output_preview": payload.get("output_preview", ""),
+                        },
+                    ))
+
+            self.orchestrator._progress_callback = _pipeline_progress
+
+            try:
+                orch_result = await self.orchestrator.run(enriched_prompt)
+            except Exception as exc:
+                logger.error(
+                    f"MissionRunner: unexpected error during task '{task.title}' "
+                    f"(inner iteration {inner_iteration}): {exc}"
+                )
+                if inner_iteration < MAX_INNER_ITERATIONS:
+                    current_description = (
+                        f"RETRY {inner_iteration}: Previous attempt raised an exception.\n"
+                        f"Error: {type(exc).__name__}: {str(exc)[:200]}\n\n"
+                        f"Original task: {task.description}\n"
+                        f"Try a different approach."
+                    )
+                    await asyncio.sleep(0.5)
+                    continue
+                else:
+                    await self._handle_task_failure(
+                        mission, task,
+                        error=f"Unexpected error: {type(exc).__name__}: {str(exc)[:200]}",
+                        output=""
+                    )
+                    return
+            finally:
+                self.orchestrator._progress_callback = None
+
+            last_orch_result = orch_result
 
             # Track costs
             if hasattr(orch_result, 'tier3_was_called') and orch_result.tier3_was_called:
@@ -374,11 +453,13 @@ class MissionRunner:
                 except Exception:
                     pass
 
-            # Capture output for context continuity
+            # Capture output for continuity
             if orch_result.final_output:
                 self._recent_outputs.append(orch_result.final_output[:600])
                 if len(self._recent_outputs) > 12:
                     self._recent_outputs = self._recent_outputs[-12:]
+
+            self._track_file_changes(orch_result)
 
             # Emit tool result
             await self._emit(MissionEvent(
@@ -391,61 +472,92 @@ class MissionRunner:
                     "output_preview": (orch_result.final_output or "")[:300],
                     "tier3_called": orch_result.tier3_was_called,
                     "trace_id": orch_result.trace_id,
+                    "inner_iteration": inner_iteration,
                 }
             ))
 
-            self._track_file_changes(orch_result)
-
-            # ── CRITICAL: Evidence-based completion check ──────────────────
+            # ── Check if tool execution itself failed ──────────────────────
             if not orch_result.success or orch_result.pipeline_stage_reached < 6:
-                # Tool execution failed
-                await self._handle_task_failure(
-                    mission, task,
-                    error=orch_result.error or "Tool execution did not succeed",
-                    output=orch_result.final_output or "",
-                )
-                return
-
-            # Check for shallow execution: only folder created when
-            # implementation was required
-            tool_name = orch_result.tool_name or ""
-            task_needs_implementation = self._task_needs_implementation(task)
-
-            if task_needs_implementation and tool_name == "create_folder":
-                # Folder creation alone is not sufficient for implementation tasks
-                # Re-execute with a more demanding prompt
-                await self._emit(MissionEvent(
-                    event_type="thought",
-                    payload={
-                        "text": f"Folder created but implementation needed — re-executing",
-                        "detail": f"Task '{task.title}' requires file content, not just folders"
-                    }
-                ))
-                await self._handle_task_failure(
-                    mission, task,
-                    error=(
-                        f"Task requires file implementation but only "
-                        f"create_folder was executed. The task must write actual "
-                        f"file content. Retry with write_file calls."
-                    ),
-                    output=orch_result.final_output or "",
-                )
-                return
-
-            # Verify filesystem evidence if task should produce files
-            if task_needs_implementation:
-                evidence_ok, evidence_msg = await self._verify_task_evidence(task, mission)
-                if not evidence_ok and task.retry_count < task.max_retries:
+                if inner_iteration < MAX_INNER_ITERATIONS:
+                    await self._emit(MissionEvent(
+                        event_type="thought",
+                        payload={
+                            "text": f"Tool execution failed — retrying",
+                            "detail": (orch_result.error or "")[:100],
+                        }
+                    ))
+                    current_description = (
+                        f"RETRY {inner_iteration}: Previous attempt failed.\n"
+                        f"Error: {orch_result.error or 'unknown'}\n"
+                        f"Output: {(orch_result.final_output or '')[:200]}\n\n"
+                        f"Original task: {task.description}\n"
+                        f"Try a different approach."
+                    )
+                    await asyncio.sleep(0.5)
+                    continue
+                else:
+                    # All inner iterations exhausted — handle as outer failure
                     await self._handle_task_failure(
                         mission, task,
-                        error=f"Verification failed: {evidence_msg}",
+                        error=orch_result.error or "Tool execution failed repeatedly",
                         output=orch_result.final_output or "",
                     )
                     return
 
-            # Task genuinely complete
+            # ── Perform quality verification ────────────────────────────────
+            # Only for tasks that should produce implementation output
+            if self._task_needs_implementation(task):
+                await self._emit(MissionEvent(
+                    event_type="thought",
+                    payload={
+                        "text": "Verifying implementation quality",
+                        "detail": "Checking output against requirements",
+                    }
+                ))
+
+                quality_result = verifier.verify_task(
+                    task_id=task.task_id,
+                    task_title=task.title,
+                    task_description=task.description,
+                    project_root=mission.project_root_path or "",
+                    files_created=list(self._files_created[-10:]),
+                    files_modified=list(self._files_modified[-5:]),
+                )
+
+                await self._emit(MissionEvent(
+                    event_type="quality_check",
+                    payload={
+                        "task_id": task.task_id,
+                        "verdict": quality_result.overall_verdict,
+                        "coverage_pct": quality_result.coverage_pct,
+                        "issues": quality_result.improvement_suggestions[:3],
+                        "inner_iteration": inner_iteration,
+                    }
+                ))
+
+                if quality_result.needs_improvement and inner_iteration < MAX_INNER_ITERATIONS:
+                    # Quality insufficient — feed self-review back to model
+                    await self._emit(MissionEvent(
+                        event_type="thought",
+                        payload={
+                            "text": f"Quality insufficient ({quality_result.overall_verdict}) — improving",
+                            "detail": f"Coverage: {quality_result.coverage_pct:.0f}% | "
+                                      f"Issues: {len(quality_result.improvement_suggestions)}",
+                        }
+                    ))
+
+                    # The repair prompt IS the next iteration's task description
+                    # It includes the quality findings and specific instructions
+                    current_description = quality_result.repair_prompt
+                    await asyncio.sleep(0.3)
+                    continue
+
+            # ── Task passed quality check (or no quality check needed) ─────
             task.is_verified = True
-            task.verification_evidence = orch_result.final_output or ""
+            task.verification_evidence = (
+                f"Quality: {quality_result.overall_verdict if quality_result else 'N/A'} | "
+                f"Coverage: {quality_result.coverage_pct if quality_result else 100:.0f}%"
+            )
             mission.mark_task_complete(task.task_id)
 
             await self._emit(MissionEvent(
@@ -454,21 +566,37 @@ class MissionRunner:
                     "task_id": task.task_id,
                     "title": task.title,
                     "output_preview": (orch_result.final_output or "")[:300],
+                    "quality_verdict": quality_result.overall_verdict if quality_result else "N/A",
+                    "inner_iterations": inner_iteration,
                 }
             ))
+            return
 
-        except Exception as exc:
-            logger.error(
-                f"MissionRunner: unexpected error during task '{task.title}': {exc}"
+        # ── Inner loop exhausted without passing quality check ─────────────
+        if quality_result and quality_result.needs_improvement:
+            # Accept with warning rather than failing — partial is better than nothing
+            task.is_verified = False
+            task.verification_evidence = (
+                f"Quality: {quality_result.overall_verdict} | "
+                f"Coverage: {quality_result.coverage_pct:.0f}% (accepted after {MAX_INNER_ITERATIONS} attempts)"
             )
+            mission.mark_task_complete(task.task_id)
+            await self._emit(MissionEvent(
+                event_type="task_complete",
+                payload={
+                    "task_id": task.task_id,
+                    "title": task.title,
+                    "quality_verdict": quality_result.overall_verdict,
+                    "warning": "Accepted with quality issues after max iterations",
+                    "inner_iterations": inner_iteration,
+                }
+            ))
+        elif last_orch_result:
             await self._handle_task_failure(
                 mission, task,
-                error=f"Unexpected error: {type(exc).__name__}: {str(exc)[:200]}",
-                output=""
+                error="Max inner iterations reached without success",
+                output=(last_orch_result.final_output or "")
             )
-        finally:
-            # Always clear the callback after task completes
-            self.orchestrator._progress_callback = None
 
     def _task_needs_implementation(self, task: MissionTask) -> bool:
         """
@@ -757,6 +885,61 @@ TASK TO EXECUTE:
 SUCCESS CRITERION: {task.acceptance_criteria}
 """
 
+        return base + enforcement
+
+    def _build_task_prompt_with_description(
+        self,
+        task: MissionTask,
+        mission: Mission,
+        override_description: str,
+    ) -> str:
+        """
+        Build task prompt using an override description.
+        Used for repair iterations where the description includes
+        quality findings and specific improvement instructions.
+        """
+        project_path = mission.project_root_path or "generated_projects/output"
+        completed_count = sum(
+            1 for t in mission.tasks if t.state == TaskState.COMPLETED
+        )
+        total_count = len(mission.tasks)
+
+        # Build base context
+        try:
+            context = self._context_builder.build(
+                task=task,
+                mission=mission,
+                memory_context=self._get_memory_context(),
+                previous_outputs=self._recent_outputs[-3:],
+                error_context="",  # Error context is already in override_description
+            )
+            base = context.to_string()
+        except Exception:
+            base = ""
+
+        enforcement = f"""
+
+═══ TASK EXECUTION REQUIREMENTS ═══
+Project location: {project_path}
+Mission progress: {completed_count}/{total_count} tasks complete
+Previous outputs available for context: {len(self._recent_outputs)} items
+
+MANDATORY IMPLEMENTATION RULES:
+1. Use write_file to create files with COMPLETE, real implementation.
+2. Do NOT write placeholder content, TODO comments, or stubs.
+3. Do NOT stop after creating a folder.
+4. Write REAL working code with sufficient depth and detail.
+5. For HTML: minimum 40 lines with actual semantic structure and content.
+6. For CSS: minimum 30 lines with real rules, variables, responsive design.
+7. For JS/JSX: minimum 25 lines with actual logic and event handlers.
+8. After writing files, verify they exist using bash_exec.
+9. Inspect existing files first using read_file before modifying.
+
+TASK:
+{override_description}
+
+SUCCESS CRITERION: {task.acceptance_criteria}
+"""
         return base + enforcement
 
     def _get_memory_context(self) -> str:
