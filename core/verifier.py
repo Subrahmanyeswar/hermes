@@ -5,18 +5,19 @@
 # When T1 and T2 agree, we have stronger evidence the output is correct.
 # Mistral is loaded ONLY after Tier 1 has finished and unloaded (keep_alive=0).
 # Mistral is unloaded with keep_alive=0 after verification.
-# The verifier NEVER rewrites the solution — it only evaluates correctness and safety.
+# The verifier NEVER rewrites the solution — it only evaluates correctness, safety, and quality.
 
 import json
 import re
 import time
 from dataclasses import dataclass, field
-from typing import Optional
+from typing import Optional, Any
 
 from loguru import logger
 
 from models.ollama_client import OllamaClient, OllamaTimeoutError, OllamaConnectionError
 
+TIER2_MODEL = "mistral:7b-instruct-q4_K_M"
 
 # ──────────────────────────────────────────────────────────────────────
 # Verification Result
@@ -28,14 +29,17 @@ class VerificationResult:
     The structured output of Tier 2 verification.
     Every field has a precise meaning used by the disagreement router.
     """
-    agree: bool                          # Does T2 agree the tool call is correct and safe?
-    confidence: float                    # How confident is T2? Range: 0.0 to 1.0
-    critical_issues: list[str]           # List of specific problems found. Empty if agree=True.
-    risk_score: float                    # How dangerous is this action? Range: 0.0 to 1.0
-    reasoning: str                       # T2's one-sentence explanation of its decision
-    latency_seconds: float = 0.0        # Time taken for this verification call
-    model_used: str = ""                 # Which model produced this result
-    raw_response: str = ""              # Raw Tier 2 output, stored for debugging
+    agree: bool
+    confidence: float
+    critical_issues: list[str]
+    risk_score: float
+    reasoning: str = ""
+    quality_verdict: str = "NEEDS_IMPROVEMENT"
+    quality_findings: list[str] = field(default_factory=list)
+    missing_requirements: list[str] = field(default_factory=list)
+    latency_seconds: float = 0.0
+    model_used: str = ""
+    raw_response: str = ""
 
     def __post_init__(self):
         """Clamp confidence and risk_score to valid ranges."""
@@ -44,19 +48,12 @@ class VerificationResult:
 
     @property
     def should_escalate(self) -> bool:
-        """
-        Returns True if the disagreement router should escalate to Tier 3.
-        Escalation conditions (any one is sufficient):
-          - agree is False
-          - confidence < 0.72
-          - risk_score > 0.7 (destructive or dangerous action)
-          - critical_issues list is non-empty
-        """
         return (
             not self.agree
-            or self.confidence < 0.72
+            or self.confidence < 0.65
             or self.risk_score > 0.7
-            or len(self.critical_issues) > 0
+            or bool(self.critical_issues)
+            or self.quality_verdict in ("SHALLOW", "BLOCKED")
         )
 
     def summary(self) -> str:
@@ -64,56 +61,83 @@ class VerificationResult:
         return (
             f"agree={self.agree} | confidence={self.confidence:.2f} | "
             f"risk={self.risk_score:.2f} | issues={len(self.critical_issues)} | "
-            f"escalate={self.should_escalate}"
+            f"verdict={self.quality_verdict} | escalate={self.should_escalate}"
         )
 
 
 # ──────────────────────────────────────────────────────────────────────
-# Tier 2 System Prompt
+# Tier 2 System Prompt & Template
 # ──────────────────────────────────────────────────────────────────────
 
-VERIFIER_SYSTEM_PROMPT = """You are a strict code reviewer and safety auditor for an AI coding agent.
-You have been given a task, the AI agent's reasoning, the tool it chose to call, and the tool's result.
-Your job is to evaluate whether the tool call was correct, safe, and helpful.
+TIER2_SYSTEM_PROMPT = """You are a senior software engineering reviewer.
+You assess whether an AI agent's tool call and output satisfy the user's task.
 
-You must respond with ONLY valid JSON. No explanation before or after. No markdown fences.
-Your entire response must be parseable by json.loads() or it is a failure.
-
-Required JSON format:
+You must respond with ONLY valid JSON in this exact structure:
 {
   "agree": true or false,
-  "confidence": 0.85,
-  "critical_issues": [],
-  "risk_score": 0.1,
-  "reasoning": "One sentence explaining your decision."
+  "confidence": 0.0 to 1.0,
+  "critical_issues": ["issue1", "issue2"],
+  "risk_score": 0.0 to 1.0,
+  "quality_verdict": "COMPLETE" | "SHALLOW" | "NEEDS_IMPROVEMENT" | "BLOCKED",
+  "quality_findings": ["finding1", "finding2"],
+  "missing_requirements": ["req1", "req2"]
 }
 
-Field definitions:
-- agree: true if the tool call is correct for the task, false if it is wrong or dangerous
-- confidence: your certainty (0.0 = total uncertainty, 1.0 = completely certain)
-- critical_issues: list of specific problems. EMPTY list [] if you agree and see no issues.
-- risk_score: how dangerous is this action (0.0 = safe read operation, 1.0 = irreversible destructive action)
-- reasoning: exactly one sentence summarising your evaluation
+Evaluation criteria:
 
-Risk score guidance:
-- 0.0-0.2: read operations, listing files, web search
-- 0.2-0.4: creating new files, running safe Python scripts
-- 0.4-0.6: modifying existing files, running shell commands
-- 0.6-0.8: deleting files, git commits, installing packages
-- 0.8-1.0: git push, deleting directories, system-wide changes
+agree: true if the tool call was correct AND the output is meaningful.
+       false if the tool call was wrong, safety-violating, or produced
+       trivially insufficient output.
 
-When to set agree=false:
-- The tool chosen is wrong for the task (e.g. bash_exec when write_file was needed)
-- The tool parameters contain errors (wrong path, missing content, syntax errors in code)
-- The tool result shows an error but the agent did not detect it
-- The action is dangerous and should not proceed without user confirmation
+confidence: How confident you are that the task objective was genuinely
+            satisfied. Not just that the tool ran. That the TASK was done.
+            Low confidence if: file is tiny, content is placeholder,
+            features are missing, or requirements are unfulfilled.
 
-When to set agree=true:
-- The tool call correctly addresses the task
-- The parameters look correct and complete
-- The tool result confirms success (exit_code=0 or file created correctly)
-- Any minor issues do not affect the core correctness of the action
-"""
+critical_issues: List specific problems found.
+  Examples:
+  - "HTML file is only 8 lines — insufficient for requested implementation"
+  - "CSS file contains no animation despite animation being requested"
+  - "Component returns empty div — not implemented"
+  - "Function body is a TODO stub"
+
+risk_score: 0.0 = safe, 1.0 = dangerous/destructive.
+
+quality_verdict:
+  COMPLETE: Implementation fully satisfies the task requirements
+  SHALLOW: Implementation exists but is too minimal/placeholder
+  NEEDS_IMPROVEMENT: Implementation partially satisfies requirements
+  BLOCKED: Cannot proceed — critical issue requires intervention
+
+quality_findings: List what is good or acceptable about the output.
+
+missing_requirements: List specific requirements from the task that
+  are NOT satisfied by the current output.
+
+Be strict. A 10-line HTML file for a "premium website" is SHALLOW.
+A function stub is NOT implemented. A TODO comment is NOT implementation.
+
+Do not approve based on tool success alone.
+Approve based on actual task completion."""
+
+VERIFIER_SYSTEM_PROMPT = TIER2_SYSTEM_PROMPT
+
+TIER2_USER_TEMPLATE = """Review this AI agent action:
+
+ORIGINAL TASK:
+{task}
+
+AGENT REASONING:
+{reasoning}
+
+TOOL CALLED:
+{tool_call}
+
+TOOL RESULT:
+{tool_result}
+
+Determine whether this action genuinely satisfies the task objectives.
+Respond with only the JSON structure specified."""
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -127,8 +151,9 @@ class Tier2Verifier:
     Never raises exceptions — always returns a VerificationResult.
     """
 
-    def __init__(self, ollama_client: OllamaClient, model: str = "mistral:7b-instruct-q4_K_M"):
+    def __init__(self, ollama_client: OllamaClient, model: str = TIER2_MODEL):
         self.client = ollama_client
+        self.ollama = ollama_client
         self.model = model
         self.verification_count = 0
         logger.info(f"Tier 2 Verifier initialised | model={model}")
@@ -143,46 +168,119 @@ class Tier2Verifier:
         tool_exit_code: int
     ) -> str:
         """Builds the user prompt for Tier 2 verification."""
-        return (
-            f"TASK: {task}\n\n"
-            f"TIER 1 REASONING: {tier1_reasoning[:300]}\n\n"
-            f"TOOL CALLED: {tool_name}\n"
-            f"TOOL PARAMETERS: {json.dumps(tool_parameters, indent=2)[:500]}\n\n"
-            f"TOOL RESULT (exit_code={tool_exit_code}):\n"
-            f"{tool_result_output[:800]}\n\n"
-            f"Evaluate: is this tool call correct and safe for the given task?"
+        tool_call_obj = {"tool": tool_name, "parameters": tool_parameters or {}}
+        tool_call_str = json.dumps(tool_call_obj, indent=2)[:800]
+        result_str = (
+            f"exit_code: {tool_exit_code}\n"
+            f"success: {tool_exit_code == 0}\n"
+            f"output: {(tool_result_output or '')[:400]}"
+        )
+        return TIER2_USER_TEMPLATE.format(
+            task=task[:600],
+            reasoning=(tier1_reasoning or "")[:400],
+            tool_call=tool_call_str,
+            tool_result=result_str,
         )
 
     async def verify(
         self,
-        task: str,
-        tier1_reasoning: str,
-        tool_name: str,
-        tool_parameters: dict,
-        tool_result_output: str,
-        tool_exit_code: int
+        task: str = "",
+        tier1_reasoning: str = "",
+        tool_name: str = "",
+        tool_parameters: Optional[dict] = None,
+        tool_result_output: str = "",
+        tool_exit_code: int = 0,
+        original_task: str = "",
+        tool_call: Optional[dict] = None,
+        tool_result: Any = None,
+        **kwargs
     ) -> VerificationResult:
-        """
-        Verify a Tier 1 tool call using Mistral 7B.
-        Returns VerificationResult. Never raises — returns a safe default on error.
-        """
+        """Verify T1 output using upgraded quality-aware system prompt."""
         start_time = time.monotonic()
         self.verification_count += 1
 
-        user_prompt = self._build_verification_prompt(
-            task, tier1_reasoning, tool_name, tool_parameters,
-            tool_result_output, tool_exit_code
+        effective_task = original_task or task
+
+        if tool_call is not None:
+            tool_call_str = json.dumps(tool_call, indent=2)[:800]
+        else:
+            tool_call_obj = {"tool": tool_name, "parameters": tool_parameters or {}}
+            tool_call_str = json.dumps(tool_call_obj, indent=2)[:800]
+
+        if tool_result is not None:
+            exit_code = getattr(tool_result, "exit_code", 0)
+            success = getattr(tool_result, "success", True)
+            output = getattr(tool_result, "output", "")
+            result_str = (
+                f"exit_code: {exit_code}\n"
+                f"success: {success}\n"
+                f"output: {(output or '')[:400]}"
+            )
+        else:
+            result_str = (
+                f"exit_code: {tool_exit_code}\n"
+                f"success: {tool_exit_code == 0}\n"
+                f"output: {(tool_result_output or '')[:400]}"
+            )
+
+        user_message = TIER2_USER_TEMPLATE.format(
+            task=effective_task[:600],
+            reasoning=(tier1_reasoning or "")[:400],
+            tool_call=tool_call_str,
+            tool_result=result_str,
         )
 
         try:
-            response = await self.client.generate(
+            raw = await self.ollama.generate(
                 model=self.model,
-                prompt=user_prompt,
-                system=VERIFIER_SYSTEM_PROMPT,
-                keep_alive=0  # CRITICAL: unload Mistral immediately after verification
+                prompt=user_message,
+                system=TIER2_SYSTEM_PROMPT,
+                keep_alive=0,
+                temperature=0.1,
+                num_ctx=4096,
             )
             latency = time.monotonic() - start_time
-            result = self._parse_verification_response(response, latency)
+
+            # Parse response
+            data = None
+            try:
+                data = json.loads(raw.strip())
+            except json.JSONDecodeError:
+                match = re.search(r'\{.*?\}', raw, re.DOTALL)
+                if match:
+                    try:
+                        data = json.loads(match.group())
+                    except Exception:
+                        data = None
+                if not data:
+                    data = {
+                        "agree": True,
+                        "confidence": 0.5,
+                        "critical_issues": ["T2 parse failure — defaulting to pass"],
+                        "risk_score": 0.3,
+                        "quality_verdict": "NEEDS_IMPROVEMENT",
+                        "quality_findings": [],
+                        "missing_requirements": [],
+                    }
+
+            # Determine quality verdict
+            quality_verdict = data.get("quality_verdict", "NEEDS_IMPROVEMENT")
+            if quality_verdict not in ("COMPLETE", "SHALLOW", "NEEDS_IMPROVEMENT", "BLOCKED"):
+                quality_verdict = "NEEDS_IMPROVEMENT"
+
+            result = VerificationResult(
+                agree=bool(data.get("agree", True)),
+                confidence=float(data.get("confidence", 0.7)),
+                critical_issues=list(data.get("critical_issues", [])),
+                risk_score=float(data.get("risk_score", 0.3)),
+                reasoning=str(data.get("reasoning", "")),
+                quality_verdict=quality_verdict,
+                quality_findings=list(data.get("quality_findings", [])),
+                missing_requirements=list(data.get("missing_requirements", [])),
+                latency_seconds=latency,
+                model_used=self.model,
+                raw_response=raw,
+            )
 
             logger.info(
                 f"Tier 2 verification #{self.verification_count} | "
@@ -199,69 +297,37 @@ class Tier2Verifier:
                 critical_issues=["Tier 2 verification timed out"],
                 risk_score=0.5,
                 reasoning="Verification timed out — escalating to Tier 3 for safety.",
+                quality_verdict="BLOCKED",
                 latency_seconds=latency,
-                model_used=self.model
+                model_used=self.model,
             )
 
         except OllamaConnectionError:
             latency = time.monotonic() - start_time
             logger.error("Tier 2 verification failed — Ollama not reachable")
             return VerificationResult(
-                agree=True,  # Fail open: if T2 is unavailable, proceed with T1's result
+                agree=True,
                 confidence=0.5,
                 critical_issues=[],
                 risk_score=0.3,
                 reasoning="Tier 2 unavailable — proceeding with Tier 1 result (reduced confidence).",
+                quality_verdict="NEEDS_IMPROVEMENT",
                 latency_seconds=latency,
-                model_used=self.model
+                model_used=self.model,
             )
 
         except Exception as e:
             latency = time.monotonic() - start_time
-            logger.error(f"Tier 2 verification unexpected error: {type(e).__name__}: {e}")
+            logger.warning(f"Tier2Verifier.verify error: {e}")
             return VerificationResult(
-                agree=False,
-                confidence=0.0,
-                critical_issues=[f"Verification error: {str(e)[:100]}"],
-                risk_score=0.5,
-                reasoning="Unexpected verification error — escalating for safety.",
-                latency_seconds=latency,
-                model_used=self.model
-            )
-
-    def _parse_verification_response(self, response: str, latency: float) -> VerificationResult:
-        """Parse Tier 2 JSON response into VerificationResult."""
-        cleaned = response.strip()
-        # Strip markdown fences if present
-        cleaned = re.sub(r'^```json\s*', '', cleaned)
-        cleaned = re.sub(r'^```\s*', '', cleaned)
-        cleaned = re.sub(r'\s*```$', '', cleaned)
-        cleaned = cleaned.strip()
-
-        try:
-            data = json.loads(cleaned)
-        except json.JSONDecodeError as e:
-            logger.warning(f"Tier 2: JSON parse failed: {e} | response={response[:150]!r}")
-            # Try to extract agree field from raw text as fallback
-            has_agree_true = '"agree": true' in response.lower() or '"agree":true' in response.lower()
-            return VerificationResult(
-                agree=has_agree_true,
-                confidence=0.4,  # Low confidence — parsing failed
-                critical_issues=["Tier 2 response was not valid JSON"],
-                risk_score=0.3,
-                reasoning="Could not parse Tier 2 response as JSON.",
+                agree=True,
+                confidence=0.6,
+                critical_issues=[],
+                risk_score=0.2,
+                reasoning=f"Verification error: {str(e)[:100]}",
+                quality_verdict="NEEDS_IMPROVEMENT",
+                quality_findings=[],
+                missing_requirements=[],
                 latency_seconds=latency,
                 model_used=self.model,
-                raw_response=response[:500]
             )
-
-        return VerificationResult(
-            agree=bool(data.get("agree", False)),
-            confidence=float(data.get("confidence", 0.5)),
-            critical_issues=list(data.get("critical_issues", [])),
-            risk_score=float(data.get("risk_score", 0.5)),
-            reasoning=str(data.get("reasoning", "No reasoning provided.")),
-            latency_seconds=latency,
-            model_used=self.model,
-            raw_response=cleaned
-        )

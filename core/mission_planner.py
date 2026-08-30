@@ -343,6 +343,29 @@ class MissionPlanner:
             )
             tasks.append(task)
 
+        # Always start with workspace inspection
+        # This gives the model ground truth about what exists before generating
+        inspection_task = MissionTask(
+            title="Inspect workspace and existing files",
+            description=(
+                f"Before implementing anything, inspect the workspace at "
+                f"{workspace_root or 'generated_projects/'} to understand "
+                f"what already exists. Use list_directory and read_file to "
+                f"read the most relevant existing files. Identify: "
+                f"(1) what files already exist, "
+                f"(2) what framework/technology is in use, "
+                f"(3) what code can be reused, "
+                f"(4) what needs to be created from scratch. "
+                f"Report findings clearly."
+            ),
+            priority=TaskPriority.CRITICAL,
+            skill_hint="",
+            acceptance_criteria="Workspace structure inspected and understood",
+        )
+        # Only prepend if we have more than 1 task and it is not already a pure read task
+        if len(tasks) > 1:
+            tasks.insert(0, inspection_task)
+
         # Step 3: Detect dependencies
         self._assign_dependencies(tasks)
 
