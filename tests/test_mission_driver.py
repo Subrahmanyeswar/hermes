@@ -38,6 +38,8 @@ async def test_initialise_workspace_cwd(mock_orchestrator):
 async def test_run_mission_flow(mock_orchestrator, tmp_path):
     driver = MissionDriver(mock_orchestrator)
     await driver.initialise_workspace(str(tmp_path))
+    (tmp_path / "api.py").write_text("print('api')")
+    (tmp_path / "test_api.py").write_text("def test_api(): pass")
 
     result = await driver.run_mission("Create api.py and write unit tests")
     assert result.success is True

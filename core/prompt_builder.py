@@ -101,6 +101,8 @@ Auto mode: execute immediately
 ═══ WORKSPACE ═══
 {workspace_context}
 
+═══ FINAL REMINDER ═══
+Respond ONLY with a single valid JSON object. No explanation text outside the JSON.
 Now execute the current task by producing a single JSON tool call."""
 
 

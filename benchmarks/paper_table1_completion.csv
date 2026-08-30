@@ -1,0 +1,4 @@
+Condition,L1_trivial,L2_simple,L3_medium,L4_complex,L5_hard,overall
+hermes,100.0,70.0,0.0,0.0,0.0,85.0
+t1_skill,90.0,60.0,0.0,0.0,0.0,75.0
+t1_no_skill,100.0,70.0,0.0,0.0,0.0,85.0
