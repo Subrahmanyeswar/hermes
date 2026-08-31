@@ -38,6 +38,26 @@ TOKEN_BUDGET_TIER_A: int   = 800
 TOKEN_BUDGET_TIER_B: int   = 2000
 TOKEN_BUDGET_TIER_C: int   = 3200
 
+# ── LLMLingua Budget Tiers ────────────────────────────────────────────────────
+# Inspired by LLMLingua's budget controller.
+# Each tier has a different protection level:
+#   PROTECTED:    Never trimmed. Always present. (Current task, active constraints)
+#   IMPORTANT:    Trimmed last. High value. (Recent outputs, active skill)
+#   STANDARD:     Normal budget allocation. (Memory facts, file signatures)
+#   COMPRESSIBLE: Trimmed first. Background context. (Old outputs, workspace skeleton)
+
+TIER_PROTECTED    = 0  # Never compressed — ~1200 tokens reserved
+TIER_IMPORTANT    = 1  # Compressed last — ~1500 tokens
+TIER_STANDARD     = 2  # Normal — ~2000 tokens
+TIER_COMPRESSIBLE = 3  # Compressed first — remainder
+
+TIER_BUDGETS = {
+    TIER_PROTECTED:    1200,
+    TIER_IMPORTANT:    1500,
+    TIER_STANDARD:     2000,
+    TIER_COMPRESSIBLE: 1300,   # Whatever is left
+}
+
 # Approximate token conversion: 1 token ≈ 3.8 chars for code
 CHARS_PER_TOKEN: float = 3.8
 
@@ -115,92 +135,139 @@ class ContextBuilder:
         error_context: str = "",
     ) -> AssembledContext:
         """
-        Assemble the complete context for a task, respecting token budgets.
+        Assemble context with LLMLingua-style budget tiers.
 
-        Args:
-            task:             The task about to be executed
-            mission:          The full mission (for completed task context)
-            memory_context:   Content from MEMORY.md injection
-            previous_outputs: Last N tool outputs for continuity
-            error_context:    Error from previous attempt (repair cycle)
+        Priority order (from LLMLingua budget controller):
+        PROTECTED   — error context + current task + acceptance criteria
+        IMPORTANT   — active skill + recent outputs (last 1)
+        STANDARD    — memory facts + file signatures
+        COMPRESSIBLE — workspace skeleton + older outputs
         """
         ctx = AssembledContext()
-        remaining_budget = TOKEN_BUDGET_TOTAL
 
-        # ── TIER A: Always-present context ───────────────────────────────────
-        tier_a_sections = self._build_tier_a(task, mission)
-        for section in tier_a_sections:
-            if remaining_budget - section.token_estimate > 0:
-                ctx.sections.append(section)
-                ctx.total_tokens += section.token_estimate
-                remaining_budget -= section.token_estimate
-            else:
-                ctx.truncated_sections.append(section.name)
-
-        # ── TIER B: Task-relevant context ─────────────────────────────────────
-        tier_b_sections = self._build_tier_b(
-            task, mission, memory_context, previous_outputs or []
-        )
-        tier_b_budget = min(TOKEN_BUDGET_TIER_B, remaining_budget)
-        used_b = 0
-        for section in tier_b_sections:
-            if used_b + section.token_estimate <= tier_b_budget:
-                ctx.sections.append(section)
-                ctx.total_tokens += section.token_estimate
-                used_b += section.token_estimate
-                remaining_budget -= section.token_estimate
-            else:
-                # Try trimming the section to fit
-                trimmed = self._trim_to_budget(
-                    section.content,
-                    tier_b_budget - used_b
-                )
-                if trimmed:
-                    trimmed_section = ContextSection.from_content(
-                        f"{section.name} (trimmed)", trimmed, "B"
-                    )
-                    ctx.sections.append(trimmed_section)
-                    ctx.total_tokens += trimmed_section.token_estimate
-                    used_b += trimmed_section.token_estimate
-                    remaining_budget -= trimmed_section.token_estimate
-                ctx.truncated_sections.append(section.name)
-
-        # ── TIER C: Full file content (on demand) ─────────────────────────────
-        if remaining_budget > 500:  # Only if meaningful budget left
-            tier_c_sections = self._build_tier_c(task, remaining_budget)
-            for section in tier_c_sections:
-                if remaining_budget - section.token_estimate > 200:
-                    ctx.sections.append(section)
-                    ctx.total_tokens += section.token_estimate
-                    remaining_budget -= section.token_estimate
-                else:
-                    trimmed = self._trim_to_budget(section.content, remaining_budget - 200)
-                    if trimmed:
-                        trimmed_section = ContextSection.from_content(
-                            f"{section.name} (trimmed)", trimmed, "C"
-                        )
-                        ctx.sections.append(trimmed_section)
-                        ctx.total_tokens += trimmed_section.token_estimate
-                        remaining_budget -= trimmed_section.token_estimate
-                    ctx.truncated_sections.append(section.name)
-
-        # ── Error context (always last, highest priority) ──────────────────────
+        # ── TIER 0: PROTECTED — never trimmed ─────────────────────────────────
+        # LLMLingua: instruction component has highest protection
         if error_context:
             error_section = ContextSection.from_content(
-                "PREVIOUS FAILURE — REPAIR CONTEXT",
+                "PREVIOUS FAILURE — ERROR CONTEXT [PROTECTED]",
                 (
                     f"Your previous attempt FAILED with this error:\n"
-                    f"{error_context[:800]}\n\n"
+                    f"{error_context[:600]}\n\n"
                     f"Analyze this error carefully. Do NOT repeat the same approach."
                 ),
-                "A"
+                "A",
             )
-            ctx.sections.insert(0, error_section)
+            ctx.sections.append(error_section)
             ctx.total_tokens += error_section.token_estimate
+
+        task_section = ContextSection.from_content(
+            "CURRENT TASK [PROTECTED]",
+            f"Title: {task.title}\n"
+            f"Description: {task.description}\n"
+            f"Acceptance: {task.acceptance_criteria}\n"
+            f"Retry: {task.retry_count}/{task.max_retries}",
+            "A",
+        )
+        ctx.sections.append(task_section)
+        ctx.total_tokens += task_section.token_estimate
+
+        # Progress context
+        completed = [t for t in mission.tasks if t.state.value == "COMPLETED"]
+        if completed:
+            progress_section = ContextSection.from_content(
+                "MISSION PROGRESS [PROTECTED]",
+                "\n".join(f"✓ {t.title}" for t in completed[-4:]),
+                "A",
+            )
+            ctx.sections.append(progress_section)
+            ctx.total_tokens += progress_section.token_estimate
+
+        remaining_budget = TOKEN_BUDGET_TOTAL - ctx.total_tokens
+
+        # ── TIER 1: IMPORTANT — trimmed last ──────────────────────────────────
+        # LLMLingua: demonstrations have medium-high protection
+        important_budget = min(TIER_BUDGETS[TIER_IMPORTANT], remaining_budget // 2)
+
+        # Active skill
+        skill_content, loaded_ids = self._load_skill_for_task(task)
+        if skill_content:
+            skill_section = ContextSection.from_content(
+                f"SKILL: {', '.join(loaded_ids)} [IMPORTANT]",
+                self._trim_to_budget(skill_content, important_budget // 2),
+                "B",
+            )
+            ctx.sections.append(skill_section)
+            ctx.total_tokens += skill_section.token_estimate
+            remaining_budget -= skill_section.token_estimate
+            important_budget -= skill_section.token_estimate
+
+        # Most recent output only (LLMLingua: question component has high protection)
+        if previous_outputs and previous_outputs[-1:]:
+            last_output = previous_outputs[-1][:600]
+            recent_section = ContextSection.from_content(
+                "MOST RECENT OUTPUT [IMPORTANT]",
+                last_output,
+                "B",
+            )
+            if recent_section.token_estimate <= important_budget:
+                ctx.sections.append(recent_section)
+                ctx.total_tokens += recent_section.token_estimate
+                remaining_budget -= recent_section.token_estimate
+
+        # ── TIER 2: STANDARD — normal allocation ──────────────────────────────
+        standard_budget = min(TIER_BUDGETS[TIER_STANDARD], remaining_budget // 2)
+
+        # Memory context (compressed to top 6 facts)
+        if memory_context and memory_context.strip():
+            compressed_memory = self._compress_memory(memory_context)
+            mem_section = ContextSection.from_content(
+                "PROJECT MEMORY [STANDARD]",
+                self._trim_to_budget(compressed_memory, standard_budget // 2),
+                "B",
+            )
+            ctx.sections.append(mem_section)
+            ctx.total_tokens += mem_section.token_estimate
+            remaining_budget -= mem_section.token_estimate
+            standard_budget -= mem_section.token_estimate
+
+        # File signatures for relevant files
+        if self.workspace.is_locked:
+            relevant_files = self.workspace.get_relevant_files(task.description, max_files=3)
+            sig_lines: list[str] = []
+            for rel_path in relevant_files:
+                if rel_path.endswith(".py"):
+                    sigs = self.workspace.get_signatures(rel_path)
+                    if sigs:
+                        sig_lines.append(f"# {rel_path}\n{sigs}")
+            if sig_lines:
+                sig_section = ContextSection.from_content(
+                    "FILE SIGNATURES [STANDARD]",
+                    self._trim_to_budget(
+                        "\n\n".join(sig_lines), standard_budget // 2
+                    ),
+                    "B",
+                )
+                ctx.sections.append(sig_section)
+                ctx.total_tokens += sig_section.token_estimate
+                remaining_budget -= sig_section.token_estimate
+
+        # ── TIER 3: COMPRESSIBLE — trimmed first ──────────────────────────────
+        # LLMLingua: background context with lowest protection
+        compressible_budget = min(TIER_BUDGETS[TIER_COMPRESSIBLE], remaining_budget)
+
+        if self.workspace.is_locked:
+            skeleton = self.workspace.get_skeleton()
+            if skeleton:
+                skel_section = ContextSection.from_content(
+                    "WORKSPACE STRUCTURE [COMPRESSIBLE]",
+                    self._trim_to_budget(skeleton, compressible_budget),
+                    "A",
+                )
+                ctx.sections.append(skel_section)
+                ctx.total_tokens += skel_section.token_estimate
 
         ctx.budget_used_pct = (ctx.total_tokens / TOKEN_BUDGET_TOTAL) * 100
         logger.debug(ctx.summary())
-
         return ctx
 
     # ── Tier A builders ───────────────────────────────────────────────────────

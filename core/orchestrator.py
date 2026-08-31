@@ -532,6 +532,12 @@ class Orchestrator:
             tool_exec_retry_count = 0
             tool_result = None
 
+            from core.structured_observation import StructuredObservation
+            from pathlib import Path
+            workspace_root = Path("generated_projects")
+            files_before = set(str(f) for f in workspace_root.rglob("*") if f.is_file()) \
+                if workspace_root.exists() else set()
+
             while tool_exec_retry_count <= 3:
                 t_exec_start = time.monotonic()
                 
@@ -559,6 +565,18 @@ class Orchestrator:
                     mark_failed(db_task_id, error=exec_err.technical_detail[:300], db_path=DB_PATH)
                     await notify("stage_end", stage=7, status="failed", tool_name=tool_name, duration=t_exec_dur, error=result.error, attempt=tool_exec_retry_count + 1)
                     return result
+
+                files_after = set(str(f) for f in workspace_root.rglob("*") if f.is_file()) \
+                    if workspace_root.exists() else set()
+
+                structured_obs = StructuredObservation.from_tool_result(
+                    tool_name=tool_name,
+                    tool_result=current_tool_result,
+                    duration=t_exec_dur,
+                    files_before=files_before,
+                    files_after=files_after,
+                )
+                self._last_structured_observation = structured_obs
 
                 self.session_logger.log_tool_result(
                     tool_name, current_tool_result.success,
@@ -588,9 +606,12 @@ class Orchestrator:
                     await self._emit_progress("tool_complete", {
                         "stage": 6,
                         "tool": tool_name,
-                        "success": current_tool_result.success,
-                        "exit_code": current_tool_result.exit_code,
-                        "output_preview": (current_tool_result.output or "")[:120],
+                        "success": structured_obs.success,
+                        "exit_code": structured_obs.exit_code,
+                        "output_preview": structured_obs.to_context_string()[:200],
+                        "state_delta": structured_obs.state_delta,
+                        "is_actionable_failure": structured_obs.is_actionable_failure(),
+                        "duration": structured_obs.duration_seconds,
                     })
                     break
 
