@@ -36,7 +36,7 @@ from utils.logging import (
 from models.ollama_client import OllamaClient
 from models.claude_client import ClaudeClient
 from core.verifier import Tier2Verifier
-from core.disagreement_router import DisagreementRouter, RoutingDecision
+from core.disagreement_router import DisagreementRouter, RoutingDecision, RouterResult, ALWAYS_ESCALATE_TOOLS
 from core.planner import TaskPlanner, Task
 from core.intent_classifier import IntentClassifier
 from core.prompt_builder import PromptContext, build_system_prompt, build_user_message
@@ -762,12 +762,58 @@ class Orchestrator:
             await notify("stage_end", stage=9, status="success", decision=routing.decision.value, reason=routing.reason, threshold=routing.confidence_threshold_used, actual=verification.confidence, action="Consult Tier 3" if routing.tier3_needed else "Proceed")
 
             if routing.decision == RoutingDecision.ESCALATE and routing.tier3_needed:
-                await self._emit_progress("escalating", {
-                    "stage": 8,
-                    "verb": "Escalating",
-                    "detail": "Disagreement detected — routing to Tier 3",
-                    "reason": routing.reason,
-                })
+                # ── ToT/LATS controlled extraction: try alternative before T3 ──
+                # For non-always-escalate tools, generate an alternative approach
+                # and have T2 compare before paying for T3.
+                alternative_accepted = False
+                if tool_name not in ALWAYS_ESCALATE_TOOLS:
+                    await self._emit_progress("alternative_check", {
+                        "stage": 8,
+                        "verb": "Evaluating",
+                        "detail": "Generating alternative approach before T3 escalation",
+                    })
+                    try:
+                        alternative = await self.router.try_alternative_before_escalation(
+                            original_task=sanitised,
+                            original_tool_call={
+                                "tool": tool_name,
+                                "parameters": tool_params,
+                            },
+                            verification_result=verification,
+                            ollama_client=self.ollama,
+                            system_prompt=system_prompt,
+                        )
+                        if alternative:
+                            # Use the alternative — skip T3 escalation entirely
+                            alternative_accepted = True
+                            routing = RouterResult(
+                                decision=RoutingDecision.ACCEPT,
+                                reason=f"Alternative approach accepted (ToT/LATS) — using {alternative['tool']} instead of T3",
+                                tier3_needed=False,
+                                requires_user_confirm=False,
+                            )
+                            await self._emit_progress("alternative_accepted", {
+                                "stage": 8,
+                                "verb": "Alternative accepted",
+                                "detail": f"T3 escalation avoided — using {alternative['tool']}",
+                                "original_tool": tool_name,
+                                "alternative_tool": alternative["tool"],
+                            })
+                            logger.info(
+                                f"Stage 8: ToT/LATS alternative accepted | "
+                                f"original={tool_name} → alternative={alternative['tool']} | "
+                                f"T3 escalation avoided"
+                            )
+                    except Exception as alt_exc:
+                        logger.warning(f"Stage 8: alternative evaluation failed: {alt_exc}")
+
+                if not alternative_accepted:
+                    await self._emit_progress("escalating", {
+                        "stage": 8,
+                        "verb": "Escalating",
+                        "detail": "Disagreement detected — routing to Tier 3",
+                        "reason": routing.reason,
+                    })
             else:
                 await self._emit_progress("stage_complete", {
                     "stage": 8, "name": "Disagreement Routing",

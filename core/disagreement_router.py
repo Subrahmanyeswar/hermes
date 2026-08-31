@@ -233,6 +233,119 @@ class DisagreementRouter:
         logger.debug(f"Router: ACCEPT | tool={tool_name} | {result.summary()}")
         return result
 
+    async def try_alternative_before_escalation(
+        self,
+        original_task: str,
+        original_tool_call: dict,
+        verification_result: "VerificationResult",
+        ollama_client: "OllamaClient",
+        system_prompt: str,
+    ) -> Optional[dict]:
+        """
+        ToT/LATS insight (controlled): Before escalating to T3,
+        generate one alternative approach and have T2 score it.
+        If the alternative scores higher, use it instead of escalating.
+
+        This avoids T3 cost when the task has a simpler working solution.
+
+        Args:
+            original_task:         The user's task description
+            original_tool_call:    T1's first tool call attempt
+            verification_result:   T2's assessment (which said DISAGREE)
+            ollama_client:         Ollama client for T1 re-generation
+            system_prompt:         The existing system prompt for T1
+
+        Returns:
+            Alternative tool call dict if one scores higher, else None
+        """
+        from core.response_parser import ResponseParser, ParseSuccess
+
+        logger.info(
+            "DisagreementRouter: T2 disagrees — trying alternative "
+            "approach before T3 escalation"
+        )
+
+        # Build alternative-seeking prompt
+        issues = "; ".join(verification_result.critical_issues[:3])
+        alt_prompt = (
+            f"ALTERNATIVE APPROACH REQUIRED\n\n"
+            f"Task: {original_task}\n\n"
+            f"Previous approach was: {original_tool_call.get('tool', 'unknown')}\n"
+            f"T2 found issues: {issues}\n"
+            f"Quality verdict: {verification_result.quality_verdict}\n\n"
+            f"Generate a DIFFERENT approach to accomplish this task.\n"
+            f"Address the specific issues found.\n"
+            f"Choose a different tool or different parameters."
+        )
+
+        try:
+            # Generate alternative with T1
+            alt_response = await ollama_client.generate(
+                model="qwen2.5-coder:7b",
+                prompt=alt_prompt,
+                system=system_prompt,
+                keep_alive=0,
+                temperature=0.25,   # Slightly higher for exploration
+                num_ctx=4096,
+            )
+
+            # Parse alternative tool call
+            parser = ResponseParser()
+            parsed_alt = parser.parse(alt_response)
+
+            if not isinstance(parsed_alt, ParseSuccess):
+                logger.debug("DisagreementRouter: alternative parse failed")
+                return None
+
+            alt_tool_call = {
+                "tool": parsed_alt.tool,
+                "parameters": parsed_alt.parameters,
+                "reasoning": getattr(parsed_alt, "reasoning", ""),
+            }
+
+            # Have T2 score the alternative by comparing both approaches
+            alt_assessment_prompt = (
+                f"Compare these two approaches for: {original_task}\n\n"
+                f"Approach A (original, had issues: {issues}):\n"
+                f"Tool: {original_tool_call.get('tool')}\n"
+                f"Params: {str(original_tool_call.get('parameters', {}))[:200]}\n\n"
+                f"Approach B (alternative):\n"
+                f"Tool: {parsed_alt.tool}\n"
+                f"Params: {str(parsed_alt.parameters)[:200]}\n\n"
+                f"Which approach better addresses the task?\n"
+                f"Respond with only: 'A' or 'B' and one sentence why."
+            )
+
+            choice_response = await ollama_client.generate(
+                model="mistral:7b-instruct",
+                prompt=alt_assessment_prompt,
+                system=(
+                    "You are a code review expert. "
+                    "Evaluate which approach is better. "
+                    "Respond with only A or B and one sentence."
+                ),
+                keep_alive=0,
+                temperature=0.1,
+                num_ctx=2048,
+            )
+
+            if choice_response.strip().upper().startswith("B"):
+                logger.info(
+                    f"DisagreementRouter: alternative approach chosen — "
+                    f"tool={parsed_alt.tool} — T3 escalation avoided"
+                )
+                return alt_tool_call
+            else:
+                logger.info(
+                    "DisagreementRouter: alternative scored worse — "
+                    "proceeding with T3 escalation"
+                )
+                return None
+
+        except Exception as e:
+            logger.warning(f"DisagreementRouter.try_alternative: {e}")
+            return None
+
     def get_stats(self) -> dict:
         """Returns routing statistics."""
         total = self.accept_count + self.escalate_count + self.block_count
