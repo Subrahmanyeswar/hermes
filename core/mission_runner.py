@@ -107,6 +107,10 @@ class MissionRunner:
         self.event_queue = event_queue or asyncio.Queue()
         self.abort_event = abort_event or asyncio.Event()
         self._context_builder = ContextBuilder(workspace_manager)
+        from core.cross_file_retriever import CrossFileRetriever
+        from memory.trajectory_memory import TrajectoryMemory
+        self._cross_file_retriever = CrossFileRetriever(workspace_manager)
+        self._trajectory_memory = TrajectoryMemory()
         self._recent_outputs: list[str] = []
         self._current_phase = MissionPhase.PLANNING
         self._start_time: float = 0.0
@@ -610,6 +614,19 @@ class MissionRunner:
             )
             mission.mark_task_complete(task.task_id)
 
+            # EcoAssistant: store successful trajectory for future use
+            try:
+                self._trajectory_memory.store(
+                    task_title=task.title,
+                    task_description=task.description[:500],
+                    files_created=list(self._files_created[-10:]),
+                    skill_used=task.skill_hint or "",
+                    tier3_was_used=orch_result.tier3_was_called if hasattr(orch_result, 'tier3_was_called') else False,
+                    quality_verdict=quality_result.overall_verdict if quality_result else "PASS",
+                )
+            except Exception as e:
+                logger.debug(f"TrajectoryMemory store failed: {e}")
+
             await self._emit(MissionEvent(
                 event_type="task_complete",
                 payload={
@@ -943,47 +960,69 @@ SUCCESS CRITERION: {task.acceptance_criteria}
         mission: Mission,
         override_description: str,
     ) -> str:
-        """
-        Build task prompt using an override description.
-        Used for repair iterations where the description includes
-        quality findings and specific improvement instructions.
-        """
         project_path = mission.project_root_path or "generated_projects/output"
-        completed_count = sum(
-            1 for t in mission.tasks if t.state == TaskState.COMPLETED
-        )
+        completed_count = sum(1 for t in mission.tasks if t.state == TaskState.COMPLETED)
         total_count = len(mission.tasks)
 
-        # Build base context
+        # ── EcoAssistant: Retrieve trajectory demonstration ────────────────
+        demo_section = ""
+        trajectory = self._trajectory_memory.retrieve_best(override_description)
+        if trajectory:
+            demo_section = (
+                f"\n{'─' * 50}\n"
+                f"{trajectory.to_demonstration()}"
+                f"{'─' * 50}\n"
+            )
+            logger.debug(
+                f"MissionRunner: injecting trajectory demo "
+                f"'{trajectory.task_title[:40]}'"
+            )
+
+        # ── RepoBench: Cross-file context retrieval ────────────────────────
+        cross_file_section = ""
+        is_multi_file = any(kw in override_description.lower() for kw in [
+            "existing", "modify", "update", "import", "use the", "from the",
+            "integrate", "connect", "add to", "extend"
+        ])
+        if is_multi_file and self.workspace.is_locked:
+            cross_ctx = self._cross_file_retriever.retrieve(
+                override_description, max_files=4
+            )
+            if not cross_ctx.is_empty:
+                cross_file_section = (
+                    f"\n{cross_ctx.to_prompt_section()}\n"
+                )
+                logger.debug(
+                    f"MissionRunner: injected {len(cross_ctx.items)} "
+                    f"cross-file context items"
+                )
+
+        # ── Base context from ContextBuilder ──────────────────────────────
         try:
-            context = self._context_builder.build(
+            from core.context_builder import ContextBuilder
+            ctx = self._context_builder.build(
                 task=task,
                 mission=mission,
                 memory_context=self._get_memory_context(),
                 previous_outputs=self._recent_outputs[-3:],
-                error_context="",  # Error context is already in override_description
+                error_context="",
             )
-            base = context.to_string()
+            base = ctx.to_string()
         except Exception:
             base = ""
 
         enforcement = f"""
 
-═══ TASK EXECUTION REQUIREMENTS ═══
-Project location: {project_path}
-Mission progress: {completed_count}/{total_count} tasks complete
-Previous outputs available for context: {len(self._recent_outputs)} items
+═══ TASK EXECUTION ═══
+{demo_section}{cross_file_section}
+Project: {project_path}
+Progress: {completed_count}/{total_count} tasks complete
 
-MANDATORY IMPLEMENTATION RULES:
-1. Use write_file to create files with COMPLETE, real implementation.
-2. Do NOT write placeholder content, TODO comments, or stubs.
-3. Do NOT stop after creating a folder.
-4. Write REAL working code with sufficient depth and detail.
-5. For HTML: minimum 40 lines with actual semantic structure and content.
-6. For CSS: minimum 30 lines with real rules, variables, responsive design.
-7. For JS/JSX: minimum 25 lines with actual logic and event handlers.
-8. After writing files, verify they exist using bash_exec.
-9. Inspect existing files first using read_file before modifying.
+RULES:
+1. Write complete, working implementation — no stubs or placeholders
+2. Use read_file to inspect existing files before modifying them
+3. For multi-file tasks: retrieve and understand dependencies first
+4. After writing: the implementation will be verified by structured feedback
 
 TASK:
 {override_description}
