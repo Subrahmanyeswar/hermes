@@ -552,6 +552,56 @@ class MissionRunner:
                     await asyncio.sleep(0.3)
                     continue
 
+                # Run structured feedback (Self-Refine + CRITIC combined)
+                from core.structured_feedback import StructuredFeedbackGenerator
+                fb_gen = StructuredFeedbackGenerator()
+
+                # Get the file(s) written in this iteration
+                recent_files = self._files_created[-3:] + self._files_modified[-2:]
+
+                structured_fb_failed = False
+                for file_path in recent_files:
+                    from pathlib import Path
+                    if not Path(file_path).exists():
+                        continue
+
+                    structured_fb = fb_gen.generate(
+                        task_description=task.description,
+                        file_path=file_path,
+                        task_requirements=task.required_content_keywords,
+                        timeout_seconds=15,
+                    )
+
+                    await self._emit(MissionEvent(
+                        event_type="structured_feedback",
+                        payload={
+                            "task_id": task.task_id,
+                            "file": file_path,
+                            "verdict": structured_fb.overall_verdict,
+                            "failed_dimensions": [
+                                d.dimension for d in structured_fb.failed_dimensions
+                            ],
+                            "is_ready": structured_fb.is_ready,
+                        }
+                    ))
+
+                    # If structured feedback FAILS, override the quality check
+                    # and use the structured repair instructions
+                    if not structured_fb.is_ready and inner_iteration < MAX_INNER_ITERATIONS:
+                        current_description = (
+                            f"STRUCTURED FEEDBACK REPAIR (Self-Refine + CRITIC):\n\n"
+                            f"{structured_fb.to_feedback_text()}\n\n"
+                            f"Original task: {task.description}\n"
+                            f"Read the file first with read_file, "
+                            f"then fix each failing dimension listed above."
+                        )
+                        structured_fb_failed = True
+                        break
+
+                if structured_fb_failed:
+                    await asyncio.sleep(0.3)
+                    continue
+
             # ── Task passed quality check (or no quality check needed) ─────
             task.is_verified = True
             task.verification_evidence = (

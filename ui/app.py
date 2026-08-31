@@ -769,6 +769,28 @@ class HermesApp(App):
                         except Exception:
                             pass
 
+                elif event_type == "structured_feedback":
+                    verdict = payload.get("verdict", "")
+                    file_name = Path(payload.get("file", "")).name
+                    failed_dims = payload.get("failed_dimensions", [])
+                    is_ready = payload.get("is_ready", False)
+
+                    try:
+                        from ui.panels.status_bar import StatusBar
+                        sb = self.query_one("#status-bar", StatusBar)
+                        if is_ready:
+                            sb.update_log_line(
+                                f"✓ {file_name}: all feedback dimensions pass"
+                            )
+                        else:
+                            dims_str = ", ".join(failed_dims[:3])
+                            sb.update_log_line(
+                                f"⚠ {file_name}: fixing {dims_str}"
+                            )
+                            sb.spinner_verb = "Correcting"
+                    except Exception:
+                        pass
+
         except asyncio.CancelledError:
             pass
         except Exception as e:
