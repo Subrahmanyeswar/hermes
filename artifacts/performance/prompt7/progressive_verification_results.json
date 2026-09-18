@@ -1,0 +1,51 @@
+{
+  "workload": "Progressive verification pipeline (Level 0 -> Level 1 -> Level 2 -> Level 3)",
+  "short_circuit_on_l0_failure": {
+    "level_0_status": "FAILED",
+    "level_1_status": "SKIPPED",
+    "level_2_status": "SKIPPED",
+    "progressive_latency_ms": 0.155,
+    "full_verification_latency_ms": 38.971,
+    "latency_saved_ms": 38.815
+  },
+  "all_levels_pass": {
+    "level_0_status": "PASSED",
+    "level_1_status": "PASSED",
+    "level_2_status": "PASSED",
+    "duration_ms": 12.022
+  },
+  "escalations_logged": [
+    {
+      "level": "Level 0 (STRUCTURAL)",
+      "reason": "File existence or non-empty validation failed",
+      "elapsed_ms": 0.135,
+      "checks_run": 2,
+      "checks_passed": 1,
+      "checks_failed": 1
+    },
+    {
+      "level": "Level 0 (STRUCTURAL)",
+      "reason": "All required files exist and non-empty",
+      "elapsed_ms": 0.171,
+      "checks_run": 2,
+      "checks_passed": 2,
+      "checks_failed": 0
+    },
+    {
+      "level": "Level 1 (SYNTAX)",
+      "reason": "Syntax and markup checks passed across all files",
+      "elapsed_ms": 11.807,
+      "checks_run": 2,
+      "checks_passed": 2,
+      "checks_failed": 0
+    },
+    {
+      "level": "Level 2 (SEMANTIC)",
+      "reason": "Semantic validation passed",
+      "elapsed_ms": 0.0,
+      "checks_run": 1,
+      "checks_passed": 1,
+      "checks_failed": 0
+    }
+  ]
+}

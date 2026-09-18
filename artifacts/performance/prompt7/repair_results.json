@@ -1,0 +1,28 @@
+{
+  "workload": "3-file web project with single-file HTML syntax error",
+  "broad_file_level_regeneration_write_baseline": {
+    "strategy": "broad_file_level_regeneration_and_write",
+    "description": "Full file-level parsing and file-write overhead across all 3 project files without LLM invocation",
+    "files_touched": 3,
+    "unaffected_files_preserved": false,
+    "duration_ms": 24.423
+  },
+  "targeted_repair": {
+    "strategy": "scope_1_local_repair",
+    "files_touched": 1,
+    "repaired_files": [
+      "index.html"
+    ],
+    "unaffected_files": [
+      "styles.css",
+      "app.js"
+    ],
+    "unaffected_hashes_verified_equal": true,
+    "duration_ms": 6.241
+  },
+  "delta": {
+    "files_saved": 2,
+    "files_touched_reduction_pct": -66.7,
+    "integrity_verification": "Unaffected files verified bit-for-bit unchanged via SHA-256"
+  }
+}

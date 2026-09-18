@@ -1,0 +1,21 @@
+{
+  "mission_id": "mission_p7_tui_test",
+  "telemetry": {
+    "mission_id": "mission_p7_tui_test",
+    "task_id": "N/A",
+    "time_first_event_ms": 0.052,
+    "time_first_real_status_ms": 1.286,
+    "time_first_token_ms": "N/A",
+    "time_to_tool_dispatch_ms": 16.778,
+    "time_to_first_verification_ms": 32.308,
+    "time_to_completion_ms": 47.933,
+    "total_wall_ms": 47.933
+  },
+  "perceived_vs_actual_latency": {
+    "first_event_acknowledgement_latency_ms": 0.052,
+    "first_real_status_latency_ms": 1.286,
+    "total_execution_latency_ms": 47.933,
+    "finding": "Time from mission submission to first TUI lifecycle event was 0.052 ms [MEASURED]. This measurement represents event-driven acknowledgement latency and does not directly measure physical terminal rendering or human-perceived display latency.",
+    "distinction": "TUI event responsiveness (0.052 ms) is strictly distinguished from total backend execution latency (47.933 ms)."
+  }
+}

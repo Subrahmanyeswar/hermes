@@ -1,0 +1,64 @@
+{
+  "hardware": "NVIDIA GeForce RTX 3050 6GB Laptop GPU",
+  "model": "deepseek-r1:8b (Q4_K_M via Ollama)",
+  "total_dedicated_vram_mb": 6144,
+  "experiments": {
+    "P7-WARM-1_cold_t1": {
+      "experiment_id": "P7-WARM-1",
+      "description": "Cold model load from disk into GPU VRAM",
+      "residency_state": "Cold / Unloaded",
+      "timer_start_boundary": "Ollama API model load / generation invocation",
+      "timer_end_boundary": "Model weights fully mapped into GPU VRAM",
+      "model": "deepseek-r1:8b (Q4_K_M)",
+      "prompt_config": "Initial execution probe",
+      "load_duration_sec": 11.781,
+      "vram_used_mb": 5489,
+      "available_headroom_mb": 655,
+      "gpu_utilization_pct": 98.0,
+      "temperature_c": 57.0
+    },
+    "P7-WARM-2_warm_t1": {
+      "experiment_id": "P7-WARM-2",
+      "description": "Warm model request while resident via keep_alive",
+      "residency_state": "Warm / Resident in VRAM",
+      "timer_start_boundary": "Request submission to resident Ollama endpoint",
+      "timer_end_boundary": "Generation complete (64 tokens emitted)",
+      "model": "deepseek-r1:8b (Q4_K_M)",
+      "prompt_config": "Standard prompt probe (64 tokens)",
+      "request_duration_sec": 2.202,
+      "vram_used_mb": 5489,
+      "available_headroom_mb": 655,
+      "gpu_utilization_pct": 98.0,
+      "temperature_c": 57.0
+    },
+    "P7-WARM-3_warm_reuse": {
+      "experiment_id": "P7-WARM-3",
+      "description": "Sequential request on active resident model (model reload penalty)",
+      "residency_state": "Warm / Resident in VRAM",
+      "timer_start_boundary": "Subsequent query dispatch to existing resident model",
+      "timer_end_boundary": "Model readiness acknowledgement (pre-evaluation)",
+      "model": "deepseek-r1:8b (Q4_K_M)",
+      "prompt_config": "Sequential reuse query",
+      "reload_penalty_sec": "<0.001",
+      "reload_latency_note": "Model reload latency is <0.001 s (below measurable timer threshold); request latency still incurs prompt eval and token generation",
+      "switch_cost_sec": "<0.001"
+    },
+    "P7-WARM-4_t1_t2_switch": {
+      "experiment_id": "P7-WARM-4",
+      "description": "Model switch cost between T1 and T2 on 6GB VRAM (requires sequential unload/load)",
+      "residency_state": "Cross-model transition (T1 -> T2)",
+      "timer_start_boundary": "Unload request for T1 model",
+      "timer_end_boundary": "T2 model weights fully resident in VRAM",
+      "model": "deepseek-r1:8b -> deepseek-r1:14b",
+      "prompt_config": "Tier transition",
+      "estimated_switch_sec": 12.5,
+      "concurrent_residency_supported": false,
+      "reason": "Combined VRAM demand exceeds 6,144 MiB physical capacity"
+    }
+  },
+  "policy_decision": {
+    "prewarming_policy": "SAFE_ROUTE_AWARE_PREWARMING",
+    "production_llm_concurrency": 1,
+    "justification": "Prewarming is beneficial for eliminating the 11.781s cold-load delay when the route is known, but concurrent residency of multiple models is strictly prohibited to prevent VRAM overflow."
+  }
+}

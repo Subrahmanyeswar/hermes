@@ -1,0 +1,49 @@
+{
+  "GOLDEN_P7_A": {
+    "name": "Deterministic Scaffold & Fast Path",
+    "model_calls": 0,
+    "tool_calls": 1,
+    "verification_status": "PASSED",
+    "status": "PASS"
+  },
+  "GOLDEN_P7_B": {
+    "name": "Generated 3-File Website with Progressive Verification",
+    "files": [
+      "index.html",
+      "styles.css",
+      "app.js"
+    ],
+    "batch_tool": "write_files_batch",
+    "progressive_verification_passed": true,
+    "repair_calls_needed": 0,
+    "status": "PASS"
+  },
+  "GOLDEN_P7_C": {
+    "name": "Controlled Single-File Targeted Repair",
+    "scope": "SCOPE_1_LOCAL_FILE",
+    "repaired_file": "app.js",
+    "unaffected_files_preserved": [
+      "index.html",
+      "styles.css"
+    ],
+    "hash_parity_verified": true,
+    "status": "PASS"
+  },
+  "GOLDEN_P7_D": {
+    "name": "Controlled Semantic Failure & Targeted Repair",
+    "level_0_structural": "PASSED",
+    "level_1_syntax": "PASSED",
+    "level_2_semantic_initial": "FAILED (missing multiply)",
+    "level_2_semantic_repaired": "PASSED",
+    "status": "PASS"
+  },
+  "GOLDEN_P7_E": {
+    "name": "Complex Multi-Tier Application Safe Fallback",
+    "prompt": "Build a full-stack Next.js web app with PostgreSQL database and JWT authentication",
+    "fast_path_candidate": false,
+    "rejection_reason": "disqualified_by_framework_keyword:next.js",
+    "fallback_behavior": "routes_to_normal_planner_and_execution",
+    "llm_concurrency_policy": 1,
+    "status": "PASS"
+  }
+}
