@@ -1,0 +1,60 @@
+{
+  "O-1_thinking_policy": {
+    "think_false": {
+      "median_wall_sec": 8.677,
+      "median_output_tokens": 267,
+      "tok_per_sec": 31.55,
+      "ttft_sec": 0.034
+    },
+    "think_true": {
+      "median_wall_sec": 16.549,
+      "median_output_tokens": 512,
+      "tok_per_sec": 31.36,
+      "ttft_sec": 0.034
+    },
+    "delta_latency_sec": 7.872
+  },
+  "O-2_output_budget": {
+    "512": {
+      "median_wall_sec": 8.695,
+      "output_tokens": 267,
+      "tok_per_sec": 31.52
+    },
+    "1024": {
+      "median_wall_sec": 8.694,
+      "output_tokens": 267,
+      "tok_per_sec": 31.53
+    },
+    "1536": {
+      "median_wall_sec": 8.679,
+      "output_tokens": 267,
+      "tok_per_sec": 31.52
+    }
+  },
+  "O-3_context_size": {
+    "2048": {
+      "median_wall_sec": 8.701,
+      "prompt_eval_sec": 0.033,
+      "tok_per_sec": 31.52
+    },
+    "4096": {
+      "median_wall_sec": 8.694,
+      "prompt_eval_sec": 0.034,
+      "tok_per_sec": 31.53
+    }
+  },
+  "O-4_residency": {
+    "warm_request_sec": 4.243,
+    "sequential_reuse_sec": 4.241,
+    "reload_penalty_sec": "<0.001",
+    "resident_vram_mb": 5495,
+    "headroom_mb": 508
+  },
+  "O-5_streaming_ttft": {
+    "non_streaming_wall_sec": 8.342,
+    "non_streaming_ttft_sec": 0.032,
+    "streaming_wall_sec": 8.32,
+    "streaming_ttft_sec": 0.193,
+    "ttft_improvement_sec": -0.16
+  }
+}

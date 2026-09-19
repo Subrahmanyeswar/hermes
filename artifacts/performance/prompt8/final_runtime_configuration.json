@@ -1,0 +1,53 @@
+{
+  "runtime": "Ollama",
+  "version": "0.17.1",
+  "model": "deepseek-r1:8b",
+  "model_digest": "6995872bfe4c521a67b32da386cd21d5c6e819b6e0d62f79f64ec83be99f5763",
+  "model_blob_sha256": "e6a7edc1a4d7d9b2de136a221a57336b76316cfe53a252aeba814496c5ae439d",
+  "quantization": "Q4_K_M",
+  "thinking_policy": {
+    "production_simple": false,
+    "production_standard": false,
+    "production_complex": true,
+    "benchmark_mode": null
+  },
+  "context_length": 4096,
+  "generation_budgets": {
+    "simple": 512,
+    "standard": 1024,
+    "complex": 2048,
+    "benchmark": 1536
+  },
+  "keep_alive": "300s",
+  "gpu_policy": {
+    "hardware": "NVIDIA GeForce RTX 3050 6GB Laptop GPU",
+    "dedicated_vram_mb": 6144,
+    "llm_concurrency": 1,
+    "non_model_concurrency": 2,
+    "single_model_residency_only": true
+  },
+  "verification_policy": {
+    "progressive_levels": [
+      "Level 0 Structural",
+      "Level 1 Syntax",
+      "Level 2 Semantic",
+      "Level 3 Unit Test"
+    ],
+    "short_circuit_on_failure": true
+  },
+  "repair_policy": {
+    "scope_hierarchy": [
+      "Scope 0",
+      "Scope 1",
+      "Scope 2",
+      "Scope 3",
+      "Scope 4"
+    ],
+    "max_repair_attempts": 3,
+    "unaffected_artifact_hash_preservation": true
+  },
+  "tui_policy": {
+    "event_driven_acknowledgement": true,
+    "measured_first_event_ms": 0.052
+  }
+}

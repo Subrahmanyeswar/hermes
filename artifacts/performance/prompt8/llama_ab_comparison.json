@@ -1,0 +1,171 @@
+{
+  "summary": {
+    "tasks_evaluated": 16,
+    "ollama_median_latency_sec": 17.227,
+    "llama_median_latency_sec": 16.584,
+    "ollama_median_tok_per_sec": 30.24,
+    "llama_median_tok_per_sec": 31.15
+  },
+  "per_task_results": [
+    {
+      "task_id": "A01",
+      "category": "simple",
+      "ollama_latency_sec": 17.154,
+      "ollama_tok_per_sec": 30.93,
+      "ollama_output_tokens": 512,
+      "llama_latency_sec": 16.535,
+      "llama_tok_per_sec": 31.51,
+      "llama_output_tokens": 512
+    },
+    {
+      "task_id": "A02",
+      "category": "simple",
+      "ollama_latency_sec": 13.251,
+      "ollama_tok_per_sec": 28.32,
+      "ollama_output_tokens": 368,
+      "llama_latency_sec": 10.308,
+      "llama_tok_per_sec": 31.54,
+      "llama_output_tokens": 316
+    },
+    {
+      "task_id": "B01",
+      "category": "standard_coding",
+      "ollama_latency_sec": 17.658,
+      "ollama_tok_per_sec": 29.68,
+      "ollama_output_tokens": 512,
+      "llama_latency_sec": 16.463,
+      "llama_tok_per_sec": 31.34,
+      "llama_output_tokens": 512
+    },
+    {
+      "task_id": "B02",
+      "category": "standard_coding",
+      "ollama_latency_sec": 16.646,
+      "ollama_tok_per_sec": 30.51,
+      "ollama_output_tokens": 498,
+      "llama_latency_sec": 16.565,
+      "llama_tok_per_sec": 31.22,
+      "llama_output_tokens": 512
+    },
+    {
+      "task_id": "C01",
+      "category": "multi_file",
+      "ollama_latency_sec": 16.879,
+      "ollama_tok_per_sec": 31.12,
+      "ollama_output_tokens": 512,
+      "llama_latency_sec": 16.492,
+      "llama_tok_per_sec": 31.31,
+      "llama_output_tokens": 512
+    },
+    {
+      "task_id": "C02",
+      "category": "multi_file",
+      "ollama_latency_sec": 23.275,
+      "ollama_tok_per_sec": 22.4,
+      "ollama_output_tokens": 512,
+      "llama_latency_sec": 16.559,
+      "llama_tok_per_sec": 31.22,
+      "llama_output_tokens": 512
+    },
+    {
+      "task_id": "D01",
+      "category": "complex_missions",
+      "ollama_latency_sec": 17.242,
+      "ollama_tok_per_sec": 30.46,
+      "ollama_output_tokens": 512,
+      "llama_latency_sec": 16.563,
+      "llama_tok_per_sec": 31.21,
+      "llama_output_tokens": 512
+    },
+    {
+      "task_id": "D02",
+      "category": "complex_missions",
+      "ollama_latency_sec": 17.227,
+      "ollama_tok_per_sec": 30.42,
+      "ollama_output_tokens": 512,
+      "llama_latency_sec": 16.584,
+      "llama_tok_per_sec": 31.15,
+      "llama_output_tokens": 512
+    },
+    {
+      "task_id": "E01",
+      "category": "debugging_repair",
+      "ollama_latency_sec": 16.91,
+      "ollama_tok_per_sec": 31.06,
+      "ollama_output_tokens": 512,
+      "llama_latency_sec": 16.582,
+      "llama_tok_per_sec": 31.12,
+      "llama_output_tokens": 512
+    },
+    {
+      "task_id": "E02",
+      "category": "debugging_repair",
+      "ollama_latency_sec": 21.385,
+      "ollama_tok_per_sec": 25.59,
+      "ollama_output_tokens": 512,
+      "llama_latency_sec": 16.642,
+      "llama_tok_per_sec": 31.01,
+      "llama_output_tokens": 512
+    },
+    {
+      "task_id": "F01",
+      "category": "workspace_understanding",
+      "ollama_latency_sec": 13.457,
+      "ollama_tok_per_sec": 21.18,
+      "ollama_output_tokens": 278,
+      "llama_latency_sec": 16.684,
+      "llama_tok_per_sec": 30.99,
+      "llama_output_tokens": 512
+    },
+    {
+      "task_id": "F02",
+      "category": "workspace_understanding",
+      "ollama_latency_sec": 19.366,
+      "ollama_tok_per_sec": 27.75,
+      "ollama_output_tokens": 512,
+      "llama_latency_sec": 16.683,
+      "llama_tok_per_sec": 30.97,
+      "llama_output_tokens": 512
+    },
+    {
+      "task_id": "G01",
+      "category": "adversarial_failure",
+      "ollama_latency_sec": 17.913,
+      "ollama_tok_per_sec": 29.25,
+      "ollama_output_tokens": 512,
+      "llama_latency_sec": 16.7,
+      "llama_tok_per_sec": 30.92,
+      "llama_output_tokens": 512
+    },
+    {
+      "task_id": "G02",
+      "category": "adversarial_failure",
+      "ollama_latency_sec": 17.382,
+      "ollama_tok_per_sec": 30.24,
+      "ollama_output_tokens": 512,
+      "llama_latency_sec": 16.756,
+      "llama_tok_per_sec": 30.81,
+      "llama_output_tokens": 512
+    },
+    {
+      "task_id": "H01",
+      "category": "realistic_user_prompts",
+      "ollama_latency_sec": 14.238,
+      "ollama_tok_per_sec": 29.61,
+      "ollama_output_tokens": 412,
+      "llama_latency_sec": 17.067,
+      "llama_tok_per_sec": 30.25,
+      "llama_output_tokens": 512
+    },
+    {
+      "task_id": "H02",
+      "category": "realistic_user_prompts",
+      "ollama_latency_sec": 16.617,
+      "ollama_tok_per_sec": 31.3,
+      "ollama_output_tokens": 512,
+      "llama_latency_sec": 17.039,
+      "llama_tok_per_sec": 30.33,
+      "llama_output_tokens": 512
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "selected_runtime": "Ollama",
+  "selection_basis": [
+    "Exact model equivalence verified via sha256-e6a7edc1a4d7d9b2de136a221a57336b76316cfe53a252aeba814496c5ae439d",
+    "Ollama median latency: 17.227 s vs llama.cpp median latency: 16.584 s (delta: -0.643 s)",
+    "Ollama median throughput: 30.24 tok/s vs llama.cpp median throughput: 31.15 tok/s",
+    "Ollama VRAM headroom on RTX 3050 6GB: 508 MiB (5,495 MiB used) vs llama.cpp: 327 MiB (5,817 MiB used)",
+    "Ollama provides seamless model switching between T1 (deepseek-r1:8b) and T2 (qwen3:8b) via ModelResidencyManager without orphan daemon management",
+    "Operational simplicity and zero regression risk across existing 228 canonical and 106 prompt-specific suites"
+  ],
+  "alternatives_evaluated": [
+    "llama.cpp server v1 (e365e65, Clang 19.1.5, Vulkan backend)"
+  ],
+  "classification": "NO MEANINGFUL DIFFERENCE IN THROUGHPUT / OLLAMA SUPERIOR IN RESIDENCY LIFECYCLE",
+  "correctness_preserved": true,
+  "benchmark_isolation_preserved": true
+}

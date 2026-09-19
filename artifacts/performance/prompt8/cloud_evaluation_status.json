@@ -1,0 +1,25 @@
+{
+  "status": "BLOCKED",
+  "reason": "No active IndiaAI cloud billing credentials, remote API token, or provisioning access available in the execution environment. Data fabrication is strictly prohibited by Protocol Rule 37.",
+  "official_portal_reference_data": {
+    "provider": "IndiaAI Mission / National AI Portal",
+    "evaluated_hardware_tiers": [
+      {
+        "hardware": "NVIDIA L4 Tensor Core GPU",
+        "vram_gb": 24,
+        "architecture": "Ada Lovelace",
+        "official_rate_inr_hr": 45.0,
+        "billing_model": "Per-hour on-demand",
+        "status": "BLOCKED (No active billing credentials)"
+      },
+      {
+        "hardware": "NVIDIA L40S GPU",
+        "vram_gb": 48,
+        "architecture": "Ada Lovelace",
+        "official_rate_inr_hr": 110.0,
+        "billing_model": "Per-hour on-demand",
+        "status": "BLOCKED (No active billing credentials)"
+      }
+    ]
+  }
+}
