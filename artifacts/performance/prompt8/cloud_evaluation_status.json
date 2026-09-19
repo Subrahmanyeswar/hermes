@@ -1,25 +1,61 @@
 {
-  "status": "BLOCKED",
-  "reason": "No active IndiaAI cloud billing credentials, remote API token, or provisioning access available in the execution environment. Data fabrication is strictly prohibited by Protocol Rule 37.",
-  "official_portal_reference_data": {
-    "provider": "IndiaAI Mission / National AI Portal",
-    "evaluated_hardware_tiers": [
-      {
-        "hardware": "NVIDIA L4 Tensor Core GPU",
-        "vram_gb": 24,
-        "architecture": "Ada Lovelace",
-        "official_rate_inr_hr": 45.0,
-        "billing_model": "Per-hour on-demand",
-        "status": "BLOCKED (No active billing credentials)"
-      },
-      {
-        "hardware": "NVIDIA L40S GPU",
-        "vram_gb": 48,
-        "architecture": "Ada Lovelace",
-        "official_rate_inr_hr": 110.0,
-        "billing_model": "Per-hour on-demand",
-        "status": "BLOCKED (No active billing credentials)"
-      }
-    ]
+  "audit_metadata": {
+    "source": "IndiaAI Mission / National Compute Portal",
+    "source_url": "https://compute.indiaai.gov.in/",
+    "retrieval_date": "2026-09-19",
+    "pricing_model": "On-Demand (Hourly billing via empanelled CSPs, exclusive of applicable statutory GST)",
+    "audit_status": "PRICING_AUDITED"
+  },
+  "evaluated_hardware_configurations": [
+    {
+      "configuration_name": "L4.1x",
+      "gpu_model": "NVIDIA L4 Tensor Core GPU",
+      "gpu_count": 1,
+      "vram_gb": 24,
+      "architecture": "Ada Lovelace",
+      "official_portal_rate_inr_hr": 44.86,
+      "status": "PRICING AUDITED / PERFORMANCE BLOCKED",
+      "block_reason": "No active IndiaAI cloud billing credentials, remote API token, or provisioning access available in the execution environment. Data fabrication strictly prohibited by Protocol Rule 37."
+    },
+    {
+      "configuration_name": "L40S.1x",
+      "gpu_model": "NVIDIA L40S GPU",
+      "gpu_count": 1,
+      "vram_gb": 48,
+      "architecture": "Ada Lovelace",
+      "official_portal_rate_inr_hr": 67.50,
+      "status": "PRICING AUDITED / PERFORMANCE BLOCKED",
+      "block_reason": "No active IndiaAI cloud billing credentials, remote API token, or provisioning access available in the execution environment. Data fabrication strictly prohibited by Protocol Rule 37."
+    }
+  ],
+  "multi_gpu_reference_portal_data": [
+    {
+      "configuration_name": "L4.2x",
+      "gpu_model": "NVIDIA L4 Tensor Core GPU",
+      "gpu_count": 2,
+      "total_vram_gb": 48,
+      "official_portal_rate_inr_hr": 98.84,
+      "effective_rate_per_gpu_hr": 49.42
+    },
+    {
+      "configuration_name": "L4.4x",
+      "gpu_model": "NVIDIA L4 Tensor Core GPU",
+      "gpu_count": 4,
+      "total_vram_gb": 96,
+      "official_portal_rate_inr_hr": 196.68,
+      "effective_rate_per_gpu_hr": 49.17
+    },
+    {
+      "configuration_name": "L40S.4x",
+      "gpu_model": "NVIDIA L40S GPU",
+      "gpu_count": 4,
+      "total_vram_gb": 192,
+      "official_portal_rate_inr_hr": 306.00,
+      "effective_rate_per_gpu_hr": 76.50
+    }
+  ],
+  "execution_classification": {
+    "pricing_audit": "EXECUTED",
+    "performance_execution": "BLOCKED"
   }
 }

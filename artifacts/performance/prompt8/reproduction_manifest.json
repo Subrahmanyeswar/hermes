@@ -21,7 +21,9 @@
     "t1_model_blob_sha256": "e6a7edc1a4d7d9b2de136a221a57336b76316cfe53a252aeba814496c5ae439d"
   },
   "git_provenance": {
-    "prompt7_base_commit": "2a24e7577e9bec70cf9213536708370abc4de9e8",
+    "prompt7_implementation_commit": "778afed3b0e274bd6be7f9f733745b059eec0b16",
+    "prompt7_documentation_closure_commit": "2a24e7577e9bec70cf9213536708370abc4de9e8",
+    "prompt8_base_commit": "2a24e7577e9bec70cf9213536708370abc4de9e8",
     "prompt8_target": "FINAL_LOCK"
   }
 }
