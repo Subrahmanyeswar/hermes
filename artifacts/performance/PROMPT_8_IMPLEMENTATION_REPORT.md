@@ -9,8 +9,8 @@ Prompt 8 marks the final validation, runtime selection, and permanent freeze pha
 1. **Ollama Parameter Tuning Suite (O-1 to O-5):** Rigorously benchmarked thinking policy, generation budgets, context sizing, memory residency, and streaming TTFT on the local RTX 3050 6GB GPU. Disabling unconstrained chain-of-thought (`think=False`) for concise code tasks reduced median latency from 16.549 s to 8.677 s [MEASURED], an empirical reduction of 7.872 s [DERIVED] (47.57% [DERIVED]), while maintaining syntax and AST validity.
 2. **Controlled llama.cpp A/B Evaluation:** Implemented a controlled server adapter using identical GGUF weights (`sha256-e6a7edc1a4d7d9b2de136a221a57336b76316cfe53a252aeba814496c5ae439d`) across a deterministic 16-task representative benchmark set (A01–H02). The two runtimes showed numerically similar throughput and latency on the evaluated 16-task sample: llama.cpp demonstrated a median throughput of 31.15 tok/s [MEASURED] and median latency of 16.584 s [MEASURED], compared to Ollama's 30.24 tok/s [MEASURED] and 17.227 s [MEASURED] (a marginal throughput delta of 0.91 tok/s [DERIVED] or 3.01% [DERIVED]). However, Ollama retained superior VRAM headroom (508 MiB vs 327 MiB [MEASURED]) and provided integrated lifecycle management via `ModelResidencyManager` and HTTP API without external daemon process management. Consequently, Ollama was confirmed and locked as the canonical production runtime.
 3. **IndiaAI Cloud Evaluation Audit:** Audited live official national portal pricing at `https://compute.indiaai.gov.in/` for single-GPU on-demand configurations: NVIDIA L4.1x (24GB Ada, ₹44.86/hr [MEASURED]) and NVIDIA L40S.1x (48GB Ada, ₹67.50/hr [MEASURED]). Because active billing credentials were absent in the execution environment, cloud execution was formally classified as `CLOUD_EVALUATION = BLOCKED` per Protocol Rule 37 to eliminate any risk of data fabrication.
-4. **Final Benchmark & Regression Verification:** Cryptographically validated all three frozen benchmark artifacts (`f3475b64...`, `4cf78a7d...`, `8740e0a6...`). Verified zero regressions across the cumulative prompt-specific suite (106/106 passing in 2.57 s [MEASURED]) and the canonical offline unit test suite (228/228 passing in 13.01 s [MEASURED]).
-5. **Program Lock:** With all evidence reconciled, the configuration is frozen, reproduction manifests generated, and the HERMES Performance Optimization Program is declared **COMPLETE & PERMANENTLY LOCKED 🔒**.
+4. **Regression & Integrity Verification:** Cryptographically validated all three frozen benchmark artifacts (`f3475b64...`, `4cf78a7d...`, `8740e0a6...`). Verified zero regressions across the cumulative prompt-specific suite (109/109 passing in 4.74 s [MEASURED]) and the canonical offline unit test suite (228/228 passing in 12.99 s [MEASURED]).
+5. **Final Validation Gate Status:** With Prompts 1 through 7 optimizations verified and Prompt 8 runtime selection locked, the required post-Prompt-8 80-task benchmark is formally classified as **`FINAL_80_TASK_BENCHMARK = BLOCKED`** due to host 6GB VRAM hardware constraints (continuous T1/T2 model paging loop overhead yielding 18.8–22.0 projected hours at 87°C) and external Tier 3 OpenRouter credit exhaustion (HTTP 402). In accordance with Protocol Rule 37 and prompt instructions, data fabrication is strictly prohibited, and program status is honestly marked **`PROGRAM STATUS = FINAL VALIDATION BLOCKED`**.
 
 ---
 
@@ -27,11 +27,12 @@ The primary deliverables, measurements, and architectural conclusions establishe
 | **VRAM Headroom (6GB GPU)**| 508 MiB (Ollama resident) | 327 MiB (llama.cpp resident) | +181 MiB safer headroom | [MEASURED] |
 | **Thinking Policy (O-1)** | 16.549 s (`think=True`) | 8.677 s (`think=False`) | -7.872 s (-47.57%) | [DERIVED] |
 | **Resident Reload Penalty (O-4)**| 11.781 s (Cold Load) | <0.001 s (Warm Sequential) | -11.780 s (>99.9%) | [DERIVED] |
-| **IndiaAI Cloud Evaluation** | Unaudited | Portal rates: L4 (₹44.86/hr), L40S (₹67.50/hr)| `BLOCKED` (No credentials) | [MEASURED] |
-| **Prompt-Specific Tests** | 106 / 106 Passing | 106 / 106 Passing (2.57 s) | 0 Regressions | [MEASURED] |
-| **Canonical Offline Unit Tests**| 228 / 228 Passing | 228 / 228 Passing (13.01 s) | 0 Regressions | [MEASURED] |
+| **IndiaAI Cloud Evaluation** | Unaudited | Portal rates: L4 (₹44.86/hr), L40S (₹67.50/hr)| `PRICING AUDITED / PERFORMANCE BLOCKED` | [MEASURED] |
+| **Final 80-Task Benchmark** | 80 Tasks Frozen | Historical: 1/80 / Post-Prompt-8: BLOCKED | `BLOCKED` (VRAM paging & T3 402) | [INTERPRETED] |
+| **Prompt-Specific Tests** | 106 / 106 Passing | 109 / 109 Passing (4.74 s) | 0 Regressions | [MEASURED] |
+| **Canonical Offline Unit Tests**| 228 / 228 Passing | 228 / 228 Passing (12.99 s) | 0 Regressions | [MEASURED] |
 | **Benchmark Artifact Integrity**| 3 Hashes Frozen | 3 Hashes Verified Exact | Exact Match | [MEASURED] |
-| **Program Closure Status** | Open | COMPLETE & PERMANENTLY LOCKED 🔒 | Gate Satisfied | [INTERPRETED] |
+| **Program Closure Status** | Open | PROMPT 8 = FINAL VALIDATION BLOCKED | Final Gate Blocked (Rule 37) | [INTERPRETED] |
 
 ---
 
@@ -202,25 +203,33 @@ In compliance with research auditing standards:
 ---
 
 ### Section 14: Final Frozen 80-Task Benchmark
-The 80-task comprehensive benchmark (`artifacts/final_benchmark_summary.json` and `artifacts/performance/prompt8/final_benchmark_results.json`) is rigorously documented with explicit separation between historical pre-repair data and post-repair validation:
 
-1. **Historical Forensic Pre-Repair Benchmark:**
-   - **Run Identifier:** `final_benchmark_20260905_140302`
-   - **Execution Context:** Run before Prompt 3–7 performance repairs were implemented.
-   - **Execution Time:** 27,163.28 s (7.54 hours [DERIVED]).
-   - **Pass Rate:** 1 objective pass out of 80 tasks (1.25% [DERIVED]).
-   - **Purpose:** Established the diagnostic failure baseline, revealing unconstrained reasoning token exhaustion and model thrashing on 6GB VRAM hardware.
+#### 14.1 Historical Forensic Benchmark
+- **Run Identifier:** `final_benchmark_20260905_140302`
+- **Status:** Evaluated Pre-Repair Diagnostic Baseline
+- **Tasks Executed:** 80 / 80
+- **Objective Passes:** 1 / 80 (1.25% pass rate [DERIVED])
+- **Total Duration:** 27,163.28 s (7.54 hours [DERIVED])
+- **P50 Latency:** 211.88 s [MEASURED]
+- **Dominant Failure Mechanism:** Unconstrained DeepSeek-R1 chain-of-thought token budget exhaustion (>4096 tokens) prior to emitting structured tool calls, coupled with T1/T2 model residency paging loops on single 6GB VRAM host and OpenRouter HTTP 402 upstream billing exhaustion.
 
-2. **Post-Prompt-8 Representative 16-Task Benchmark Gate:**
-   - **Scope:** Tasks A01 through H02 evaluated across all 8 functional categories with the locked Prompt 8 runtime configuration.
-   - **Latency:** 17.227 s median latency [MEASURED].
-   - **Tool Dispatch Fidelity:** 100% valid tool schema synthesis and parser compliance under Prompt 5 parser hardening.
-   - **Verification:** Both Ollama and llama.cpp runtimes evaluated with identical GGUF weights.
+#### 14.2 Final Post-Prompt-8 Benchmark
+- **Status:** **BLOCKED** [INTERPRETED]
+- **Closure Artifact:** `artifacts/performance/prompt8/final_benchmark_closure.json`
+- **Technical Block Reasons & Evidence:**
+  1. **Physical VRAM Constraint:** The execution host possesses an NVIDIA GeForce RTX 3050 6GB Laptop GPU (6,144 MiB physical VRAM). Concurrent residency of Tier 1 (`deepseek-r1:8b`, 5,495 MiB) and Tier 2 (`qwen3:8b`, ~5,300 MiB) is physically prohibited by memory capacity (requires ~10.8 GB VRAM).
+  2. **Model Swapping Overhead:** Each swap requires ~8.5 s of PCIe host-to-device paging. In benchmark isolation mode, where production scaffolding and fast paths are deactivated per Protocol Rule 9, multi-attempt verification loops trigger 4 to 15 model switches, adding 34 to 127.5 s of pure paging overhead per task.
+  3. **Projected Execution Duration:** At 850–990 s per task under full multi-stage mission execution, completing all 80 tasks sequentially requires 18.8 to 22.0 continuous hours.
+  4. **Thermal Constraint:** Sustained multi-minute generation operates at 87°C (the thermal limit for mobile RTX 3050 GPUs). Running 18.8 to 22.0 continuous hours introduces severe thermal throttling and hardware instability risks.
+  5. **Tier 3 OpenRouter Account Exhaustion:** Upstream cloud escalation returns `HTTP 402: Payment Required` due to zero account balance, causing unavoidable failure loops when tasks escalate.
+  6. **Zero Fabrication Enforcement:** Protocol Rule 37 strictly prohibits synthetic data fabrication, manual task skipping, or substituting the 16-task sample for the complete 80-task run.
 
-3. **Full 80-Task Protocol Dynamics & Execution Boundaries:**
-   - On the single RTX 3050 6GB host, each full mission run through Stage 7 semantic verification requires dynamic model paging (~8.5 s per switch) between T1 and T2. Under repeated disagreements and repair attempts, individual tasks take 850–990 s, which projects to 19–22 hours of continuous execution at 87°C for all 80 tasks.
-   - In benchmark isolation mode (`execution_mode == "benchmark"`), all production fast paths (scaffolding, website fast path, prompt optimizations) are strictly deactivated per Protocol Rule 9.
-   - External Tier 3 cloud escalation returned HTTP 402 due to zero account credits, confirming the runtime's robust fallback handling without system crashes.
+#### 14.3 Post-Prompt-8 Representative 16-Task Benchmark Gate
+- **Status:** **EXECUTED & VALIDATED** [MEASURED]
+- **Sample Scope:** Deterministic tasks across all 8 functional categories (`["A01", "A02", "B01", "B02", "C01", "C02", "D01", "D02", "E01", "E02", "F01", "F02", "G01", "G02", "H01", "H02"]`).
+- **Median Latency:** 17.227 s (Ollama) vs 16.584 s (llama.cpp) [MEASURED].
+- **Tool Dispatch Fidelity:** 100% valid tool schema synthesis across deterministic prompts under Prompt 5 parser hardening [MEASURED].
+- **Methodological Boundary:** The 16-task representative gate evaluates local runtime selection and parser stability; it is **NOT** the final 80-task benchmark and must never be conflated with it.
 
 ---
 
@@ -299,10 +308,13 @@ All cryptographic invariants remain completely untouched and immutable.
 
 ---
 
-### Section 19: Performance Interpretation
-1. **What improved:** Prompt-eval and reasoning latency dropped dramatically by constraining unneeded chain-of-thought tokens on standard software tasks (47.57% latency reduction [DERIVED]). Batch writing and scaffolding bypassed hundreds of seconds of generation overhead for multi-file web components.
-2. **What remained unchanged:** Raw GPU forward pass generation speed remained bound by hardware memory bandwidth (~30 to 32 tok/s on the 128-bit GDDR6 bus of the RTX 3050 Laptop GPU). Switching from Ollama to llama.cpp did not materially change this fundamental physical limitation (+0.91 tok/s).
-3. **What is hardware-bound:** Model switching on a 6GB VRAM host is strictly bound by PCIe host-to-device paging (~8.5 seconds per model switch). Running multi-model pipelines concurrently is physically prohibited by memory capacity.
+### Section 19: Performance Interpretation & Causal Attribution
+1. **Prompts 3–7 Architectural Foundation:** The bulk of systemic latency reductions across HERMES stem from earlier program phases: Prompt 3 established benchmark isolation and warm residency; Prompt 4 compressed prompt tokens and tool schemas; Prompt 5 delivered deterministic JSON parsing and batch file writing (`write_files_batch`); Prompt 6 eliminated generation overhead via deterministic scaffolding and website fast paths; and Prompt 7 introduced targeted repair hierarchies and progressive verification short-circuiting.
+2. **Prompt 8 Controlled Empirical Contributions:** Prompt 8 did not invent new architectural mechanisms, but established empirical runtime selection:
+   - **Reasoning Policy (O-1):** Bypassing unneeded chain-of-thought (`think=False`) for concise code synthesis reduced median latency by 7.872 s [DERIVED] (-47.57% [DERIVED]).
+   - **Runtime Parity:** Empirical A/B evaluation across 16 tasks proved that Ollama (30.24 tok/s) and llama.cpp (31.15 tok/s) exhibit numerically similar generation throughput (+3.01% delta) and latency (-3.73% delta).
+   - **Lifecycle Stability:** Ollama was selected not due to raw speed, but for superior VRAM headroom (508 MiB vs 327 MiB) and integrated residency lifecycle management via HTTP API.
+3. **Physical Hardware Bounds:** Raw GPU token generation is strictly bound by the 128-bit GDDR6 memory bandwidth of the RTX 3050 Laptop GPU (~30–32 tok/s). Multi-model concurrency is physically prohibited on a 6GB device, and model swapping is bound by PCIe transfer latency (~8.5 s/switch).
 
 ---
 
@@ -341,29 +353,18 @@ Recorded in `artifacts/performance/prompt8/final_runtime_configuration.json`:
 
 ### Section 23: Final Closure Gate
 
-| # | Final Validation Requirement | Status | Evidence / Artifact | Classification |
-| :-: | :--- | :---: | :--- | :---: |
-| 1 | Prompt 7 Implementation Baseline Preserved | `[x] PASS` | Commit `778afed3b0e274bd6be7f9f733745b059eec0b16` verified | [MEASURED] |
-| 2 | Prompt 7 Micro-Closure Documentation Base Verified | `[x] PASS` | Commit `2a24e7577e9bec70cf9213536708370abc4de9e8` verified | [MEASURED] |
-| 3 | Ollama Experiment O-1 (Thinking Policy) | `[x] PASS` | `think=False` (8.677 s) vs `think=True` (16.549 s), delta -7.872 s (-47.57%) | [MEASURED] |
-| 4 | Ollama Experiment O-2 (Output Budget) | `[x] PASS` | 512, 1024, 1536 token budgets profiled; natural EOS at 267 tokens | [MEASURED] |
-| 5 | Ollama Experiment O-3 (Context Sizing) | `[x] PASS` | 2048 vs 4096 invariant prompt eval (+0.001 s delta) | [MEASURED] |
-| 6 | Ollama Experiment O-4 (Residency & Warm State) | `[x] PASS` | Cold load (11.781 s) vs warm sequential (<0.001 s reload penalty) | [MEASURED] |
-| 7 | Ollama Experiment O-5 (Streaming TTFT) | `[x] PASS` | Non-streaming (0.032 s) vs streaming (0.193 s TTFT) | [MEASURED] |
-| 8 | Model Weight Equivalence Verified | `[x] PASS` | Identical SHA-256 GGUF blob (`sha256-e6a7...`, 5,225,373,760 bytes) | [MEASURED] |
-| 9 | llama.cpp Controlled A/B Evaluation | `[x] PASS` | 16 tasks (A01–H02) executed under identical prompt inputs | [MEASURED] |
-| 10 | Runtime Throughput Comparison | `[x] PASS` | llama.cpp (31.15 tok/s) vs Ollama (30.24 tok/s) (+3.01% delta) | [DERIVED] |
-| 11 | Runtime Median Latency Comparison | `[x] PASS` | llama.cpp (16.584 s) vs Ollama (17.227 s) (-3.73% delta) | [DERIVED] |
-| 12 | Runtime VRAM Headroom Comparison | `[x] PASS` | Ollama (508 MiB free) vs llama.cpp (327 MiB free) | [MEASURED] |
-| 13 | Final Runtime Selection Justified | `[x] PASS` | Ollama locked for native residency management and safer VRAM headroom | [INTERPRETED] |
-| 14 | Single-GPU Concurrency Invariant Maintained | `[x] PASS` | `llm_concurrency = 1` enforced on RTX 3050 6GB Laptop GPU | [MEASURED] |
-| 15 | Bounded Non-Model Concurrency Maintained | `[x] PASS` | `max_workers = 2` enforced for file/tool operations | [MEASURED] |
-| 16 | IndiaAI Cloud Portal Pricing Audited | `[x] PASS` | Official portal pricing audited at `https://compute.indiaai.gov.in/` | [MEASURED] |
-| 17 | IndiaAI Single-GPU Rates Verified | `[x] PASS` | L4.1x (₹44.86/hr), L40S.1x (₹67.50/hr) on-demand rates verified | [MEASURED] |
-| 18 | Protocol Rule 37 Zero-Fabrication Enforced | `[x] PASS` | Cloud execution marked `PRICING AUDITED / PERFORMANCE BLOCKED` | [INTERPRETED] |
-| 19 | Frozen 80-Task Benchmark Rigorously Separated | `[x] PASS` | Pre-repair (`final_benchmark_20260905_140302`) vs post-Prompt-8 16-task gate | [INTERPRETED] |
-| 20 | Regression Invariants Satisfied | `[x] PASS` | 106/106 prompt-specific (2.57 s) + 228/228 canonical unit tests (13.01 s) | [MEASURED] |
-| 21 | Cryptographic Artifact Integrity Verified | `[x] PASS` | All 3 hashes exact match (`scripts/verify_benchmark_hashes.py`) | [MEASURED] |
+| Gate | Status | Evidence / Artifact | Classification |
+| :--- | :---: | :--- | :---: |
+| **Prompt 7 baseline** | **PASS** | Verified commits `778afed3...` (implementation) / `2a24e757...` (closure) | [MEASURED] |
+| **Ollama tuning** | **PASS** | Experiments O-1 through O-5 documented in `ollama_tuning_results.json` | [MEASURED] |
+| **llama.cpp A/B** | **PASS** | 16-task representative A/B comparison documented in `llama_ab_comparison.json` | [MEASURED] |
+| **IndiaAI pricing audit** | **PASS** | Current official portal rates audited at `https://compute.indiaai.gov.in/` (L4.1x: ₹44.86/hr, L40S.1x: ₹67.50/hr) | [MEASURED] |
+| **L4 performance** | **BLOCKED** | Absence of active cloud billing credentials (Protocol Rule 37) | [INTERPRETED] |
+| **L40S performance** | **BLOCKED** | Absence of active cloud billing credentials (Protocol Rule 37) | [INTERPRETED] |
+| **80-task final benchmark** | **BLOCKED** | Hardware VRAM constraint (6GB paging loops) and Tier 3 HTTP 402 (`final_benchmark_closure.json`) | [INTERPRETED] |
+| **Regression** | **PASS** | 109 / 109 prompt-specific tests (4.74 s) + 228 / 228 canonical unit tests (12.99 s) | [MEASURED] |
+| **Benchmark hashes** | **PASS** | Exact cryptographic match across dataset, contract, and protocol (`scripts/verify_benchmark_hashes.py`) | [MEASURED] |
+| **Final Git commit** | **PASS** | Clean linear commit history tracked at HEAD (`9b1de33...`) | [MEASURED] |
 
 ---
 
@@ -380,19 +381,31 @@ Prompt 4  = PASS_AND_LOCKED
 Prompt 5  = PASS_AND_LOCKED  
 Prompt 6  = PASS_AND_LOCKED  
 Prompt 7  = PASS_AND_LOCKED  
-Prompt 8  = PASS_AND_LOCKED  
+Prompt 8  = FINAL_VALIDATION_BLOCKED  
 
 ============================================================  
-PROGRAM STATUS = COMPLETE  
+PROGRAM STATUS = FINAL VALIDATION BLOCKED  
 ============================================================  
 
-- **Final Git Commit:** 6461b8acb5cb04e80a91dffebb7cd3b4796a3aa7 (Prompt 8 Validation Baseline)
+- **Final Git Commit:** 9b1de331fc22c38fd002f45b07c049525576c695
 - **Final Runtime:** Ollama 0.17.1
-- **Final Model:** deepseek-r1:8b (`sha256-e6a7edc1a4d7d9b2de136a221a57336b76316cfe53a252aeba814496c5ae439d`)
-- **Final RTX 3050 Performance:** 30.24 tok/s median throughput [MEASURED], 17.227 s median 16-task latency [MEASURED], 5,495 MiB peak resident VRAM [MEASURED]
+- **Final Model:** deepseek-r1:8b / Q4_K_M (`sha256-e6a7edc1a4d7d9b2de136a221a57336b76316cfe53a252aeba814496c5ae439d`)
+- **Final RTX 3050 Result:** 30.24 tok/s median throughput [MEASURED], 17.227 s median 16-task latency [MEASURED], 5,495 MiB peak resident VRAM [MEASURED]
 - **Final L4 Result:** PRICING AUDITED (₹44.86/hr) / PERFORMANCE BLOCKED (No active billing credentials)
 - **Final L40S Result:** PRICING AUDITED (₹67.50/hr) / PERFORMANCE BLOCKED (No active billing credentials)
-- **Final 80-Task Benchmark:** Historical pre-repair baseline recorded (`final_benchmark_20260905_140302`, 1/80 pass in 27,163s); Post-Prompt-8 16-task representative gate validated with 100% tool syntax fidelity
-- **Prompt-Specific Tests:** 106 / 106 PASS (2.57 s)
-- **Canonical Tests:** 228 / 228 PASS (13.01 s)
+- **Final 80-Task Benchmark:** BLOCKED (Hardware 6GB VRAM paging loops & Tier 3 HTTP 402; see `artifacts/performance/prompt8/final_benchmark_closure.json`)
+- **Prompt-Specific Tests:** 109 / 109 PASS (4.74 s)
+- **Canonical Tests:** 228 / 228 PASS (12.99 s)
 - **Benchmark Hashes:** EXACT MATCH (Dataset, Contract, Protocol)
+
+---
+
+### Section 25: Paper-Ready Performance Summary
+
+| Runtime | Model | Hardware | P50 (s) | P95 (s) | TTFT (s) | Generation Throughput | Peak VRAM | 80-Task Pass Rate |
+| :--- | :--- | :--- | :---: | :---: | :---: | :---: | :---: | :---: |
+| **Ollama 0.17.1** | `deepseek-r1:8b` (Q4_K_M) | RTX 3050 6GB Laptop GPU | 17.227 s | 23.275 s | 0.034 s | 30.24 tok/s | 5,495 MiB | Historical: 1.25% / Final: BLOCKED |
+| **llama-server v1**| `deepseek-r1:8b` (Q4_K_M) | RTX 3050 6GB Laptop GPU | 16.584 s | 17.067 s | 0.034 s | 31.15 tok/s | 5,817 MiB | Historical: 1.25% / Final: BLOCKED |
+| **Ollama (Cloud)** | `deepseek-r1:8b` (Q4_K_M) | NVIDIA L4 (24 GB Ada) | BLOCKED | BLOCKED | BLOCKED | BLOCKED | BLOCKED | BLOCKED |
+| **Ollama (Cloud)** | `deepseek-r1:8b` (Q4_K_M) | NVIDIA L40S (48 GB Ada) | BLOCKED | BLOCKED | BLOCKED | BLOCKED | BLOCKED | BLOCKED |
+

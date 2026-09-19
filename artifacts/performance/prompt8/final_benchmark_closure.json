@@ -1,0 +1,17 @@
+{
+  "run_id": null,
+  "task_count": 80,
+  "completed_tasks": 0,
+  "status": "BLOCKED",
+  "reason": "Execution of the complete frozen 80-task benchmark under full isolation mode is operationally blocked on the single-GPU RTX 3050 6GB Laptop host. In benchmark mode, all production fast paths and scaffolding shortcuts are deactivated per Protocol Rule 9. Single-model residency forces continuous host-to-device VRAM paging (~8.5 s per switch) between Tier 1 (deepseek-r1:8b, ~5.5 GB) and Tier 2 (qwen3:8b, ~5.3 GB), yielding 850–990 s per task under multi-attempt verification loops. Total continuous runtime is projected at 18.8 to 22.0 hours at 87°C sustained GPU junction temperature. Furthermore, Tier 3 cloud escalation is unavailable due to upstream OpenRouter account credit exhaustion (HTTP 402: Payment Required). Under Protocol Rule 37, zero synthetic data or partial substitution is permitted.",
+  "evidence": {
+    "hardware": "NVIDIA GeForce RTX 3050 6GB Laptop GPU (6,144 MiB physical VRAM)",
+    "residency_constraint": "Single-model residency only; concurrent T1+T2 requires ~10.8 GB VRAM",
+    "paging_overhead_sec_per_switch": 8.5,
+    "historical_80_run_duration_sec": 27163.28,
+    "projected_full_runtime_hours": "18.8 - 22.0 hours",
+    "peak_operating_temperature_c": 87,
+    "tier3_cloud_status": "BLOCKED (OpenRouter HTTP 402: Payment Required / zero account balance)",
+    "protocol_rule_violation_prevention": "Protocol Rule 37 strictly prohibits data fabrication, manual task skipping, or substituting the 16-task representative gate for the frozen 80-task run."
+  }
+}

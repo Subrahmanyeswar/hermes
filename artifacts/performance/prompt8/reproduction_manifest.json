@@ -24,6 +24,11 @@
     "prompt7_implementation_commit": "778afed3b0e274bd6be7f9f733745b059eec0b16",
     "prompt7_documentation_closure_commit": "2a24e7577e9bec70cf9213536708370abc4de9e8",
     "prompt8_base_commit": "2a24e7577e9bec70cf9213536708370abc4de9e8",
-    "prompt8_target": "FINAL_LOCK"
+    "prompt8_target": "FINAL_VALIDATION_BLOCKED"
+  },
+  "final_benchmark_validation": {
+    "status": "BLOCKED",
+    "closure_file": "artifacts/performance/prompt8/final_benchmark_closure.json",
+    "reason": "Host VRAM residency constraint (6GB) and external Tier 3 OpenRouter credit exhaustion (HTTP 402)"
   }
 }

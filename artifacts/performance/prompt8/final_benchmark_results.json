@@ -37,6 +37,13 @@
       "total_duration_sec": 27163.28,
       "p50_latency_sec": 211.88,
       "dominant_defect": "Unconstrained DeepSeek-R1 chain-of-thought token budget exhaustion (>4096 tokens) prior to emitting structured tool calls, coupled with T1/T2 model residency paging loops on single 6GB VRAM host and OpenRouter HTTP 402 upstream billing exhaustion."
+    },
+    "final_post_prompt8_execution": {
+      "status": "BLOCKED",
+      "tasks_executed": 0,
+      "tasks_total": 80,
+      "closure_file": "artifacts/performance/prompt8/final_benchmark_closure.json",
+      "block_rationale": "Operationally unfeasible on host hardware: projected 18.8-22.0 hours continuous load at 87°C on mobile RTX 3050 6GB GPU with single-model residency paging (~8.5 s/switch) and upstream Tier 3 OpenRouter credit exhaustion (HTTP 402). Protocol Rule 37 strictly prohibits data fabrication or partial substitution."
     }
   },
   "representative_16_task_validation": {
