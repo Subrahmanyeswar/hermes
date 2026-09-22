@@ -16,6 +16,7 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Optional, Dict, Any
 from loguru import logger
+from config.model_config import TIER1_MODEL
 
 
 class TaskComplexity(Enum):
@@ -112,7 +113,7 @@ class ReasoningPolicy:
         tool_name: Optional[str] = None,
         is_repair: bool = False,
         retry_count: int = 0,
-        model: str = "deepseek-r1:8b",
+        model: str = TIER1_MODEL,
         execution_mode: str = "production",
         override_complexity: Optional[TaskComplexity] = None
     ) -> ResolvedReasoningPolicy:

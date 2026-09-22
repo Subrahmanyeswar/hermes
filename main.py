@@ -142,26 +142,38 @@ def info():
     asyncio.run(_show_info())
 
 async def _show_info():
+    import os
+    from config.model_config import (
+        TIER1_PROVIDER, TIER1_MODEL, TIER1_BASE_URL, NVIDIA_API_KEY,
+        TIER2_PROVIDER, TIER2_MODEL,
+        TIER3_PROVIDER, TIER3_MODEL,
+    )
     from models.ollama_client import OllamaClient
-    from models.claude_client import ClaudeClient
     from core.intent_classifier import IntentClassifier
-    
+
+    typer.echo("HERMES Configuration")
+    typer.echo("=" * 40)
+
+    # Tier 1 (NVIDIA NIM)
+    if TIER1_PROVIDER == "nvidia_nim":
+        has_key = bool(os.getenv("NVIDIA_API_KEY") or NVIDIA_API_KEY)
+        key_status = "✓ key configured" if has_key else "✗ missing NVIDIA_API_KEY"
+        typer.echo(f"Tier 1 (NVIDIA NIM): {TIER1_MODEL} [{key_status}] ({TIER1_BASE_URL})")
+    else:
+        typer.echo(f"Tier 1 ({TIER1_PROVIDER}): {TIER1_MODEL}")
+
+    # Ollama & Tier 2 / 3
     client = OllamaClient()
     running = await client.is_running()
     models = await client.list_models() if running else []
-    
-    typer.echo("HERMES Configuration")
-    typer.echo("=" * 40)
+
     typer.echo(f"Ollama: {'running' if running else 'NOT RUNNING'}")
     typer.echo(f"Available models: {', '.join(models) if models else 'none'}")
-    typer.echo(f"Tier 1 required: qwen2.5-coder:7b {'✓' if any('qwen2.5-coder' in m for m in models) else '✗ NOT FOUND'}")
-    typer.echo(f"Tier 2 required: mistral:7b-instruct {'✓' if any('mistral' in m for m in models) else '✗ NOT FOUND'}")
-    
-    claude = ClaudeClient()
-    cost = claude.get_cost_summary()
-    typer.echo(f"Claude API: {'available' if claude.is_available() else 'unavailable (check ANTHROPIC_API_KEY)'}")
-    typer.echo(f"Claude cost: ${cost['total_spent']:.4f} / ${cost['cap']:.2f} cap")
-    
+    t2_found = any(TIER2_MODEL in m or "gpt-oss" in m.lower() for m in models)
+    t3_found = any(TIER3_MODEL in m or "nemotron" in m.lower() for m in models)
+    typer.echo(f"Tier 2 (Ollama Cloud): {TIER2_MODEL} {'✓' if (running and t2_found) else ('✓ (cloud available)' if running else '✗ NOT RUNNING')}")
+    typer.echo(f"Tier 3 ({TIER3_PROVIDER} Cloud): {TIER3_MODEL} {'✓' if (running and t3_found) else ('✓ (cloud available)' if running else '✗ NOT RUNNING')}")
+
     classifier = IntentClassifier("skills/")
     typer.echo(f"Skills loaded: {len(classifier.skills)}")
     typer.echo(f"Skills: {', '.join(s.skill_id for s in classifier.skills)}")

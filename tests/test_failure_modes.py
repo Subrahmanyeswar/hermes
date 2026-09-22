@@ -59,7 +59,9 @@ def orch(mock_db):
         
         o = Orchestrator(mode="auto")
         o.ollama = mock_ollama.return_value
+        o.tier1 = o.ollama
         o.claude = mock_claude.return_value
+        o._tier3 = o.claude
         o.claude.get_cost_summary = MagicMock(return_value={"total_spent": 0.0})
         o.verifier = mock_verifier.return_value
         yield o

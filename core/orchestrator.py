@@ -140,7 +140,7 @@ class Orchestrator:
         self.error_handler = ErrorHandler()
         # Initialise background memory manager
         self.memory_manager = background_memory_manager
-        self.memory_manager.set_client(self.ollama)
+        self.memory_manager.set_client(self.tier1)
         # Initialise database and KAIROS daemon
         init_db()
         self.kairos = KairosDaemon(db_path=DB_PATH)
@@ -374,14 +374,15 @@ class Orchestrator:
             })
 
             # ── Stage 5: Tier 1 Reasoning ──────
+            tier1_display = getattr(self.tier1, "model", TIER1_MODEL)
             await self._emit_progress("stage_start", {
                 "stage": 4,
                 "name": "Tier 1 Generation",
                 "verb": "Reasoning",
-                "model": "Qwen2.5-Coder 7B",
+                "model": tier1_display,
                 "detail": "Generating tool call...",
             })
-            await notify("stage_start", stage=5, name="Tier 1 Reasoning", thought="Generating tool selection using qwen2.5-coder:7b...", spinner_verb="Reasoning")
+            await notify("stage_start", stage=5, name="Tier 1 Reasoning", thought=f"Generating tool selection using {tier1_display}...", spinner_verb="Reasoning", model=tier1_display)
             result.pipeline_stage_reached = 4
 
             # Add workspace skeleton to context
@@ -1118,7 +1119,7 @@ class Orchestrator:
                 })
 
             # ── Stage 10: Tier 3 Escalation ──
-            await notify("stage_start", stage=10, name="Tier 3 Escalation", thought="Escalating task to Tier 3 for arbitration...", spinner_verb="Escalating", needed=routing.tier3_needed, reason=routing.reason)
+            await notify("stage_start", stage=10, name="Tier 3 Escalation", thought=f"Escalating task to {TIER3_MODEL} for arbitration...", spinner_verb="Escalating", needed=routing.tier3_needed, reason=routing.reason, model=TIER3_MODEL)
             result.pipeline_stage_reached = 9
 
             tier3_decision_text = ""

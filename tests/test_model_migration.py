@@ -278,3 +278,40 @@ async def test_ollama_client_arbitrate_contract():
     assert "total_spent" in cost_sum
     assert cost_sum["total_spent"] == 0.0
 
+
+def test_status_bar_model_indicators():
+    from ui.panels.status_bar import StatusBar, _format_model_badge
+    assert _format_model_badge("z-ai/glm-5.3") == "GLM-5.3"
+    assert _format_model_badge("gpt-oss:120b-cloud") == "GPT-OSS"
+    assert _format_model_badge("nemotron-3-ultra:cloud") == "Nemotron"
+
+    bar = StatusBar()
+    assert bar.tier1_model == "GLM-5.3"
+    assert bar.tier2_model == "GPT-OSS"
+    assert bar.tier3_model == "Nemotron"
+
+    rendered = bar._render_status_text()
+    assert "T1:GLM-5.3+T2:GPT-OSS" in rendered.plain
+
+
+@pytest.mark.asyncio
+async def test_startup_screen_status_check():
+    from ui.panels.startup import StartupScreen
+    screen = StartupScreen()
+    assert hasattr(screen, "_t1_ok")
+    assert hasattr(screen, "_t2_ok")
+    assert hasattr(screen, "_t3_ok")
+
+
+@pytest.mark.asyncio
+async def test_orchestrator_tier1_binding_and_memory_client():
+    from core.orchestrator import Orchestrator
+    from config.model_config import TIER1_PROVIDER
+    orch = Orchestrator()
+    if TIER1_PROVIDER == "nvidia_nim":
+        from models.nvidia_client import NvidiaClient
+        assert isinstance(orch.tier1, NvidiaClient)
+        assert orch.tier1.model == TIER1_MODEL
+        assert orch.memory_manager._ollama_client == orch.tier1
+
+

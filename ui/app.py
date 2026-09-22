@@ -266,6 +266,14 @@ class HermesApp(App):
         self.current_mode = self._mode
         self._init_orchestrator()
 
+        try:
+            from ui.panels.status_bar import StatusBar
+            from config.model_config import TIER1_MODEL, TIER2_MODEL, TIER3_MODEL
+            sb = self.query_one("#status-bar", StatusBar)
+            sb.update_models(tier1=TIER1_MODEL, tier2=TIER2_MODEL, tier3=TIER3_MODEL)
+        except Exception:
+            pass
+
         if self._show_startup and not global_workspace.is_locked:
             # Show startup screen — user picks workspace
             self.push_screen(
@@ -716,9 +724,10 @@ class HermesApp(App):
                 elif event_type == "escalating":
                     try:
                         from ui.panels.status_bar import StatusBar
+                        from config.model_config import TIER3_MODEL
                         sb = self.query_one("#status-bar", StatusBar)
                         sb.spinner_verb = "Escalating"
-                        sb.update_log_line("T3: Escalating to Claude Sonnet")
+                        sb.update_log_line(f"T3: Escalating to {TIER3_MODEL} (Ollama Cloud)")
                     except Exception:
                         pass
 

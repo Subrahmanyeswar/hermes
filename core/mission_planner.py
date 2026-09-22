@@ -500,8 +500,7 @@ class MissionPlanner:
         """
         import asyncio
         import json as _json
-        from models.ollama_client import OllamaClient
-        from config.model_config import TIER1_MODEL, MODEL_KEEP_ALIVE
+        from config.model_config import TIER1_PROVIDER, TIER1_MODEL, TIER1_BASE_URL, MODEL_KEEP_ALIVE
 
         rule_9 = "9. Minimum 8 tasks. Maximum 25 tasks." if execution_mode == "benchmark" else "9. Output ONLY the necessary tasks (typically 1 to 5 tasks). Do not create artificial micro-tasks."
 
@@ -537,7 +536,12 @@ Example output format:
 Return a JSON array of task description strings only."""
 
         try:
-            client = OllamaClient()
+            if TIER1_PROVIDER == "nvidia_nim":
+                from models.nvidia_client import NvidiaClient
+                client = NvidiaClient(model=TIER1_MODEL, base_url=TIER1_BASE_URL)
+            else:
+                from models.ollama_client import OllamaClient
+                client = OllamaClient()
 
             async def _call():
                 call_kwargs = {

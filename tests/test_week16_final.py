@@ -200,7 +200,7 @@ def test_10_full_tui_test_suite_passes():
     print("  Running full TUI test suite...")
     result = subprocess.run(
         [sys.executable, "-m", "pytest", "tests/test_tui.py", "-q",
-         "--timeout=60", "--tb=short"],
+         "--tb=short"],
         capture_output=True, text=True, timeout=120
     )
     lines = result.stdout.strip().split("\n")

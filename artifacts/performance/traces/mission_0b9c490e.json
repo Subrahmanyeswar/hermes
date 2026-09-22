@@ -1,0 +1,127 @@
+{
+  "mission_id": "0b9c490e",
+  "execution_mode": "performance_baseline",
+  "mission": {
+    "start": "2026-09-22 21:49:12",
+    "end": "2026-09-22 21:52:15",
+    "duration_ms": 181228.39,
+    "accounted_time_ms": 181180.64,
+    "unaccounted_time_ms": 47.75
+  },
+  "stages": [
+    {
+      "name": "Input Sanitisation",
+      "stage_number": 1,
+      "start": 512520.8263,
+      "end": 512520.827,
+      "duration_ms": 0.71,
+      "success": true
+    },
+    {
+      "name": "Planning",
+      "stage_number": 2,
+      "start": 512520.8271,
+      "end": 512520.8351,
+      "duration_ms": 7.93,
+      "success": true
+    }
+  ],
+  "model_calls": [
+    {
+      "inference_id": "07418514",
+      "request_id": "0b9c490e",
+      "mission_id": "",
+      "task_id": "",
+      "stage": "",
+      "execution_mode": "performance_baseline",
+      "model": "z-ai/glm-5.3",
+      "provider": "nvidia_nim",
+      "start_time_monotonic": 512500.671,
+      "end_time_monotonic": 512681.843,
+      "start_timestamp": null,
+      "first_token_timestamp": null,
+      "end_timestamp": null,
+      "total_latency_ms": 181172.0000000205,
+      "total_duration": null,
+      "load_duration_ms": 0.0,
+      "load_duration": null,
+      "prompt_eval_duration_ms": 0.0,
+      "prompt_eval_duration": null,
+      "eval_duration_ms": 0.0,
+      "eval_duration": null,
+      "ttft_ms": 0.0,
+      "prompt_eval_count": null,
+      "eval_count": null,
+      "prompt_tokens": 0,
+      "output_tokens": 0,
+      "total_tokens": 0,
+      "tokens_per_second": 0.0,
+      "think_enabled": false,
+      "thinking_present": false,
+      "thinking_available": false,
+      "thinking_length": 0,
+      "final_response_length": 0,
+      "thinking_tokens": null,
+      "tool_call_count": 0,
+      "context": null,
+      "temperature": 0.0,
+      "num_ctx": 4096,
+      "keep_alive": 0,
+      "lifecycle_state": "UNKNOWN",
+      "warm_cold_state": "UNKNOWN",
+      "model_switch_state": null,
+      "previous_model": null,
+      "requested_model": null,
+      "success": false,
+      "retry_count": 0,
+      "timed_out": true,
+      "error": "",
+      "error_type": "Timeout",
+      "error_message": "",
+      "cost_usd": 0.0,
+      "gpu_vram_used_mb": 0.0,
+      "gpu_util_percent": 0.0,
+      "raw_timing_metadata": {}
+    }
+  ],
+  "tool_calls": [
+    {
+      "tool_name": "list_dir",
+      "category": "other",
+      "start_time_monotonic": 512500.656,
+      "duration_ms": 0.0,
+      "subprocess_duration_ms": 0.0,
+      "filesystem_duration_ms": 0.0,
+      "success": true,
+      "exit_code": 0,
+      "args_size_bytes": 35,
+      "output_size_bytes": 14,
+      "retry_count": 0,
+      "error": "",
+      "mission_id": "63cb3424",
+      "task_id": "63cb3424",
+      "start": 512500.656,
+      "end": 512500.656
+    }
+  ],
+  "verification_calls": [
+    {
+      "verification_id": "e69290ef",
+      "request_id": "0b9c490e",
+      "mission_id": "63cb3424",
+      "task_id": "63cb3424",
+      "method": "FALLBACK_ERROR",
+      "start_time_monotonic": 512500.656,
+      "end_time_monotonic": 512500.656,
+      "duration_ms": 0.0,
+      "verdict": "AGREE",
+      "escalated": true,
+      "issues_count": 1,
+      "issues": [
+        "Verification unavailable: unknown"
+      ]
+    }
+  ],
+  "repair_attempts": [],
+  "model_switches": []
+}

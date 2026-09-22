@@ -1,0 +1,156 @@
+{
+  "mission_id": "b6df575a",
+  "execution_mode": "performance_baseline",
+  "mission": {
+    "start": "2026-09-22 21:53:19",
+    "end": "2026-09-22 21:53:19",
+    "duration_ms": 53.09,
+    "accounted_time_ms": 8.98,
+    "unaccounted_time_ms": 44.11
+  },
+  "stages": [
+    {
+      "name": "Input Sanitisation",
+      "stage_number": 1,
+      "start": 512767.5476,
+      "end": 512767.5484,
+      "duration_ms": 0.79,
+      "success": true
+    },
+    {
+      "name": "Planning",
+      "stage_number": 2,
+      "start": 512767.5485,
+      "end": 512767.5567,
+      "duration_ms": 8.19,
+      "success": true
+    }
+  ],
+  "model_calls": [],
+  "tool_calls": [
+    {
+      "tool_name": "list_dir",
+      "category": "other",
+      "start_time_monotonic": 512747.375,
+      "duration_ms": 0.0,
+      "subprocess_duration_ms": 0.0,
+      "filesystem_duration_ms": 0.0,
+      "success": false,
+      "exit_code": 2,
+      "args_size_bytes": 35,
+      "output_size_bytes": 11,
+      "retry_count": 0,
+      "error": "fatal error",
+      "mission_id": "53a5e3a3",
+      "task_id": "53a5e3a3",
+      "start": 512747.375,
+      "end": 512747.375
+    },
+    {
+      "tool_name": "list_dir",
+      "category": "other",
+      "start_time_monotonic": 512747.39,
+      "duration_ms": 0.0,
+      "subprocess_duration_ms": 0.0,
+      "filesystem_duration_ms": 0.0,
+      "success": false,
+      "exit_code": 2,
+      "args_size_bytes": 35,
+      "output_size_bytes": 11,
+      "retry_count": 1,
+      "error": "fatal error",
+      "mission_id": "53a5e3a3",
+      "task_id": "53a5e3a3",
+      "start": 512747.39,
+      "end": 512747.39
+    },
+    {
+      "tool_name": "list_dir",
+      "category": "other",
+      "start_time_monotonic": 512747.39,
+      "duration_ms": 0.0,
+      "subprocess_duration_ms": 0.0,
+      "filesystem_duration_ms": 0.0,
+      "success": false,
+      "exit_code": 2,
+      "args_size_bytes": 35,
+      "output_size_bytes": 11,
+      "retry_count": 2,
+      "error": "fatal error",
+      "mission_id": "53a5e3a3",
+      "task_id": "53a5e3a3",
+      "start": 512747.39,
+      "end": 512747.39
+    },
+    {
+      "tool_name": "list_dir",
+      "category": "other",
+      "start_time_monotonic": 512747.39,
+      "duration_ms": 0.0,
+      "subprocess_duration_ms": 0.0,
+      "filesystem_duration_ms": 0.0,
+      "success": false,
+      "exit_code": 2,
+      "args_size_bytes": 35,
+      "output_size_bytes": 11,
+      "retry_count": 3,
+      "error": "fatal error",
+      "mission_id": "53a5e3a3",
+      "task_id": "53a5e3a3",
+      "start": 512747.39,
+      "end": 512747.39
+    }
+  ],
+  "verification_calls": [],
+  "repair_attempts": [
+    {
+      "repair_id": "59b8703d",
+      "request_id": "b6df575a",
+      "mission_id": "53a5e3a3",
+      "task_id": "53a5e3a3",
+      "attempt_number": 1,
+      "trigger": "Tool 'list_dir' failed with exit_code=2. Retry 1/3. Error: fatal error",
+      "affected_files": [
+        "."
+      ],
+      "start_time_monotonic": 512747.39,
+      "end_time_monotonic": 512747.39,
+      "duration_ms": 0.0,
+      "model": "z-ai/glm-5.3",
+      "success": false
+    },
+    {
+      "repair_id": "7a14adc8",
+      "request_id": "b6df575a",
+      "mission_id": "53a5e3a3",
+      "task_id": "53a5e3a3",
+      "attempt_number": 2,
+      "trigger": "Tool 'list_dir' failed with exit_code=2. Retry 2/3. Error: fatal error",
+      "affected_files": [
+        "."
+      ],
+      "start_time_monotonic": 512747.39,
+      "end_time_monotonic": 512747.39,
+      "duration_ms": 0.0,
+      "model": "z-ai/glm-5.3",
+      "success": false
+    },
+    {
+      "repair_id": "bb9d929b",
+      "request_id": "b6df575a",
+      "mission_id": "53a5e3a3",
+      "task_id": "53a5e3a3",
+      "attempt_number": 3,
+      "trigger": "Tool 'list_dir' failed with exit_code=2. Retry 3/3. Error: fatal error",
+      "affected_files": [
+        "."
+      ],
+      "start_time_monotonic": 512747.39,
+      "end_time_monotonic": 512747.39,
+      "duration_ms": 0.0,
+      "model": "z-ai/glm-5.3",
+      "success": false
+    }
+  ],
+  "model_switches": []
+}

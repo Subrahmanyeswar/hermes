@@ -76,6 +76,7 @@ class StartupScreen(Screen):
         self._ollama_ok: bool = False
         self._t1_ok: bool = False
         self._t2_ok: bool = False
+        self._t3_ok: bool = False
 
     def compose(self) -> ComposeResult:
         with Center():
@@ -98,7 +99,7 @@ class StartupScreen(Screen):
         self.run_worker(self._check_system_status(), exclusive=True, name="status-check")
 
     async def _check_system_status(self) -> None:
-        """Check Ollama and model availability, update status display."""
+        """Check providers and model availability, update status display."""
         status_widget = self.query_one("#status-section", Static)
 
         lines: list[tuple[str, str]] = []
@@ -108,7 +109,25 @@ class StartupScreen(Screen):
             Text.assemble(*[(text + "\n", style) for text, style in lines])
         )
 
-        # Check Ollama
+        import os
+        from config.model_config import (
+            TIER1_PROVIDER, TIER1_MODEL, NVIDIA_API_KEY,
+            TIER2_PROVIDER, TIER2_MODEL,
+            TIER3_PROVIDER, TIER3_MODEL,
+        )
+
+        # 1. Tier 1 Check
+        if TIER1_PROVIDER == "nvidia_nim":
+            has_t1_key = bool(os.environ.get("NVIDIA_API_KEY", "").strip() or NVIDIA_API_KEY)
+            self._t1_ok = has_t1_key
+            t1_text = f"✓ {TIER1_MODEL} (NVIDIA NIM)" if has_t1_key else f"✗ missing NVIDIA_API_KEY for {TIER1_MODEL}"
+            t1_style = "#22C55E" if has_t1_key else "#EF4444"
+        else:
+            t1_text = f"✓ {TIER1_MODEL} ({TIER1_PROVIDER})"
+            t1_style = "#22C55E"
+            self._t1_ok = True
+
+        # 2. Check Ollama (for Tier 2 and Tier 3)
         try:
             from models.ollama_client import OllamaClient
             client = OllamaClient()
@@ -117,19 +136,23 @@ class StartupScreen(Screen):
 
             if ollama_running:
                 models = await client.list_models()
-                t1_found = any("qwen2.5-coder" in m for m in models)
-                t2_found = any("mistral" in m for m in models)
-                self._t1_ok = t1_found
+                t2_found = any(TIER2_MODEL in m or m in TIER2_MODEL or "gpt-oss" in m.lower() for m in models)
+                t3_found = any(TIER3_MODEL in m or m in TIER3_MODEL or "nemotron" in m.lower() for m in models)
                 self._t2_ok = t2_found
+                self._t3_ok = t3_found
             else:
                 models = []
-                t1_found = False
                 t2_found = False
-        except Exception as e:
+                t3_found = False
+                self._t2_ok = False
+                self._t3_ok = False
+        except Exception:
             ollama_running = False
-            t1_found = False
             t2_found = False
-            models = []
+            t3_found = False
+            self._ollama_ok = False
+            self._t2_ok = False
+            self._t3_ok = False
 
         lines = []
         lines.append((
@@ -137,20 +160,18 @@ class StartupScreen(Screen):
             "#22C55E" if ollama_running else "#EF4444"
         ))
         lines.append((
-            f"  T1:      {'✓ qwen2.5-coder:7b' if t1_found else '✗ missing — ollama pull qwen2.5-coder:7b'}",
-            "#22C55E" if t1_found else "#F59E0B"
+            f"  T1:      {t1_text}",
+            t1_style
         ))
+        t2_status = f"✓ {TIER2_MODEL} (Ollama Cloud)" if (ollama_running and t2_found) else (f"✓ {TIER2_MODEL}" if ollama_running else f"✗ missing — {TIER2_MODEL}")
         lines.append((
-            f"  T2:      {'✓ mistral:7b-instruct' if t2_found else '✗ missing — ollama pull mistral:7b-instruct-q4_K_M'}",
-            "#22C55E" if t2_found else "#F59E0B"
+            f"  T2:      {t2_status}",
+            "#22C55E" if ollama_running else "#EF4444"
         ))
-
-        # Check ANTHROPIC_API_KEY
-        import os
-        has_key = bool(os.environ.get("ANTHROPIC_API_KEY", "").strip())
+        t3_status = f"✓ {TIER3_MODEL} (Ollama Cloud)" if (ollama_running and t3_found) else (f"✓ {TIER3_MODEL}" if ollama_running else f"✗ missing — {TIER3_MODEL}")
         lines.append((
-            f"  T3 API:  {'✓ ANTHROPIC_API_KEY set' if has_key else '⚠ not set — Tier 3 disabled'}",
-            "#22C55E" if has_key else "dim"
+            f"  T3:      {t3_status}",
+            "#22C55E" if ollama_running else "#EF4444"
         ))
 
         status_widget.update(

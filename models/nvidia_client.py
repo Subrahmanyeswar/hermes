@@ -50,6 +50,7 @@ class NvidiaClient(ModelProvider):
     def __init__(
         self,
         api_key: Optional[str] = None,
+        model: str = TIER1_MODEL,
         base_url: str = TIER1_BASE_URL,
         timeout_seconds: int = MODEL_TIMEOUT_SECONDS,
     ) -> None:
@@ -57,13 +58,14 @@ class NvidiaClient(ModelProvider):
         if not self.api_key:
             logger.warning("NVIDIA_API_KEY not set — Tier 1 NVIDIA NIM will be unavailable")
 
+        self.model: str = model or TIER1_MODEL
         self.base_url: str = (base_url or "https://integrate.api.nvidia.com/v1").rstrip("/")
         self.timeout_seconds: int = timeout_seconds
         self._async_client: Optional[httpx.AsyncClient] = None
         self.last_raw_response: Optional[dict[str, Any]] = None
 
         logger.info(
-            f"NvidiaClient ready | endpoint={self.base_url} | model={TIER1_MODEL}"
+            f"NvidiaClient ready | endpoint={self.base_url} | model={self.model}"
         )
 
     async def _get_client(self) -> httpx.AsyncClient:
@@ -99,7 +101,7 @@ class NvidiaClient(ModelProvider):
         Send a completion request to NVIDIA NIM chat completions API.
         Returns NormalizedModelResponse conforming to the HERMES provider contract.
         """
-        active_model = model or TIER1_MODEL
+        active_model = model or getattr(self, "model", None) or TIER1_MODEL
         if not self.api_key:
             err_msg = "NVIDIA_API_KEY is required for runtime verification."
             logger.error(err_msg)

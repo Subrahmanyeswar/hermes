@@ -337,9 +337,10 @@ class ProcessingIndicator(Static):
                 
         if event_type == "stage_start" and stage == 10:
             if data.get("needed"):
+                from config.model_config import TIER3_MODEL
                 self.tier3 = {
                     "reason": data.get("reason", "Low confidence / disagreement"),
-                    "model": "Claude Sonnet",
+                    "model": data.get("model", TIER3_MODEL),
                     "status": "Reviewing solution..."
                 }
                 

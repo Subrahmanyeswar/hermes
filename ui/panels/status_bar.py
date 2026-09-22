@@ -42,25 +42,48 @@ def _random_verb() -> str:
     return random.choice(SPINNER_VERBS)
 
 
+def _format_model_badge(model_name: str) -> str:
+    """Format full model string to a clean status bar badge."""
+    if not model_name:
+        return ""
+    m_lower = model_name.lower()
+    if "glm-5.3" in m_lower:
+        return "GLM-5.3"
+    if "gpt-oss" in m_lower:
+        return "GPT-OSS"
+    if "nemotron" in m_lower:
+        return "Nemotron"
+    if "qwen" in m_lower:
+        return "Qwen"
+    if "mistral" in m_lower:
+        return "Mistral"
+    if "deepseek" in m_lower:
+        return "DeepSeek"
+    if "/" in model_name:
+        return model_name.split("/")[-1].split(":")[0]
+    return model_name.split(":")[0]
+
+
 class StatusBar(Widget):
     """
     StatusBar at the top, 1 line, full width.
     """
 
     # ── Reactive state ────────────────────────────────────────────────
-    mode: reactive[str]          = reactive("auto",   layout=False)
-    skill: reactive[str]         = reactive("none",   layout=False)
-    cost: reactive[float]        = reactive(0.0,      layout=False)
-    kairos_status: reactive[str] = reactive("idle",   layout=False)
-    processing: reactive[bool]   = reactive(False,    layout=False)
-    spinner_verb: reactive[str]  = reactive("Ready",  layout=False)
-    tier1_model: reactive[str]   = reactive("Qwen",   layout=False)
-    tier2_model: reactive[str]   = reactive("Mistral",layout=False)
-    workspace_name: reactive[str]= reactive("",       layout=False)
-    framework: reactive[str]     = reactive("",       layout=False)
-    uptime_seconds: reactive[int]= reactive(0,        layout=False)
-    mission_tasks: reactive[str] = reactive("",       layout=False)
-    _last_log_entry: reactive[str] = reactive("", layout=False)
+    mode: reactive[str]          = reactive("auto",     layout=False)
+    skill: reactive[str]         = reactive("none",     layout=False)
+    cost: reactive[float]        = reactive(0.0,        layout=False)
+    kairos_status: reactive[str] = reactive("idle",     layout=False)
+    processing: reactive[bool]   = reactive(False,      layout=False)
+    spinner_verb: reactive[str]  = reactive("Ready",    layout=False)
+    tier1_model: reactive[str]   = reactive("GLM-5.3",  layout=False)
+    tier2_model: reactive[str]   = reactive("GPT-OSS",  layout=False)
+    tier3_model: reactive[str]   = reactive("Nemotron", layout=False)
+    workspace_name: reactive[str]= reactive("",         layout=False)
+    framework: reactive[str]     = reactive("",         layout=False)
+    uptime_seconds: reactive[int]= reactive(0,          layout=False)
+    mission_tasks: reactive[str] = reactive("",         layout=False)
+    _last_log_entry: reactive[str] = reactive("",       layout=False)
 
     # Internal timer handle
     _spinner_timer: Optional[object] = None
@@ -80,6 +103,11 @@ class StatusBar(Widget):
             self.cost = self.app.session_cost
             self.kairos_status = self.app.kairos_status
             self.processing = self.app.is_processing
+        except Exception:
+            pass
+        try:
+            from config.model_config import TIER1_MODEL, TIER2_MODEL, TIER3_MODEL
+            self.update_models(tier1=TIER1_MODEL, tier2=TIER2_MODEL, tier3=TIER3_MODEL)
         except Exception:
             pass
         self._update_display()
@@ -120,6 +148,30 @@ class StatusBar(Widget):
         self._update_display()
 
     def watch_mission_tasks(self, _: str) -> None:
+        self._update_display()
+
+    def watch_tier1_model(self, _: str) -> None:
+        self._update_display()
+
+    def watch_tier2_model(self, _: str) -> None:
+        self._update_display()
+
+    def watch_tier3_model(self, _: str) -> None:
+        self._update_display()
+
+    def update_models(
+        self,
+        tier1: Optional[str] = None,
+        tier2: Optional[str] = None,
+        tier3: Optional[str] = None,
+    ) -> None:
+        """Update model indicators dynamically."""
+        if tier1 is not None:
+            self.tier1_model = _format_model_badge(tier1)
+        if tier2 is not None:
+            self.tier2_model = _format_model_badge(tier2)
+        if tier3 is not None:
+            self.tier3_model = _format_model_badge(tier3)
         self._update_display()
 
     def update_log_line(self, log_entry: str) -> None:
@@ -181,7 +233,10 @@ class StatusBar(Widget):
         t.append(f"[{self.mode.upper()}]", style=f"bold {mc}")
 
         # Model indicators
-        t.append(f"  [T1:{self.tier1_model}]", style="dim")
+        if self.tier2_model:
+            t.append(f"  [T1:{self.tier1_model}+T2:{self.tier2_model}]", style="dim")
+        else:
+            t.append(f"  [T1:{self.tier1_model}]", style="dim")
 
         # Skill — show actual loaded skill or "none"
         # "detecting..." shows during Stage 3 (skill detection stage)
