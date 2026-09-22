@@ -1,0 +1,9 @@
+[
+  {
+    "scenario_id": "T24",
+    "race": "TIMEOUT_VS_COMPLETION",
+    "winner": "CANCELLED",
+    "false_completion": false,
+    "resurrection": false
+  }
+]

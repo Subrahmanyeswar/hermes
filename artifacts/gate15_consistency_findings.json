@@ -1,0 +1,227 @@
+[
+  {
+    "severity": "ERROR",
+    "entity": "MISSION",
+    "entity_id": "c01_mission",
+    "invariant": "INVARIANT_1_MISSION_COMPLETION",
+    "expected": "All acceptance criteria SATISFIED",
+    "observed": "0/1 satisfied",
+    "status": "REJECTED"
+  },
+  {
+    "severity": "ERROR",
+    "entity": "MISSION",
+    "entity_id": "c02_mission",
+    "invariant": "INVARIANT_2_REQUIRED_TASKS",
+    "expected": "All required DAG tasks COMPLETED",
+    "observed": "Incomplete tasks: ['T01']",
+    "status": "REJECTED"
+  },
+  {
+    "severity": "ERROR",
+    "entity": "ACCEPTANCE",
+    "entity_id": "crit1",
+    "invariant": "INVARIANT_4_ACCEPTANCE_CRITERIA",
+    "expected": "verification_result == 'PASSED'",
+    "observed": "verification_result == 'FAILED'",
+    "status": "REJECTED"
+  },
+  {
+    "severity": "ERROR",
+    "entity": "ACCEPTANCE",
+    "entity_id": "crit1",
+    "invariant": "INVARIANT_3_TASK_COMPLETION_EVIDENCE",
+    "expected": "Non-empty completion evidence list",
+    "observed": "Evidence is empty",
+    "status": "REJECTED"
+  },
+  {
+    "severity": "ERROR",
+    "entity": "MISSION",
+    "entity_id": "c05_mission",
+    "invariant": "INVARIANT_1_MISSION_COMPLETION",
+    "expected": "All acceptance criteria SATISFIED",
+    "observed": "0/0 satisfied",
+    "status": "REJECTED"
+  },
+  {
+    "severity": "ERROR",
+    "entity": "MISSION",
+    "entity_id": "c05_mission",
+    "invariant": "INVARIANT_2_REQUIRED_TASKS",
+    "expected": "All required DAG tasks COMPLETED",
+    "observed": "Incomplete tasks: ['T01']",
+    "status": "REJECTED"
+  },
+  {
+    "severity": "ERROR",
+    "entity": "MISSION",
+    "entity_id": "c06_mission",
+    "invariant": "INVARIANT_1_MISSION_COMPLETION",
+    "expected": "All acceptance criteria SATISFIED",
+    "observed": "0/0 satisfied",
+    "status": "REJECTED"
+  },
+  {
+    "severity": "ERROR",
+    "entity": "MISSION",
+    "entity_id": "c06_mission",
+    "invariant": "INVARIANT_10_TERMINAL_IMMUTABILITY",
+    "expected": "Terminal status 'CANCELLED' remains immutable",
+    "observed": "Mission state marked COMPLETED",
+    "status": "REJECTED"
+  },
+  {
+    "severity": "ERROR",
+    "entity": "MISSION",
+    "entity_id": "c07_mission",
+    "invariant": "INVARIANT_1_MISSION_COMPLETION",
+    "expected": "All acceptance criteria SATISFIED",
+    "observed": "0/0 satisfied",
+    "status": "REJECTED"
+  },
+  {
+    "severity": "ERROR",
+    "entity": "MISSION",
+    "entity_id": "c07_mission",
+    "invariant": "INVARIANT_10_TERMINAL_IMMUTABILITY",
+    "expected": "Terminal status 'TIMED_OUT' remains immutable",
+    "observed": "Mission state marked COMPLETED",
+    "status": "REJECTED"
+  },
+  {
+    "severity": "ERROR",
+    "entity": "MISSION",
+    "entity_id": "c08_mission",
+    "invariant": "INVARIANT_1_MISSION_COMPLETION",
+    "expected": "All acceptance criteria SATISFIED",
+    "observed": "0/1 satisfied",
+    "status": "REJECTED"
+  },
+  {
+    "severity": "ERROR",
+    "entity": "MISSION",
+    "entity_id": "c09_mission",
+    "invariant": "INVARIANT_1_MISSION_COMPLETION",
+    "expected": "All acceptance criteria SATISFIED",
+    "observed": "0/1 satisfied",
+    "status": "REJECTED"
+  },
+  {
+    "severity": "ERROR",
+    "entity": "MISSION",
+    "entity_id": "c10_mission",
+    "invariant": "INVARIANT_1_MISSION_COMPLETION",
+    "expected": "All acceptance criteria SATISFIED",
+    "observed": "0/1 satisfied",
+    "status": "REJECTED"
+  },
+  {
+    "severity": "ERROR",
+    "entity": "MISSION",
+    "entity_id": "c11_mission",
+    "invariant": "INVARIANT_1_MISSION_COMPLETION",
+    "expected": "All acceptance criteria SATISFIED",
+    "observed": "0/0 satisfied",
+    "status": "REJECTED"
+  },
+  {
+    "severity": "ERROR",
+    "entity": "MISSION",
+    "entity_id": "c11_mission",
+    "invariant": "INVARIANT_10_TERMINAL_IMMUTABILITY",
+    "expected": "Terminal status 'CANCELLED' remains immutable",
+    "observed": "Mission state marked COMPLETED",
+    "status": "REJECTED"
+  },
+  {
+    "severity": "ERROR",
+    "entity": "MISSION",
+    "entity_id": "c12_mission",
+    "invariant": "INVARIANT_1_MISSION_COMPLETION",
+    "expected": "All acceptance criteria SATISFIED",
+    "observed": "0/0 satisfied",
+    "status": "REJECTED"
+  },
+  {
+    "severity": "ERROR",
+    "entity": "MISSION",
+    "entity_id": "c12_mission",
+    "invariant": "INVARIANT_2_REQUIRED_TASKS",
+    "expected": "All required DAG tasks COMPLETED",
+    "observed": "Incomplete tasks: ['T01']",
+    "status": "REJECTED"
+  },
+  {
+    "severity": "WARNING",
+    "entity": "MEMORY",
+    "entity_id": "c13_mission",
+    "invariant": "INVARIANT_16_MEMORY_TRUTH",
+    "expected": "Memory references current filesystem files only",
+    "observed": "Memory references deleted files: {'src/deleted_helper.py'}",
+    "status": "DETECTED"
+  },
+  {
+    "severity": "WARNING",
+    "entity": "WORKSPACE",
+    "entity_id": "c14_mission",
+    "invariant": "INVARIANT_15_WORKSPACE_INDEX_TRUTH",
+    "expected": "Workspace index reflects current filesystem truth",
+    "observed": "Stale deleted files indexed: {'src/stale_file.py'}",
+    "status": "DETECTED"
+  },
+  {
+    "severity": "ERROR",
+    "entity": "MISSION",
+    "entity_id": "c15_mission",
+    "invariant": "INVARIANT_1_MISSION_COMPLETION",
+    "expected": "All acceptance criteria SATISFIED",
+    "observed": "0/1 satisfied",
+    "status": "REJECTED"
+  },
+  {
+    "severity": "ERROR",
+    "entity": "MISSION",
+    "entity_id": "c16_mission",
+    "invariant": "INVARIANT_1_MISSION_COMPLETION",
+    "expected": "All acceptance criteria SATISFIED",
+    "observed": "0/1 satisfied",
+    "status": "REJECTED"
+  },
+  {
+    "severity": "ERROR",
+    "entity": "MISSION",
+    "entity_id": "c17_mission",
+    "invariant": "INVARIANT_1_MISSION_COMPLETION",
+    "expected": "All acceptance criteria SATISFIED",
+    "observed": "0/1 satisfied",
+    "status": "REJECTED"
+  },
+  {
+    "severity": "ERROR",
+    "entity": "MISSION",
+    "entity_id": "c18_mission",
+    "invariant": "INVARIANT_1_MISSION_COMPLETION",
+    "expected": "All acceptance criteria SATISFIED",
+    "observed": "0/1 satisfied",
+    "status": "REJECTED"
+  },
+  {
+    "severity": "ERROR",
+    "entity": "MISSION",
+    "entity_id": "c19_mission",
+    "invariant": "INVARIANT_1_MISSION_COMPLETION",
+    "expected": "All acceptance criteria SATISFIED",
+    "observed": "0/1 satisfied",
+    "status": "REJECTED"
+  },
+  {
+    "severity": "ERROR",
+    "entity": "MISSION",
+    "entity_id": "c20_mission",
+    "invariant": "INVARIANT_1_MISSION_COMPLETION",
+    "expected": "All acceptance criteria SATISFIED",
+    "observed": "0/1 satisfied",
+    "status": "REJECTED"
+  }
+]

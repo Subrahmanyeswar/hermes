@@ -1,0 +1,89 @@
+{
+  "total_scenarios_tested": 10,
+  "counts": {
+    "RECOVERED": 3,
+    "GRACEFULLY_FAILED": 3,
+    "CORRECTLY_ESCALATED": 1,
+    "CORRECTLY_BLOCKED": 3,
+    "CORRECTLY_CANCELLED": 0,
+    "FAILED": 0,
+    "HUNG": 0,
+    "FALSE_COMPLETION": 0,
+    "STATE_CORRUPTION": 0
+  },
+  "false_completions": 0,
+  "state_corruptions": 0,
+  "hangs": 0,
+  "scenarios": [
+    {
+      "id": "A1",
+      "name": "T1 Unavailable",
+      "verdict": "CORRECTLY_ESCALATED",
+      "duration_ms": 0.009599956683814526,
+      "notes": "Escalated to T2 according to multi-signal policy"
+    },
+    {
+      "id": "A2",
+      "name": "T2 Unavailable",
+      "verdict": "RECOVERED",
+      "duration_ms": 0.003300025127828121,
+      "notes": "Fell back to deterministic verification verdict"
+    },
+    {
+      "id": "A3",
+      "name": "T3 Unavailable",
+      "verdict": "GRACEFULLY_FAILED",
+      "duration_ms": 0.003200024366378784,
+      "notes": "Halted safely without infinite retry"
+    },
+    {
+      "id": "B1",
+      "name": "Malformed JSON Tool Call",
+      "verdict": "CORRECTLY_BLOCKED",
+      "duration_ms": 0.002499902620911598,
+      "notes": "Rejected before tool execution"
+    },
+    {
+      "id": "B2",
+      "name": "Missing Required Arguments",
+      "verdict": "CORRECTLY_BLOCKED",
+      "duration_ms": 0.08100003469735384,
+      "notes": "Schema validation prevented empty argument execution"
+    },
+    {
+      "id": "C1",
+      "name": "Filesystem Missing Artifact",
+      "verdict": "GRACEFULLY_FAILED",
+      "duration_ms": 0.11230004020035267,
+      "notes": "Level 0 structural verification caught missing output"
+    },
+    {
+      "id": "D1",
+      "name": "Test Assertion Failure",
+      "verdict": "RECOVERED",
+      "duration_ms": 0.004799920134246349,
+      "notes": "Classified failure and initiated targeted repair"
+    },
+    {
+      "id": "F1",
+      "name": "DAG Task Failure",
+      "verdict": "CORRECTLY_BLOCKED",
+      "duration_ms": 0.1322000753134489,
+      "notes": "Downstream dependent tasks remained strictly BLOCKED"
+    },
+    {
+      "id": "G1",
+      "name": "Exhausted Repair Limit",
+      "verdict": "GRACEFULLY_FAILED",
+      "duration_ms": 0.011399970389902592,
+      "notes": "Bounded at max 3 repairs without infinite looping"
+    },
+    {
+      "id": "H1",
+      "name": "TUI Consumer Crash",
+      "verdict": "RECOVERED",
+      "duration_ms": 0.12139999307692051,
+      "notes": "EventBus protected dispatch preserved backend execution"
+    }
+  ]
+}

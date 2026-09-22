@@ -1,0 +1,100 @@
+{
+  "schema_version": "hermes-perf-prompt4-reconciliation-v1",
+  "status": "PASS",
+  "claims": [
+    {
+      "claim_id": "CLAIM-01-TOKEN-REDUCTION",
+      "headline_claim": "Prompt 4 reduced total input prompt tokens from 1,833 to 1,304 (-28.86%) on the EduPath Mini task.",
+      "classification": "MEASURED",
+      "baseline_value": 1833,
+      "optimized_value": 1304,
+      "delta": -529,
+      "delta_pct": -28.86,
+      "evidence_source": "artifacts/performance/prompt4/prompt4_ablation_results.json (baseline vs experiment_f_combined) & artifacts/performance/prompt4/prompt4_prompt_accounting.json",
+      "audit_status": "PASS"
+    },
+    {
+      "claim_id": "CLAIM-02-LATENCY-IMPACT",
+      "headline_claim": "Total end-to-end latency reduced by 2.04% (18,262.04 ms to 17,889.21 ms); input token efficiency does not yield proportional end-to-end speedup because 512-token generation dominates runtime.",
+      "classification": "MEASURED",
+      "baseline_value_ms": 18262.04,
+      "optimized_value_ms": 17889.21,
+      "delta_ms": -372.83,
+      "delta_pct": -2.04,
+      "systems_explanation": "On local GPU inference (RTX 3050), output generation (~17 seconds, ~95% of runtime) dwarfs prompt evaluation (~368 ms to 666 ms, ~2-4% of runtime). A 28.86% input token reduction bounds prompt eval load, but total latency is strictly bounded by autoregressive token generation.",
+      "evidence_source": "artifacts/performance/prompt4/prompt4_ablation_results.json",
+      "audit_status": "PASS"
+    },
+    {
+      "claim_id": "CLAIM-03-TOOL-SCHEMA-REDUCTION",
+      "headline_claim": "Selective tool schema injection reduced prompt tool descriptions from 20 tools (657 tokens, 2,909 chars) to 4 tools (154 tokens, 723 chars), achieving a 76.56% token reduction.",
+      "classification": "MEASURED",
+      "baseline_tools": 20,
+      "optimized_tools": 4,
+      "baseline_tokens": 657,
+      "optimized_tokens": 154,
+      "delta_tokens": -503,
+      "delta_pct": -76.56,
+      "security_authorization_invariant": "Runtime authorization (PermissionGate, _REGISTRY, get_tool) remains fully active. Selective injection only controls visibility in prompt text.",
+      "evidence_source": "artifacts/performance/prompt4/tool_schema_optimization_results.json",
+      "audit_status": "PASS"
+    },
+    {
+      "claim_id": "CLAIM-04-PREFIX-STABILITY-VS-CACHE",
+      "headline_claim": "Static prompt prefix is 100% hash-stable across turns (hash f2f5a3b9...); direct KV cache reuse latency speedup was not observed in Ollama trial B.",
+      "classification": "MEASURED_PREFIX_STABILITY_ONLY",
+      "prefix_hash": "f2f5a3b999a8808e4e9eb1aefab1b6e53d38b7ccab575bb3fecfc1d27baee06c",
+      "prefix_chars": 3141,
+      "prefix_tokens_isolated": 686,
+      "prefix_stability_across_turns": "INVARIANT",
+      "cache_reuse_directly_measured": false,
+      "cache_observation_details": "Experiment B prompt-eval latency was 1,071.02 ms vs baseline 368.48 ms. Prefix stability is a structural prerequisite for KV cache reuse, but Ollama did not exhibit runtime prompt-eval latency reduction under this single-process test harness.",
+      "evidence_source": "artifacts/performance/prompt4/prefix_stability_results.json & artifacts/performance/prompt4/prompt4_ablation_results.json",
+      "audit_status": "PASS"
+    },
+    {
+      "claim_id": "CLAIM-05-MEMORY-FILTERING",
+      "headline_claim": "Query keyword relevance filtering and content deduplication reduced memory injection from 1 unrelated fact to 0 facts for the EduPath Mini task.",
+      "classification": "MEASURED",
+      "baseline_facts": 1,
+      "optimized_facts": 0,
+      "policy": "Query keyword overlap + normalized content deduplication + top-5 cap",
+      "evidence_source": "artifacts/performance/prompt4/memory_optimization_results.json",
+      "audit_status": "PASS"
+    },
+    {
+      "claim_id": "CLAIM-06-SKILL-DISCLOSURE",
+      "headline_claim": "Progressive skill disclosure provides up to 82.55% character reduction under Level 1 (summary), while Level 2 prunes code blocks; in react-frontend (0 code blocks), Level 2 maintains full procedural text.",
+      "classification": "MEASURED",
+      "skill_id": "react-frontend",
+      "baseline_chars": 1192,
+      "level_1_chars": 208,
+      "level_2_chars": 1192,
+      "level_1_reduction_pct": -82.55,
+      "level_2_reduction_pct": 0.0,
+      "explanation": "Level 2 procedural pruning targets markdown code blocks. For skills with substantial code samples, Level 2 significantly reduces tokens. For react-frontend, which contains zero code fences, Level 2 leaves the text unchanged.",
+      "evidence_source": "artifacts/performance/prompt4/skill_optimization_results.json & artifacts/performance/prompt4/prompt4_ablation_results.json",
+      "audit_status": "PASS"
+    },
+    {
+      "claim_id": "CLAIM-07-BENCHMARK-ISOLATION",
+      "headline_claim": "Benchmark mode is strictly isolated from production prompt optimizations; when execution_mode is benchmark, all 20 tools, full memory, Level 3 skills, and legacy role format are unconditionally preserved.",
+      "classification": "VERIFIED_AUTOMATED_TESTS",
+      "isolation_tests_passed": "7/7",
+      "dataset_integrity_tests_passed": "6/6",
+      "evidence_source": "tests/test_prompt3_benchmark_isolation.py & tests/test_benchmark_dataset_integrity.py",
+      "audit_status": "PASS"
+    },
+    {
+      "claim_id": "CLAIM-08-TEST-COVERAGE-AND-REGRESSION",
+      "headline_claim": "All 228 canonical unit tests, 96 focused Prompt 3 tests, and 9 Prompt 4 tests pass with zero regressions.",
+      "classification": "VERIFIED_AUTOMATED_TESTS",
+      "canonical_suite": "228/228 passed in 12.53s",
+      "focused_suite": "96/96 passed in 3.73s",
+      "prompt4_suite": "9/9 passed in 0.28s",
+      "total_executed_tests": "333 tests passed across all suites",
+      "evidence_source": "pytest test runs",
+      "audit_status": "PASS"
+    }
+  ]
+}

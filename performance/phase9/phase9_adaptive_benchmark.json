@@ -1,0 +1,157 @@
+{
+  "avg_classification_latency_ms": 0.0876,
+  "classification_accuracy_pct": 100.0,
+  "simple_fast_path_latency_ms": 509.91,
+  "simple_llm_calls": 0,
+  "tasks": [
+    {
+      "task": "Create folder logs",
+      "expected": "SIMPLE",
+      "actual": "SIMPLE",
+      "confidence": 0.95,
+      "risk": 0.05,
+      "latency_ms": 0.358,
+      "correct": true
+    },
+    {
+      "task": "mkdir build_output",
+      "expected": "SIMPLE",
+      "actual": "SIMPLE",
+      "confidence": 0.95,
+      "risk": 0.05,
+      "latency_ms": 0.167,
+      "correct": true
+    },
+    {
+      "task": "read config.py",
+      "expected": "SIMPLE",
+      "actual": "SIMPLE",
+      "confidence": 0.95,
+      "risk": 0.05,
+      "latency_ms": 0.322,
+      "correct": true
+    },
+    {
+      "task": "show project structure",
+      "expected": "SIMPLE",
+      "actual": "SIMPLE",
+      "confidence": 0.95,
+      "risk": 0.05,
+      "latency_ms": 0.188,
+      "correct": true
+    },
+    {
+      "task": "check if file exists README.md",
+      "expected": "SIMPLE",
+      "actual": "SIMPLE",
+      "confidence": 0.95,
+      "risk": 0.05,
+      "latency_ms": 0.239,
+      "correct": true
+    },
+    {
+      "task": "Fix authentication login timeout in auth.py",
+      "expected": "STANDARD",
+      "actual": "STANDARD",
+      "confidence": 0.85,
+      "risk": 0.2,
+      "latency_ms": 0.008,
+      "correct": true
+    },
+    {
+      "task": "Add unit test for user registration",
+      "expected": "STANDARD",
+      "actual": "STANDARD",
+      "confidence": 0.85,
+      "risk": 0.2,
+      "latency_ms": 0.006,
+      "correct": true
+    },
+    {
+      "task": "Modify React navbar component",
+      "expected": "STANDARD",
+      "actual": "STANDARD",
+      "confidence": 0.85,
+      "risk": 0.2,
+      "latency_ms": 0.005,
+      "correct": true
+    },
+    {
+      "task": "Add error handling to database connection",
+      "expected": "STANDARD",
+      "actual": "STANDARD",
+      "confidence": 0.85,
+      "risk": 0.2,
+      "latency_ms": 0.006,
+      "correct": true
+    },
+    {
+      "task": "Update requirements.txt with new version",
+      "expected": "STANDARD",
+      "actual": "STANDARD",
+      "confidence": 0.85,
+      "risk": 0.2,
+      "latency_ms": 0.005,
+      "correct": true
+    },
+    {
+      "task": "Build complete authentication system across frontend and backend",
+      "expected": "COMPLEX",
+      "actual": "COMPLEX",
+      "confidence": 0.9,
+      "risk": 0.4,
+      "latency_ms": 0.002,
+      "correct": true
+    },
+    {
+      "task": "Migrate complete system architecture to microservices",
+      "expected": "COMPLEX",
+      "actual": "COMPLEX",
+      "confidence": 0.9,
+      "risk": 0.4,
+      "latency_ms": 0.002,
+      "correct": true
+    },
+    {
+      "task": "Refactor entire data layer and database schemas across all files",
+      "expected": "COMPLEX",
+      "actual": "COMPLEX",
+      "confidence": 0.9,
+      "risk": 0.4,
+      "latency_ms": 0.002,
+      "correct": true
+    },
+    {
+      "task": "Implement full-stack payment gateway integration with tests and docs",
+      "expected": "COMPLEX",
+      "actual": "COMPLEX",
+      "confidence": 0.9,
+      "risk": 0.4,
+      "latency_ms": 0.002,
+      "correct": true
+    },
+    {
+      "task": "Multi-module refactor of the core orchestration pipeline",
+      "expected": "COMPLEX",
+      "actual": "COMPLEX",
+      "confidence": 0.9,
+      "risk": 0.4,
+      "latency_ms": 0.002,
+      "correct": true
+    }
+  ],
+  "escalations": [
+    {
+      "from": "SIMPLE",
+      "to": "STANDARD",
+      "reason": "tool_failure_or_unexpected_complexity",
+      "timestamp": 1788283286.989195
+    },
+    {
+      "from": "STANDARD",
+      "to": "COMPLEX",
+      "reason": "high_dependency_count_5",
+      "timestamp": 1788283286.989195
+    }
+  ]
+}

@@ -6,6 +6,9 @@
 from __future__ import annotations
 
 import asyncio
+import os
+import shutil
+import tempfile
 import time
 from pathlib import Path
 from typing import Literal
@@ -118,6 +121,18 @@ class ReadFileTool(BaseTool):
             return ToolResult(success=False, error=str(e), exit_code=1)
 
 
+def _clean_code_content(content: str) -> str:
+    """Clean accidental markdown code fences from file content without mutating valid whitespace."""
+    if content.startswith("```"):
+        lines = content.split("\n")
+        if lines[0].startswith("```"):
+            lines = lines[1:]
+        if lines and lines[-1].strip() == "```":
+            lines = lines[:-1]
+        return "\n".join(lines)
+    return content
+
+
 @tool(
     name="write_file",
     description="Write or create a file with content. Use for creating new code files, config files, scripts, Dockerfiles, or any file the user wants to build/generate/write. Also creates parent directories automatically.",
@@ -147,19 +162,20 @@ class WriteFileTool(BaseTool):
 
             safe_path.parent.mkdir(parents=True, exist_ok=True)
             file_mode = "w" if inp.mode == "overwrite" else "a"
+            to_write = _clean_code_content(inp.content)
 
-            with open(safe_path, mode=file_mode, encoding="utf-8") as f:
-                f.write(inp.content)
+            with open(safe_path, mode=file_mode, encoding="utf-8", newline="") as f:
+                f.write(to_write)
 
             duration = time.monotonic() - start
 
             # Refresh workspace index — new file detected
             workspace_manager.refresh_index()
 
-            logger.debug(f"write_file: {inp.path} | {len(inp.content)} chars | {inp.mode} | {duration:.3f}s")
+            logger.debug(f"write_file: {inp.path} | {len(to_write)} chars | {inp.mode} | {duration:.3f}s")
             return ToolResult(
                 success=True,
-                output=f"Written {len(inp.content)} characters to {safe_path}",
+                output=f"Written {len(to_write)} characters to {safe_path}",
                 exit_code=0,
                 duration_seconds=duration,
             )
@@ -180,9 +196,10 @@ class WriteFileTool(BaseTool):
 
             safe_path.parent.mkdir(parents=True, exist_ok=True)
             file_mode = "w" if inp.mode == "overwrite" else "a"
+            to_write = _clean_code_content(inp.content)
 
-            async with aiofiles.open(str(safe_path), mode=file_mode, encoding="utf-8") as f:
-                await f.write(inp.content)
+            async with aiofiles.open(str(safe_path), mode=file_mode, encoding="utf-8", newline="") as f:
+                await f.write(to_write)
 
             duration = time.monotonic() - start
 
@@ -200,6 +217,156 @@ class WriteFileTool(BaseTool):
             return ToolResult(success=False, error=f"Permission denied: {inp.path}", exit_code=1)
         except Exception as e:
             return ToolResult(success=False, error=str(e), exit_code=1)
+
+
+MAX_BATCH_FILES: int = 3
+MAX_BATCH_TOTAL_BYTES: int = 1_000_000
+
+
+class BatchFileItem(BaseModel):
+    """Entry for a single file in a batch write operation."""
+
+    path: str = Field(..., min_length=1, max_length=500, description="Path to file, relative to project root")
+    content: str = Field(..., max_length=500_000, description="Content to write")
+    mode: Literal["overwrite", "append"] = "overwrite"
+
+
+@tool(
+    name="write_files_batch",
+    description="Write between 1 and 3 text/code files in a single atomic batch with transactional staging and all-or-nothing rollback.",
+    permissions=["filesystem_write"],
+    risk_score=0.35,
+    blocked_in=["safe"],
+)
+class WriteFilesBatchTool(BaseTool):
+    """Write 1 to 3 files atomically with staging and rollback."""
+
+    class Input(BaseModel):
+        files: list[BatchFileItem] = Field(
+            ...,
+            min_length=1,
+            max_length=3,
+            description="List of 1 to 3 files to write atomically",
+        )
+
+    def execute(self, inp: Input) -> ToolResult:
+        """Synchronously write batch files with transactional staging and boundary validation."""
+        start = time.monotonic()
+        files = inp.files
+        if not files or len(files) == 0:
+            return ToolResult(success=False, error="Batch files list cannot be empty", exit_code=1)
+        if len(files) > MAX_BATCH_FILES:
+            return ToolResult(
+                success=False,
+                error=f"Batch size exceeds maximum limit of {MAX_BATCH_FILES} files (received {len(files)})",
+                exit_code=1,
+            )
+
+        total_bytes = sum(len(f.content.encode("utf-8")) for f in files)
+        if total_bytes > MAX_BATCH_TOTAL_BYTES:
+            return ToolResult(
+                success=False,
+                error=f"Batch payload exceeds maximum limit of {MAX_BATCH_TOTAL_BYTES} bytes ({total_bytes} bytes)",
+                exit_code=1,
+            )
+
+        # Pre-validate all paths and check for duplicates
+        validated_items: list[tuple[Path, str, str, str]] = []
+        seen_normalized = set()
+
+        for item in files:
+            cleaned = _clean_code_content(item.content)
+            if cleaned.strip() in (
+                "full content here", "the code string", "# full content here", "# the code string",
+                "// full content here", "/* full content here */"
+            ):
+                return ToolResult(
+                    success=False,
+                    error=f"Rejected placeholder content in batch for path: {item.path}",
+                    exit_code=1,
+                )
+
+            try:
+                safe_path = workspace_manager.validate_path(item.path)
+            except WorkspaceBoundaryError as e:
+                return ToolResult(success=False, error=f"SECURITY: {e}", exit_code=126)
+
+            norm_path = os.path.normpath(str(safe_path)).lower() if os.name == "nt" else os.path.normpath(str(safe_path))
+            if norm_path in seen_normalized:
+                return ToolResult(
+                    success=False,
+                    error=f"Duplicate path detected in batch: {item.path}",
+                    exit_code=1,
+                )
+            seen_normalized.add(norm_path)
+            validated_items.append((safe_path, cleaned, item.mode, item.path))
+
+        # Staging and Backup
+        temp_staging_dir = Path(tempfile.mkdtemp(prefix="hermes_batch_staging_"))
+        temp_backup_dir = Path(tempfile.mkdtemp(prefix="hermes_batch_backup_"))
+        written_destinations: list[Path] = []
+        backed_up_destinations: list[tuple[Path, Path]] = []
+
+        try:
+            # 1. Stage all files in staging directory
+            for idx, (safe_dest, content, mode, rel_p) in enumerate(validated_items):
+                staged_file = temp_staging_dir / f"stage_{idx}"
+                with open(staged_file, "w", encoding="utf-8", newline="") as sf:
+                    sf.write(content)
+
+            # 2. Backup existing destination files before committing
+            for safe_dest, _, _, _ in validated_items:
+                if safe_dest.exists() and safe_dest.is_file():
+                    b_file = temp_backup_dir / f"backup_{len(backed_up_destinations)}"
+                    shutil.copy2(safe_dest, b_file)
+                    backed_up_destinations.append((safe_dest, b_file))
+
+            # 3. Commit staged files to real destinations
+            for idx, (safe_dest, content, mode, rel_p) in enumerate(validated_items):
+                safe_dest.parent.mkdir(parents=True, exist_ok=True)
+                file_mode = "w" if mode == "overwrite" else "a"
+                with open(safe_dest, file_mode, encoding="utf-8", newline="") as df:
+                    df.write(content)
+                written_destinations.append(safe_dest)
+
+            workspace_manager.refresh_index()
+            duration = time.monotonic() - start
+            paths_str = ", ".join(item.path for item in files)
+            logger.debug(f"write_files_batch: wrote {len(files)} files ({paths_str}) in {duration:.3f}s")
+            return ToolResult(
+                success=True,
+                output=f"Successfully wrote {len(files)} files: {paths_str}",
+                exit_code=0,
+                duration_seconds=duration,
+            )
+
+        except Exception as e:
+            logger.error(f"write_files_batch failed during commit, rolling back: {e}")
+            for safe_dest in written_destinations:
+                try:
+                    orig_backup = next((b for orig, b in backed_up_destinations if orig == safe_dest), None)
+                    if orig_backup and orig_backup.exists():
+                        shutil.copy2(orig_backup, safe_dest)
+                    else:
+                        if safe_dest.exists():
+                            safe_dest.unlink()
+                except Exception as rollback_err:
+                    logger.critical(f"Failed to rollback file {safe_dest}: {rollback_err}")
+
+            workspace_manager.refresh_index()
+            return ToolResult(
+                success=False,
+                error=f"write_files_batch transaction failed and rolled back: {e}",
+                exit_code=1,
+            )
+
+        finally:
+            shutil.rmtree(temp_staging_dir, ignore_errors=True)
+            shutil.rmtree(temp_backup_dir, ignore_errors=True)
+
+    async def execute_async(self, inp: Input) -> ToolResult:
+        """Asynchronously write batch files with transactional staging."""
+        return await asyncio.to_thread(self.execute, inp)
 
 
 @tool(

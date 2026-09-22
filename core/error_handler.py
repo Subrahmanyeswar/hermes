@@ -23,6 +23,7 @@ class FailureMode(Enum):
     """Every possible failure mode in the HERMES pipeline."""
     JSON_PARSE_FAILURE      = "json_parse_failure"
     TOOL_NOT_FOUND          = "tool_not_found"
+    TOOL_VALIDATION_FAILURE = "tool_validation_failure"
     TOOL_EXECUTION_FAILURE  = "tool_execution_failure"
     OLLAMA_TIMEOUT          = "ollama_timeout"
     TIER3_API_FAILURE       = "tier3_api_failure"
@@ -174,6 +175,40 @@ class ErrorHandler:
                 technical_detail=f"T1 named unknown tool '{tool_name}' on both attempts.",
                 retry_count=attempt,
                 max_retries=1,
+            )
+
+    def tool_validation_failure(
+        self, tool_name: str, validation_error: str, schema_info: str = "", attempt: int = 0
+    ) -> ErrorResult:
+        """T1 produced parameters that failed schema validation (e.g. missing required arguments)."""
+        logger.warning(
+            f"ErrorHandler: tool validation failure | tool={tool_name} | attempt={attempt} | error={validation_error[:100]}"
+        )
+        if attempt < 2:
+            schema_block = f"Tool schema:\n{schema_info}\n" if schema_info else ""
+            return ErrorResult(
+                failure_mode=FailureMode.TOOL_VALIDATION_FAILURE,
+                recovery_action=RecoveryAction.RETRY_WITH_ERROR_CONTEXT,
+                user_message="",  # Transparent retry
+                technical_detail=f"Schema validation failed for tool '{tool_name}': {validation_error}",
+                retry_count=attempt,
+                max_retries=2,
+                context_for_retry=(
+                    f"ERROR: The parameters provided for tool '{tool_name}' are INVALID.\n"
+                    f"Validation error: {validation_error}\n"
+                    f"{schema_block}"
+                    f"Please provide ALL required parameters in the 'parameters' object with non-empty, valid values."
+                ),
+            )
+        else:
+            return ErrorResult(
+                failure_mode=FailureMode.TOOL_VALIDATION_FAILURE,
+                recovery_action=RecoveryAction.FAIL_TASK,
+                user_message=f"The AI model provided invalid parameters for tool '{tool_name}' after multiple attempts.",
+                technical_detail=f"Schema validation failed for tool '{tool_name}' on all attempts: {validation_error}",
+                retry_count=attempt,
+                max_retries=2,
+                tag="VALIDATION_FAILED",
             )
 
     def tool_execution_failure(

@@ -1,0 +1,32 @@
+{
+  "timestamp": "2026-09-17T12:22:02.292014",
+  "git_commit": "be1a563bd73830efa0dff2400788ffe89d2ebc96",
+  "execution_mode": "production",
+  "model": "deepseek-r1:8b",
+  "task_type": "multi_file_website",
+  "prompt_chars": 8112,
+  "prompt_tokens": 1833,
+  "system_chars": 7931,
+  "system_tokens": 1792,
+  "workspace_context_tokens": 27,
+  "memory_tokens": 12,
+  "skill_tokens": 269,
+  "tool_schema_tokens": 657,
+  "task_context_tokens": 41,
+  "dynamic_context_tokens": 349,
+  "prompt_eval_ms": 353.98,
+  "generation_ms": 17138.32,
+  "ttft_ms": 520.38,
+  "total_latency_ms": 18301.65,
+  "tool_count": 20,
+  "verification_count": 0,
+  "repair_count": 0,
+  "components_breakdown": {
+    "base_role_tokens": 827,
+    "tool_schema_tokens": 657,
+    "skill_tokens": 269,
+    "memory_tokens": 12,
+    "workspace_tokens": 27,
+    "task_tokens": 41
+  }
+}

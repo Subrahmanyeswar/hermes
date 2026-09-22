@@ -1,0 +1,13 @@
+{
+  "baseline_disclosure": "Full procedural SKILL.md content (Level 3)",
+  "optimized_disclosure": "Progressive disclosure (Level 1 summary / Level 2 compact procedural)",
+  "baseline_chars": 1192,
+  "optimized_level_1_chars": 208,
+  "optimized_level_2_chars": 1192,
+  "character_reduction_pct": 82.55,
+  "benchmark_isolation": {
+    "benchmark_mode_disclosure_level": 3,
+    "benchmark_preserves_full_procedural": true,
+    "status": "PASS"
+  }
+}

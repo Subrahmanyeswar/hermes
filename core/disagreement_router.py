@@ -15,6 +15,7 @@ from typing import Optional
 from loguru import logger
 
 from core.verifier import VerificationResult
+from config.model_config import TIER1_MODEL, TIER2_MODEL, MODEL_KEEP_ALIVE
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -275,19 +276,22 @@ class DisagreementRouter:
             f"Quality verdict: {verification_result.quality_verdict}\n\n"
             f"Generate a DIFFERENT approach to accomplish this task.\n"
             f"Address the specific issues found.\n"
-            f"Choose a different tool or different parameters."
+            f"Choose a different tool or different parameters.\n\n"
+            f"CRITICAL: If you use <think>...</think>, keep your thinking concise (under 5 sentences). "
+            f"Respond ONLY with a single valid JSON tool call object."
         )
 
         try:
             # Generate alternative with T1
-            alt_response = await ollama_client.generate(
-                model="qwen2.5-coder:7b",
+            alt_resp = await ollama_client.generate(
+                model=TIER1_MODEL,
                 prompt=alt_prompt,
                 system=system_prompt,
-                keep_alive=0,
+                keep_alive=MODEL_KEEP_ALIVE,
                 temperature=0.25,   # Slightly higher for exploration
                 num_ctx=4096,
             )
+            alt_response = getattr(alt_resp, "text", str(alt_resp))
 
             # Parse alternative tool call
             parser = ResponseParser()
@@ -316,18 +320,19 @@ class DisagreementRouter:
                 f"Respond with only: 'A' or 'B' and one sentence why."
             )
 
-            choice_response = await ollama_client.generate(
-                model="mistral:7b-instruct",
+            choice_resp = await ollama_client.generate(
+                model=TIER2_MODEL,
                 prompt=alt_assessment_prompt,
                 system=(
                     "You are a code review expert. "
                     "Evaluate which approach is better. "
                     "Respond with only A or B and one sentence."
                 ),
-                keep_alive=0,
+                keep_alive=MODEL_KEEP_ALIVE,
                 temperature=0.1,
                 num_ctx=2048,
             )
+            choice_response = getattr(choice_resp, "text", str(choice_resp))
 
             if choice_response.strip().upper().startswith("B"):
                 logger.info(

@@ -1,0 +1,1 @@
+def answer():\n    return 42\n\nif __name__ == '__main__':\n    print(answer())

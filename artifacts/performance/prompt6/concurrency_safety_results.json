@@ -1,0 +1,19 @@
+{
+  "evaluation_name": "prompt6_concurrency_safety_audit",
+  "timestamp": "2026-09-18T11:53:55Z",
+  "scenarios_evaluated": 10,
+  "scenarios_passed": 10,
+  "invariants": {
+    "task_dependency_ordering": "PASS: Downstream tasks strictly wait for depends_on upstream IDs",
+    "same_file_conflict_serialization": "PASS: Tasks targeting the same normalized path serialized by per-file lock",
+    "explicit_worker_bound_enforcement": "PASS: Never exceeds max_workers policy limit (max=2)",
+    "gpu_serialization": "PASS: Single model inference slot guarded by asyncio.Semaphore(1)",
+    "single_index_refresh_barrier": "PASS: Single refresh barrier avoids SQLite database is locked errors",
+    "cancellation_propagation": "PASS: Abort event immediately stops pending and cancellable tasks",
+    "timeout_safety": "PASS: Per-task timeouts cancel cleanly without orphaned threads",
+    "worker_cleanup": "PASS: All asyncio tasks cleanly gathered and released",
+    "terminal_state_monotonicity": "PASS: No premature completion events during asynchronous execution",
+    "failure_isolation": "PASS: Individual worker exception does not crash the executor engine"
+  },
+  "status": "ALL_SAFETY_GATES_PASSED"
+}

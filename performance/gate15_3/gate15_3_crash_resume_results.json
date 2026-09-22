@@ -1,0 +1,72 @@
+{
+  "all_passed": true,
+  "crash_scenarios_tested": 5,
+  "recoveries_passed": 5,
+  "unsafe_replays": 0,
+  "duplicate_destructive_operations": 0,
+  "false_completions": 0,
+  "state_corruptions": 0,
+  "results": [
+    {
+      "crash_point": "Crash A (Post-Task 1 Completion)",
+      "verdict": "RECOVERED",
+      "duration_ms": 1.9350999500602484,
+      "completed_tasks_re_executed": 0,
+      "notes": "Task 1 preserved COMPLETED state; Task 2 executed without re-running Task 1"
+    },
+    {
+      "crash_point": "Crash B (Mid-Task 2 Execution)",
+      "verdict": "RECOVERED",
+      "duration_ms": 0.6087999790906906,
+      "completed_tasks_re_executed": 0,
+      "notes": "Task 2 recovered as READY and safely completed"
+    },
+    {
+      "crash_point": "Crash C (Post-Tool Pre-Verification)",
+      "verdict": "RECOVERED",
+      "duration_ms": 2.1910000359639525,
+      "completed_tasks_re_executed": 0,
+      "notes": "Verified existing on-disk artifact without rewriting file"
+    },
+    {
+      "crash_point": "Crash D (Post-Verification Pre-Finalizer)",
+      "verdict": "RECOVERED",
+      "duration_ms": 3.0650999397039413,
+      "completed_tasks_re_executed": 0,
+      "notes": "Preserved durable evidence and finalized mission without re-testing"
+    },
+    {
+      "crash_point": "Scenario F (Repeated Crashes across Branched DAG)",
+      "verdict": "RECOVERED",
+      "duration_ms": 0.027699978090822697,
+      "completed_tasks_re_executed": 0,
+      "notes": "State preserved across 2 consecutive hard crashes"
+    }
+  ],
+  "idempotency_matrix": [
+    {
+      "operation": "write_file (task1.py)",
+      "pre_crash_count": 1,
+      "post_resume_count": 0,
+      "total_count": 1,
+      "duplicate": false,
+      "safe": true
+    },
+    {
+      "operation": "write_file (task2.py)",
+      "pre_crash_count": 0,
+      "post_resume_count": 1,
+      "total_count": 1,
+      "duplicate": false,
+      "safe": true
+    },
+    {
+      "operation": "verify_structural (calc.py)",
+      "pre_crash_count": 0,
+      "post_resume_count": 1,
+      "total_count": 1,
+      "duplicate": false,
+      "safe": true
+    }
+  ]
+}

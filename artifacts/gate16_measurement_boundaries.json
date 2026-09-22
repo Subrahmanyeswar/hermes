@@ -1,0 +1,7 @@
+{
+  "MODEL_LEVEL": "M0: Request sent -> M1: First token chunk (TTFT) -> M2: Final token chunk (Generation Latency)",
+  "COMPONENT_LEVEL": "C0: Component entrypoint invoked -> C1: Component result returned",
+  "END_TO_END": "T0: Mission execution start -> T1: Terminal state locked in ExecutionStateStore",
+  "REPAIR_COUNT": "Directly equal to actual RepairEngine attempts (never inferred from verification failures)",
+  "TIMELINE_RULE": "Timeline is authoritative truth; component durations provide structured breakdown without summing"
+}

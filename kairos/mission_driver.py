@@ -106,10 +106,11 @@ class MissionDriver:
         self._event_queue = asyncio.Queue(maxsize=500)
 
         # Plan the mission
-        logger.info(f"MissionDriver: planning mission from prompt ({len(user_prompt)} chars)")
+        exec_mode = getattr(self.orchestrator, "execution_mode", "production")
         mission = self._planner.plan(
             user_prompt,
             workspace_root=global_workspace.root_str,
+            execution_mode=exec_mode,
         )
         self._current_mission = mission
 
@@ -138,6 +139,13 @@ class MissionDriver:
         # Refresh workspace index after mission completes
         try:
             global_workspace.refresh_index()
+        except Exception:
+            pass
+
+        # Release foreground hold and prevent unnecessary model swaps
+        try:
+            from core.model_residency_manager import model_residency_manager
+            model_residency_manager.on_mission_complete()
         except Exception:
             pass
 

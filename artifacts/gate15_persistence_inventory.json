@@ -1,0 +1,62 @@
+[
+  {
+    "store_name": "MissionExecutionState",
+    "file_path": "core/event_bus.py (ExecutionStateStore) & core/mission_runner.py",
+    "database_type": "In-Memory Event-Derived State + Checkpoint JSON",
+    "schema": "mission_id, status, tasks, recent_events, phase",
+    "owner": "MissionRunner / EventBus",
+    "readers": "TUI, Orchestrator, Verifier",
+    "writers": "EventBus.apply_event",
+    "transaction_mechanism": "Event-Driven Monotonic Sequencer",
+    "atomicity": "Atomic event application with terminal state locking",
+    "recovery": "Replay monotonic event stream from event bus log"
+  },
+  {
+    "store_name": "CompletionLedger",
+    "file_path": "core/mission_completion.py",
+    "database_type": "Structured In-Memory Ledger + Mission Evaluation Log",
+    "schema": "criteria_id, description, status, evidence, responsible_tasks, verification_result",
+    "owner": "MissionCompletionEvaluator",
+    "readers": "MissionRunner, MissionFinalizer",
+    "writers": "CompletionLedger.update_criterion",
+    "transaction_mechanism": "Deterministic Criterion Ledger",
+    "atomicity": "All criteria must be SATISFIED + PASSED for COMPLETE verdict",
+    "recovery": "Reconstructed from verified task evidence"
+  },
+  {
+    "store_name": "WorkspaceIndexStore",
+    "file_path": "core/workspace_indexer.py (.hermes/workspace_index.db)",
+    "database_type": "SQLite3 (WAL mode)",
+    "schema": "workspaces, files, symbols, imports, symbol_references, index_meta",
+    "owner": "WorkspaceIndexer / WorkspaceRetriever",
+    "readers": "ContextEngine, WorkspaceRetriever, IntentClassifier",
+    "writers": "WorkspaceIndexer._index_file_internal",
+    "transaction_mechanism": "SQLite Transactions with ContextManager (_get_conn)",
+    "atomicity": "ACID transactional commits; quick_check integrity validation",
+    "recovery": "Automated re-scan from physical filesystem truth"
+  },
+  {
+    "store_name": "TrajectoryMemory",
+    "file_path": "memory/trajectory_memory.py (.hermes/trajectories.json)",
+    "database_type": "Atomic JSON File Store",
+    "schema": "mission_id, task_id, steps, success, total_duration, created_at",
+    "owner": "TrajectoryMemory",
+    "readers": "AdaptivePlanner, Router",
+    "writers": "TrajectoryMemory.record_trajectory",
+    "transaction_mechanism": "Atomic write via temporary file + atomic rename",
+    "atomicity": "Atomic POSIX/Windows rename prevents partial records",
+    "recovery": "Loads valid trajectories; drops corrupt records safely"
+  },
+  {
+    "store_name": "TelemetryCollector",
+    "file_path": "core/telemetry.py (.hermes/telemetry.json)",
+    "database_type": "JSON Observability Log",
+    "schema": "events, durations, token_counts, model_latencies",
+    "owner": "TelemetryCollector",
+    "readers": "Observability TUI / Benchmarks",
+    "writers": "TelemetryCollector.record",
+    "transaction_mechanism": "Append-only observability logging",
+    "atomicity": "Non-authoritative (state is never reconstructed from telemetry)",
+    "recovery": "Tolerates missing or delayed telemetry without failure"
+  }
+]

@@ -1,0 +1,26 @@
+{
+  "mission_id": "ea24c0c4",
+  "execution_mode": "performance_baseline",
+  "mission": {
+    "start": "2026-09-13 21:36:23",
+    "end": "2026-09-13 21:36:23",
+    "duration_ms": 23.11,
+    "accounted_time_ms": 23.06,
+    "unaccounted_time_ms": 0.05
+  },
+  "stages": [
+    {
+      "name": "Stage 1: Test Span",
+      "stage_number": 1,
+      "start": 11307.4448,
+      "end": 11307.4678,
+      "duration_ms": 23.06,
+      "success": true
+    }
+  ],
+  "model_calls": [],
+  "tool_calls": [],
+  "verification_calls": [],
+  "repair_attempts": [],
+  "model_switches": []
+}

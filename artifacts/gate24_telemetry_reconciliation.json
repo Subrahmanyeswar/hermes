@@ -1,0 +1,68 @@
+{
+  "audit_run_id": "final_benchmark_20260903_190945",
+  "task_count": 80,
+  "reported_summary_matches_raw": true,
+  "discrepancies": [],
+  "metrics_comparison": {
+    "task_count": {
+      "reported": 80,
+      "recomputed": 80,
+      "match": true
+    },
+    "objective_passes": {
+      "reported": 1,
+      "recomputed": 1,
+      "match": true
+    },
+    "objective_failures": {
+      "reported": 79,
+      "recomputed": 79,
+      "match": true
+    },
+    "false_completions": {
+      "reported": 0,
+      "recomputed": 0,
+      "match": true
+    },
+    "p50_latency": {
+      "reported": 241.2311,
+      "recomputed": 241.2311,
+      "match": true
+    },
+    "p95_latency": {
+      "reported": 418.61,
+      "recomputed": 418.61,
+      "match": true
+    },
+    "p99_latency": {
+      "reported": 572.9323,
+      "recomputed": 572.9323,
+      "match": true
+    },
+    "t1_calls": {
+      "reported": 75,
+      "recomputed": 75,
+      "match": true
+    },
+    "tool_calls": {
+      "reported": 0,
+      "recomputed": 0,
+      "match": true
+    },
+    "cloud_cost_usd": {
+      "reported": 0.0,
+      "recomputed": 0.0,
+      "match": true
+    },
+    "vram_peak_mb": {
+      "reported": 5600.0,
+      "recomputed": 5600.0,
+      "match": true
+    },
+    "temp_peak_c": {
+      "reported": 90,
+      "recomputed": 90,
+      "match": true
+    }
+  }
+}

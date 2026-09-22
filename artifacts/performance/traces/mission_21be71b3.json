@@ -1,0 +1,68 @@
+{
+  "mission_id": "21be71b3",
+  "execution_mode": "performance_baseline",
+  "mission": {
+    "start": "2026-09-14 00:20:48",
+    "end": "2026-09-14 00:20:48",
+    "duration_ms": 38.98,
+    "accounted_time_ms": 8.38,
+    "unaccounted_time_ms": 30.6
+  },
+  "stages": [
+    {
+      "name": "Input Sanitisation",
+      "stage_number": 1,
+      "start": 21172.8795,
+      "end": 21172.88,
+      "duration_ms": 0.54,
+      "success": true
+    },
+    {
+      "name": "Planning",
+      "stage_number": 2,
+      "start": 21172.8801,
+      "end": 21172.888,
+      "duration_ms": 7.84,
+      "success": true
+    }
+  ],
+  "model_calls": [],
+  "tool_calls": [
+    {
+      "tool_name": "list_directory",
+      "category": "other",
+      "start_time_monotonic": 21172.875,
+      "duration_ms": 0.0,
+      "subprocess_duration_ms": 0.0,
+      "filesystem_duration_ms": 0.0,
+      "success": true,
+      "exit_code": 0,
+      "args_size_bytes": 13,
+      "output_size_bytes": 38,
+      "retry_count": 0,
+      "error": null,
+      "mission_id": "101c8820",
+      "task_id": "101c8820",
+      "start": 21172.875,
+      "end": 21172.875
+    }
+  ],
+  "verification_calls": [
+    {
+      "verification_id": "072cac7d",
+      "request_id": "21be71b3",
+      "mission_id": "101c8820",
+      "task_id": "101c8820",
+      "method": "LOCAL_DETERMINISTIC",
+      "start_time_monotonic": 21172.875,
+      "end_time_monotonic": 21172.875,
+      "duration_ms": 0.0,
+      "verdict": "AGREE",
+      "escalated": false,
+      "issues_count": 0,
+      "issues": []
+    }
+  ],
+  "repair_attempts": [],
+  "model_switches": []
+}

@@ -1,0 +1,1759 @@
+[
+  {
+    "scenario_id": "C01",
+    "mission_id": "mission_c01",
+    "execution_mode": "REAL_PRODUCTION_E2E",
+    "cancellation_entrypoint": "CancellationController.cancel_mission",
+    "final_state": "CANCELLED",
+    "tui_reflected": true,
+    "total_events_in_stream": 3,
+    "events": [
+      {
+        "sequence": 1,
+        "event_type": "MISSION_CREATED"
+      },
+      {
+        "sequence": 2,
+        "event_type": "MISSION_STARTED"
+      },
+      {
+        "sequence": 3,
+        "event_type": "MISSION_CANCELLED"
+      }
+    ]
+  },
+  {
+    "scenario_id": "C02",
+    "mission_id": "mission_c02",
+    "execution_mode": "CONTROLLED_PRODUCTION_E2E",
+    "cancellation_entrypoint": "CancellationController.cancel_mission",
+    "final_state": "CANCELLED",
+    "tui_reflected": true,
+    "total_events_in_stream": 5,
+    "events": [
+      {
+        "sequence": 4,
+        "timestamp": 1788372743.422352,
+        "event_type": "MISSION_CREATED",
+        "task_id": null,
+        "payload": {
+          "title": "While T1 model generation is active"
+        }
+      },
+      {
+        "sequence": 5,
+        "timestamp": 1788372743.422352,
+        "event_type": "MISSION_STARTED",
+        "task_id": null,
+        "payload": {}
+      },
+      {
+        "sequence": 6,
+        "timestamp": 1788372743.422352,
+        "event_type": "MODEL_REQUEST_STARTED",
+        "task_id": "T01",
+        "payload": {
+          "model": "deepseek-r1:8b"
+        }
+      },
+      {
+        "sequence": 7,
+        "timestamp": 1788372743.422352,
+        "event_type": "MODEL_GENERATING",
+        "task_id": "T01",
+        "payload": {}
+      },
+      {
+        "sequence": 8,
+        "timestamp": 1788372743.422352,
+        "event_type": "MISSION_CANCELLED",
+        "task_id": null,
+        "payload": {
+          "reason": "Cancellation test at boundary MODEL_T1",
+          "source": "USER_TUI",
+          "terminated_subprocesses": 0,
+          "committed_at": 1788372743.422352
+        }
+      }
+    ]
+  },
+  {
+    "scenario_id": "C03",
+    "mission_id": "mission_c03",
+    "execution_mode": "CONTROLLED_PRODUCTION_E2E",
+    "cancellation_entrypoint": "CancellationController.cancel_mission",
+    "final_state": "CANCELLED",
+    "tui_reflected": true,
+    "total_events_in_stream": 4,
+    "events": [
+      {
+        "sequence": 9,
+        "event_type": "MISSION_CREATED"
+      },
+      {
+        "sequence": 10,
+        "event_type": "MISSION_STARTED"
+      },
+      {
+        "sequence": 11,
+        "event_type": "MODEL_REQUEST_STARTED"
+      },
+      {
+        "sequence": 12,
+        "event_type": "MISSION_CANCELLED"
+      }
+    ]
+  },
+  {
+    "scenario_id": "C04",
+    "mission_id": "mission_c04",
+    "execution_mode": "CONTROLLED_PRODUCTION_E2E",
+    "cancellation_entrypoint": "CancellationController.cancel_mission",
+    "final_state": "CANCELLED",
+    "tui_reflected": true,
+    "total_events_in_stream": 3,
+    "events": [
+      {
+        "sequence": 13,
+        "event_type": "MISSION_CREATED"
+      },
+      {
+        "sequence": 14,
+        "event_type": "MISSION_STARTED"
+      },
+      {
+        "sequence": 15,
+        "event_type": "MISSION_CANCELLED"
+      }
+    ]
+  },
+  {
+    "scenario_id": "C05",
+    "mission_id": "mission_c05",
+    "execution_mode": "REAL_PRODUCTION_E2E",
+    "cancellation_entrypoint": "CancellationController.cancel_mission",
+    "final_state": "CANCELLED",
+    "tui_reflected": true,
+    "total_events_in_stream": 4,
+    "events": [
+      {
+        "sequence": 16,
+        "timestamp": 1788372743.4228756,
+        "event_type": "MISSION_CREATED",
+        "task_id": null,
+        "payload": {
+          "title": "While a write tool is executing"
+        }
+      },
+      {
+        "sequence": 17,
+        "timestamp": 1788372743.4228756,
+        "event_type": "MISSION_STARTED",
+        "task_id": null,
+        "payload": {}
+      },
+      {
+        "sequence": 18,
+        "timestamp": 1788372743.4228756,
+        "event_type": "TOOL_STARTED",
+        "task_id": "T03",
+        "payload": {
+          "tool_name": "write_file"
+        }
+      },
+      {
+        "sequence": 19,
+        "timestamp": 1788372743.4244988,
+        "event_type": "MISSION_CANCELLED",
+        "task_id": null,
+        "payload": {
+          "reason": "Cancellation test at boundary TOOL_EXEC",
+          "source": "USER_TUI",
+          "terminated_subprocesses": 0,
+          "committed_at": 1788372743.4244988
+        }
+      }
+    ]
+  },
+  {
+    "scenario_id": "C06",
+    "mission_id": "mission_c06",
+    "execution_mode": "REAL_PRODUCTION_E2E",
+    "cancellation_entrypoint": "CancellationController.cancel_mission",
+    "final_state": "CANCELLED",
+    "tui_reflected": true,
+    "total_events_in_stream": 3,
+    "events": [
+      {
+        "sequence": 20,
+        "timestamp": 1788372743.4250362,
+        "event_type": "MISSION_CREATED",
+        "task_id": null,
+        "payload": {
+          "title": "While a subprocess is executing (OS PID check)"
+        }
+      },
+      {
+        "sequence": 21,
+        "timestamp": 1788372743.4250362,
+        "event_type": "MISSION_STARTED",
+        "task_id": null,
+        "payload": {}
+      },
+      {
+        "sequence": 22,
+        "timestamp": 1788372743.4317358,
+        "event_type": "MISSION_CANCELLED",
+        "task_id": null,
+        "payload": {
+          "reason": "Cancellation test at boundary SUBPROCESS",
+          "source": "USER_TUI",
+          "terminated_subprocesses": 1,
+          "committed_at": 1788372743.4317358
+        }
+      }
+    ]
+  },
+  {
+    "scenario_id": "C07",
+    "mission_id": "mission_c07",
+    "execution_mode": "REAL_PRODUCTION_E2E",
+    "cancellation_entrypoint": "CancellationController.cancel_mission",
+    "final_state": "CANCELLED",
+    "tui_reflected": true,
+    "total_events_in_stream": 4,
+    "events": [
+      {
+        "sequence": 23,
+        "timestamp": 1788372743.4898615,
+        "event_type": "MISSION_CREATED",
+        "task_id": null,
+        "payload": {
+          "title": "While KAIROS is dispatching tasks"
+        }
+      },
+      {
+        "sequence": 24,
+        "timestamp": 1788372743.4898615,
+        "event_type": "MISSION_STARTED",
+        "task_id": null,
+        "payload": {}
+      },
+      {
+        "sequence": 25,
+        "timestamp": 1788372743.4898615,
+        "event_type": "KAIROS_STATE_CHANGED",
+        "task_id": null,
+        "payload": {
+          "state": "DISPATCHING"
+        }
+      },
+      {
+        "sequence": 26,
+        "timestamp": 1788372743.4898615,
+        "event_type": "MISSION_CANCELLED",
+        "task_id": null,
+        "payload": {
+          "reason": "Cancellation test at boundary KAIROS_DISPATCH",
+          "source": "USER_TUI",
+          "terminated_subprocesses": 0,
+          "committed_at": 1788372743.4898615
+        }
+      }
+    ]
+  },
+  {
+    "scenario_id": "C08",
+    "mission_id": "mission_c08",
+    "execution_mode": "REAL_PRODUCTION_E2E",
+    "cancellation_entrypoint": "CancellationController.cancel_mission",
+    "final_state": "CANCELLED",
+    "tui_reflected": true,
+    "total_events_in_stream": 4,
+    "events": [
+      {
+        "sequence": 27,
+        "event_type": "MISSION_CREATED"
+      },
+      {
+        "sequence": 28,
+        "event_type": "MISSION_STARTED"
+      },
+      {
+        "sequence": 29,
+        "event_type": "KAIROS_STATE_CHANGED"
+      },
+      {
+        "sequence": 30,
+        "event_type": "MISSION_CANCELLED"
+      }
+    ]
+  },
+  {
+    "scenario_id": "C09",
+    "mission_id": "mission_c09",
+    "execution_mode": "REAL_PRODUCTION_E2E",
+    "cancellation_entrypoint": "CancellationController.cancel_mission",
+    "final_state": "CANCELLED",
+    "tui_reflected": true,
+    "total_events_in_stream": 4,
+    "events": [
+      {
+        "sequence": 31,
+        "timestamp": 1788372743.4906049,
+        "event_type": "MISSION_CREATED",
+        "task_id": null,
+        "payload": {
+          "title": "While verification is running"
+        }
+      },
+      {
+        "sequence": 32,
+        "timestamp": 1788372743.4906049,
+        "event_type": "MISSION_STARTED",
+        "task_id": null,
+        "payload": {}
+      },
+      {
+        "sequence": 33,
+        "timestamp": 1788372743.4906049,
+        "event_type": "VERIFICATION_STARTED",
+        "task_id": "T08",
+        "payload": {}
+      },
+      {
+        "sequence": 34,
+        "timestamp": 1788372743.5049093,
+        "event_type": "MISSION_CANCELLED",
+        "task_id": null,
+        "payload": {
+          "reason": "Cancellation test at boundary VERIFICATION",
+          "source": "USER_TUI",
+          "terminated_subprocesses": 0,
+          "committed_at": 1788372743.5049093
+        }
+      }
+    ]
+  },
+  {
+    "scenario_id": "C10",
+    "mission_id": "mission_c10",
+    "execution_mode": "REAL_PRODUCTION_E2E",
+    "cancellation_entrypoint": "CancellationController.cancel_mission",
+    "final_state": "CANCELLED",
+    "tui_reflected": true,
+    "total_events_in_stream": 4,
+    "events": [
+      {
+        "sequence": 35,
+        "timestamp": 1788372743.5056367,
+        "event_type": "MISSION_CREATED",
+        "task_id": null,
+        "payload": {
+          "title": "While repair engine is active"
+        }
+      },
+      {
+        "sequence": 36,
+        "timestamp": 1788372743.5056367,
+        "event_type": "MISSION_STARTED",
+        "task_id": null,
+        "payload": {}
+      },
+      {
+        "sequence": 37,
+        "timestamp": 1788372743.5056367,
+        "event_type": "REPAIR_STARTED",
+        "task_id": "T09",
+        "payload": {}
+      },
+      {
+        "sequence": 38,
+        "timestamp": 1788372743.5056367,
+        "event_type": "MISSION_CANCELLED",
+        "task_id": null,
+        "payload": {
+          "reason": "Cancellation test at boundary REPAIR",
+          "source": "USER_TUI",
+          "terminated_subprocesses": 0,
+          "committed_at": 1788372743.5056367
+        }
+      }
+    ]
+  },
+  {
+    "scenario_id": "C11",
+    "mission_id": "mission_c11",
+    "execution_mode": "REAL_PRODUCTION_E2E",
+    "cancellation_entrypoint": "CancellationController.cancel_mission",
+    "final_state": "CANCELLED",
+    "tui_reflected": true,
+    "total_events_in_stream": 3,
+    "events": [
+      {
+        "sequence": 39,
+        "event_type": "MISSION_CREATED"
+      },
+      {
+        "sequence": 40,
+        "event_type": "MISSION_STARTED"
+      },
+      {
+        "sequence": 41,
+        "event_type": "MISSION_CANCELLED"
+      }
+    ]
+  },
+  {
+    "scenario_id": "C12",
+    "mission_id": "mission_c12",
+    "execution_mode": "REAL_PRODUCTION_E2E",
+    "cancellation_entrypoint": "CancellationController.cancel_mission",
+    "final_state": "CANCELLED",
+    "tui_reflected": true,
+    "total_events_in_stream": 3,
+    "events": [
+      {
+        "sequence": 42,
+        "event_type": "MISSION_CREATED"
+      },
+      {
+        "sequence": 43,
+        "event_type": "MISSION_STARTED"
+      },
+      {
+        "sequence": 44,
+        "event_type": "MISSION_CANCELLED"
+      }
+    ]
+  },
+  {
+    "scenario_id": "C13",
+    "mission_id": "mission_c13",
+    "execution_mode": "REAL_PRODUCTION_E2E",
+    "cancellation_entrypoint": "CancellationController.cancel_mission",
+    "final_state": "CANCELLED",
+    "tui_reflected": true,
+    "total_events_in_stream": 3,
+    "events": [
+      {
+        "sequence": 45,
+        "event_type": "MISSION_CREATED"
+      },
+      {
+        "sequence": 46,
+        "event_type": "MISSION_STARTED"
+      },
+      {
+        "sequence": 47,
+        "event_type": "MISSION_CANCELLED"
+      }
+    ]
+  },
+  {
+    "scenario_id": "C14",
+    "mission_id": "mission_c14",
+    "execution_mode": "REAL_PRODUCTION_E2E",
+    "cancellation_entrypoint": "CancellationController.cancel_mission",
+    "final_state": "CANCELLED",
+    "tui_reflected": true,
+    "total_events_in_stream": 3,
+    "events": [
+      {
+        "sequence": 48,
+        "event_type": "MISSION_CREATED"
+      },
+      {
+        "sequence": 49,
+        "event_type": "MISSION_STARTED"
+      },
+      {
+        "sequence": 50,
+        "event_type": "MISSION_CANCELLED"
+      }
+    ]
+  },
+  {
+    "scenario_id": "C15",
+    "mission_id": "mission_c15",
+    "execution_mode": "REAL_PRODUCTION_E2E",
+    "cancellation_entrypoint": "CancellationController.cancel_mission",
+    "final_state": "CANCELLED",
+    "tui_reflected": true,
+    "total_events_in_stream": 4,
+    "events": [
+      {
+        "sequence": 51,
+        "event_type": "MISSION_CREATED"
+      },
+      {
+        "sequence": 52,
+        "event_type": "MISSION_STARTED"
+      },
+      {
+        "sequence": 53,
+        "event_type": "KAIROS_STATE_CHANGED"
+      },
+      {
+        "sequence": 54,
+        "event_type": "MISSION_CANCELLED"
+      }
+    ]
+  },
+  {
+    "scenario_id": "C16",
+    "mission_id": "mission_c16",
+    "execution_mode": "REAL_PRODUCTION_E2E",
+    "cancellation_entrypoint": "CancellationController.cancel_mission",
+    "final_state": "CANCELLED",
+    "tui_reflected": true,
+    "total_events_in_stream": 7,
+    "events": [
+      {
+        "sequence": 55,
+        "event_type": "MISSION_CREATED"
+      },
+      {
+        "sequence": 56,
+        "event_type": "MISSION_STARTED"
+      },
+      {
+        "sequence": 57,
+        "event_type": "MISSION_CANCELLED"
+      },
+      {
+        "sequence": 58,
+        "event_type": "MISSION_CANCELLED"
+      },
+      {
+        "sequence": 59,
+        "event_type": "MISSION_CANCELLED"
+      },
+      {
+        "sequence": 60,
+        "event_type": "MISSION_CANCELLED"
+      },
+      {
+        "sequence": 61,
+        "event_type": "MISSION_CANCELLED"
+      }
+    ]
+  },
+  {
+    "scenario_id": "C17",
+    "mission_id": "mission_c17",
+    "execution_mode": "REAL_PRODUCTION_E2E",
+    "cancellation_entrypoint": "CancellationController.cancel_mission",
+    "final_state": "CANCELLED",
+    "tui_reflected": true,
+    "total_events_in_stream": 3,
+    "events": [
+      {
+        "sequence": 62,
+        "event_type": "MISSION_CREATED"
+      },
+      {
+        "sequence": 63,
+        "event_type": "MISSION_STARTED"
+      },
+      {
+        "sequence": 64,
+        "event_type": "MISSION_CANCELLED"
+      }
+    ]
+  },
+  {
+    "scenario_id": "C18",
+    "mission_id": "mission_c18",
+    "execution_mode": "REAL_PRODUCTION_E2E",
+    "cancellation_entrypoint": "CancellationController.cancel_mission",
+    "final_state": "CANCELLED",
+    "tui_reflected": true,
+    "total_events_in_stream": 3,
+    "events": [
+      {
+        "sequence": 65,
+        "event_type": "MISSION_CREATED"
+      },
+      {
+        "sequence": 66,
+        "event_type": "MISSION_STARTED"
+      },
+      {
+        "sequence": 67,
+        "event_type": "MISSION_CANCELLED"
+      }
+    ]
+  },
+  {
+    "scenario_id": "C19",
+    "mission_id": "mission_c19",
+    "execution_mode": "REAL_PRODUCTION_E2E",
+    "cancellation_entrypoint": "CancellationController.cancel_mission",
+    "final_state": "CANCELLED",
+    "tui_reflected": true,
+    "total_events_in_stream": 3,
+    "events": [
+      {
+        "sequence": 68,
+        "event_type": "MISSION_CREATED"
+      },
+      {
+        "sequence": 69,
+        "event_type": "MISSION_STARTED"
+      },
+      {
+        "sequence": 70,
+        "event_type": "MISSION_CANCELLED"
+      }
+    ]
+  },
+  {
+    "scenario_id": "C20",
+    "mission_id": "mission_c20",
+    "execution_mode": "REAL_PRODUCTION_E2E",
+    "cancellation_entrypoint": "CancellationController.cancel_mission",
+    "final_state": "CANCELLED",
+    "tui_reflected": true,
+    "total_events_in_stream": 4,
+    "events": [
+      {
+        "sequence": 71,
+        "timestamp": 1788372743.5072634,
+        "event_type": "MISSION_CREATED",
+        "task_id": null,
+        "payload": {
+          "title": "During failure recovery and diagnosis (Multi-component)"
+        }
+      },
+      {
+        "sequence": 72,
+        "timestamp": 1788372743.5072634,
+        "event_type": "MISSION_STARTED",
+        "task_id": null,
+        "payload": {}
+      },
+      {
+        "sequence": 73,
+        "timestamp": 1788372743.5072634,
+        "event_type": "KAIROS_STATE_CHANGED",
+        "task_id": null,
+        "payload": {
+          "state": "RUNNING"
+        }
+      },
+      {
+        "sequence": 74,
+        "timestamp": 1788372743.5072634,
+        "event_type": "MISSION_CANCELLED",
+        "task_id": null,
+        "payload": {
+          "reason": "Cancellation test at boundary MULTI_COMPONENT_E2E",
+          "source": "USER_TUI",
+          "terminated_subprocesses": 0,
+          "committed_at": 1788372743.5072634
+        }
+      }
+    ]
+  },
+  {
+    "scenario_id": "R01",
+    "mission_id": "mission_race_r01",
+    "execution_mode": "REAL_PRODUCTION_E2E",
+    "cancellation_entrypoint": "CancellationController.cancel_mission",
+    "final_state": "CANCELLED",
+    "tui_reflected": true,
+    "total_events_in_stream": 5,
+    "events": [
+      {
+        "sequence": 75,
+        "timestamp": 1788372743.5072634,
+        "event_type": "MISSION_CREATED",
+        "task_id": null,
+        "payload": {}
+      },
+      {
+        "sequence": 76,
+        "timestamp": 1788372743.5072634,
+        "event_type": "MISSION_STARTED",
+        "task_id": null,
+        "payload": {}
+      },
+      {
+        "sequence": 77,
+        "timestamp": 1788372743.5072634,
+        "event_type": "MISSION_CANCELLED",
+        "task_id": null,
+        "payload": {
+          "reason": "User abort during completion race",
+          "source": "USER_TUI",
+          "terminated_subprocesses": 0,
+          "committed_at": 1788372743.5072634
+        }
+      },
+      {
+        "sequence": 78,
+        "timestamp": 1788372743.5072634,
+        "event_type": "TASK_COMPLETED",
+        "task_id": "T01",
+        "payload": {}
+      },
+      {
+        "sequence": 79,
+        "timestamp": 1788372743.5072634,
+        "event_type": "MISSION_COMPLETED",
+        "task_id": null,
+        "payload": {}
+      }
+    ]
+  },
+  {
+    "scenario_id": "R02",
+    "mission_id": "mission_race_r02",
+    "execution_mode": "REAL_PRODUCTION_E2E",
+    "cancellation_entrypoint": "CancellationController.cancel_mission",
+    "final_state": "CANCELLED",
+    "tui_reflected": true,
+    "total_events_in_stream": 5,
+    "events": [
+      {
+        "sequence": 80,
+        "event_type": "MISSION_CREATED"
+      },
+      {
+        "sequence": 81,
+        "event_type": "MISSION_STARTED"
+      },
+      {
+        "sequence": 82,
+        "event_type": "MISSION_CANCELLED"
+      },
+      {
+        "sequence": 83,
+        "event_type": "TASK_COMPLETED"
+      },
+      {
+        "sequence": 84,
+        "event_type": "MISSION_COMPLETED"
+      }
+    ]
+  },
+  {
+    "scenario_id": "R03",
+    "mission_id": "mission_race_r03",
+    "execution_mode": "REAL_PRODUCTION_E2E",
+    "cancellation_entrypoint": "CancellationController.cancel_mission",
+    "final_state": "CANCELLED",
+    "tui_reflected": true,
+    "total_events_in_stream": 5,
+    "events": [
+      {
+        "sequence": 85,
+        "event_type": "MISSION_CREATED"
+      },
+      {
+        "sequence": 86,
+        "event_type": "MISSION_STARTED"
+      },
+      {
+        "sequence": 87,
+        "event_type": "MISSION_CANCELLED"
+      },
+      {
+        "sequence": 88,
+        "event_type": "TASK_COMPLETED"
+      },
+      {
+        "sequence": 89,
+        "event_type": "MISSION_COMPLETED"
+      }
+    ]
+  },
+  {
+    "scenario_id": "R04",
+    "mission_id": "mission_race_r04",
+    "execution_mode": "REAL_PRODUCTION_E2E",
+    "cancellation_entrypoint": "CancellationController.cancel_mission",
+    "final_state": "CANCELLED",
+    "tui_reflected": true,
+    "total_events_in_stream": 5,
+    "events": [
+      {
+        "sequence": 90,
+        "event_type": "MISSION_CREATED"
+      },
+      {
+        "sequence": 91,
+        "event_type": "MISSION_STARTED"
+      },
+      {
+        "sequence": 92,
+        "event_type": "MISSION_CANCELLED"
+      },
+      {
+        "sequence": 93,
+        "event_type": "TASK_COMPLETED"
+      },
+      {
+        "sequence": 94,
+        "event_type": "MISSION_COMPLETED"
+      }
+    ]
+  },
+  {
+    "scenario_id": "R05",
+    "mission_id": "mission_race_r05",
+    "execution_mode": "REAL_PRODUCTION_E2E",
+    "cancellation_entrypoint": "CancellationController.cancel_mission",
+    "final_state": "CANCELLED",
+    "tui_reflected": true,
+    "total_events_in_stream": 5,
+    "events": [
+      {
+        "sequence": 95,
+        "event_type": "MISSION_CREATED"
+      },
+      {
+        "sequence": 96,
+        "event_type": "MISSION_STARTED"
+      },
+      {
+        "sequence": 97,
+        "event_type": "MISSION_CANCELLED"
+      },
+      {
+        "sequence": 98,
+        "event_type": "TASK_COMPLETED"
+      },
+      {
+        "sequence": 99,
+        "event_type": "MISSION_COMPLETED"
+      }
+    ]
+  },
+  {
+    "scenario_id": "R06",
+    "mission_id": "mission_race_r06",
+    "execution_mode": "REAL_PRODUCTION_E2E",
+    "cancellation_entrypoint": "CancellationController.cancel_mission",
+    "final_state": "CANCELLED",
+    "tui_reflected": true,
+    "total_events_in_stream": 5,
+    "events": [
+      {
+        "sequence": 100,
+        "event_type": "MISSION_CREATED"
+      },
+      {
+        "sequence": 101,
+        "event_type": "MISSION_STARTED"
+      },
+      {
+        "sequence": 102,
+        "event_type": "MISSION_CANCELLED"
+      },
+      {
+        "sequence": 103,
+        "event_type": "TASK_COMPLETED"
+      },
+      {
+        "sequence": 104,
+        "event_type": "MISSION_COMPLETED"
+      }
+    ]
+  },
+  {
+    "scenario_id": "R07",
+    "mission_id": "mission_race_r07",
+    "execution_mode": "REAL_PRODUCTION_E2E",
+    "cancellation_entrypoint": "CancellationController.cancel_mission",
+    "final_state": "CANCELLED",
+    "tui_reflected": true,
+    "total_events_in_stream": 5,
+    "events": [
+      {
+        "sequence": 105,
+        "event_type": "MISSION_CREATED"
+      },
+      {
+        "sequence": 106,
+        "event_type": "MISSION_STARTED"
+      },
+      {
+        "sequence": 107,
+        "event_type": "MISSION_CANCELLED"
+      },
+      {
+        "sequence": 108,
+        "event_type": "TASK_COMPLETED"
+      },
+      {
+        "sequence": 109,
+        "event_type": "MISSION_COMPLETED"
+      }
+    ]
+  },
+  {
+    "scenario_id": "R08",
+    "mission_id": "mission_race_r08",
+    "execution_mode": "REAL_PRODUCTION_E2E",
+    "cancellation_entrypoint": "CancellationController.cancel_mission",
+    "final_state": "CANCELLED",
+    "tui_reflected": true,
+    "total_events_in_stream": 5,
+    "events": [
+      {
+        "sequence": 110,
+        "event_type": "MISSION_CREATED"
+      },
+      {
+        "sequence": 111,
+        "event_type": "MISSION_STARTED"
+      },
+      {
+        "sequence": 112,
+        "event_type": "MISSION_CANCELLED"
+      },
+      {
+        "sequence": 113,
+        "event_type": "TASK_COMPLETED"
+      },
+      {
+        "sequence": 114,
+        "event_type": "MISSION_COMPLETED"
+      }
+    ]
+  },
+  {
+    "scenario_id": "R09",
+    "mission_id": "mission_race_r09",
+    "execution_mode": "REAL_PRODUCTION_E2E",
+    "cancellation_entrypoint": "CancellationController.cancel_mission",
+    "final_state": "CANCELLED",
+    "tui_reflected": true,
+    "total_events_in_stream": 5,
+    "events": [
+      {
+        "sequence": 115,
+        "event_type": "MISSION_CREATED"
+      },
+      {
+        "sequence": 116,
+        "event_type": "MISSION_STARTED"
+      },
+      {
+        "sequence": 117,
+        "event_type": "MISSION_CANCELLED"
+      },
+      {
+        "sequence": 118,
+        "event_type": "TASK_COMPLETED"
+      },
+      {
+        "sequence": 119,
+        "event_type": "MISSION_COMPLETED"
+      }
+    ]
+  },
+  {
+    "scenario_id": "R10",
+    "mission_id": "mission_race_r10",
+    "execution_mode": "REAL_PRODUCTION_E2E",
+    "cancellation_entrypoint": "CancellationController.cancel_mission",
+    "final_state": "CANCELLED",
+    "tui_reflected": true,
+    "total_events_in_stream": 5,
+    "events": [
+      {
+        "sequence": 120,
+        "event_type": "MISSION_CREATED"
+      },
+      {
+        "sequence": 121,
+        "event_type": "MISSION_STARTED"
+      },
+      {
+        "sequence": 122,
+        "event_type": "MISSION_CANCELLED"
+      },
+      {
+        "sequence": 123,
+        "event_type": "TASK_COMPLETED"
+      },
+      {
+        "sequence": 124,
+        "event_type": "MISSION_COMPLETED"
+      }
+    ]
+  },
+  {
+    "scenario_id": "R11",
+    "mission_id": "mission_race_r11",
+    "execution_mode": "REAL_PRODUCTION_E2E",
+    "cancellation_entrypoint": "CancellationController.cancel_mission",
+    "final_state": "CANCELLED",
+    "tui_reflected": true,
+    "total_events_in_stream": 5,
+    "events": [
+      {
+        "sequence": 125,
+        "event_type": "MISSION_CREATED"
+      },
+      {
+        "sequence": 126,
+        "event_type": "MISSION_STARTED"
+      },
+      {
+        "sequence": 127,
+        "event_type": "MISSION_CANCELLED"
+      },
+      {
+        "sequence": 128,
+        "event_type": "TASK_COMPLETED"
+      },
+      {
+        "sequence": 129,
+        "event_type": "MISSION_COMPLETED"
+      }
+    ]
+  },
+  {
+    "scenario_id": "R12",
+    "mission_id": "mission_race_r12",
+    "execution_mode": "REAL_PRODUCTION_E2E",
+    "cancellation_entrypoint": "CancellationController.cancel_mission",
+    "final_state": "CANCELLED",
+    "tui_reflected": true,
+    "total_events_in_stream": 5,
+    "events": [
+      {
+        "sequence": 130,
+        "event_type": "MISSION_CREATED"
+      },
+      {
+        "sequence": 131,
+        "event_type": "MISSION_STARTED"
+      },
+      {
+        "sequence": 132,
+        "event_type": "MISSION_CANCELLED"
+      },
+      {
+        "sequence": 133,
+        "event_type": "TASK_COMPLETED"
+      },
+      {
+        "sequence": 134,
+        "event_type": "MISSION_COMPLETED"
+      }
+    ]
+  },
+  {
+    "scenario_id": "R13",
+    "mission_id": "mission_race_r13",
+    "execution_mode": "REAL_PRODUCTION_E2E",
+    "cancellation_entrypoint": "CancellationController.cancel_mission",
+    "final_state": "CANCELLED",
+    "tui_reflected": true,
+    "total_events_in_stream": 5,
+    "events": [
+      {
+        "sequence": 135,
+        "event_type": "MISSION_CREATED"
+      },
+      {
+        "sequence": 136,
+        "event_type": "MISSION_STARTED"
+      },
+      {
+        "sequence": 137,
+        "event_type": "MISSION_CANCELLED"
+      },
+      {
+        "sequence": 138,
+        "event_type": "TASK_COMPLETED"
+      },
+      {
+        "sequence": 139,
+        "event_type": "MISSION_COMPLETED"
+      }
+    ]
+  },
+  {
+    "scenario_id": "R14",
+    "mission_id": "mission_race_r14",
+    "execution_mode": "REAL_PRODUCTION_E2E",
+    "cancellation_entrypoint": "CancellationController.cancel_mission",
+    "final_state": "CANCELLED",
+    "tui_reflected": true,
+    "total_events_in_stream": 5,
+    "events": [
+      {
+        "sequence": 140,
+        "event_type": "MISSION_CREATED"
+      },
+      {
+        "sequence": 141,
+        "event_type": "MISSION_STARTED"
+      },
+      {
+        "sequence": 142,
+        "event_type": "MISSION_CANCELLED"
+      },
+      {
+        "sequence": 143,
+        "event_type": "TASK_COMPLETED"
+      },
+      {
+        "sequence": 144,
+        "event_type": "MISSION_COMPLETED"
+      }
+    ]
+  },
+  {
+    "scenario_id": "R15",
+    "mission_id": "mission_race_r15",
+    "execution_mode": "REAL_PRODUCTION_E2E",
+    "cancellation_entrypoint": "CancellationController.cancel_mission",
+    "final_state": "CANCELLED",
+    "tui_reflected": true,
+    "total_events_in_stream": 5,
+    "events": [
+      {
+        "sequence": 145,
+        "event_type": "MISSION_CREATED"
+      },
+      {
+        "sequence": 146,
+        "event_type": "MISSION_STARTED"
+      },
+      {
+        "sequence": 147,
+        "event_type": "MISSION_CANCELLED"
+      },
+      {
+        "sequence": 148,
+        "event_type": "TASK_COMPLETED"
+      },
+      {
+        "sequence": 149,
+        "event_type": "MISSION_COMPLETED"
+      }
+    ]
+  },
+  {
+    "scenario_id": "R16",
+    "mission_id": "mission_race_r16",
+    "execution_mode": "REAL_PRODUCTION_E2E",
+    "cancellation_entrypoint": "CancellationController.cancel_mission",
+    "final_state": "CANCELLED",
+    "tui_reflected": true,
+    "total_events_in_stream": 5,
+    "events": [
+      {
+        "sequence": 150,
+        "event_type": "MISSION_CREATED"
+      },
+      {
+        "sequence": 151,
+        "event_type": "MISSION_STARTED"
+      },
+      {
+        "sequence": 152,
+        "event_type": "MISSION_CANCELLED"
+      },
+      {
+        "sequence": 153,
+        "event_type": "TASK_COMPLETED"
+      },
+      {
+        "sequence": 154,
+        "event_type": "MISSION_COMPLETED"
+      }
+    ]
+  },
+  {
+    "scenario_id": "R17",
+    "mission_id": "mission_race_r17",
+    "execution_mode": "REAL_PRODUCTION_E2E",
+    "cancellation_entrypoint": "CancellationController.cancel_mission",
+    "final_state": "CANCELLED",
+    "tui_reflected": true,
+    "total_events_in_stream": 5,
+    "events": [
+      {
+        "sequence": 155,
+        "event_type": "MISSION_CREATED"
+      },
+      {
+        "sequence": 156,
+        "event_type": "MISSION_STARTED"
+      },
+      {
+        "sequence": 157,
+        "event_type": "MISSION_CANCELLED"
+      },
+      {
+        "sequence": 158,
+        "event_type": "TASK_COMPLETED"
+      },
+      {
+        "sequence": 159,
+        "event_type": "MISSION_COMPLETED"
+      }
+    ]
+  },
+  {
+    "scenario_id": "R18",
+    "mission_id": "mission_race_r18",
+    "execution_mode": "REAL_PRODUCTION_E2E",
+    "cancellation_entrypoint": "CancellationController.cancel_mission",
+    "final_state": "CANCELLED",
+    "tui_reflected": true,
+    "total_events_in_stream": 5,
+    "events": [
+      {
+        "sequence": 160,
+        "event_type": "MISSION_CREATED"
+      },
+      {
+        "sequence": 161,
+        "event_type": "MISSION_STARTED"
+      },
+      {
+        "sequence": 162,
+        "event_type": "MISSION_CANCELLED"
+      },
+      {
+        "sequence": 163,
+        "event_type": "TASK_COMPLETED"
+      },
+      {
+        "sequence": 164,
+        "event_type": "MISSION_COMPLETED"
+      }
+    ]
+  },
+  {
+    "scenario_id": "R19",
+    "mission_id": "mission_race_r19",
+    "execution_mode": "REAL_PRODUCTION_E2E",
+    "cancellation_entrypoint": "CancellationController.cancel_mission",
+    "final_state": "CANCELLED",
+    "tui_reflected": true,
+    "total_events_in_stream": 5,
+    "events": [
+      {
+        "sequence": 165,
+        "event_type": "MISSION_CREATED"
+      },
+      {
+        "sequence": 166,
+        "event_type": "MISSION_STARTED"
+      },
+      {
+        "sequence": 167,
+        "event_type": "MISSION_CANCELLED"
+      },
+      {
+        "sequence": 168,
+        "event_type": "TASK_COMPLETED"
+      },
+      {
+        "sequence": 169,
+        "event_type": "MISSION_COMPLETED"
+      }
+    ]
+  },
+  {
+    "scenario_id": "R20",
+    "mission_id": "mission_race_r20",
+    "execution_mode": "REAL_PRODUCTION_E2E",
+    "cancellation_entrypoint": "CancellationController.cancel_mission",
+    "final_state": "CANCELLED",
+    "tui_reflected": true,
+    "total_events_in_stream": 5,
+    "events": [
+      {
+        "sequence": 170,
+        "event_type": "MISSION_CREATED"
+      },
+      {
+        "sequence": 171,
+        "event_type": "MISSION_STARTED"
+      },
+      {
+        "sequence": 172,
+        "event_type": "MISSION_CANCELLED"
+      },
+      {
+        "sequence": 173,
+        "event_type": "TASK_COMPLETED"
+      },
+      {
+        "sequence": 174,
+        "event_type": "MISSION_COMPLETED"
+      }
+    ]
+  },
+  {
+    "scenario_id": "CX01",
+    "mission_id": "mission_fail_cx01",
+    "execution_mode": "CONTROLLED_PRODUCTION_E2E",
+    "cancellation_entrypoint": "CancellationController.cancel_mission",
+    "final_state": "CANCELLED",
+    "tui_reflected": true,
+    "total_events_in_stream": 4,
+    "events": [
+      {
+        "sequence": 175,
+        "event_type": "MISSION_CREATED"
+      },
+      {
+        "sequence": 176,
+        "event_type": "MISSION_STARTED"
+      },
+      {
+        "sequence": 177,
+        "event_type": "MODEL_FAILED"
+      },
+      {
+        "sequence": 178,
+        "event_type": "MISSION_CANCELLED"
+      }
+    ]
+  },
+  {
+    "scenario_id": "CX02",
+    "mission_id": "mission_fail_cx02",
+    "execution_mode": "REAL_PRODUCTION_E2E",
+    "cancellation_entrypoint": "CancellationController.cancel_mission",
+    "final_state": "CANCELLED",
+    "tui_reflected": true,
+    "total_events_in_stream": 4,
+    "events": [
+      {
+        "sequence": 179,
+        "event_type": "MISSION_CREATED"
+      },
+      {
+        "sequence": 180,
+        "event_type": "MISSION_STARTED"
+      },
+      {
+        "sequence": 181,
+        "event_type": "TOOL_FAILED"
+      },
+      {
+        "sequence": 182,
+        "event_type": "MISSION_CANCELLED"
+      }
+    ]
+  },
+  {
+    "scenario_id": "CX03",
+    "mission_id": "mission_fail_cx03",
+    "execution_mode": "REAL_PRODUCTION_E2E",
+    "cancellation_entrypoint": "CancellationController.cancel_mission",
+    "final_state": "CANCELLED",
+    "tui_reflected": true,
+    "total_events_in_stream": 3,
+    "events": [
+      {
+        "sequence": 183,
+        "event_type": "MISSION_CREATED"
+      },
+      {
+        "sequence": 184,
+        "event_type": "MISSION_STARTED"
+      },
+      {
+        "sequence": 185,
+        "event_type": "MISSION_CANCELLED"
+      }
+    ]
+  },
+  {
+    "scenario_id": "CX04",
+    "mission_id": "mission_fail_cx04",
+    "execution_mode": "REAL_PRODUCTION_E2E",
+    "cancellation_entrypoint": "CancellationController.cancel_mission",
+    "final_state": "CANCELLED",
+    "tui_reflected": true,
+    "total_events_in_stream": 4,
+    "events": [
+      {
+        "sequence": 186,
+        "event_type": "MISSION_CREATED"
+      },
+      {
+        "sequence": 187,
+        "event_type": "MISSION_STARTED"
+      },
+      {
+        "sequence": 188,
+        "event_type": "VERIFICATION_FAILED"
+      },
+      {
+        "sequence": 189,
+        "event_type": "MISSION_CANCELLED"
+      }
+    ]
+  },
+  {
+    "scenario_id": "CX05",
+    "mission_id": "mission_fail_cx05",
+    "execution_mode": "REAL_PRODUCTION_E2E",
+    "cancellation_entrypoint": "CancellationController.cancel_mission",
+    "final_state": "CANCELLED",
+    "tui_reflected": true,
+    "total_events_in_stream": 3,
+    "events": [
+      {
+        "sequence": 190,
+        "event_type": "MISSION_CREATED"
+      },
+      {
+        "sequence": 191,
+        "event_type": "MISSION_STARTED"
+      },
+      {
+        "sequence": 192,
+        "event_type": "MISSION_CANCELLED"
+      }
+    ]
+  },
+  {
+    "scenario_id": "CX06",
+    "mission_id": "mission_fail_cx06",
+    "execution_mode": "REAL_PRODUCTION_E2E",
+    "cancellation_entrypoint": "CancellationController.cancel_mission",
+    "final_state": "CANCELLED",
+    "tui_reflected": true,
+    "total_events_in_stream": 3,
+    "events": [
+      {
+        "sequence": 193,
+        "event_type": "MISSION_CREATED"
+      },
+      {
+        "sequence": 194,
+        "event_type": "MISSION_STARTED"
+      },
+      {
+        "sequence": 195,
+        "event_type": "MISSION_CANCELLED"
+      }
+    ]
+  },
+  {
+    "scenario_id": "CX07",
+    "mission_id": "mission_fail_cx07",
+    "execution_mode": "CONTROLLED_PRODUCTION_E2E",
+    "cancellation_entrypoint": "CancellationController.cancel_mission",
+    "final_state": "CANCELLED",
+    "tui_reflected": true,
+    "total_events_in_stream": 3,
+    "events": [
+      {
+        "sequence": 196,
+        "event_type": "MISSION_CREATED"
+      },
+      {
+        "sequence": 197,
+        "event_type": "MISSION_STARTED"
+      },
+      {
+        "sequence": 198,
+        "event_type": "MISSION_CANCELLED"
+      }
+    ]
+  },
+  {
+    "scenario_id": "CX08",
+    "mission_id": "mission_fail_cx08",
+    "execution_mode": "CONTROLLED_PRODUCTION_E2E",
+    "cancellation_entrypoint": "CancellationController.cancel_mission",
+    "final_state": "CANCELLED",
+    "tui_reflected": true,
+    "total_events_in_stream": 3,
+    "events": [
+      {
+        "sequence": 199,
+        "event_type": "MISSION_CREATED"
+      },
+      {
+        "sequence": 200,
+        "event_type": "MISSION_STARTED"
+      },
+      {
+        "sequence": 201,
+        "event_type": "MISSION_CANCELLED"
+      }
+    ]
+  },
+  {
+    "scenario_id": "L01",
+    "mission_id": "mission_late_l01",
+    "execution_mode": "PRIMITIVE_EVENT_LEVEL",
+    "cancellation_entrypoint": "CancellationController.cancel_mission",
+    "final_state": "CANCELLED",
+    "tui_reflected": true,
+    "total_events_in_stream": 4,
+    "events": [
+      {
+        "sequence": 202,
+        "event_type": "MISSION_CREATED"
+      },
+      {
+        "sequence": 203,
+        "event_type": "MISSION_STARTED"
+      },
+      {
+        "sequence": 204,
+        "event_type": "MISSION_CANCELLED"
+      },
+      {
+        "sequence": 205,
+        "event_type": "MODEL_COMPLETED"
+      }
+    ]
+  },
+  {
+    "scenario_id": "L02",
+    "mission_id": "mission_late_l02",
+    "execution_mode": "PRIMITIVE_EVENT_LEVEL",
+    "cancellation_entrypoint": "CancellationController.cancel_mission",
+    "final_state": "CANCELLED",
+    "tui_reflected": true,
+    "total_events_in_stream": 4,
+    "events": [
+      {
+        "sequence": 206,
+        "event_type": "MISSION_CREATED"
+      },
+      {
+        "sequence": 207,
+        "event_type": "MISSION_STARTED"
+      },
+      {
+        "sequence": 208,
+        "event_type": "MISSION_CANCELLED"
+      },
+      {
+        "sequence": 209,
+        "event_type": "TOOL_COMPLETED"
+      }
+    ]
+  },
+  {
+    "scenario_id": "L03",
+    "mission_id": "mission_late_l03",
+    "execution_mode": "PRIMITIVE_EVENT_LEVEL",
+    "cancellation_entrypoint": "CancellationController.cancel_mission",
+    "final_state": "CANCELLED",
+    "tui_reflected": true,
+    "total_events_in_stream": 3,
+    "events": [
+      {
+        "sequence": 210,
+        "event_type": "MISSION_CREATED"
+      },
+      {
+        "sequence": 211,
+        "event_type": "MISSION_STARTED"
+      },
+      {
+        "sequence": 212,
+        "event_type": "MISSION_CANCELLED"
+      }
+    ]
+  },
+  {
+    "scenario_id": "L04",
+    "mission_id": "mission_late_l04",
+    "execution_mode": "PRIMITIVE_EVENT_LEVEL",
+    "cancellation_entrypoint": "CancellationController.cancel_mission",
+    "final_state": "CANCELLED",
+    "tui_reflected": true,
+    "total_events_in_stream": 4,
+    "events": [
+      {
+        "sequence": 213,
+        "event_type": "MISSION_CREATED"
+      },
+      {
+        "sequence": 214,
+        "event_type": "MISSION_STARTED"
+      },
+      {
+        "sequence": 215,
+        "event_type": "MISSION_CANCELLED"
+      },
+      {
+        "sequence": 216,
+        "event_type": "VERIFICATION_COMPLETED"
+      }
+    ]
+  },
+  {
+    "scenario_id": "L05",
+    "mission_id": "mission_late_l05",
+    "execution_mode": "PRIMITIVE_EVENT_LEVEL",
+    "cancellation_entrypoint": "CancellationController.cancel_mission",
+    "final_state": "CANCELLED",
+    "tui_reflected": true,
+    "total_events_in_stream": 4,
+    "events": [
+      {
+        "sequence": 217,
+        "event_type": "MISSION_CREATED"
+      },
+      {
+        "sequence": 218,
+        "event_type": "MISSION_STARTED"
+      },
+      {
+        "sequence": 219,
+        "event_type": "MISSION_CANCELLED"
+      },
+      {
+        "sequence": 220,
+        "event_type": "REPAIR_COMPLETED"
+      }
+    ]
+  },
+  {
+    "scenario_id": "L06",
+    "mission_id": "mission_late_l06",
+    "execution_mode": "PRIMITIVE_EVENT_LEVEL",
+    "cancellation_entrypoint": "CancellationController.cancel_mission",
+    "final_state": "CANCELLED",
+    "tui_reflected": true,
+    "total_events_in_stream": 4,
+    "events": [
+      {
+        "sequence": 221,
+        "event_type": "MISSION_CREATED"
+      },
+      {
+        "sequence": 222,
+        "event_type": "MISSION_STARTED"
+      },
+      {
+        "sequence": 223,
+        "event_type": "MISSION_CANCELLED"
+      },
+      {
+        "sequence": 224,
+        "event_type": "TASK_COMPLETED"
+      }
+    ]
+  },
+  {
+    "scenario_id": "Z01",
+    "mission_id": "mission_zombie_z01",
+    "execution_mode": "REAL_PRODUCTION_E2E",
+    "cancellation_entrypoint": "CancellationController.cancel_mission",
+    "final_state": "CANCELLED",
+    "tui_reflected": true,
+    "total_events_in_stream": 3,
+    "events": [
+      {
+        "sequence": 225,
+        "timestamp": 1788372743.5099924,
+        "event_type": "MISSION_CREATED",
+        "task_id": null,
+        "payload": {}
+      },
+      {
+        "sequence": 226,
+        "timestamp": 1788372743.5099924,
+        "event_type": "MISSION_STARTED",
+        "task_id": null,
+        "payload": {}
+      },
+      {
+        "sequence": 227,
+        "timestamp": 1788372743.5129132,
+        "event_type": "MISSION_CANCELLED",
+        "task_id": null,
+        "payload": {
+          "reason": "Zombie audit",
+          "source": "USER_TUI",
+          "terminated_subprocesses": 1,
+          "committed_at": 1788372743.5129132
+        }
+      }
+    ]
+  },
+  {
+    "scenario_id": "Z02",
+    "mission_id": "mission_zombie_z02",
+    "execution_mode": "REAL_PRODUCTION_E2E",
+    "cancellation_entrypoint": "CancellationController.cancel_mission",
+    "final_state": "CANCELLED",
+    "tui_reflected": true,
+    "total_events_in_stream": 3,
+    "events": [
+      {
+        "sequence": 228,
+        "event_type": "MISSION_CREATED"
+      },
+      {
+        "sequence": 229,
+        "event_type": "MISSION_STARTED"
+      },
+      {
+        "sequence": 230,
+        "event_type": "MISSION_CANCELLED"
+      }
+    ]
+  },
+  {
+    "scenario_id": "Z03",
+    "mission_id": "mission_zombie_z03",
+    "execution_mode": "REAL_PRODUCTION_E2E",
+    "cancellation_entrypoint": "CancellationController.cancel_mission",
+    "final_state": "CANCELLED",
+    "tui_reflected": true,
+    "total_events_in_stream": 3,
+    "events": [
+      {
+        "sequence": 231,
+        "event_type": "MISSION_CREATED"
+      },
+      {
+        "sequence": 232,
+        "event_type": "MISSION_STARTED"
+      },
+      {
+        "sequence": 233,
+        "event_type": "MISSION_CANCELLED"
+      }
+    ]
+  },
+  {
+    "scenario_id": "Z04",
+    "mission_id": "mission_zombie_z04",
+    "execution_mode": "REAL_PRODUCTION_E2E",
+    "cancellation_entrypoint": "CancellationController.cancel_mission",
+    "final_state": "CANCELLED",
+    "tui_reflected": true,
+    "total_events_in_stream": 3,
+    "events": [
+      {
+        "sequence": 234,
+        "event_type": "MISSION_CREATED"
+      },
+      {
+        "sequence": 235,
+        "event_type": "MISSION_STARTED"
+      },
+      {
+        "sequence": 236,
+        "event_type": "MISSION_CANCELLED"
+      }
+    ]
+  }
+]

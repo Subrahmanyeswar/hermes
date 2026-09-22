@@ -116,7 +116,7 @@ class TestToolNotFound:
             agree=True, confidence=0.9, critical_issues=[], risk_score=0.1, reasoning="looks good"
         ))
         
-        with patch("core.orchestrator.get_tool", side_effect=[None, DummyTool]):
+        with patch("core.orchestrator.get_tool", side_effect=lambda name: None if name == "invalid_tool_xyz" else DummyTool):
             result = await orch.run("test tool not found retry success")
             assert isinstance(result, OrchestratorResult)
             assert result.success is True

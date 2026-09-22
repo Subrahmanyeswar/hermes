@@ -1,0 +1,49 @@
+{
+  "status": "VERIFIED",
+  "scenarios_tested": 3,
+  "scenarios_passed": 3,
+  "scenarios": [
+    {
+      "scenario": "C1_TRUNCATED_DATABASE",
+      "description": "Corrupt/truncated database file header replaced with garbage bytes",
+      "corruption_injected": true,
+      "corruption_detected": true,
+      "crash": false,
+      "false_success": false,
+      "recovery_attempted": true,
+      "recovery_completed": true,
+      "filesystem_equals_index": true,
+      "retrieval_correct": true,
+      "stale_data_detected": false,
+      "duration_ms": 10.12
+    },
+    {
+      "scenario": "C2_INVALID_TABLE_STRUCTURE",
+      "description": "Dropped and substituted schema with incompatible table columns",
+      "corruption_injected": true,
+      "corruption_detected": true,
+      "crash": false,
+      "false_success": false,
+      "recovery_attempted": true,
+      "recovery_completed": true,
+      "filesystem_equals_index": true,
+      "retrieval_correct": true,
+      "stale_data_detected": false,
+      "duration_ms": 8.67
+    },
+    {
+      "scenario": "C3_MISSING_DATABASE_FILE",
+      "description": "Database file unlinked/deleted externally after initial index",
+      "corruption_injected": true,
+      "corruption_detected": true,
+      "crash": false,
+      "false_success": false,
+      "recovery_attempted": true,
+      "recovery_completed": true,
+      "filesystem_equals_index": true,
+      "retrieval_correct": true,
+      "stale_data_detected": false,
+      "duration_ms": 8.99
+    }
+  ]
+}

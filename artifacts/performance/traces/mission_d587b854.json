@@ -1,0 +1,142 @@
+{
+  "mission_id": "d587b854",
+  "execution_mode": "performance_baseline",
+  "mission": {
+    "start": "2026-09-14 00:32:40",
+    "end": "2026-09-14 00:32:59",
+    "duration_ms": 19192.39,
+    "accounted_time_ms": 19027.78,
+    "unaccounted_time_ms": 164.61
+  },
+  "stages": [
+    {
+      "name": "Input Sanitisation",
+      "stage_number": 1,
+      "start": 21884.7431,
+      "end": 21884.7442,
+      "duration_ms": 1.15,
+      "success": true
+    },
+    {
+      "name": "Planning",
+      "stage_number": 2,
+      "start": 21884.7477,
+      "end": 21884.7575,
+      "duration_ms": 9.81,
+      "success": true
+    }
+  ],
+  "model_calls": [
+    {
+      "inference_id": "53c1fbe1",
+      "request_id": "d587b854",
+      "mission_id": "d587b854",
+      "task_id": "d587b854",
+      "stage": "",
+      "execution_mode": "performance_baseline",
+      "model": "deepseek-r1:8b",
+      "provider": "ollama",
+      "start_time_monotonic": 21884.7873658,
+      "end_time_monotonic": 21903.7721876,
+      "start_timestamp": "2026-09-13T19:02:59Z",
+      "first_token_timestamp": null,
+      "end_timestamp": "2026-09-13T19:02:59Z",
+      "total_latency_ms": 18984.821800000645,
+      "total_duration": 18555.928,
+      "load_duration_ms": 164.4473,
+      "load_duration": 164.4473,
+      "prompt_eval_duration_ms": 620.1164,
+      "prompt_eval_duration": 620.1164,
+      "eval_duration_ms": 17651.8778,
+      "eval_duration": 17651.8778,
+      "ttft_ms": 784.5637,
+      "prompt_eval_count": 2944,
+      "eval_count": 512,
+      "prompt_tokens": 2944,
+      "output_tokens": 512,
+      "total_tokens": 3456,
+      "tokens_per_second": 29.01,
+      "think_enabled": false,
+      "thinking_present": false,
+      "thinking_available": false,
+      "thinking_length": 0,
+      "final_response_length": 2078,
+      "thinking_tokens": null,
+      "tool_call_count": 1,
+      "context": {
+        "system_prompt_chars": 10560,
+        "tool_defs_chars": 0,
+        "user_prompt_chars": 2006,
+        "memory_context_chars": 0,
+        "skill_context_chars": 0,
+        "workspace_context_chars": 0,
+        "total_input_chars": 12566,
+        "estimated_input_tokens": 3141,
+        "exact_input_tokens": 2944
+      },
+      "temperature": 0.1,
+      "num_ctx": 4096,
+      "keep_alive": "300s",
+      "lifecycle_state": "COLD",
+      "warm_cold_state": "COLD",
+      "model_switch_state": "SAME",
+      "previous_model": null,
+      "requested_model": "deepseek-r1:8b",
+      "success": true,
+      "retry_count": 0,
+      "timed_out": false,
+      "error": null,
+      "error_type": null,
+      "error_message": null,
+      "cost_usd": 0.0,
+      "gpu_vram_used_mb": 5497.0,
+      "gpu_util_percent": 97.0,
+      "raw_timing_metadata": {
+        "total_duration": 18555928000,
+        "load_duration": 164447300,
+        "prompt_eval_count": 2944,
+        "prompt_eval_duration": 620116400,
+        "eval_count": 512,
+        "eval_duration": 17651877800
+      }
+    }
+  ],
+  "tool_calls": [
+    {
+      "tool_name": "write_file",
+      "category": "filesystem",
+      "start_time_monotonic": 21903.843,
+      "duration_ms": 31.9999999992433,
+      "subprocess_duration_ms": 0.0,
+      "filesystem_duration_ms": 31.9999999992433,
+      "success": true,
+      "exit_code": 0,
+      "args_size_bytes": 1391,
+      "output_size_bytes": 114,
+      "retry_count": 0,
+      "error": null,
+      "mission_id": "ce5d0486",
+      "task_id": "ce5d0486",
+      "start": 21903.843,
+      "end": 21903.875
+    }
+  ],
+  "verification_calls": [
+    {
+      "verification_id": "2da3125a",
+      "request_id": "d587b854",
+      "mission_id": "ce5d0486",
+      "task_id": "ce5d0486",
+      "method": "LOCAL_STRUCTURAL",
+      "start_time_monotonic": 21903.89,
+      "end_time_monotonic": 21903.89,
+      "duration_ms": 0.0,
+      "verdict": "AGREE",
+      "escalated": false,
+      "issues_count": 0,
+      "issues": []
+    }
+  ],
+  "repair_attempts": [],
+  "model_switches": []
+}

@@ -1,0 +1,39 @@
+{
+  "mission_id": "MISSION_9_rep1_warm",
+  "base_id": "MISSION_9",
+  "name": "Task Requiring Multiple Tools",
+  "type": "chained_tools",
+  "cold": false,
+  "repetition": 1,
+  "wall_clock_ms": 234623.61,
+  "success": true,
+  "tool_name": "write_file",
+  "pipeline_stage_reached": 12,
+  "tier3_was_called": false,
+  "critical_path": {
+    "wall_clock_ms": 234662.07,
+    "cumulative_span_ms": 234623.58,
+    "leaf_span_ms": 234623.58,
+    "category_times_ms": {
+      "MISSION": 234623.58
+    },
+    "span_count": 1
+  },
+  "spans": [
+    {
+      "span_id": "54590c49",
+      "mission_id": "MISSION_9_rep1_warm",
+      "parent_id": null,
+      "name": "TOTAL_MISSION",
+      "category": "MISSION",
+      "start_ns": 809860246195500,
+      "end_ns": 810094869776000,
+      "duration_ms": 234623.5805,
+      "status": "success",
+      "metadata": {
+        "mission_id": "MISSION_9_rep1_warm"
+      },
+      "children": []
+    }
+  ]
+}

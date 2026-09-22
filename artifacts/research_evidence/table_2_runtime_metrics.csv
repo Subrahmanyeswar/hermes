@@ -1,0 +1,10 @@
+Runtime / Hardware Dimension,Measured Value,Unit,Sample Size (N),System Boundary,Source Provenance
+Median Mission Latency (P50),12.60,seconds,30 missions,End-to-End Mission Pipeline,thermal_test_summary.json
+95th Percentile Latency (P95),13.20,seconds,30 missions,End-to-End Mission Pipeline,thermal_test_summary.json
+Tail Amplification (P95 / P50),1.05,ratio,30 missions,Latency Distribution,thermal_test_summary.json
+Peak Hardware VRAM,5596,MB,7 profiles,NVIDIA RTX 3050 Laptop GPU (6GB),gate_15_6_vram_results.json
+VRAM Safe Headroom,548 (8.92%),MB (%),7 profiles,Hardware Memory Boundary,gate_15_6_vram_results.json
+Peak GPU Temperature,51.0,°C,30 missions,30-Mission Sustained Workload,thermal_test_summary.json
+Temperature Rise (ΔT),+7.0,°C,30 missions,Baseline (44°C) vs Peak (51°C),thermal_test_summary.json
+Warm Model Residency Speedup,4.83x,speedup,2 states,DeepSeek-R1 8B (Cold vs Warm),gate_15_6_vram_results.json
+Incremental Indexing Speedup,9.88x,speedup,1022 files,Workspace Indexer (Full vs Incr),gate10_workspace_correctness_results.json

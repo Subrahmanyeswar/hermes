@@ -1,0 +1,153 @@
+{
+  "workspace": {
+    "component_name": "workspace",
+    "sample_count": 5,
+    "mean_s": 0.0156,
+    "median_s": 0.0158,
+    "p95_s": 0.0159,
+    "min_s": 0.0153,
+    "max_s": 0.0159,
+    "durations_s": [
+      0.0153,
+      0.0153,
+      0.0158,
+      0.0158,
+      0.0159
+    ]
+  },
+  "context": {
+    "component_name": "context",
+    "sample_count": 5,
+    "mean_s": 0.0157,
+    "median_s": 0.0157,
+    "p95_s": 0.0158,
+    "min_s": 0.0154,
+    "max_s": 0.0158,
+    "durations_s": [
+      0.0154,
+      0.0156,
+      0.0157,
+      0.0158,
+      0.0158
+    ]
+  },
+  "planning": {
+    "component_name": "planning",
+    "sample_count": 5,
+    "mean_s": 0.0154,
+    "median_s": 0.0154,
+    "p95_s": 0.0157,
+    "min_s": 0.0152,
+    "max_s": 0.0157,
+    "durations_s": [
+      0.0152,
+      0.0153,
+      0.0154,
+      0.0156,
+      0.0157
+    ]
+  },
+  "kairos_scheduling": {
+    "component_name": "kairos_scheduling",
+    "sample_count": 5,
+    "mean_s": 0.0155,
+    "median_s": 0.0153,
+    "p95_s": 0.0161,
+    "min_s": 0.0152,
+    "max_s": 0.0161,
+    "durations_s": [
+      0.0152,
+      0.0152,
+      0.0153,
+      0.016,
+      0.0161
+    ]
+  },
+  "routing": {
+    "component_name": "routing",
+    "sample_count": 8,
+    "mean_s": 0.001,
+    "median_s": 0.001,
+    "p95_s": 0.001,
+    "min_s": 0.001,
+    "max_s": 0.001,
+    "durations_s": [
+      0.001,
+      0.001,
+      0.001,
+      0.001,
+      0.001,
+      0.001,
+      0.001,
+      0.001
+    ]
+  },
+  "tools": {
+    "component_name": "tools",
+    "sample_count": 11,
+    "mean_s": 0.0155,
+    "median_s": 0.0154,
+    "p95_s": 0.0161,
+    "min_s": 0.0146,
+    "max_s": 0.0161,
+    "durations_s": [
+      0.0146,
+      0.0152,
+      0.0153,
+      0.0153,
+      0.0154,
+      0.0154,
+      0.0156,
+      0.0158,
+      0.0159,
+      0.016,
+      0.0161
+    ]
+  },
+  "verification": {
+    "component_name": "verification",
+    "sample_count": 5,
+    "mean_s": 0.0154,
+    "median_s": 0.0154,
+    "p95_s": 0.0158,
+    "min_s": 0.015,
+    "max_s": 0.0158,
+    "durations_s": [
+      0.015,
+      0.0153,
+      0.0154,
+      0.0155,
+      0.0158
+    ]
+  },
+  "repair": {
+    "component_name": "repair",
+    "sample_count": 3,
+    "mean_s": 0.0157,
+    "median_s": 0.016,
+    "p95_s": 0.0161,
+    "min_s": 0.0152,
+    "max_s": 0.0161,
+    "durations_s": [
+      0.0152,
+      0.016,
+      0.0161
+    ]
+  },
+  "finalization": {
+    "component_name": "finalization",
+    "sample_count": 5,
+    "mean_s": 0.0157,
+    "median_s": 0.0155,
+    "p95_s": 0.0163,
+    "min_s": 0.0153,
+    "max_s": 0.0163,
+    "durations_s": [
+      0.0153,
+      0.0154,
+      0.0155,
+      0.0159,
+      0.0163
+    ]
+  }
+}

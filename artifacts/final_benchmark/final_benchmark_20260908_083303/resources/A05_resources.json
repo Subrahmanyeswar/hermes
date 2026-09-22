@@ -1,0 +1,10 @@
+{
+  "sample_count": 1808,
+  "vram_peak_mb": 5598.0,
+  "vram_avg_mb": 5437.4,
+  "gpu_temp_peak_c": 88,
+  "gpu_temp_avg_c": 85.8,
+  "gpu_util_avg_pct": 87.1,
+  "gpu_clock_avg_mhz": 1603.8,
+  "cpu_avg_pct": 59.3
+}

@@ -1,0 +1,29 @@
+[
+  {
+    "mission_id": "MISSION_1_READONLY",
+    "name": "Simple Directory Listing",
+    "user_visible_sec": 85.29,
+    "expected_verification": "LOCAL_DETERMINISTIC",
+    "t2_called": false,
+    "foreground_model_switches": 0,
+    "success": true
+  },
+  {
+    "mission_id": "MISSION_2_SIMPLE_WRITE",
+    "name": "Simple Python Utility File",
+    "user_visible_sec": 180.48,
+    "expected_verification": "LOCAL_STRUCTURAL",
+    "t2_called": false,
+    "foreground_model_switches": 0,
+    "success": false
+  },
+  {
+    "mission_id": "MISSION_7_SECURITY_TASK",
+    "name": "Security-Sensitive Configuration Read",
+    "user_visible_sec": 318.43,
+    "expected_verification": "T2_SECURITY_SENSITIVE",
+    "t2_called": true,
+    "foreground_model_switches": 1,
+    "success": false
+  }
+]

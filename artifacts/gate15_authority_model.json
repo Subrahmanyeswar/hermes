@@ -1,0 +1,13 @@
+{
+  "authoritative_subsystems": {
+    "mission_lifecycle": "ExecutionStateStore (EventBus) + MissionRunner",
+    "acceptance_criteria": "CompletionLedger (MissionCompletionEvaluator)",
+    "task_dependencies_and_concurrency": "DependencyGraph (KairosDAGScheduler)",
+    "verification_verdicts": "ProgressiveVerificationEngine",
+    "repair_history": "RepairEngine",
+    "workspace_metadata_and_symbols": "Physical Filesystem > WorkspaceIndexStore (SQLite)",
+    "episodic_context": "Physical Filesystem > TrajectoryMemory / MemoryFacts",
+    "observability": "TelemetryCollector (Non-Authoritative)"
+  },
+  "hierarchy_rule": "PHYSICAL_FILESYSTEM > RECONSTRUCTED_STATE > SQLITE_INDEX > MEMORY_FACTS > TELEMETRY"
+}

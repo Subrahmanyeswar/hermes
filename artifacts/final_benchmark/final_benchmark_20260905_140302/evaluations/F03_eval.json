@@ -1,0 +1,37 @@
+{
+  "task_id": "F03",
+  "dataset_version": "1.0.0",
+  "success_contract_version": "1.0.0",
+  "evaluator_version": "1.0.0",
+  "hermes_reported_status": "FAIL",
+  "objective_status": "FAIL",
+  "false_completion": false,
+  "false_negative": false,
+  "criteria_results": {
+    "criterion_1": "FAILED",
+    "criterion_2": "FAILED",
+    "criterion_3": "FAILED"
+  },
+  "test_results": {
+    "python -c 'import reports.generator; import analytics.metrics; print(\"Imports clean\")'": {
+      "exit_code": 1,
+      "status": "FAIL",
+      "stdout_snippet": "",
+      "stderr_snippet": "  File \"<string>\", line 1\n    'import\n    ^\nSyntaxError: unterminated string literal (detected at line 1)\n"
+    }
+  },
+  "file_checks": {
+    "reports/generator.py": false,
+    "analytics/metrics.py": false,
+    "reports/models.py": false
+  },
+  "constraints_satisfied": false,
+  "failure_reasons": [
+    "Expected file missing: reports/generator.py",
+    "Expected file missing: analytics/metrics.py",
+    "Expected file missing: reports/models.py",
+    "Verification command failed (exit code 1): python -c 'import reports.generator; import analytics.metrics; print(\"Imports clean\")'"
+  ],
+  "evidence": [],
+  "evaluation_timestamp": 1788609864.265803
+}

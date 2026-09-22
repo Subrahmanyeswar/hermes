@@ -1,0 +1,39 @@
+{
+  "mission_id": "MISSION_10_rep1_warm",
+  "base_id": "MISSION_10",
+  "name": "Large Workspace Task",
+  "type": "large_workspace",
+  "cold": false,
+  "repetition": 1,
+  "wall_clock_ms": 180547.17,
+  "success": false,
+  "tool_name": null,
+  "pipeline_stage_reached": 4,
+  "tier3_was_called": false,
+  "critical_path": {
+    "wall_clock_ms": 180578.36,
+    "cumulative_span_ms": 180547.14,
+    "leaf_span_ms": 180547.14,
+    "category_times_ms": {
+      "MISSION": 180547.14
+    },
+    "span_count": 1
+  },
+  "spans": [
+    {
+      "span_id": "a3c2dad4",
+      "mission_id": "MISSION_10_rep1_warm",
+      "parent_id": null,
+      "name": "TOTAL_MISSION",
+      "category": "MISSION",
+      "start_ns": 810699852214000,
+      "end_ns": 810880399354400,
+      "duration_ms": 180547.1404,
+      "status": "success",
+      "metadata": {
+        "mission_id": "MISSION_10_rep1_warm"
+      },
+      "children": []
+    }
+  ]
+}

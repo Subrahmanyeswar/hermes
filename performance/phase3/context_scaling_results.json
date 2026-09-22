@@ -1,0 +1,47 @@
+[
+  {
+    "target_prompt_tokens": 100,
+    "actual_prompt_tokens": 85,
+    "prompt_eval_ms": 98.78,
+    "prompt_eval_tok_per_sec": 860.49,
+    "ttft_ms": 320.36,
+    "generation_tok_per_sec": 30.63,
+    "total_ms": 5629.5
+  },
+  {
+    "target_prompt_tokens": 500,
+    "actual_prompt_tokens": 329,
+    "prompt_eval_ms": 207.65,
+    "prompt_eval_tok_per_sec": 1584.37,
+    "ttft_ms": 430.69,
+    "generation_tok_per_sec": 30.37,
+    "total_ms": 3748.19
+  },
+  {
+    "target_prompt_tokens": 1000,
+    "actual_prompt_tokens": 635,
+    "prompt_eval_ms": 287.32,
+    "prompt_eval_tok_per_sec": 2210.05,
+    "ttft_ms": 514.69,
+    "generation_tok_per_sec": 30.06,
+    "total_ms": 3877.23
+  },
+  {
+    "target_prompt_tokens": 2000,
+    "actual_prompt_tokens": 1246,
+    "prompt_eval_ms": 537.22,
+    "prompt_eval_tok_per_sec": 2319.35,
+    "ttft_ms": 766.53,
+    "generation_tok_per_sec": 29.48,
+    "total_ms": 4185.82
+  },
+  {
+    "target_prompt_tokens": 4000,
+    "actual_prompt_tokens": 2469,
+    "prompt_eval_ms": 2455.89,
+    "prompt_eval_tok_per_sec": 1005.34,
+    "ttft_ms": 11448.42,
+    "generation_tok_per_sec": 19.78,
+    "total_ms": 16616.41
+  }
+]

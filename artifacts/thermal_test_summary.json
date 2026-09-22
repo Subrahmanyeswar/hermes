@@ -1,0 +1,127 @@
+{
+  "thermal_test_version": "1.0.0",
+  "hardware": {
+    "gpu_model": "NVIDIA RTX 3050 Laptop GPU",
+    "vram_total_mb": 6144.0,
+    "power_state": "AC_CONNECTED"
+  },
+  "missions_evaluated": 30,
+  "baseline": {
+    "temperature_c": 44.0,
+    "gpu_clock_mhz": 1475.0,
+    "vram_mb": 1150.0,
+    "power_w": 28.5
+  },
+  "windows": {
+    "early": {
+      "window": "missions_1_to_5",
+      "mean_latency_s": 12.56,
+      "avg_temperature_c": 45.06,
+      "avg_clock_mhz": 1472.0,
+      "avg_vram_mb": 3910.0,
+      "avg_power_w": 57.0,
+      "latency_distribution": {
+        "metric_name": "early_latency",
+        "n": 5,
+        "mean": 12.56,
+        "min": 12.0,
+        "max": 13.2,
+        "p50": 12.4,
+        "p75": 12.8,
+        "p90": 13.04,
+        "p95": 13.12,
+        "p99": 13.184,
+        "tail_amplification_p95_over_p50": 1.06,
+        "percentile_method": "linear_interpolation",
+        "sample_size_warning": "LOW_SAMPLE_WARNING (N < 20)",
+        "discarded_count": 0,
+        "discarded_samples": []
+      }
+    },
+    "middle": {
+      "window": "missions_13_to_18",
+      "mean_latency_s": 12.6,
+      "latency_distribution": {
+        "metric_name": "middle_latency",
+        "n": 6,
+        "mean": 12.6,
+        "min": 12.0,
+        "max": 13.2,
+        "p50": 12.6,
+        "p75": 12.8,
+        "p90": 13.0,
+        "p95": 13.1,
+        "p99": 13.18,
+        "tail_amplification_p95_over_p50": 1.04,
+        "percentile_method": "linear_interpolation",
+        "sample_size_warning": "LOW_SAMPLE_WARNING (N < 20)",
+        "discarded_count": 0,
+        "discarded_samples": []
+      }
+    },
+    "late": {
+      "window": "missions_26_to_30",
+      "mean_latency_s": 12.64,
+      "avg_temperature_c": 51.0,
+      "avg_clock_mhz": 1460.0,
+      "avg_vram_mb": 3900.0,
+      "avg_power_w": 57.0,
+      "latency_distribution": {
+        "metric_name": "late_latency",
+        "n": 5,
+        "mean": 12.64,
+        "min": 12.0,
+        "max": 13.2,
+        "p50": 12.8,
+        "p75": 12.8,
+        "p90": 13.04,
+        "p95": 13.12,
+        "p99": 13.184,
+        "tail_amplification_p95_over_p50": 1.02,
+        "percentile_method": "linear_interpolation",
+        "sample_size_warning": "LOW_SAMPLE_WARNING (N < 20)",
+        "discarded_count": 0,
+        "discarded_samples": []
+      }
+    }
+  },
+  "degradation": {
+    "latency_degradation_pct": 0.64,
+    "temperature_rise_c": 7.0,
+    "max_temperature_c": 51.0,
+    "clock_degradation_pct": 0.82,
+    "vram_growth_pct": -0.26,
+    "vram_headroom_mb": 2194.0
+  },
+  "correlations": {
+    "temperature_vs_latency": -0.025,
+    "clock_vs_latency": 0.0165,
+    "temperature_vs_clock": -0.9655
+  },
+  "reliability": {
+    "missions_attempted": 30,
+    "passed": 30,
+    "failed": 0,
+    "errors": 0,
+    "oom_events": 0,
+    "false_completion": 0
+  },
+  "overall_latency_distribution": {
+    "metric_name": "sustained_latency_distribution",
+    "n": 30,
+    "mean": 12.6,
+    "min": 12.0,
+    "max": 13.2,
+    "p50": 12.6,
+    "p75": 12.8,
+    "p90": 13.2,
+    "p95": 13.2,
+    "p99": 13.2,
+    "tail_amplification_p95_over_p50": 1.05,
+    "percentile_method": "linear_interpolation",
+    "sample_size_warning": null,
+    "discarded_count": 0,
+    "discarded_samples": []
+  },
+  "thermal_classification": "NO_EVIDENCE"
+}

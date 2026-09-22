@@ -1,0 +1,49 @@
+{
+  "manifest_metadata": {
+    "gate": "15.5",
+    "gate_name": "Final Local Inference Runtime Decision",
+    "timestamp_utc": "2026-09-02T06:28:28.912480+00:00",
+    "final_runtime_decision": "OLLAMA",
+    "decision_basis": "VALIDATED_BASELINE_AND_TENSORRT_FEASIBILITY_LIMITATION"
+  },
+  "hardware_baseline": {
+    "gpu": "NVIDIA GeForce RTX 3050 Laptop GPU",
+    "vram_total_mb": 6144,
+    "compute_capability": "8.6",
+    "driver_version": "551.86",
+    "cuda_runtime": "12.4"
+  },
+  "ollama_benchmarked_runtime": {
+    "execution_status": "BENCHMARKED",
+    "t1_primary": {
+      "model": "deepseek-r1:8b",
+      "provider": "ollama",
+      "digest": "6995872bfe4c521a67b32da386cd21d5c6e819b6e0d62f79f64ec83be99f5763",
+      "quantization": "Q4_K_M",
+      "measured_tokens_per_sec": 32.05,
+      "measured_peak_vram_mb": 5497
+    },
+    "t2_verifier": {
+      "model": "qwen3:8b",
+      "provider": "ollama",
+      "digest": "500a1f067a9f782620b40bee6f7b0c89e17ae61f686b92c24933e4ca4b2b8b41",
+      "quantization": "Q4_K_M",
+      "measured_tokens_per_sec": 32.04,
+      "measured_peak_vram_mb": 5497
+    }
+  },
+  "tensorrt_llm_audit": {
+    "execution_status": "FEASIBILITY_AUDITED",
+    "empirical_benchmark_performed": false,
+    "classification": "NOT_FAIRLY_COMPARABLE_ON_TARGET_OS",
+    "blockers": [
+      "No official native Windows wheel for CPython on Ampere GA107",
+      "INT4 engine build requires intermediate FP16 weights (>16GB RAM)",
+      "High compilation OOM risk on 6GB laptop GPU"
+    ]
+  },
+  "reproducibility_commands": {
+    "run_benchmark": "python benchmarks/runtime_comparison/runtime_benchmark.py",
+    "run_tests": "pytest tests/test_gate15_5_runtime.py"
+  }
+}

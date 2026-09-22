@@ -1,0 +1,9 @@
+{
+  "recalculated_from_raw_telemetry": true,
+  "calibration_passed": true,
+  "e2e_missions_count": 5,
+  "model_calls_count": 13,
+  "faults_detected_count": 10,
+  "false_completion_detected": true,
+  "status": "PASS"
+}

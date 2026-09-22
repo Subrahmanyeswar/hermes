@@ -34,18 +34,32 @@ from utils.logging import (
 )
 
 from models.ollama_client import OllamaClient
+from models.openrouter_client import OpenRouterClient, Tier3Response
 from models.claude_client import ClaudeClient
+from config.model_config import (
+    TIER1_MODEL,
+    TIER2_MODEL,
+    TIER3_MODEL,
+    MODEL_KEEP_ALIVE,
+    MODEL_TIMEOUT_SECONDS,
+)
 from core.verifier import Tier2Verifier
+from core.verification_gate import VerificationGate
+from core.reasoning_budget import ReasoningBudgetManager, ComplexityLevel
+from core.reasoning_policy import ReasoningPolicy, TaskComplexity
+from core.tool_validator import tool_validator
 from core.disagreement_router import DisagreementRouter, RoutingDecision, RouterResult, ALWAYS_ESCALATE_TOOLS
 from core.planner import TaskPlanner, Task
 from core.intent_classifier import IntentClassifier
 from core.prompt_builder import PromptContext, build_system_prompt, build_user_message
+from core.telemetry import telemetry, ToolTelemetry, StageSpan, VerificationTelemetry, RepairTelemetry
 import tools  # Triggers tool registration
 from tools.registry import get_tool, tool_schema_for_prompt, list_tools, PermissionGate
 from tools.base import ToolResult
 from memory.store import read_context_for_prompt
 from memory.extractor import confirm_and_write_facts, extract_memories
 from memory.session_logger import SessionLogger
+from memory.background_worker import background_memory_manager, MemoryJob
 from kairos.db import init_db, DB_PATH
 from kairos.task_queue import register_task, mark_running, mark_completed, mark_failed
 from kairos.daemon import KairosDaemon
@@ -87,15 +101,21 @@ class Orchestrator:
         mode: str = "auto",
         project: str = "default",
         progress_callback=None,
+        execution_mode: str = "production",
     ) -> None:
         self.mode = mode        # "safe", "plan", or "auto"
         self._mode = mode
         self.project = project
         self._project = project
+        self.execution_mode = execution_mode  # "production", "benchmark", "demo", "performance"
         self._progress_callback = progress_callback
-        self.ollama = OllamaClient()
-        self.claude = ClaudeClient()
-        self.verifier = Tier2Verifier(self.ollama)
+        self.ollama = OllamaClient(timeout_seconds=MODEL_TIMEOUT_SECONDS)
+        self.tier3 = OpenRouterClient(timeout_seconds=MODEL_TIMEOUT_SECONDS)
+        self.claude = self.tier3  # Backwards compatibility alias
+        self.verifier = Tier2Verifier(self.ollama, model=TIER2_MODEL)
+        self.verification_gate = VerificationGate()
+        self.budget_manager = ReasoningBudgetManager()
+        self.tool_validator = tool_validator
         self.router = DisagreementRouter()
         self.planner = TaskPlanner()
         self.classifier = IntentClassifier("skills/")
@@ -105,6 +125,9 @@ class Orchestrator:
             f"session={self.session_logger.session_id}"
         )
         self.error_handler = ErrorHandler()
+        # Initialise background memory manager
+        self.memory_manager = background_memory_manager
+        self.memory_manager.set_client(self.ollama)
         # Initialise database and KAIROS daemon
         init_db()
         self.kairos = KairosDaemon(db_path=DB_PATH)
@@ -148,8 +171,9 @@ class Orchestrator:
         Never raises — always returns OrchestratorResult.
         """
         start_time = time.monotonic()
-        # Generate unique trace ID for this pipeline run
-        trace_id = generate_trace_id()
+        # Generate unique trace ID for this pipeline run and initialize telemetry
+        telem_req = telemetry.start_request(user_request, mode=self.mode, project=self.project)
+        trace_id = telem_req.request_id if telem_req.request_id else generate_trace_id()
         tlog = get_trace_logger(trace_id)
         result = OrchestratorResult(success=False, final_output="", trace_id=trace_id)
 
@@ -166,48 +190,76 @@ class Orchestrator:
 
         try:
             # ── Stage 1: Sanitise input ───────────────────────────────
-            await self._emit_progress("stage_start", {
-                "stage": 1,
-                "name": "Input Sanitisation",
-                "verb": "Sanitising",
-                "detail": "Escaping prompt injection vectors",
-            })
-            await notify("stage_start", stage=1, name="Input Sanitization", thought="Sanitizing user request to prevent HTML/XML injection...", spinner_verb="Analyzing")
-            result.pipeline_stage_reached = 1
-            sanitised = self._sanitise_input(user_request)
-            self.session_logger.log_user_input(sanitised)
-            log_pipeline_start(
-                trace_id=trace_id,
-                user_request=sanitised,
-                mode=self.mode,
-                project=self.project,
-                session_id=self.session_logger.session_id
-            )
-            tlog.debug(f"Stage 1 complete | sanitised_length={len(sanitised)}")
-            await notify("stage_end", stage=1, status="success", sanitised=sanitised)
-            await self._emit_progress("stage_complete", {
-                "stage": 1, "name": "Input Sanitisation",
-            })
+            with telemetry.span("Input Sanitisation", request_id=trace_id, stage_number=1):
+                await self._emit_progress("stage_start", {
+                    "stage": 1,
+                    "name": "Input Sanitisation",
+                    "verb": "Sanitising",
+                    "detail": "Escaping prompt injection vectors",
+                })
+                await notify("stage_start", stage=1, name="Input Sanitization", thought="Sanitizing user request to prevent HTML/XML injection...", spinner_verb="Analyzing")
+                result.pipeline_stage_reached = 1
+                sanitised = self._sanitise_input(user_request)
+                self.session_logger.log_user_input(sanitised)
+                log_pipeline_start(
+                    trace_id=trace_id,
+                    user_request=sanitised,
+                    mode=self.mode,
+                    project=self.project,
+                    session_id=self.session_logger.session_id
+                )
+                await notify("stage_end", stage=1, status="success", sanitised=sanitised)
+                await self._emit_progress("stage_complete", {
+                    "stage": 1, "name": "Input Sanitisation",
+                })
+
+            # ── Adaptive Execution Routing (Phase 9) ───────────────────
+            from config.model_config import ADAPTIVE_EXECUTION_ENABLED
+            from core.adaptive_execution import adaptive_execution_engine, ExecutionMode
+
+            if ADAPTIVE_EXECUTION_ENABLED:
+                classif = adaptive_execution_engine.classifier.classify(sanitised)
+                logger.info(
+                    "AdaptiveExecution: mode={} | confidence={:.2f} | risk={:.2f} | tool={} | dur={:.2f}ms",
+                    classif.mode.value, classif.confidence, classif.risk_score,
+                    classif.deterministic_tool, classif.duration_ms
+                )
+                if classif.mode == ExecutionMode.SIMPLE and classif.deterministic_tool:
+                    from core.workspace import workspace_manager
+                    fast_ok, fast_out = adaptive_execution_engine.execute_fast_path(
+                        tool_name=classif.deterministic_tool,
+                        tool_args=classif.deterministic_args or {},
+                        workspace_manager=workspace_manager
+                    )
+                    if fast_ok:
+                        logger.info("AdaptiveExecution: FAST PATH executed successfully in <15ms")
+                        result.success = True
+                        result.final_output = fast_out
+                        result.pipeline_stage_reached = 12
+                        return result
+                    else:
+                        logger.warning("AdaptiveExecution: Fast path failed ({}), escalating to STANDARD", fast_out)
 
             # ── Stage 2: Task planner ─────────────────────────────────
-            await self._emit_progress("stage_start", {
-                "stage": 2,
-                "name": "Task Planning",
-                "verb": "Planning",
-                "detail": "Decomposing request into atomic subtasks",
-            })
-            await notify("stage_start", stage=2, name="Task Planning", thought="Decomposing user request into actionable plan...", spinner_verb="Planning")
-            result.pipeline_stage_reached = 2
-            task = self.planner.plan(sanitised, session_id=self.session_logger.session_id)
-            result.task = task
-            logger.debug(f"Stage 2 complete: task planned | complexity={task.complexity_score:.2f}")
+            with telemetry.span("Planning", request_id=trace_id, stage_number=2):
+                await self._emit_progress("stage_start", {
+                    "stage": 2,
+                    "name": "Task Planning",
+                    "verb": "Planning",
+                    "detail": "Decomposing request into atomic subtasks",
+                })
+                await notify("stage_start", stage=2, name="Task Planning", thought="Decomposing user request into actionable plan...", spinner_verb="Planning")
+                result.pipeline_stage_reached = 2
+                task = self.planner.plan(sanitised, session_id=self.session_logger.session_id)
+                result.task = task
+                logger.debug(f"Stage 2 complete: task planned | complexity={task.complexity_score:.2f}")
 
-            # Register task in SQLite queue
-            db_task_id = register_task(
-                session_id=self.session_logger.session_id,
-                title=sanitised[:100],
-                description=sanitised,
-                priority=task.priority,
+                # Register task in SQLite queue
+                db_task_id = register_task(
+                    session_id=self.session_logger.session_id,
+                    title=sanitised[:100],
+                    description=sanitised,
+                    priority=task.priority,
                 complexity=task.complexity_score,
                 max_retries=task.max_retries,
                 tool_name=None,  # Will be updated after Stage 4
@@ -231,7 +283,11 @@ class Orchestrator:
             result.pipeline_stage_reached = 3
 
             skill_ids = self.classifier.classify(sanitised)
-            skill_content, loaded_skill_ids = self.classifier.build_skill_prompt_section(skill_ids)
+            skill_content, loaded_skill_ids = self.classifier.build_skill_prompt_section(
+                skill_ids,
+                execution_mode=self.execution_mode,
+                disclosure_level=1 if self.execution_mode != "benchmark" else 3
+            )
             result.skill_ids_used = loaded_skill_ids
             active_skill_name = loaded_skill_ids[0] if loaded_skill_ids else "none"
 
@@ -255,7 +311,11 @@ class Orchestrator:
             })
             await notify("stage_start", stage=4, name="Memory Injection", thought="Retrieving past rules and facts from memory store...", spinner_verb="Loading Memory")
             try:
-                memory_context = read_context_for_prompt(project=self.project)
+                memory_context = read_context_for_prompt(
+                    project=self.project,
+                    query=sanitised,
+                    execution_mode=self.execution_mode
+                )
             except Exception as mem_exc:
                 mem_err = self.error_handler.memory_parse_error(str(mem_exc), self.project)
                 logger.warning(f"Stage 3: {mem_err.technical_detail}")
@@ -311,45 +371,97 @@ class Orchestrator:
             except Exception as e:
                 workspace_context = "Workspace: generated_projects/ (default)"
 
-            ctx = PromptContext(
-                user_task=sanitised,
-                mode=self.mode,
-                available_tools=list_tools(),
-                tool_descriptions=tool_schema_for_prompt(),
-                memory_context=memory_context,
-                skill_context=skill_content,
-                active_skill_name=active_skill_name,
-                workspace_context=workspace_context,
+            # Classify task complexity and select task-aware reasoning budget
+            resolved_policy = ReasoningPolicy.resolve(
+                task_description=sanitised,
+                model=TIER1_MODEL,
+                execution_mode=self.execution_mode,
             )
-            system_prompt = build_system_prompt(ctx)
-            user_message_text = build_user_message(sanitised)
-
-            # Determine appropriate temperature
-            task_desc = sanitised.lower()
-            if any(w in task_desc for w in ["design", "style", "create website", "animate", "visual"]):
-                t1_temperature = 0.25   # More creative for design tasks
-            elif any(w in task_desc for w in ["plan", "decompose", "analyze", "understand"]):
-                t1_temperature = 0.20   # Slightly creative for planning
+            complexity_level = self.budget_manager.classify_complexity(
+                sanitised,
+                tools_needed=getattr(task, 'required_tools', []),
+                permission_level=getattr(task, 'permission_level', None).value if getattr(task, 'permission_level', None) else "read_only",
+                planner_complexity=getattr(task, 'complexity_score', 0.5)
+            )
+            budget = self.budget_manager.get_budget(complexity_level)
+            # Use resolved_policy values in non-benchmark modes
+            if self.execution_mode != "benchmark":
+                t1_temperature = resolved_policy.temperature
+                num_predict = resolved_policy.num_predict
+                t1_think = resolved_policy.think
+                t1_timeout = resolved_policy.timeout_seconds
             else:
-                t1_temperature = 0.10   # Deterministic for code writing
+                t1_temperature = budget.temperature
+                num_predict = budget.num_predict
+                t1_think = None
+                t1_timeout = budget.timeout_seconds
+
+            from config.model_config import CONTEXT_ENGINE_ENABLED
+            from core.context_engine import context_engine
+            from tools.registry import selective_tool_schema_for_prompt
+
+            active_tool_schema = selective_tool_schema_for_prompt(
+                required_tools=getattr(task, 'required_tools', None),
+                execution_mode=self.execution_mode
+            )
+
+            if CONTEXT_ENGINE_ENABLED:
+                cpack = context_engine.build_context_pack(
+                    task_text=sanitised,
+                    mode=self.mode,
+                    workspace_manager=workspace_manager if 'workspace_manager' in locals() else None,
+                    memory_context=memory_context,
+                    skill_content=skill_content,
+                    active_skill_name=active_skill_name,
+                    tool_descriptions=active_tool_schema,
+                    max_context_tokens=4096,
+                    generation_reserve=num_predict
+                )
+                system_prompt = cpack.system_prompt
+                user_message_text = cpack.user_message
+                logger.debug(
+                    "ContextEngine: packed {} items ({} dropped) | tokens={} | build_time={:.2f}ms",
+                    cpack.items_included, cpack.items_dropped, cpack.total_tokens, cpack.build_duration_ms
+                )
+            else:
+                ctx = PromptContext(
+                    user_task=sanitised,
+                    mode=self.mode,
+                    available_tools=list_tools(),
+                    tool_descriptions=active_tool_schema,
+                    memory_context=memory_context,
+                    skill_context=skill_content,
+                    active_skill_name=active_skill_name,
+                    workspace_context=workspace_context,
+                    execution_mode=self.execution_mode
+                )
+                system_prompt = build_system_prompt(ctx)
+                user_message_text = build_user_message(sanitised)
+
+            logger.info("Stage 4: T1 reasoning policy | mode={} | complexity={} | think={} | num_predict={} | timeout={}s",
+                        self.execution_mode, resolved_policy.complexity.value, t1_think, num_predict, t1_timeout)
 
             # Attempt 1
             t1_start = time.monotonic()
             try:
-                tier1_raw = await self.ollama.generate(
-                    model="qwen2.5-coder:7b",
+                tier1_resp = await self.ollama.generate(
+                    model=TIER1_MODEL,
                     prompt=user_message_text,
                     system=system_prompt,
-                    keep_alive=0,
+                    keep_alive=MODEL_KEEP_ALIVE,
                     temperature=t1_temperature,
                     num_ctx=4096,
+                    num_predict=num_predict,
+                    think=t1_think,
                 )
+                tier1_raw = getattr(tier1_resp, "text", str(tier1_resp))
+                eval_tokens = getattr(tier1_resp, "output_tokens", 0)
                 t1_latency = time.monotonic() - t1_start
             except Exception as t1_exc:
                 t1_latency = time.monotonic() - t1_start
                 from models.ollama_client import OllamaTimeoutError
                 if isinstance(t1_exc, OllamaTimeoutError):
-                    err = self.error_handler.ollama_timeout("qwen2.5-coder:7b", 120, "stage_4_attempt_1")
+                    err = self.error_handler.ollama_timeout(TIER1_MODEL, t1_timeout, "stage_4_attempt_1")
                 else:
                     err = self.error_handler.unknown_error(t1_exc, "stage_4_t1_generation")
                 result.final_output = err.tagged_output(err.user_message)
@@ -359,33 +471,46 @@ class Orchestrator:
                 return result
 
             tier1_parsed = self._parse_tier1_response(tier1_raw)
+            is_truncated = self.budget_manager.check_truncation(tier1_raw, eval_tokens, budget)
 
-            # Attempt 2
-            if tier1_parsed is None:
+            # Attempt 2 (on parse failure or budget truncation)
+            if tier1_parsed is None or is_truncated:
+                # Escalate budget for retry
+                escalated_level = self.budget_manager.escalate_budget(complexity_level)
+                escalated_budget = self.budget_manager.get_budget(escalated_level)
+                logger.info("Stage 4: Escalating T1 budget to {} (num_predict={}) for retry",
+                            escalated_level.value, escalated_budget.num_predict)
+
                 parse_err = self.error_handler.json_parse_failure(tier1_raw, attempt=0)
-                logger.warning(f"Stage 4: {parse_err.technical_detail}")
-                self.session_logger.log_tier1_response("qwen2.5-coder:7b", tier1_raw[:300], t1_latency, None)
+                logger.warning(f"Stage 4: {parse_err.technical_detail} | truncated={is_truncated}")
+                self.session_logger.log_tier1_response(TIER1_MODEL, tier1_raw[:300], t1_latency, None)
 
                 from core.prompt_builder import build_system_prompt_v2
-                retry_system = build_system_prompt_v2(ctx)
+                if 'ctx' in locals() and ctx is not None:
+                    retry_system = build_system_prompt_v2(ctx)
+                else:
+                    retry_system = system_prompt
                 retry_user = user_message_text + "\n\n" + parse_err.context_for_retry
 
                 t1_retry_start = time.monotonic()
                 try:
-                    tier1_raw = await self.ollama.generate(
-                        model="qwen2.5-coder:7b",
+                    tier1_resp = await self.ollama.generate(
+                        model=TIER1_MODEL,
                         prompt=retry_user,
                         system=retry_system,
-                        keep_alive=0,
+                        keep_alive=MODEL_KEEP_ALIVE,
                         temperature=0.05,
                         num_ctx=4096,
+                        num_predict=escalated_budget.num_predict,
+                        think=t1_think,
                     )
+                    tier1_raw = getattr(tier1_resp, "text", str(tier1_resp))
                     t1_latency = time.monotonic() - t1_retry_start
                 except Exception as retry_exc:
                     t1_latency = time.monotonic() - t1_retry_start
                     from models.ollama_client import OllamaTimeoutError
                     if isinstance(retry_exc, OllamaTimeoutError):
-                        err = self.error_handler.ollama_timeout("qwen2.5-coder:7b", 120, "stage_4_attempt_2")
+                        err = self.error_handler.ollama_timeout(TIER1_MODEL, escalated_budget.timeout_seconds, "stage_4_attempt_2")
                     else:
                         err = self.error_handler.unknown_error(retry_exc, "stage_4_t1_retry")
                     result.final_output = err.tagged_output(err.user_message)
@@ -410,11 +535,11 @@ class Orchestrator:
             explanation = tier1_parsed.get("explanation", "Task completed.")
 
             self.session_logger.log_tier1_response(
-                "qwen2.5-coder:7b", tier1_raw[:500], t1_latency, tool_name
+                TIER1_MODEL, tier1_raw[:500], t1_latency, tool_name
             )
             log_tier1_call(
                 trace_id=trace_id,
-                model="qwen2.5-coder:7b",
+                model=TIER1_MODEL,
                 prompt_tokens_estimate=len(system_prompt) // 4,
                 latency=t1_latency,
                 parsed_tool=tool_name,
@@ -434,6 +559,17 @@ class Orchestrator:
             })
 
             # ── Stage 6: Tool Validation ──
+            if not tool_name or tool_name.lower() in ("none", "null", "no_tool"):
+                # Conversational response without tool execution
+                logger.info("Stage 4: No tool required (conversational / direct response)")
+                result.success = True
+                result.final_output = explanation if explanation and explanation != "Action proceeding." else tier1_raw
+                result.tool_name = None
+                result.pipeline_stage_reached = 12
+                mark_completed(db_task_id, db_path=DB_PATH)
+                await notify("stage_end", stage=12, status="success")
+                return result
+
             await self._emit_progress("stage_start", {
                 "stage": 5,
                 "name": "Security Validation",
@@ -451,12 +587,15 @@ class Orchestrator:
                 correction_prompt = build_user_message(sanitised) + "\n\n" + tool_err.context_for_retry
 
                 try:
-                    tier1_raw_retry = await self.ollama.generate(
-                        model="qwen2.5-coder:7b",
+                    tier1_raw_retry_res = await self.ollama.generate(
+                        model=TIER1_MODEL,
                         prompt=correction_prompt,
                         system=system_prompt,
-                        keep_alive=0
+                        keep_alive=MODEL_KEEP_ALIVE,
+                        temperature=0.05,
+                        num_ctx=4096,
                     )
+                    tier1_raw_retry = getattr(tier1_raw_retry_res, "text", str(tier1_raw_retry_res))
                 except Exception as retry_exc:
                     final_tool_err = self.error_handler.unknown_error(retry_exc, "stage_5_tool_retry")
                     result.final_output = final_tool_err.tagged_output(final_tool_err.user_message)
@@ -498,18 +637,29 @@ class Orchestrator:
                 await notify("stage_end", stage=6, status="failed", error=result.final_output)
                 return result
 
-            # Schema validation
-            try:
-                tool_input = tool_class.Input(**tool_params)
-            except Exception as validation_exc:
-                validation_err = self.error_handler.unknown_error(
-                    validation_exc, f"stage_5_validation_{tool_name}"
-                )
-                result.final_output = f"Invalid parameters for tool '{tool_name}': {str(validation_exc)[:200]}"
-                result.error = validation_err.technical_detail
-                mark_failed(db_task_id, error=validation_err.technical_detail[:300], db_path=DB_PATH)
+            # Hardened Tool Validation & Repair Pipeline
+            val_res = await self.tool_validator.process_and_validate(
+                tool_name=tool_name,
+                raw_params=tool_params,
+                task_text=sanitised,
+                ollama_client=self.ollama,
+                budget_manager=self.budget_manager
+            )
+
+            if not val_res.is_valid:
+                error_msg = f"Invalid parameters for tool '{tool_name}': {'; '.join(val_res.errors)}"
+                result.final_output = error_msg
+                result.error = error_msg
+                mark_failed(db_task_id, error=error_msg[:300], db_path=DB_PATH)
                 await notify("stage_end", stage=6, status="failed", error=result.final_output)
                 return result
+
+            tool_name = val_res.tool_name
+            tool_params = val_res.normalized_params
+            tool_input = val_res.validated_input
+            t_class_lookup = get_tool(tool_name)
+            if t_class_lookup:
+                tool_class = t_class_lookup
 
             self.session_logger.log_tool_call(tool_name, tool_params, self.mode)
             log_tool_call(
@@ -561,6 +711,32 @@ class Orchestrator:
                     exec_err = self.error_handler.unknown_error(exec_exc, f"stage_6_{tool_name}_execute")
                     result.final_output = exec_err.tagged_output(exec_err.user_message)
                     result.error = exec_err.technical_detail
+                    try:
+                        from core.telemetry import ToolTelemetry
+                        cat = "filesystem" if "file" in tool_name else ("shell" if "bash" in tool_name else "other")
+                        telemetry.record_tool(
+                            ToolTelemetry(
+                                tool_name=tool_name,
+                                category=cat,
+                                start_time_monotonic=t_exec_start,
+                                duration_ms=t_exec_dur * 1000.0,
+                                filesystem_duration_ms=t_exec_dur * 1000.0 if cat == "filesystem" else 0.0,
+                                subprocess_duration_ms=t_exec_dur * 1000.0 if cat == "shell" else 0.0,
+                                success=False,
+                                exit_code=1,
+                                args_size_bytes=len(str(tool_params)),
+                                output_size_bytes=0,
+                                retry_count=tool_exec_retry_count,
+                                error=str(exec_exc),
+                                mission_id=getattr(task, 'task_id', trace_id),
+                                task_id=getattr(task, 'task_id', trace_id),
+                                start=t_exec_start,
+                                end=t_exec_start + t_exec_dur,
+                            ),
+                            request_id=trace_id
+                        )
+                    except Exception:
+                        pass
                     self.session_logger.log_tool_result(tool_name, False, 1, str(exec_exc)[:200], t_exec_dur)
                     mark_failed(db_task_id, error=exec_err.technical_detail[:300], db_path=DB_PATH)
                     await notify("stage_end", stage=7, status="failed", tool_name=tool_name, duration=t_exec_dur, error=result.error, attempt=tool_exec_retry_count + 1)
@@ -593,6 +769,32 @@ class Orchestrator:
                     output_preview=current_tool_result.output[:200] if current_tool_result.output else "",
                     retry_count=tool_exec_retry_count
                 )
+                try:
+                    from core.telemetry import ToolTelemetry
+                    cat = "filesystem" if "file" in tool_name else ("shell" if "bash" in tool_name else "other")
+                    telemetry.record_tool(
+                        ToolTelemetry(
+                            tool_name=tool_name,
+                            category=cat,
+                            start_time_monotonic=t_exec_start,
+                            duration_ms=t_exec_dur * 1000.0,
+                            filesystem_duration_ms=t_exec_dur * 1000.0 if cat == "filesystem" else 0.0,
+                            subprocess_duration_ms=t_exec_dur * 1000.0 if cat == "shell" else 0.0,
+                            success=bool(current_tool_result.success or (current_tool_result.exit_code == 0)),
+                            exit_code=current_tool_result.exit_code,
+                            args_size_bytes=len(str(tool_params)),
+                            output_size_bytes=len(current_tool_result.output or ""),
+                            retry_count=tool_exec_retry_count,
+                            error=current_tool_result.error,
+                            mission_id=getattr(task, 'task_id', trace_id),
+                            task_id=getattr(task, 'task_id', trace_id),
+                            start=t_exec_start,
+                            end=t_exec_start + t_exec_dur,
+                        ),
+                        request_id=trace_id
+                    )
+                except Exception as telem_err:
+                    logger.debug(f"Telemetry record_tool failed: {telem_err}")
 
                 if current_tool_result.success or current_tool_result.exit_code == 0:
                     tool_result = current_tool_result
@@ -638,25 +840,29 @@ class Orchestrator:
                     return result
 
                 tool_exec_retry_count += 1
-                correction_sys = build_system_prompt(ctx)
+                correction_sys = system_prompt
                 correction_prompt = (
                     build_user_message(sanitised) + "\n\n" +
                     exec_failure.context_for_retry
                 )
 
                 logger.info(f"Stage 6: retrying with error context (attempt {tool_exec_retry_count}/3)")
+                repair_start_mono = time.monotonic()
 
                 try:
-                    tier1_retry_raw = await self.ollama.generate(
-                        model="qwen2.5-coder:7b",
+                    tier1_retry_resp = await self.ollama.generate(
+                        model=TIER1_MODEL,
                         prompt=correction_prompt,
                         system=correction_sys,
-                        keep_alive=0
+                        keep_alive=MODEL_KEEP_ALIVE,
+                        temperature=0.05,
+                        num_ctx=4096,
                     )
+                    tier1_retry_raw = getattr(tier1_retry_resp, "text", str(tier1_retry_resp))
                 except Exception as retry_gen_exc:
                     from models.ollama_client import OllamaTimeoutError
                     if isinstance(retry_gen_exc, OllamaTimeoutError):
-                        timeout_err = self.error_handler.ollama_timeout("qwen2.5-coder:7b", 120, f"stage_6_retry_{tool_exec_retry_count}")
+                        timeout_err = self.error_handler.ollama_timeout(TIER1_MODEL, MODEL_TIMEOUT_SECONDS, f"stage_6_retry_{tool_exec_retry_count}")
                         result.final_output = timeout_err.tagged_output(timeout_err.user_message)
                     else:
                         unk_err = self.error_handler.unknown_error(retry_gen_exc, f"stage_6_retry_{tool_exec_retry_count}")
@@ -664,6 +870,28 @@ class Orchestrator:
                     mark_failed(db_task_id, error=str(retry_gen_exc)[:300], db_path=DB_PATH)
                     await notify("stage_end", stage=7, status="failed", tool_name=tool_name, duration=0.0, error=str(retry_gen_exc), attempt=tool_exec_retry_count + 1)
                     return result
+
+                repair_end_mono = time.monotonic()
+                try:
+                    from core.telemetry import RepairTelemetry
+                    telemetry.record_repair(
+                        RepairTelemetry(
+                            request_id=trace_id,
+                            mission_id=getattr(task, 'task_id', trace_id),
+                            task_id=getattr(task, 'task_id', trace_id),
+                            attempt_number=tool_exec_retry_count,
+                            trigger=exec_failure.technical_detail[:200],
+                            affected_files=[tool_params.get("TargetFile") or tool_params.get("path")] if (tool_params.get("TargetFile") or tool_params.get("path")) else [],
+                            start_time_monotonic=repair_start_mono,
+                            end_time_monotonic=repair_end_mono,
+                            duration_ms=(repair_end_mono - repair_start_mono) * 1000.0,
+                            model=TIER1_MODEL,
+                            success=False,
+                        ),
+                        request_id=trace_id,
+                    )
+                except Exception as r_telem_err:
+                    logger.debug(f"Telemetry record_repair failed: {r_telem_err}")
 
                 retry_parsed = self._parse_tier1_response(tier1_retry_raw)
                 if retry_parsed:
@@ -688,64 +916,95 @@ class Orchestrator:
             result.tool_result = tool_result
             logger.debug(f"Stage 6 complete: tool={tool_name} | success={tool_result.success} | exit={tool_result.exit_code}")
 
-            # ── Stage 8: Tier 2 verification ──────────────
+            # ── Stage 8: Progressive Verification Gate ──────────────
             await self._emit_progress("stage_start", {
                 "stage": 7,
-                "name": "Tier 2 Verification",
+                "name": "Progressive Verification",
                 "verb": "Verifying",
-                "model": "Mistral 7B",
-                "detail": "Cross-family model verification running",
+                "model": "adaptive",
+                "detail": "Evaluating deterministic and semantic checks",
             })
-            await notify("stage_start", stage=8, name="Tier 2 Verification", thought="Verifying tool output correctness with verifier model...", spinner_verb="Verifying")
+            await notify("stage_start", stage=8, name="Verification", thought="Evaluating deterministic and semantic verification...", spinner_verb="Verifying")
             result.pipeline_stage_reached = 7
+            ver_method = "UNKNOWN"
+            ver_start_mono = time.monotonic()
 
             try:
-                verification = await self.verifier.verify(
-                    task=sanitised,
+                verification, ver_method = await self.verification_gate.evaluate(
+                    task_description=sanitised,
                     tier1_reasoning=tier1_reasoning,
                     tool_name=tool_name,
                     tool_parameters=tool_params,
-                    tool_result_output=tool_result.output[:600],
-                    tool_exit_code=tool_result.exit_code
+                    tool_result_output=tool_result.output,
+                    tool_exit_code=tool_result.exit_code,
+                    tool_success=tool_result.success,
+                    verifier=self.verifier,
+                    task_complexity=getattr(task, 'complexity_score', 0.5),
+                    execution_mode=self.execution_mode,
                 )
             except Exception as t2_exc:
                 from models.ollama_client import OllamaTimeoutError
                 if isinstance(t2_exc, OllamaTimeoutError):
-                    t2_err = self.error_handler.ollama_timeout("mistral:7b-instruct-q4_K_M", 120, "stage_7")
+                    t2_err = self.error_handler.ollama_timeout(TIER2_MODEL, MODEL_TIMEOUT_SECONDS, "stage_7")
                 else:
                     t2_err = self.error_handler.unknown_error(t2_exc, "stage_7_tier2")
-                logger.warning(f"Stage 7: Tier 2 failed — {t2_err.technical_detail}. Proceeding with T1 output.")
+                logger.warning(f"Stage 7: Verification failed — {t2_err.technical_detail}. Proceeding with T1 output.")
                 from core.verifier import VerificationResult
                 verification = VerificationResult(
                     agree=True,
                     confidence=0.5,
-                    critical_issues=[f"T2 unavailable: {t2_err.failure_mode.value}"],
+                    critical_issues=[f"Verification unavailable: {t2_err.failure_mode.value}"],
                     risk_score=0.3,
-                    reasoning="Tier 2 verification unavailable — proceeding with reduced confidence."
+                    reasoning="Verification unavailable — proceeding with reduced confidence."
                 )
+                ver_method = "FALLBACK_ERROR"
 
+            ver_end_mono = time.monotonic()
+            try:
+                from core.telemetry import VerificationTelemetry
+                telemetry.record_verification(
+                    VerificationTelemetry(
+                        request_id=trace_id,
+                        mission_id=getattr(task, 'task_id', trace_id),
+                        task_id=getattr(task, 'task_id', trace_id),
+                        method=ver_method,
+                        start_time_monotonic=ver_start_mono,
+                        end_time_monotonic=ver_end_mono,
+                        duration_ms=(ver_end_mono - ver_start_mono) * 1000.0,
+                        verdict="AGREE" if getattr(verification, 'agree', True) else "DISAGREE",
+                        escalated=bool(getattr(verification, 'should_escalate', False)),
+                        issues_count=len(getattr(verification, 'critical_issues', [])),
+                        issues=list(getattr(verification, 'critical_issues', [])),
+                    ),
+                    request_id=trace_id,
+                )
+            except Exception as v_telem_err:
+                logger.debug(f"Telemetry record_verification failed: {v_telem_err}")
+
+            model_used_for_log = getattr(verification, 'model_used', TIER2_MODEL) or TIER2_MODEL
             self.session_logger.log_tier2_verification(
-                "mistral:7b-instruct-q4_K_M",
+                model_used_for_log,
                 verification.agree, verification.confidence,
                 verification.critical_issues, verification.risk_score,
                 verification.latency_seconds if hasattr(verification, 'latency_seconds') else 0.0
             )
             log_tier2_call(
                 trace_id=trace_id,
-                model="mistral:7b-instruct-q4_K_M",
+                model=model_used_for_log,
                 latency=verification.latency_seconds if hasattr(verification, 'latency_seconds') else 0.0,
                 agree=verification.agree,
                 confidence=verification.confidence,
                 risk_score=verification.risk_score,
                 escalated=verification.should_escalate
             )
-            tlog.debug(f"Stage 7 complete | {verification.summary()}")
-            await notify("stage_end", stage=8, status="success", verifier="Mistral 7B", agree=verification.agree, confidence=verification.confidence, critical_issues=len(verification.critical_issues))
+            tlog.debug(f"Stage 7 complete | method={ver_method} | {verification.summary()}")
+            await notify("stage_end", stage=8, status="success", verifier=model_used_for_log, agree=verification.agree, confidence=verification.confidence, critical_issues=len(verification.critical_issues), method=ver_method)
             await self._emit_progress("stage_complete", {
                 "stage": 7,
-                "name": "Tier 2 Verification",
+                "name": "Progressive Verification",
                 "confidence": getattr(verification, 'confidence', 0),
                 "agree": getattr(verification, 'agree', True),
+                "method": ver_method
             })
 
             # ── Stage 9: Disagreement Router ──
@@ -843,29 +1102,39 @@ class Orchestrator:
                     "stage": 9,
                     "name": "Tier 3 Arbitration",
                     "verb": "Arbitrating",
-                    "model": "Claude Sonnet 4.6",
-                    "detail": "Frontier model resolving disagreement",
+                    "model": TIER3_MODEL,
+                    "detail": "Tier 3 model resolving disagreement",
                 })
                 try:
-                    tier3_response = await self.claude.arbitrate(
+                    tier3_response = await self.tier3.arbitrate(
                         task=sanitised,
                         tier1_output=str(tier1_parsed),
                         tier2_issues=verification.critical_issues,
                         tool_result=tool_result.output[:400],
                         escalation_reason=routing.reason
                     )
-                    result.tier3_was_called = True
 
                     if not tier3_response.success:
+                        result.tier3_was_called = False
                         t3_err = self.error_handler.tier3_api_failure(
                             "APIError",
                             tier3_response.error or "unknown error",
                             tier1_parsed.get("explanation", "Action proceeding with T1 output.")
                         )
-                        logger.warning(f"Stage 9: {t3_err.technical_detail}")
+                        logger.warning(f"Stage 9: Tier 3 API failure — {t3_err.technical_detail}")
                         tier3_decision_text = f"[{t3_err.tag}] {t3_err.user_message}"
+                        log_tier3_call(
+                            trace_id=trace_id,
+                            latency=tier3_response.latency_seconds,
+                            input_tokens=0,
+                            output_tokens=0,
+                            cost_usd=0.0,
+                            success=False,
+                            escalation_reason=routing.reason
+                        )
                         await notify("stage_end", stage=10, status="failed", needed=True, verdict="Corrections Required")
                     else:
+                        result.tier3_was_called = True
                         self.session_logger.log_tier3_arbitration(
                             tier3_response.content[:200],
                             tier3_response.input_tokens,
@@ -885,13 +1154,14 @@ class Orchestrator:
                         logger.info(f"Stage 9 complete: Tier 3 arbitrated | cost=${tier3_response.cost_usd:.4f}")
                         await notify("stage_end", stage=10, status="success", needed=True, verdict="Approved")
 
-                    tier3_cost = getattr(tier3_response, 'cost_usd', 0.0) if hasattr(tier3_response, 'cost_usd') else 0.0
+                    tier3_cost = getattr(tier3_response, 'cost_usd', 0.0) if (hasattr(tier3_response, 'cost_usd') and tier3_response.success) else 0.0
                     await self._emit_progress("stage_complete", {
                         "stage": 9, "name": "Tier 3 Arbitration",
                         "cost_usd": tier3_cost,
                     })
 
                 except Exception as t3_exc:
+                    result.tier3_was_called = False
                     t3_err = self.error_handler.tier3_api_failure(
                         type(t3_exc).__name__,
                         str(t3_exc)[:200],
@@ -899,22 +1169,29 @@ class Orchestrator:
                     )
                     logger.warning(f"Stage 9: Tier 3 exception — {t3_err.technical_detail}")
                     tier3_decision_text = t3_err.tagged_output(t3_err.user_message)
-                    result.tier3_was_called = True
+                    log_tier3_call(
+                        trace_id=trace_id,
+                        latency=0.0,
+                        input_tokens=0,
+                        output_tokens=0,
+                        cost_usd=0.0,
+                        success=False,
+                        escalation_reason=routing.reason
+                    )
                     await notify("stage_end", stage=10, status="failed", needed=True, verdict="Corrections Required")
             else:
                 await notify("stage_end", stage=10, status="success", needed=False, verdict="Approved")
 
-            # ── Stage 11: Memory Update ──
+            # ── Stage 11: Background Memory Update (Non-Blocking) ──
             await self._emit_progress("stage_start", {
                 "stage": 10,
                 "name": "Memory Update",
-                "verb": "Updating memory",
-                "detail": "Writing confirmed facts to MEMORY.md",
+                "verb": "Queueing memory",
+                "detail": "Enqueuing background memory extraction to MEMORY.md",
             })
-            await notify("stage_start", stage=11, name="Memory Update", thought="Persisting facts to memory store...", spinner_verb="Persisting")
+            await notify("stage_start", stage=11, name="Memory Update", thought="Enqueuing background memory extraction...", spinner_verb="Queueing")
             result.pipeline_stage_reached = 10
-            facts = []
-            written = 0
+            written_status = "0"
             if tool_result.exit_code == 0 and tool_result.success:
                 conversation_for_extraction = [
                     {"role": "user", "content": sanitised},
@@ -927,36 +1204,25 @@ class Orchestrator:
                         "success": tool_result.success
                     }
                 ]
-
-                facts = await extract_memories(
+                mem_job = MemoryJob(
+                    trace_id=trace_id,
+                    mission_id=trace_id,
                     task_description=sanitised,
                     conversation_history=conversation_for_extraction,
                     tool_results=tool_results_for_extraction,
-                    ollama_client=self.ollama
-                )
-
-                written = confirm_and_write_facts(
-                    facts, tool_name=tool_name,
+                    tool_name=tool_name,
                     exit_code=tool_result.exit_code,
                     project=self.project
                 )
-                log_memory_event(
-                    trace_id=trace_id,
-                    event_type="write",
-                    facts_count=written,
-                    project=self.project,
-                    detail=f"tool={tool_name} exit_code={tool_result.exit_code}"
-                )
+                enqueued = self.memory_manager.submit(mem_job)
+                written_status = "Background Queued" if enqueued else "Dropped (Queue Full)"
+                tlog.debug(f"Stage 10 complete | Memory job {mem_job.job_id} submitted to background queue")
 
-                if written > 0:
-                    self.session_logger.log_memory_update(written, self.project)
-                tlog.debug(f"Stage 10 complete | {written} facts written to memory")
-            
-            added = facts[:2] if facts else []
-            await notify("stage_end", stage=11, status="success", added=added, updated=[])
+            await notify("stage_end", stage=11, status="success", added=["Background extraction queued"], updated=[])
             await self._emit_progress("stage_complete", {
-                "stage": 10, "name": "Memory Update",
+                "stage": 10, "name": "Memory Update", "status": "background_queued"
             })
+            written = written_status
 
             # ── Stage 12: Build Final Response ──
             result.pipeline_stage_reached = 11
@@ -1175,6 +1441,11 @@ class Orchestrator:
             
             await notify("stage_end", stage=result.pipeline_stage_reached, status="failed", error=str(e))
             return result
+        finally:
+            try:
+                telemetry.finish_request(trace_id, success=result.success, stage_reached=result.pipeline_stage_reached, error=result.error)
+            except Exception:
+                pass
 
     # ──────────────────────────────────────────────────────────────────
     # Helpers
@@ -1201,6 +1472,16 @@ class Orchestrator:
                 logger.info(f"ResponseParser: used fallback strategy '{result.method_used}'")
             return result.to_dict()
         else:  # ParseFailure
+            if result.is_plain_text and not result.has_json_fragment:
+                cleaned = re.sub(r'<think>.*?</think>', '', response, flags=re.DOTALL).strip()
+                logger.info(f"ResponseParser: direct conversational answer detected ({len(cleaned)} chars)")
+                return {
+                    "tool": None,
+                    "parameters": {},
+                    "reasoning": "Direct conversational response",
+                    "explanation": cleaned or response.strip(),
+                    "_parse_method": "plain_text_conversational"
+                }
             logger.warning(
                 f"ResponseParser: all strategies failed | "
                 f"reason={result.failure_reason} | "

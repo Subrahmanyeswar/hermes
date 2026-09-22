@@ -1,0 +1,25 @@
+{
+  "dataset_version": "1.0.0",
+  "task_count": 80,
+  "sha256": "f3475b6415364ccea70f4710bfe2137fe84d91cce5d1db822e8d156716cf4d72",
+  "categories": {
+    "A_simple": 10,
+    "B_standard_coding": 10,
+    "C_multi_file": 10,
+    "D_complex_missions": 10,
+    "E_debugging_repair": 10,
+    "F_workspace_understanding": 10,
+    "G_adversarial_failure": 10,
+    "H_realistic_user_prompts": 10
+  },
+  "difficulty_distribution": {
+    "simple": 15,
+    "standard": 36,
+    "hard": 19,
+    "complex": 10
+  },
+  "frozen": true,
+  "benchmark_execution_allowed": false,
+  "original_freeze_timestamp": "2026-09-03T05:48:00Z",
+  "final_integrity_validation_timestamp": "2026-09-03T05:57:30Z"
+}

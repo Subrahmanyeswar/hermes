@@ -1,0 +1,94 @@
+{
+  "all_passed": true,
+  "missions_tested": 6,
+  "missions_passed": 6,
+  "missions_failed": 0,
+  "results": {
+    "mission_a": {
+      "status": "PASSED",
+      "duration_ms": 3.4471999388188124,
+      "events": 6
+    },
+    "mission_b": {
+      "status": "PASSED",
+      "duration_ms": 30.675600050017238,
+      "events": 6
+    },
+    "mission_c": {
+      "status": "PASSED",
+      "duration_ms": 0.25340006686747074,
+      "events": 14
+    },
+    "mission_d": {
+      "status": "PASSED",
+      "duration_ms": 5.527099943719804,
+      "events": 7
+    },
+    "mission_e": {
+      "status": "PASSED",
+      "duration_ms": 0.08159992285072803,
+      "events": 4
+    },
+    "mission_f": {
+      "status": "PASSED",
+      "duration_ms": 49.945599981583655,
+      "events": 5
+    }
+  },
+  "traces": {
+    "mission_a_simple": [
+      "MISSION_CREATED",
+      "MISSION_STARTED",
+      "TOOL_STARTED",
+      "TOOL_COMPLETED",
+      "VERIFICATION_COMPLETED",
+      "MISSION_COMPLETED"
+    ],
+    "mission_b_standard": [
+      "MISSION_CREATED",
+      "MISSION_STARTED",
+      "WORKSPACE_SCAN_COMPLETED",
+      "ROUTING_DECISION",
+      "VERIFICATION_COMPLETED",
+      "MISSION_COMPLETED"
+    ],
+    "mission_c_complex": [
+      "MISSION_CREATED",
+      "MISSION_STARTED",
+      "PLAN_CREATED",
+      "TASK_STARTED",
+      "TASK_COMPLETED",
+      "TASK_STARTED",
+      "TASK_COMPLETED",
+      "TASK_STARTED",
+      "TASK_COMPLETED",
+      "TASK_STARTED",
+      "TASK_COMPLETED",
+      "TASK_STARTED",
+      "TASK_COMPLETED",
+      "MISSION_COMPLETED"
+    ],
+    "mission_d_failure_repair": [
+      "MISSION_CREATED",
+      "MISSION_STARTED",
+      "VERIFICATION_FAILED",
+      "REPAIR_STARTED",
+      "REPAIR_COMPLETED",
+      "VERIFICATION_COMPLETED",
+      "MISSION_COMPLETED"
+    ],
+    "mission_e_escalation": [
+      "MISSION_CREATED",
+      "MISSION_STARTED",
+      "ROUTING_DECISION",
+      "ROUTING_DECISION"
+    ],
+    "mission_f_workspace_aware": [
+      "MISSION_CREATED",
+      "MISSION_STARTED",
+      "WORKSPACE_SCAN_COMPLETED",
+      "VERIFICATION_COMPLETED",
+      "MISSION_COMPLETED"
+    ]
+  }
+}

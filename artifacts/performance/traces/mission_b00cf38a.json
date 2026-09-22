@@ -1,0 +1,36 @@
+{
+  "mission_id": "b00cf38a",
+  "execution_mode": "performance_baseline",
+  "mission": {
+    "start": "2026-09-13 17:11:42",
+    "end": "2026-09-13 17:11:42",
+    "duration_ms": 24.05,
+    "accounted_time_ms": 16.0,
+    "unaccounted_time_ms": 8.05
+  },
+  "stages": [],
+  "model_calls": [],
+  "tool_calls": [
+    {
+      "tool_name": "write_file",
+      "category": "filesystem",
+      "start_time_monotonic": 373982.921,
+      "duration_ms": 16.00000000325963,
+      "subprocess_duration_ms": 0.0,
+      "filesystem_duration_ms": 16.00000000325963,
+      "success": true,
+      "exit_code": 0,
+      "args_size_bytes": 128,
+      "output_size_bytes": 64,
+      "retry_count": 0,
+      "error": null,
+      "mission_id": "m_1",
+      "task_id": "t_1",
+      "start": 373982.921,
+      "end": 373982.937
+    }
+  ],
+  "verification_calls": [],
+  "repair_attempts": [],
+  "model_switches": []
+}

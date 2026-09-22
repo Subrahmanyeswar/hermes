@@ -1,0 +1,20 @@
+[
+  {
+    "mission_id": "MISSION_1",
+    "name": "Simple Filesystem Operation",
+    "user_visible_latency_sec": 214.71,
+    "background_memory_sec": 1.0,
+    "total_compute_sec": 215.72,
+    "foreground_model_switches": 1,
+    "success": true
+  },
+  {
+    "mission_id": "MISSION_2",
+    "name": "Single-File Coding Task",
+    "user_visible_latency_sec": 284.6,
+    "background_memory_sec": 1.01,
+    "total_compute_sec": 285.61,
+    "foreground_model_switches": 1,
+    "success": true
+  }
+]

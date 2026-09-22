@@ -346,7 +346,7 @@ async def test_10_full_tui_mount_with_mock_orchestrator():
             await asyncio.sleep(0.1)
             assert app.current_mode == "auto"
 
-            print(f"  ✓ TUI mounts with all 4 panels | mode switching works")
+            print("  [PASS] TUI mounts with all 4 panels | mode switching works")
 
     return True
 

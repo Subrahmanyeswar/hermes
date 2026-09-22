@@ -176,11 +176,14 @@ ProcessingIndicator {
 /* Input container — holds TextArea and SEND/STOP button */
 #chat-input-container {
     height: auto;
-    min-height: 6;
-    max-height: 12;
     width: 100%;
     padding: 0 1;
     layout: horizontal;
+}
+
+#input-buttons {
+    width: auto;
+    height: auto;
 }
 
 #send-btn, #stop-btn {

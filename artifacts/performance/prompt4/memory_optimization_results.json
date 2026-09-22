@@ -1,0 +1,14 @@
+{
+  "baseline_policy": "Unfiltered tail-30 facts (max 30 lines)",
+  "optimized_policy": "Relevance-scored keyword overlap + deduplication + top-5 cap",
+  "baseline_facts_injected": 1,
+  "optimized_facts_injected": 0,
+  "reason": "Memory facts were unrelated to webpage creation task, correctly omitted",
+  "deduplication_tested": true,
+  "relevance_scoring_tested": true,
+  "benchmark_isolation": {
+    "benchmark_mode_filtering": false,
+    "benchmark_preserves_full_facts": true,
+    "status": "PASS"
+  }
+}

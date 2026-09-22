@@ -1,0 +1,32 @@
+{
+  "canonical_full_suite": {
+    "description": "Prompt 1 Canonical Offline Unit Test Suite",
+    "command": "pytest tests/test_part7_historical_fixes.py tests/test_parser_baseline_probe.py tests/test_performance_telemetry.py tests/test_adaptive_execution.py tests/test_context_engine.py tests/test_verification_gate.py tests/test_verifier.py tests/test_reasoning_budget.py tests/test_error_handler.py tests/test_tools.py tests/test_planner.py tests/test_memory_store.py tests/test_classifier.py tests/test_response_parser.py tests/test_logging.py tests/test_kairos_db.py tests/test_cost_accounting.py",
+    "tests": 228,
+    "passed": 228,
+    "failed": 0,
+    "errors": 0,
+    "duration_seconds": 14.54
+  },
+  "prompt3_focused_suite": {
+    "description": "Prompt 3 Surgical Regression Suite",
+    "command": "pytest tests/test_part7_historical_fixes.py tests/test_parser_baseline_probe.py tests/test_performance_telemetry.py tests/test_workspace.py tests/test_security.py tests/test_planner.py tests/test_verifier.py tests/test_week5_final.py",
+    "tests": 96,
+    "passed": 96,
+    "failed": 0,
+    "errors": 0,
+    "duration_seconds": 2.04
+  },
+  "total_repository_tests": {
+    "description": "Full Repository Test Collection (including live network/model integration suites)",
+    "command": "pytest tests/ --collect-only -q",
+    "collected": 1015
+  },
+  "relationship": "The 228-test suite is the canonical offline unit test suite established in Prompt 1 covering 17 core modules without external live-model dependencies. The 96-test suite is a focused surgical subset executed in Prompt 3 covering historical bug fixes, parser robustness, telemetry, workspace path security, tool security gates, planner, verifier, and week 5 final. Neither 228 nor 96 runs the entire 1015-test repository suite (which contains long-running end-to-end integration tests). Both the 228-test canonical suite and the 96-test focused suite pass with 100% pass rates.",
+  "evidence": [
+    "Prompt 1 baseline report records 228 collected / 228 passed in 13.47s.",
+    "Prompt 3 verification confirmed 228 collected / 228 passed in 14.54s.",
+    "Prompt 3 focused regression suite verified 96 collected / 96 passed in 2.04s.",
+    "Total test files in tests/ collect 1015 items."
+  ]
+}

@@ -1,0 +1,107 @@
+[
+  {
+    "iteration": 1,
+    "tok_per_sec": 30.46,
+    "gen_ms": 9849.21,
+    "vram_after_mb": 5576.0,
+    "total_ms": 20812.8
+  },
+  {
+    "iteration": 2,
+    "tok_per_sec": 30.32,
+    "gen_ms": 9895.92,
+    "vram_after_mb": 5576.0,
+    "total_ms": 10230.23
+  },
+  {
+    "iteration": 3,
+    "tok_per_sec": 30.29,
+    "gen_ms": 9904.85,
+    "vram_after_mb": 5576.0,
+    "total_ms": 10241.59
+  },
+  {
+    "iteration": 4,
+    "tok_per_sec": 30.26,
+    "gen_ms": 9913.62,
+    "vram_after_mb": 5576.0,
+    "total_ms": 10266.33
+  },
+  {
+    "iteration": 5,
+    "tok_per_sec": 30.19,
+    "gen_ms": 9936.28,
+    "vram_after_mb": 5576.0,
+    "total_ms": 10300.51
+  },
+  {
+    "iteration": 6,
+    "tok_per_sec": 30.22,
+    "gen_ms": 9927.68,
+    "vram_after_mb": 5576.0,
+    "total_ms": 10296.33
+  },
+  {
+    "iteration": 7,
+    "tok_per_sec": 30.18,
+    "gen_ms": 9938.73,
+    "vram_after_mb": 5576.0,
+    "total_ms": 10313.44
+  },
+  {
+    "iteration": 8,
+    "tok_per_sec": 30.24,
+    "gen_ms": 9921.28,
+    "vram_after_mb": 5576.0,
+    "total_ms": 10279.33
+  },
+  {
+    "iteration": 9,
+    "tok_per_sec": 30.28,
+    "gen_ms": 9907.8,
+    "vram_after_mb": 5576.0,
+    "total_ms": 10229.68
+  },
+  {
+    "iteration": 10,
+    "tok_per_sec": 30.19,
+    "gen_ms": 9936.7,
+    "vram_after_mb": 5576.0,
+    "total_ms": 10230.96
+  },
+  {
+    "iteration": 11,
+    "tok_per_sec": 30.22,
+    "gen_ms": 9926.14,
+    "vram_after_mb": 5576.0,
+    "total_ms": 10212.77
+  },
+  {
+    "iteration": 12,
+    "tok_per_sec": 30.21,
+    "gen_ms": 9931.15,
+    "vram_after_mb": 5576.0,
+    "total_ms": 10230.11
+  },
+  {
+    "iteration": 13,
+    "tok_per_sec": 30.18,
+    "gen_ms": 9941.84,
+    "vram_after_mb": 5576.0,
+    "total_ms": 10241.88
+  },
+  {
+    "iteration": 14,
+    "tok_per_sec": 30.16,
+    "gen_ms": 9947.54,
+    "vram_after_mb": 5576.0,
+    "total_ms": 10252.68
+  },
+  {
+    "iteration": 15,
+    "tok_per_sec": 30.15,
+    "gen_ms": 9949.85,
+    "vram_after_mb": 5576.0,
+    "total_ms": 10230.13
+  }
+]

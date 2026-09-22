@@ -135,6 +135,12 @@ class WorkspaceManager:
         """Lock to the current working directory. Used when no explicit path given."""
         self.lock(os.getcwd())
 
+    def unlock(self) -> None:
+        """Unlock the workspace manager."""
+        self._locked = False
+        self.workspace_root = None
+        self.index = None
+
     @property
     def is_locked(self) -> bool:
         return self._locked and self.workspace_root is not None
@@ -161,19 +167,17 @@ class WorkspaceManager:
             return Path(path).resolve()
 
         # Resolve the path relative to workspace_root
-        if Path(path).is_absolute():
-            candidate = Path(path).resolve()
-        else:
-            candidate = (self.workspace_root / path).resolve()
-
-        # Check containment — candidate must be inside workspace_root
         try:
+            if Path(path).is_absolute():
+                candidate = Path(path).resolve()
+            else:
+                candidate = (self.workspace_root / path).resolve()
+
+            # Check containment — candidate must be inside workspace_root
             candidate.relative_to(self.workspace_root)
-        except ValueError:
+        except (ValueError, OSError) as e:
             raise WorkspaceBoundaryError(
-                f"Path '{path}' resolves to '{candidate}' which is outside "
-                f"workspace boundary '{self.workspace_root}'. "
-                f"Access denied by WorkspaceManager security gate."
+                f"Path '{path}' is invalid or outside workspace boundary '{self.workspace_root}': {e}"
             )
 
         return candidate
@@ -205,24 +209,38 @@ class WorkspaceManager:
         if self.workspace_root is None:
             return
 
+        from config.model_config import WORKSPACE_INTELLIGENCE_ENABLED
+        from core.workspace_indexer import workspace_indexer
+
+        if WORKSPACE_INTELLIGENCE_ENABLED:
+            workspace_indexer.index_workspace(self.workspace_root)
+
         start = time.monotonic()
         idx = WorkspaceIndex(workspace_root=str(self.workspace_root))
+        dirs_disc = 0
+        files_disc = 0
+        files_ign = 0
 
         for root, dirs, files in os.walk(self.workspace_root):
             # Prune ignored directories in-place (prevents walking into them)
+            orig_len = len(dirs)
             dirs[:] = [
                 d for d in dirs
                 if not self._should_ignore(Path(root) / d)
             ]
+            dirs_disc += len(dirs)
+            files_ign += (orig_len - len(dirs))
 
             for filename in files:
+                files_disc += 1
                 abs_path = Path(root) / filename
                 if self._should_ignore(abs_path):
+                    files_ign += 1
                     continue
 
                 try:
                     stat = abs_path.stat()
-                    rel_path = str(abs_path.relative_to(self.workspace_root))
+                    rel_path = str(abs_path.relative_to(self.workspace_root)).replace("\\", "/")
                     entry = FileEntry(
                         relative_path=rel_path,
                         absolute_path=str(abs_path),
@@ -242,14 +260,61 @@ class WorkspaceManager:
         self.index = idx
 
         elapsed = time.monotonic() - start
+        
+        try:
+            from core.telemetry import telemetry, WorkspaceTelemetry
+            wt = WorkspaceTelemetry(
+                scan_duration_ms=elapsed * 1000.0,
+                directories_discovered=dirs_disc,
+                files_discovered=files_disc,
+                files_read=idx.total_files,
+                files_parsed=idx.total_files,
+                files_ignored=files_ign,
+                total_bytes_read=idx.total_size_bytes,
+            )
+            with telemetry._global_lock:
+                for req in telemetry._active_requests.values():
+                    wt.request_id = req.request_id
+                    req.workspace = wt
+                    break
+        except Exception:
+            pass
+
         logger.info(
             f"WorkspaceManager: indexed {idx.total_files} files "
             f"in {elapsed:.2f}s | framework={idx.framework_detected}"
         )
 
     def refresh_index(self) -> None:
-        """Rebuild the index. Call after significant file system changes."""
-        self._build_index()
+        """Incrementally update the index without rescanning unchanged files."""
+        if self.workspace_root is None:
+            return
+
+        from config.model_config import WORKSPACE_INTELLIGENCE_ENABLED
+        from core.workspace_indexer import workspace_indexer
+
+        if WORKSPACE_INTELLIGENCE_ENABLED:
+            report = workspace_indexer.update_workspace(self.workspace_root)
+            if self.index is not None:
+                for del_p in report.deleted_paths:
+                    self.index.files.pop(del_p, None)
+                for f in (report.added_records + report.modified_records):
+                    self.index.files[f.rel_path] = FileEntry(
+                        relative_path=f.rel_path,
+                        absolute_path=f.abs_path,
+                        size_bytes=f.size_bytes,
+                        extension=f.extension,
+                        last_modified=f.mtime,
+                        content_hash=f.content_hash,
+                    )
+                self.index.total_files = len(self.index.files)
+                self.index.total_size_bytes = sum(fe.size_bytes for fe in self.index.files.values())
+                self.index.framework_detected = self._detect_framework(self.index)
+                self.index.language_detected = self._detect_language(self.index)
+                self.index.indexed_at = time.monotonic()
+            logger.debug(f"WorkspaceManager.refresh: incremental update in {report.duration_ms:.2f}ms")
+        else:
+            self._build_index()
 
     def _detect_framework(self, idx: WorkspaceIndex) -> str:
         """Heuristic framework detection from file presence."""
@@ -300,6 +365,42 @@ class WorkspaceManager:
 
         top_ext = max(ext_counts, key=ext_counts.get)
         return lang_map.get(top_ext, top_ext.lstrip(".").upper())
+
+    def get_relevant_files(self, task_description: str, max_files: int = 5) -> list[str]:
+        """
+        Return relative paths of files most relevant to a task description using multi-signal retrieval.
+        """
+        from config.model_config import WORKSPACE_INTELLIGENCE_ENABLED
+        from core.workspace_retriever import workspace_retriever
+
+        if WORKSPACE_INTELLIGENCE_ENABLED and self.workspace_root:
+            retrieved = workspace_retriever.retrieve_relevant_files(
+                workspace_root=self.root_str,
+                query=task_description,
+                max_files=max_files
+            )
+            if retrieved:
+                return [rf.rel_path for rf in retrieved]
+
+        if self.index is None:
+            return []
+
+        task_lower = task_description.lower()
+        scored: list[tuple[float, str]] = []
+        keywords = [w for w in task_lower.split() if len(w) > 3]
+
+        for rel_path, entry in self.index.files.items():
+            if not (entry.is_code_file or entry.is_config_file):
+                continue
+            path_lower = rel_path.lower()
+            score = sum(1.0 for kw in keywords if kw in path_lower)
+            if any(name in rel_path for name in ["app.py", "main.py", "models.py", "routes.py", "config.py", "index.js"]):
+                score += 0.5
+            if score > 0:
+                scored.append((score, rel_path))
+
+        scored.sort(key=lambda x: -x[0])
+        return [path for _, path in scored[:max_files]]
 
     # ── Context generation ────────────────────────────────────────────────────
 
@@ -458,36 +559,6 @@ class WorkspaceManager:
         except (PermissionError, OSError) as e:
             return f"ERROR: Cannot read file: {e}"
 
-    def get_relevant_files(self, task_description: str, max_files: int = 5) -> list[str]:
-        """
-        Return relative paths of files most relevant to a task description.
-        Simple keyword matching — enough for context injection without embedding overhead.
-        """
-        if self.index is None:
-            return []
-
-        task_lower = task_description.lower()
-        scored: list[tuple[float, str]] = []
-
-        keywords = [w for w in task_lower.split() if len(w) > 3]
-
-        for rel_path, entry in self.index.files.items():
-            if not (entry.is_code_file or entry.is_config_file):
-                continue
-
-            path_lower = rel_path.lower()
-            score = sum(1.0 for kw in keywords if kw in path_lower)
-
-            # Boost common important files
-            if any(name in rel_path for name in ["app.py", "main.py", "models.py",
-                                                   "routes.py", "config.py", "index.js"]):
-                score += 0.5
-
-            if score > 0:
-                scored.append((score, rel_path))
-
-        scored.sort(key=lambda x: -x[0])
-        return [path for _, path in scored[:max_files]]
 
     def get_workspace_summary(self) -> dict:
         """Return a compact dict of workspace metadata for status bar and logging."""

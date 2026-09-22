@@ -1,0 +1,26 @@
+{
+  "mission_id": "e8737846",
+  "execution_mode": "performance_baseline",
+  "mission": {
+    "start": "2026-09-19 23:10:55",
+    "end": "2026-09-19 23:10:55",
+    "duration_ms": 21.89,
+    "accounted_time_ms": 21.82,
+    "unaccounted_time_ms": 0.07
+  },
+  "stages": [
+    {
+      "name": "Stage 1: Test Span",
+      "stage_number": 1,
+      "start": 258211.4164,
+      "end": 258211.4383,
+      "duration_ms": 21.82,
+      "success": true
+    }
+  ],
+  "model_calls": [],
+  "tool_calls": [],
+  "verification_calls": [],
+  "repair_attempts": [],
+  "model_switches": []
+}

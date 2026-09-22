@@ -1,0 +1,18 @@
+{
+  "baseline_total_ms": 62728.54,
+  "baseline_t1_generation_ms": 51818.95,
+  "baseline_t1_load_ms": 8707.0,
+  "baseline_prompt_eval_ms": 1244.57,
+  "baseline_overhead_ms": 165.62,
+  "baseline_prompt_tokens": 1591,
+  "baseline_output_tokens": 1536,
+  "baseline_thinking_present": true,
+  "baseline_thinking_length": 6532,
+  "baseline_num_predict": 1536,
+  "baseline_num_ctx": 4096,
+  "baseline_model": "deepseek-r1:8b",
+  "baseline_keep_alive": "300s",
+  "baseline_vram": 5495.0,
+  "baseline_gpu_utilization": 97.0,
+  "PROMPT_1_BASELINE_IMPORTED": true
+}

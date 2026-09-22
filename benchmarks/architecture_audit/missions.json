@@ -1,0 +1,94 @@
+{
+  "missions": [
+    {
+      "id": "MISSION_1",
+      "name": "Simple Filesystem Operation",
+      "type": "filesystem",
+      "description": "List all files in generated_projects directory and return file count.",
+      "prompt": "List all files and subdirectories in the generated_projects folder using the list_directory tool.",
+      "expected_tool": "list_directory",
+      "expected_category": "filesystem"
+    },
+    {
+      "id": "MISSION_2",
+      "name": "Single-File Coding Task",
+      "type": "single_file",
+      "description": "Implement a thread-safe LRU Cache in Python.",
+      "prompt": "Create a file named generated_projects/lru_cache.py containing a thread-safe LRU cache using collections.OrderedDict with get, put, and __len__ methods.",
+      "expected_tool": "write_file",
+      "expected_category": "generation"
+    },
+    {
+      "id": "MISSION_3",
+      "name": "Multi-File Coding Task",
+      "type": "multi_file",
+      "description": "Implement a client-server socket pool across two files.",
+      "prompt": "Write a connection pool module in generated_projects/pool.py that manages reusable socket connections with acquire and release methods.",
+      "expected_tool": "write_file",
+      "expected_category": "multi_file"
+    },
+    {
+      "id": "MISSION_4",
+      "name": "Repository Understanding Task",
+      "type": "repo_understanding",
+      "description": "Read and analyze workspace architecture.",
+      "prompt": "Read and explain the key components in config/model_config.py and summarize the three configured model tiers.",
+      "expected_tool": "read_file",
+      "expected_category": "reasoning"
+    },
+    {
+      "id": "MISSION_5",
+      "name": "Debugging and Fix Task",
+      "type": "debugging",
+      "description": "Identify and fix a bug in a target script.",
+      "prompt": "Create a test script generated_projects/math_utils.py with a factorial function, then verify its syntax.",
+      "expected_tool": "write_file",
+      "expected_category": "debugging"
+    },
+    {
+      "id": "MISSION_6",
+      "name": "Complex Implementation Task",
+      "type": "complex",
+      "description": "Implement a full async rate limiter with token bucket algorithm.",
+      "prompt": "Create generated_projects/rate_limiter.py implementing an asynchronous Token Bucket rate limiter with acquire(), try_acquire(), refill rate, and burst capacity.",
+      "expected_tool": "write_file",
+      "expected_category": "complex"
+    },
+    {
+      "id": "MISSION_7",
+      "name": "Task Requiring Tier 2 Verification",
+      "type": "verification",
+      "description": "Security-sensitive file write requiring verifier review.",
+      "prompt": "Create generated_projects/auth_handler.py with a secure password hashing helper using hashlib and hmac with salt generation.",
+      "expected_tool": "write_file",
+      "expected_category": "verification"
+    },
+    {
+      "id": "MISSION_8",
+      "name": "Task Requiring Repair Cycle",
+      "type": "repair",
+      "description": "Execution with intentional parameter recovery or self-refinement.",
+      "prompt": "Write a Python script generated_projects/data_pipeline.py with a generator that filters invalid records from a streaming list.",
+      "expected_tool": "write_file",
+      "expected_category": "repair"
+    },
+    {
+      "id": "MISSION_9",
+      "name": "Task Requiring Multiple Tools",
+      "type": "chained_tools",
+      "description": "File write followed by shell verification.",
+      "prompt": "Create generated_projects/string_helper.py with reverse_string and is_palindrome functions.",
+      "expected_tool": "write_file",
+      "expected_category": "chained_tools"
+    },
+    {
+      "id": "MISSION_10",
+      "name": "Large Workspace Task",
+      "type": "large_workspace",
+      "description": "Full project workspace scan, AST index construction, and summary.",
+      "prompt": "Scan the workspace and summarize the repository structure and available tool modules.",
+      "expected_tool": "list_directory",
+      "expected_category": "workspace"
+    }
+  ]
+}

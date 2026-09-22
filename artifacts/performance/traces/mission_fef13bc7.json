@@ -1,0 +1,70 @@
+{
+  "mission_id": "fef13bc7",
+  "execution_mode": "performance_baseline",
+  "mission": {
+    "start": "2026-09-13 21:55:58",
+    "end": "2026-09-13 21:55:59",
+    "duration_ms": 291.63,
+    "accounted_time_ms": 10.44,
+    "unaccounted_time_ms": 281.19
+  },
+  "stages": [
+    {
+      "name": "Input Sanitisation",
+      "stage_number": 1,
+      "start": 12482.9168,
+      "end": 12482.9179,
+      "duration_ms": 1.08,
+      "success": true
+    },
+    {
+      "name": "Planning",
+      "stage_number": 2,
+      "start": 12482.9181,
+      "end": 12482.9275,
+      "duration_ms": 9.36,
+      "success": true
+    }
+  ],
+  "model_calls": [],
+  "tool_calls": [
+    {
+      "tool_name": "list_dir",
+      "category": "other",
+      "start_time_monotonic": 12482.921,
+      "duration_ms": 0.0,
+      "subprocess_duration_ms": 0.0,
+      "filesystem_duration_ms": 0.0,
+      "success": true,
+      "exit_code": 0,
+      "args_size_bytes": 35,
+      "output_size_bytes": 14,
+      "retry_count": 0,
+      "error": "",
+      "mission_id": "7c450bac",
+      "task_id": "7c450bac",
+      "start": 12482.921,
+      "end": 12482.921
+    }
+  ],
+  "verification_calls": [
+    {
+      "verification_id": "1a93dd19",
+      "request_id": "fef13bc7",
+      "mission_id": "7c450bac",
+      "task_id": "7c450bac",
+      "method": "T2_SECURITY_SENSITIVE",
+      "start_time_monotonic": 12482.921,
+      "end_time_monotonic": 12482.921,
+      "duration_ms": 0.0,
+      "verdict": "DISAGREE",
+      "escalated": true,
+      "issues_count": 1,
+      "issues": [
+        "issue"
+      ]
+    }
+  ],
+  "repair_attempts": [],
+  "model_switches": []
+}

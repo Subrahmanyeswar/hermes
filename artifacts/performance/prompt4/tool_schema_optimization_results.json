@@ -1,0 +1,26 @@
+{
+  "baseline_tools_exposed": 20,
+  "optimized_tools_exposed": 4,
+  "tools_exposed_list": [
+    "create_folder",
+    "list_directory",
+    "read_file",
+    "write_file"
+  ],
+  "baseline_schema_chars": 2909,
+  "optimized_schema_chars": 723,
+  "baseline_tokens": 657,
+  "optimized_tokens": 154,
+  "token_reduction_pct": 76.56,
+  "system_authorization": {
+    "permission_gate_active": true,
+    "registry_active": true,
+    "security_regressions": false,
+    "status": "PRESERVED_100_PERCENT"
+  },
+  "benchmark_isolation": {
+    "benchmark_mode_tools": 20,
+    "benchmark_schema_exact_match": true,
+    "status": "PASS"
+  }
+}

@@ -1,0 +1,68 @@
+{
+  "mission_id": "15f551a9",
+  "execution_mode": "performance_baseline",
+  "mission": {
+    "start": "2026-09-19 23:49:27",
+    "end": "2026-09-19 23:49:27",
+    "duration_ms": 44.68,
+    "accounted_time_ms": 8.35,
+    "unaccounted_time_ms": 36.33
+  },
+  "stages": [
+    {
+      "name": "Input Sanitisation",
+      "stage_number": 1,
+      "start": 260524.0262,
+      "end": 260524.0269,
+      "duration_ms": 0.68,
+      "success": true
+    },
+    {
+      "name": "Planning",
+      "stage_number": 2,
+      "start": 260524.027,
+      "end": 260524.0347,
+      "duration_ms": 7.67,
+      "success": true
+    }
+  ],
+  "model_calls": [],
+  "tool_calls": [
+    {
+      "tool_name": "write_file",
+      "category": "filesystem",
+      "start_time_monotonic": 260517.531,
+      "duration_ms": 0.0,
+      "subprocess_duration_ms": 0.0,
+      "filesystem_duration_ms": 0.0,
+      "success": true,
+      "exit_code": 0,
+      "args_size_bytes": 54,
+      "output_size_bytes": 2,
+      "retry_count": 0,
+      "error": null,
+      "mission_id": "4acc23bf",
+      "task_id": "4acc23bf",
+      "start": 260517.531,
+      "end": 260517.531
+    }
+  ],
+  "verification_calls": [
+    {
+      "verification_id": "ec564131",
+      "request_id": "15f551a9",
+      "mission_id": "4acc23bf",
+      "task_id": "4acc23bf",
+      "method": "BENCHMARK_FROZEN_T2",
+      "start_time_monotonic": 260517.531,
+      "end_time_monotonic": 260517.531,
+      "duration_ms": 0.0,
+      "verdict": "AGREE",
+      "escalated": false,
+      "issues_count": 0,
+      "issues": []
+    }
+  ],
+  "repair_attempts": [],
+  "model_switches": []
+}

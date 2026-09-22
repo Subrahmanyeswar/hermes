@@ -1,0 +1,63 @@
+{
+  "prompt": 4,
+  "status": "PASS_AND_LOCKED",
+  "base_commit": "be1a563bd73830efa0dff2400788ffe89d2ebc96",
+  "final_commit": "be1a563bd73830efa0dff2400788ffe89d2ebc96",
+  "execution_mode_optimized": "production",
+  "benchmark_mode_unchanged": true,
+  "context": {
+    "tokens_before": 1833,
+    "tokens_after": 1304,
+    "reduction_pct": 28.86,
+    "chars_before": 8112,
+    "chars_after": 5833,
+    "chars_reduction_pct": 28.09
+  },
+  "tools": {
+    "schemas_before": 20,
+    "schemas_after": 4,
+    "schema_tokens_before": 657,
+    "schema_tokens_after": 154,
+    "reduction_pct": 76.56
+  },
+  "memory": {
+    "items_before": 1,
+    "items_after": 0,
+    "filtering_mode": "keyword_relevance_and_dedup"
+  },
+  "skills": {
+    "skills_before": 1,
+    "skills_after": 1,
+    "disclosure_level_production": 2,
+    "disclosure_level_benchmark": 3
+  },
+  "prefix_stability": {
+    "prefix_hash": "f2f5a3b999a8808e4e9eb1aefab1b6e53d38b7ccab575bb3fecfc1d27baee06c",
+    "prefix_chars": 3141,
+    "prefix_tokens_isolated": 686,
+    "prefix_stable": true,
+    "cache_reuse_directly_measured": false
+  },
+  "performance": {
+    "prompt_eval_before_ms": 368.48,
+    "prompt_eval_after_ms": 666.31,
+    "total_latency_before_ms": 18262.04,
+    "total_latency_after_ms": 17889.21,
+    "latency_reduction_pct": 2.04
+  },
+  "correctness": {
+    "regressions_observed": false,
+    "canonical_suite_passed": "228/228",
+    "focused_suite_passed": "96/96",
+    "prompt4_suite_passed": "9/9",
+    "benchmark_isolation_passed": "7/7",
+    "benchmark_integrity_passed": "6/6"
+  },
+  "benchmark_integrity": {
+    "dataset_hash": "f3475b6415364ccea70f4710bfe2137fe84d91cce5d1db822e8d156716cf4d72",
+    "contract_hash": "4cf78a7dce0cfedfeb81e5e6929241fb7fd69d5eba0ba2b91888f6744834fff3",
+    "protocol_hash": "6f950f28f1617002b844ee4819343c91fb646e7cc1fbbaf25fbc54ba921f89b5"
+  },
+  "accounting_status": "PASS",
+  "reconciliation_status": "PASS"
+}

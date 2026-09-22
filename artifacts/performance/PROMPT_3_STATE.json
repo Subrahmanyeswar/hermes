@@ -1,0 +1,46 @@
+{
+  "program": "HERMES Performance Optimization Program",
+  "prompt_phase": "PROMPT 3 OF 8",
+  "status": "PASS_AND_LOCKED",
+  "artifacts_created": [
+    "artifacts/performance/prompt3/routing_matrix.json",
+    "artifacts/performance/prompt3/residency_results.json",
+    "artifacts/performance/prompt3/planner_results.json",
+    "artifacts/performance/prompt3/fast_path_results.json",
+    "artifacts/performance/prompt3/reasoning_ab_results.json",
+    "artifacts/performance/prompt3/postchange_golden_run.json",
+    "artifacts/performance/prompt3/prompt3_comparison.json",
+    "artifacts/performance/prompt3_test_scope_reconciliation.json",
+    "artifacts/performance/prompt3_closure_validation.json",
+    "artifacts/performance/PROMPT_3_STATE.json",
+    "artifacts/performance/PROMPT_3_IMPLEMENTATION_REPORT.md",
+    "tests/test_prompt3_benchmark_isolation.py"
+  ],
+  "empirical_measurements": {
+    "controlled_probe_measurement": "171.38s (benchmark mode) -> 6.19s (production mode), 96.39% latency reduction, 27.69x elapsed time reduction under this specific probe configuration",
+    "controlled_probe_scope": "Single-file write_file probe under identical prompt and local hardware configuration; not a universal or average workload speedup",
+    "planner_latency_reduction": "133.97s -> 0.015s in measured case (Strategy 2.5 deterministic decomposition)",
+    "planner_task_count": "13 tasks -> 3 atomic tasks (76.9% reduction)",
+    "model_switches_avoided": "2 switches avoided on standard probe, saving 17.17s round-trip swap churn",
+    "golden_mission_outcome": "EduPath Mini completed with 3 non-empty, structurally verified files (index.html, styles.css, app.js)"
+  },
+  "benchmark_isolation_guarantee": {
+    "execution_mode": "benchmark",
+    "behavioral_isolation_tested": true,
+    "behavioral_test_file": "tests/test_prompt3_benchmark_isolation.py",
+    "frozen_semantics_intact": true,
+    "think_parameter": null,
+    "budget_escalation": "FROZEN",
+    "verification_level": "BENCHMARK_FROZEN_T2 (Mandatory Qwen3 8B)",
+    "dataset_hash_unmodified": true,
+    "contract_hash_unmodified": true,
+    "protocol_hash_unmodified": true
+  },
+  "regression_reconciliation": {
+    "canonical_offline_unit_suite": "228/228 passed in 14.54s",
+    "prompt3_focused_suite": "96/96 passed in 2.04s",
+    "benchmark_isolation_suite": "7/7 passed in 2.28s",
+    "benchmark_integrity_suite": "6/6 passed in 0.08s",
+    "total_repository_tests_collected": 1015
+  }
+}

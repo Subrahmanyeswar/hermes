@@ -1,0 +1,4660 @@
+[
+  {
+    "acceptance_criteria": [
+      "Returns original string if length <= max_length",
+      "Appends suffix when truncated without exceeding max_length",
+      "Unit tests in tests/test_string_helpers.py pass"
+    ],
+    "category": "simple",
+    "constraints": [
+      "Preserve backward compatibility across unchanged interfaces",
+      "Do not introduce syntax or unhandled runtime regressions",
+      "Zero unauthorized file deletions",
+      "Execution must satisfy timeout bounds"
+    ],
+    "dataset_version": "1.0.0",
+    "difficulty": "simple",
+    "expected_behavior": [
+      "Correctly truncates strings without splitting mid-character and respects max_length."
+    ],
+    "expected_files": {
+      "expected_to_exist_or_modify": [
+        "utils/string_helpers.py",
+        "tests/test_string_helpers.py"
+      ],
+      "forbidden_destructive_targets": [
+        "*/*.git*",
+        "core/security_guard.py",
+        "config/frozen_*.json"
+      ]
+    },
+    "expected_tests": [
+      "pytest tests/test_string_helpers.py -k test_truncate_text"
+    ],
+    "fail_conditions": [
+      "Any verification command exits with non-zero code",
+      "Any mandatory acceptance criterion remains PENDING or FAILED",
+      "Expected file missing or contains unparseable syntax",
+      "Forbidden destructive file modifications detected"
+    ],
+    "pass_conditions": [
+      "All verification commands return exit code 0",
+      "All mandatory acceptance criteria evaluated to SATISFIED",
+      "All expected files exist with valid syntax"
+    ],
+    "success_contract_version": "1.0.0",
+    "task_id": "A01",
+    "verification": {
+      "commands": [
+        "pytest tests/test_string_helpers.py -k test_truncate_text"
+      ],
+      "static_checks": [
+        "file_exists(utils/string_helpers.py)",
+        "file_exists(tests/test_string_helpers.py)",
+        "python_ast_valid",
+        "json_schema_valid_if_applicable"
+      ]
+    },
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Closed interval slice includes end element",
+      "Open interval slice excludes end element",
+      "All slice regression tests pass"
+    ],
+    "category": "simple",
+    "constraints": [
+      "Preserve backward compatibility across unchanged interfaces",
+      "Do not introduce syntax or unhandled runtime regressions",
+      "Zero unauthorized file deletions",
+      "Execution must satisfy timeout bounds"
+    ],
+    "dataset_version": "1.0.0",
+    "difficulty": "simple",
+    "expected_behavior": [
+      "Range slicer properly honors inclusive vs exclusive flags."
+    ],
+    "expected_files": {
+      "expected_to_exist_or_modify": [
+        "math_tools/range_slice.py"
+      ],
+      "forbidden_destructive_targets": [
+        "*/*.git*",
+        "core/security_guard.py",
+        "config/frozen_*.json"
+      ]
+    },
+    "expected_tests": [
+      "pytest tests/test_range_slice.py"
+    ],
+    "fail_conditions": [
+      "Any verification command exits with non-zero code",
+      "Any mandatory acceptance criterion remains PENDING or FAILED",
+      "Expected file missing or contains unparseable syntax",
+      "Forbidden destructive file modifications detected"
+    ],
+    "pass_conditions": [
+      "All verification commands return exit code 0",
+      "All mandatory acceptance criteria evaluated to SATISFIED",
+      "All expected files exist with valid syntax"
+    ],
+    "success_contract_version": "1.0.0",
+    "task_id": "A02",
+    "verification": {
+      "commands": [
+        "pytest tests/test_range_slice.py"
+      ],
+      "static_checks": [
+        "file_exists(math_tools/range_slice.py)",
+        "python_ast_valid",
+        "json_schema_valid_if_applicable"
+      ]
+    },
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Rejects empty strings, strings without @, and missing domain",
+      "Accepts standard alphanumeric email addresses with valid domains",
+      "Unit tests pass"
+    ],
+    "category": "simple",
+    "constraints": [
+      "Preserve backward compatibility across unchanged interfaces",
+      "Do not introduce syntax or unhandled runtime regressions",
+      "Zero unauthorized file deletions",
+      "Execution must satisfy timeout bounds"
+    ],
+    "dataset_version": "1.0.0",
+    "difficulty": "simple",
+    "expected_behavior": [
+      "Deterministic boolean response for valid/invalid email strings."
+    ],
+    "expected_files": {
+      "expected_to_exist_or_modify": [
+        "validators/email_validator.py",
+        "tests/test_email_validator.py"
+      ],
+      "forbidden_destructive_targets": [
+        "*/*.git*",
+        "core/security_guard.py",
+        "config/frozen_*.json"
+      ]
+    },
+    "expected_tests": [
+      "pytest tests/test_email_validator.py"
+    ],
+    "fail_conditions": [
+      "Any verification command exits with non-zero code",
+      "Any mandatory acceptance criterion remains PENDING or FAILED",
+      "Expected file missing or contains unparseable syntax",
+      "Forbidden destructive file modifications detected"
+    ],
+    "pass_conditions": [
+      "All verification commands return exit code 0",
+      "All mandatory acceptance criteria evaluated to SATISFIED",
+      "All expected files exist with valid syntax"
+    ],
+    "success_contract_version": "1.0.0",
+    "task_id": "A03",
+    "verification": {
+      "commands": [
+        "pytest tests/test_email_validator.py"
+      ],
+      "static_checks": [
+        "file_exists(validators/email_validator.py)",
+        "file_exists(tests/test_email_validator.py)",
+        "python_ast_valid",
+        "json_schema_valid_if_applicable"
+      ]
+    },
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "default_timeout_seconds field updated to 45",
+      "Valid JSON formatting preserved"
+    ],
+    "category": "simple",
+    "constraints": [
+      "Preserve backward compatibility across unchanged interfaces",
+      "Do not introduce syntax or unhandled runtime regressions",
+      "Zero unauthorized file deletions",
+      "Execution must satisfy timeout bounds"
+    ],
+    "dataset_version": "1.0.0",
+    "difficulty": "simple",
+    "expected_behavior": [
+      "Configuration reflects 45 second timeout."
+    ],
+    "expected_files": {
+      "expected_to_exist_or_modify": [
+        "config/network_config.json"
+      ],
+      "forbidden_destructive_targets": [
+        "*/*.git*",
+        "core/security_guard.py",
+        "config/frozen_*.json"
+      ]
+    },
+    "expected_tests": [
+      "python -m json.tool config/network_config.json"
+    ],
+    "fail_conditions": [
+      "Any verification command exits with non-zero code",
+      "Any mandatory acceptance criterion remains PENDING or FAILED",
+      "Expected file missing or contains unparseable syntax",
+      "Forbidden destructive file modifications detected"
+    ],
+    "pass_conditions": [
+      "All verification commands return exit code 0",
+      "All mandatory acceptance criteria evaluated to SATISFIED",
+      "All expected files exist with valid syntax"
+    ],
+    "success_contract_version": "1.0.0",
+    "task_id": "A04",
+    "verification": {
+      "commands": [
+        "python -m json.tool config/network_config.json"
+      ],
+      "static_checks": [
+        "file_exists(config/network_config.json)",
+        "python_ast_valid",
+        "json_schema_valid_if_applicable"
+      ]
+    },
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Tests zero division raises ZeroDivisionError",
+      "Tests negative multiplication and division return expected signs",
+      "All calculator tests pass"
+    ],
+    "category": "simple",
+    "constraints": [
+      "Preserve backward compatibility across unchanged interfaces",
+      "Do not introduce syntax or unhandled runtime regressions",
+      "Zero unauthorized file deletions",
+      "Execution must satisfy timeout bounds"
+    ],
+    "dataset_version": "1.0.0",
+    "difficulty": "simple",
+    "expected_behavior": [
+      "Comprehensive test assertions covering arithmetic edge cases."
+    ],
+    "expected_files": {
+      "expected_to_exist_or_modify": [
+        "tests/test_calculator.py"
+      ],
+      "forbidden_destructive_targets": [
+        "*/*.git*",
+        "core/security_guard.py",
+        "config/frozen_*.json"
+      ]
+    },
+    "expected_tests": [
+      "pytest tests/test_calculator.py"
+    ],
+    "fail_conditions": [
+      "Any verification command exits with non-zero code",
+      "Any mandatory acceptance criterion remains PENDING or FAILED",
+      "Expected file missing or contains unparseable syntax",
+      "Forbidden destructive file modifications detected"
+    ],
+    "pass_conditions": [
+      "All verification commands return exit code 0",
+      "All mandatory acceptance criteria evaluated to SATISFIED",
+      "All expected files exist with valid syntax"
+    ],
+    "success_contract_version": "1.0.0",
+    "task_id": "A05",
+    "verification": {
+      "commands": [
+        "pytest tests/test_calculator.py"
+      ],
+      "static_checks": [
+        "file_exists(tests/test_calculator.py)",
+        "python_ast_valid",
+        "json_schema_valid_if_applicable"
+      ]
+    },
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Returns dict with keys: status='healthy', version, uptime_seconds",
+      "Uptime is non-negative float",
+      "Health endpoint tests pass"
+    ],
+    "category": "simple",
+    "constraints": [
+      "Preserve backward compatibility across unchanged interfaces",
+      "Do not introduce syntax or unhandled runtime regressions",
+      "Zero unauthorized file deletions",
+      "Execution must satisfy timeout bounds"
+    ],
+    "dataset_version": "1.0.0",
+    "difficulty": "simple",
+    "expected_behavior": [
+      "Returns 200 OK JSON payload."
+    ],
+    "expected_files": {
+      "expected_to_exist_or_modify": [
+        "api/health_handler.py"
+      ],
+      "forbidden_destructive_targets": [
+        "*/*.git*",
+        "core/security_guard.py",
+        "config/frozen_*.json"
+      ]
+    },
+    "expected_tests": [
+      "pytest tests/test_health_handler.py"
+    ],
+    "fail_conditions": [
+      "Any verification command exits with non-zero code",
+      "Any mandatory acceptance criterion remains PENDING or FAILED",
+      "Expected file missing or contains unparseable syntax",
+      "Forbidden destructive file modifications detected"
+    ],
+    "pass_conditions": [
+      "All verification commands return exit code 0",
+      "All mandatory acceptance criteria evaluated to SATISFIED",
+      "All expected files exist with valid syntax"
+    ],
+    "success_contract_version": "1.0.0",
+    "task_id": "A06",
+    "verification": {
+      "commands": [
+        "pytest tests/test_health_handler.py"
+      ],
+      "static_checks": [
+        "file_exists(api/health_handler.py)",
+        "python_ast_valid",
+        "json_schema_valid_if_applicable"
+      ]
+    },
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Finds 'authorization' or 'Authorization' header safely",
+      "Returns None if missing",
+      "Does not raise KeyError on empty dict"
+    ],
+    "category": "simple",
+    "constraints": [
+      "Preserve backward compatibility across unchanged interfaces",
+      "Do not introduce syntax or unhandled runtime regressions",
+      "Zero unauthorized file deletions",
+      "Execution must satisfy timeout bounds"
+    ],
+    "dataset_version": "1.0.0",
+    "difficulty": "simple",
+    "expected_behavior": [
+      "Robust header extraction across varied casing."
+    ],
+    "expected_files": {
+      "expected_to_exist_or_modify": [
+        "parsers/header_parser.py"
+      ],
+      "forbidden_destructive_targets": [
+        "*/*.git*",
+        "core/security_guard.py",
+        "config/frozen_*.json"
+      ]
+    },
+    "expected_tests": [
+      "pytest tests/test_header_parser.py"
+    ],
+    "fail_conditions": [
+      "Any verification command exits with non-zero code",
+      "Any mandatory acceptance criterion remains PENDING or FAILED",
+      "Expected file missing or contains unparseable syntax",
+      "Forbidden destructive file modifications detected"
+    ],
+    "pass_conditions": [
+      "All verification commands return exit code 0",
+      "All mandatory acceptance criteria evaluated to SATISFIED",
+      "All expected files exist with valid syntax"
+    ],
+    "success_contract_version": "1.0.0",
+    "task_id": "A07",
+    "verification": {
+      "commands": [
+        "pytest tests/test_header_parser.py"
+      ],
+      "static_checks": [
+        "file_exists(parsers/header_parser.py)",
+        "python_ast_valid",
+        "json_schema_valid_if_applicable"
+      ]
+    },
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Formats naive datetimes assuming UTC",
+      "Formats aware datetimes converted to UTC",
+      "Output matches ISO 8601 specification"
+    ],
+    "category": "simple",
+    "constraints": [
+      "Preserve backward compatibility across unchanged interfaces",
+      "Do not introduce syntax or unhandled runtime regressions",
+      "Zero unauthorized file deletions",
+      "Execution must satisfy timeout bounds"
+    ],
+    "dataset_version": "1.0.0",
+    "difficulty": "simple",
+    "expected_behavior": [
+      "Standardized UTC timestamp serialization."
+    ],
+    "expected_files": {
+      "expected_to_exist_or_modify": [
+        "formatters/date_format.py"
+      ],
+      "forbidden_destructive_targets": [
+        "*/*.git*",
+        "core/security_guard.py",
+        "config/frozen_*.json"
+      ]
+    },
+    "expected_tests": [
+      "pytest tests/test_date_format.py"
+    ],
+    "fail_conditions": [
+      "Any verification command exits with non-zero code",
+      "Any mandatory acceptance criterion remains PENDING or FAILED",
+      "Expected file missing or contains unparseable syntax",
+      "Forbidden destructive file modifications detected"
+    ],
+    "pass_conditions": [
+      "All verification commands return exit code 0",
+      "All mandatory acceptance criteria evaluated to SATISFIED",
+      "All expected files exist with valid syntax"
+    ],
+    "success_contract_version": "1.0.0",
+    "task_id": "A08",
+    "verification": {
+      "commands": [
+        "pytest tests/test_date_format.py"
+      ],
+      "static_checks": [
+        "file_exists(formatters/date_format.py)",
+        "python_ast_valid",
+        "json_schema_valid_if_applicable"
+      ]
+    },
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Hides dotfiles when include_hidden is False",
+      "Includes dotfiles when include_hidden is True",
+      "File lister unit tests pass"
+    ],
+    "category": "simple",
+    "constraints": [
+      "Preserve backward compatibility across unchanged interfaces",
+      "Do not introduce syntax or unhandled runtime regressions",
+      "Zero unauthorized file deletions",
+      "Execution must satisfy timeout bounds"
+    ],
+    "dataset_version": "1.0.0",
+    "difficulty": "simple",
+    "expected_behavior": [
+      "Configurable dotfile filtering."
+    ],
+    "expected_files": {
+      "expected_to_exist_or_modify": [
+        "fs/file_lister.py"
+      ],
+      "forbidden_destructive_targets": [
+        "*/*.git*",
+        "core/security_guard.py",
+        "config/frozen_*.json"
+      ]
+    },
+    "expected_tests": [
+      "pytest tests/test_file_lister.py"
+    ],
+    "fail_conditions": [
+      "Any verification command exits with non-zero code",
+      "Any mandatory acceptance criterion remains PENDING or FAILED",
+      "Expected file missing or contains unparseable syntax",
+      "Forbidden destructive file modifications detected"
+    ],
+    "pass_conditions": [
+      "All verification commands return exit code 0",
+      "All mandatory acceptance criteria evaluated to SATISFIED",
+      "All expected files exist with valid syntax"
+    ],
+    "success_contract_version": "1.0.0",
+    "task_id": "A09",
+    "verification": {
+      "commands": [
+        "pytest tests/test_file_lister.py"
+      ],
+      "static_checks": [
+        "file_exists(fs/file_lister.py)",
+        "python_ast_valid",
+        "json_schema_valid_if_applicable"
+      ]
+    },
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Returns min_val if val < min_val",
+      "Returns max_val if val > max_val",
+      "Raises ValueError if min_val > max_val",
+      "All math unit tests pass"
+    ],
+    "category": "simple",
+    "constraints": [
+      "Preserve backward compatibility across unchanged interfaces",
+      "Do not introduce syntax or unhandled runtime regressions",
+      "Zero unauthorized file deletions",
+      "Execution must satisfy timeout bounds"
+    ],
+    "dataset_version": "1.0.0",
+    "difficulty": "simple",
+    "expected_behavior": [
+      "Deterministic bounds clamping with validation."
+    ],
+    "expected_files": {
+      "expected_to_exist_or_modify": [
+        "utils/math_utils.py"
+      ],
+      "forbidden_destructive_targets": [
+        "*/*.git*",
+        "core/security_guard.py",
+        "config/frozen_*.json"
+      ]
+    },
+    "expected_tests": [
+      "pytest tests/test_math_utils.py"
+    ],
+    "fail_conditions": [
+      "Any verification command exits with non-zero code",
+      "Any mandatory acceptance criterion remains PENDING or FAILED",
+      "Expected file missing or contains unparseable syntax",
+      "Forbidden destructive file modifications detected"
+    ],
+    "pass_conditions": [
+      "All verification commands return exit code 0",
+      "All mandatory acceptance criteria evaluated to SATISFIED",
+      "All expected files exist with valid syntax"
+    ],
+    "success_contract_version": "1.0.0",
+    "task_id": "A10",
+    "verification": {
+      "commands": [
+        "pytest tests/test_math_utils.py"
+      ],
+      "static_checks": [
+        "file_exists(utils/math_utils.py)",
+        "python_ast_valid",
+        "json_schema_valid_if_applicable"
+      ]
+    },
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Refills tokens proportionally to elapsed time",
+      "Thread-safe token consumption using threading.Lock",
+      "Rejects consumption when insufficient tokens available",
+      "Rate limiter unit and concurrent tests pass"
+    ],
+    "category": "standard_coding",
+    "constraints": [
+      "Preserve backward compatibility across unchanged interfaces",
+      "Do not introduce syntax or unhandled runtime regressions",
+      "Zero unauthorized file deletions",
+      "Execution must satisfy timeout bounds"
+    ],
+    "dataset_version": "1.0.0",
+    "difficulty": "standard",
+    "expected_behavior": [
+      "Precise token bucket rate limiting under concurrent access."
+    ],
+    "expected_files": {
+      "expected_to_exist_or_modify": [
+        "ratelimiter/token_bucket.py",
+        "tests/test_token_bucket.py"
+      ],
+      "forbidden_destructive_targets": [
+        "*/*.git*",
+        "core/security_guard.py",
+        "config/frozen_*.json"
+      ]
+    },
+    "expected_tests": [
+      "pytest tests/test_token_bucket.py"
+    ],
+    "fail_conditions": [
+      "Any verification command exits with non-zero code",
+      "Any mandatory acceptance criterion remains PENDING or FAILED",
+      "Expected file missing or contains unparseable syntax",
+      "Forbidden destructive file modifications detected"
+    ],
+    "pass_conditions": [
+      "All verification commands return exit code 0",
+      "All mandatory acceptance criteria evaluated to SATISFIED",
+      "All expected files exist with valid syntax"
+    ],
+    "success_contract_version": "1.0.0",
+    "task_id": "B01",
+    "verification": {
+      "commands": [
+        "pytest tests/test_token_bucket.py"
+      ],
+      "static_checks": [
+        "file_exists(ratelimiter/token_bucket.py)",
+        "file_exists(tests/test_token_bucket.py)",
+        "python_ast_valid",
+        "json_schema_valid_if_applicable"
+      ]
+    },
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Rejects weak passwords with descriptive ValidationError",
+      "Hashes and saves valid passwords",
+      "Service integration tests pass"
+    ],
+    "category": "standard_coding",
+    "constraints": [
+      "Preserve backward compatibility across unchanged interfaces",
+      "Do not introduce syntax or unhandled runtime regressions",
+      "Zero unauthorized file deletions",
+      "Execution must satisfy timeout bounds"
+    ],
+    "dataset_version": "1.0.0",
+    "difficulty": "standard",
+    "expected_behavior": [
+      "Robust password validation and error mapping."
+    ],
+    "expected_files": {
+      "expected_to_exist_or_modify": [
+        "services/user_service.py",
+        "validators/password_validator.py"
+      ],
+      "forbidden_destructive_targets": [
+        "*/*.git*",
+        "core/security_guard.py",
+        "config/frozen_*.json"
+      ]
+    },
+    "expected_tests": [
+      "pytest tests/test_user_service.py"
+    ],
+    "fail_conditions": [
+      "Any verification command exits with non-zero code",
+      "Any mandatory acceptance criterion remains PENDING or FAILED",
+      "Expected file missing or contains unparseable syntax",
+      "Forbidden destructive file modifications detected"
+    ],
+    "pass_conditions": [
+      "All verification commands return exit code 0",
+      "All mandatory acceptance criteria evaluated to SATISFIED",
+      "All expected files exist with valid syntax"
+    ],
+    "success_contract_version": "1.0.0",
+    "task_id": "B02",
+    "verification": {
+      "commands": [
+        "pytest tests/test_user_service.py"
+      ],
+      "static_checks": [
+        "file_exists(services/user_service.py)",
+        "file_exists(validators/password_validator.py)",
+        "python_ast_valid",
+        "json_schema_valid_if_applicable"
+      ]
+    },
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Maintains O(1) average get and put using OrderedDict",
+      "Evicts least recently used entry when max_size exceeded",
+      "Fires on_evict callback with key and value",
+      "LRU cache tests pass"
+    ],
+    "category": "standard_coding",
+    "constraints": [
+      "Preserve backward compatibility across unchanged interfaces",
+      "Do not introduce syntax or unhandled runtime regressions",
+      "Zero unauthorized file deletions",
+      "Execution must satisfy timeout bounds"
+    ],
+    "dataset_version": "1.0.0",
+    "difficulty": "standard",
+    "expected_behavior": [
+      "Deterministic least-recently-used cache eviction."
+    ],
+    "expected_files": {
+      "expected_to_exist_or_modify": [
+        "cache/lru_cache.py",
+        "tests/test_lru_cache.py"
+      ],
+      "forbidden_destructive_targets": [
+        "*/*.git*",
+        "core/security_guard.py",
+        "config/frozen_*.json"
+      ]
+    },
+    "expected_tests": [
+      "pytest tests/test_lru_cache.py"
+    ],
+    "fail_conditions": [
+      "Any verification command exits with non-zero code",
+      "Any mandatory acceptance criterion remains PENDING or FAILED",
+      "Expected file missing or contains unparseable syntax",
+      "Forbidden destructive file modifications detected"
+    ],
+    "pass_conditions": [
+      "All verification commands return exit code 0",
+      "All mandatory acceptance criteria evaluated to SATISFIED",
+      "All expected files exist with valid syntax"
+    ],
+    "success_contract_version": "1.0.0",
+    "task_id": "B03",
+    "verification": {
+      "commands": [
+        "pytest tests/test_lru_cache.py"
+      ],
+      "static_checks": [
+        "file_exists(cache/lru_cache.py)",
+        "file_exists(tests/test_lru_cache.py)",
+        "python_ast_valid",
+        "json_schema_valid_if_applicable"
+      ]
+    },
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Parses multi-line CSV streams without buffering whole file in RAM",
+      "Coerces string values to dataclass fields by type annotations",
+      "Handles quoted fields containing delimiters and newlines",
+      "CSV processor tests pass"
+    ],
+    "category": "standard_coding",
+    "constraints": [
+      "Preserve backward compatibility across unchanged interfaces",
+      "Do not introduce syntax or unhandled runtime regressions",
+      "Zero unauthorized file deletions",
+      "Execution must satisfy timeout bounds"
+    ],
+    "dataset_version": "1.0.0",
+    "difficulty": "standard",
+    "expected_behavior": [
+      "Streaming CSV ingestion with type coercion."
+    ],
+    "expected_files": {
+      "expected_to_exist_or_modify": [
+        "data/csv_processor.py",
+        "tests/test_csv_processor.py"
+      ],
+      "forbidden_destructive_targets": [
+        "*/*.git*",
+        "core/security_guard.py",
+        "config/frozen_*.json"
+      ]
+    },
+    "expected_tests": [
+      "pytest tests/test_csv_processor.py"
+    ],
+    "fail_conditions": [
+      "Any verification command exits with non-zero code",
+      "Any mandatory acceptance criterion remains PENDING or FAILED",
+      "Expected file missing or contains unparseable syntax",
+      "Forbidden destructive file modifications detected"
+    ],
+    "pass_conditions": [
+      "All verification commands return exit code 0",
+      "All mandatory acceptance criteria evaluated to SATISFIED",
+      "All expected files exist with valid syntax"
+    ],
+    "success_contract_version": "1.0.0",
+    "task_id": "B04",
+    "verification": {
+      "commands": [
+        "pytest tests/test_csv_processor.py"
+      ],
+      "static_checks": [
+        "file_exists(data/csv_processor.py)",
+        "file_exists(tests/test_csv_processor.py)",
+        "python_ast_valid",
+        "json_schema_valid_if_applicable"
+      ]
+    },
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Retries specified exceptions up to max_retries",
+      "Applies exponential backoff with optional random jitter",
+      "Reraises original exception if all retries exhausted",
+      "Async retry tests pass"
+    ],
+    "category": "standard_coding",
+    "constraints": [
+      "Preserve backward compatibility across unchanged interfaces",
+      "Do not introduce syntax or unhandled runtime regressions",
+      "Zero unauthorized file deletions",
+      "Execution must satisfy timeout bounds"
+    ],
+    "dataset_version": "1.0.0",
+    "difficulty": "standard",
+    "expected_behavior": [
+      "Clean decorator for resilient network/RPC invocations."
+    ],
+    "expected_files": {
+      "expected_to_exist_or_modify": [
+        "utils/retry_decorator.py",
+        "tests/test_retry_decorator.py"
+      ],
+      "forbidden_destructive_targets": [
+        "*/*.git*",
+        "core/security_guard.py",
+        "config/frozen_*.json"
+      ]
+    },
+    "expected_tests": [
+      "pytest tests/test_retry_decorator.py"
+    ],
+    "fail_conditions": [
+      "Any verification command exits with non-zero code",
+      "Any mandatory acceptance criterion remains PENDING or FAILED",
+      "Expected file missing or contains unparseable syntax",
+      "Forbidden destructive file modifications detected"
+    ],
+    "pass_conditions": [
+      "All verification commands return exit code 0",
+      "All mandatory acceptance criteria evaluated to SATISFIED",
+      "All expected files exist with valid syntax"
+    ],
+    "success_contract_version": "1.0.0",
+    "task_id": "B05",
+    "verification": {
+      "commands": [
+        "pytest tests/test_retry_decorator.py"
+      ],
+      "static_checks": [
+        "file_exists(utils/retry_decorator.py)",
+        "file_exists(tests/test_retry_decorator.py)",
+        "python_ast_valid",
+        "json_schema_valid_if_applicable"
+      ]
+    },
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Injects 'X-Request-ID' header into response",
+      "Logs structured JSON event with duration_ms and status_code",
+      "Preserves exception handling and returns 500 cleanly if handler fails",
+      "Middleware unit tests pass"
+    ],
+    "category": "standard_coding",
+    "constraints": [
+      "Preserve backward compatibility across unchanged interfaces",
+      "Do not introduce syntax or unhandled runtime regressions",
+      "Zero unauthorized file deletions",
+      "Execution must satisfy timeout bounds"
+    ],
+    "dataset_version": "1.0.0",
+    "difficulty": "standard",
+    "expected_behavior": [
+      "Observability middleware capturing full HTTP transaction life."
+    ],
+    "expected_files": {
+      "expected_to_exist_or_modify": [
+        "middleware/logger_middleware.py"
+      ],
+      "forbidden_destructive_targets": [
+        "*/*.git*",
+        "core/security_guard.py",
+        "config/frozen_*.json"
+      ]
+    },
+    "expected_tests": [
+      "pytest tests/test_logger_middleware.py"
+    ],
+    "fail_conditions": [
+      "Any verification command exits with non-zero code",
+      "Any mandatory acceptance criterion remains PENDING or FAILED",
+      "Expected file missing or contains unparseable syntax",
+      "Forbidden destructive file modifications detected"
+    ],
+    "pass_conditions": [
+      "All verification commands return exit code 0",
+      "All mandatory acceptance criteria evaluated to SATISFIED",
+      "All expected files exist with valid syntax"
+    ],
+    "success_contract_version": "1.0.0",
+    "task_id": "B06",
+    "verification": {
+      "commands": [
+        "pytest tests/test_logger_middleware.py"
+      ],
+      "static_checks": [
+        "file_exists(middleware/logger_middleware.py)",
+        "python_ast_valid",
+        "json_schema_valid_if_applicable"
+      ]
+    },
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Supports extracting both minimum and maximum priority items",
+      "Handles dynamic item priority updates",
+      "Priority queue tests pass"
+    ],
+    "category": "standard_coding",
+    "constraints": [
+      "Preserve backward compatibility across unchanged interfaces",
+      "Do not introduce syntax or unhandled runtime regressions",
+      "Zero unauthorized file deletions",
+      "Execution must satisfy timeout bounds"
+    ],
+    "dataset_version": "1.0.0",
+    "difficulty": "standard",
+    "expected_behavior": [
+      "Dual-ended priority queue data structure."
+    ],
+    "expected_files": {
+      "expected_to_exist_or_modify": [
+        "datastructures/priority_queue.py"
+      ],
+      "forbidden_destructive_targets": [
+        "*/*.git*",
+        "core/security_guard.py",
+        "config/frozen_*.json"
+      ]
+    },
+    "expected_tests": [
+      "pytest tests/test_priority_queue.py"
+    ],
+    "fail_conditions": [
+      "Any verification command exits with non-zero code",
+      "Any mandatory acceptance criterion remains PENDING or FAILED",
+      "Expected file missing or contains unparseable syntax",
+      "Forbidden destructive file modifications detected"
+    ],
+    "pass_conditions": [
+      "All verification commands return exit code 0",
+      "All mandatory acceptance criteria evaluated to SATISFIED",
+      "All expected files exist with valid syntax"
+    ],
+    "success_contract_version": "1.0.0",
+    "task_id": "B07",
+    "verification": {
+      "commands": [
+        "pytest tests/test_priority_queue.py"
+      ],
+      "static_checks": [
+        "file_exists(datastructures/priority_queue.py)",
+        "python_ast_valid",
+        "json_schema_valid_if_applicable"
+      ]
+    },
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Validates object properties and data types recursively",
+      "Returns structured list of validation errors with JSON paths",
+      "Schema validator test suite passes"
+    ],
+    "category": "standard_coding",
+    "constraints": [
+      "Preserve backward compatibility across unchanged interfaces",
+      "Do not introduce syntax or unhandled runtime regressions",
+      "Zero unauthorized file deletions",
+      "Execution must satisfy timeout bounds"
+    ],
+    "dataset_version": "1.0.0",
+    "difficulty": "standard",
+    "expected_behavior": [
+      "Deterministic JSON schema validation engine."
+    ],
+    "expected_files": {
+      "expected_to_exist_or_modify": [
+        "validators/schema_validator.py"
+      ],
+      "forbidden_destructive_targets": [
+        "*/*.git*",
+        "core/security_guard.py",
+        "config/frozen_*.json"
+      ]
+    },
+    "expected_tests": [
+      "pytest tests/test_schema_validator.py"
+    ],
+    "fail_conditions": [
+      "Any verification command exits with non-zero code",
+      "Any mandatory acceptance criterion remains PENDING or FAILED",
+      "Expected file missing or contains unparseable syntax",
+      "Forbidden destructive file modifications detected"
+    ],
+    "pass_conditions": [
+      "All verification commands return exit code 0",
+      "All mandatory acceptance criteria evaluated to SATISFIED",
+      "All expected files exist with valid syntax"
+    ],
+    "success_contract_version": "1.0.0",
+    "task_id": "B08",
+    "verification": {
+      "commands": [
+        "pytest tests/test_schema_validator.py"
+      ],
+      "static_checks": [
+        "file_exists(validators/schema_validator.py)",
+        "python_ast_valid",
+        "json_schema_valid_if_applicable"
+      ]
+    },
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Writes to temporary file in same directory before atomic replace",
+      "Ensures target file is never left in partial/corrupt state on error",
+      "Cleans up temporary file if write fails",
+      "Atomic write tests pass"
+    ],
+    "category": "standard_coding",
+    "constraints": [
+      "Preserve backward compatibility across unchanged interfaces",
+      "Do not introduce syntax or unhandled runtime regressions",
+      "Zero unauthorized file deletions",
+      "Execution must satisfy timeout bounds"
+    ],
+    "dataset_version": "1.0.0",
+    "difficulty": "standard",
+    "expected_behavior": [
+      "Crash-safe file persistence."
+    ],
+    "expected_files": {
+      "expected_to_exist_or_modify": [
+        "storage/atomic_writer.py"
+      ],
+      "forbidden_destructive_targets": [
+        "*/*.git*",
+        "core/security_guard.py",
+        "config/frozen_*.json"
+      ]
+    },
+    "expected_tests": [
+      "pytest tests/test_atomic_writer.py"
+    ],
+    "fail_conditions": [
+      "Any verification command exits with non-zero code",
+      "Any mandatory acceptance criterion remains PENDING or FAILED",
+      "Expected file missing or contains unparseable syntax",
+      "Forbidden destructive file modifications detected"
+    ],
+    "pass_conditions": [
+      "All verification commands return exit code 0",
+      "All mandatory acceptance criteria evaluated to SATISFIED",
+      "All expected files exist with valid syntax"
+    ],
+    "success_contract_version": "1.0.0",
+    "task_id": "B09",
+    "verification": {
+      "commands": [
+        "pytest tests/test_atomic_writer.py"
+      ],
+      "static_checks": [
+        "file_exists(storage/atomic_writer.py)",
+        "python_ast_valid",
+        "json_schema_valid_if_applicable"
+      ]
+    },
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Parses nested keys like filter[status]=active into {'filter': {'status': 'active'}}",
+      "Parses array keys like tags[]=a into {'tags': ['a']}",
+      "Query parser test suite passes"
+    ],
+    "category": "standard_coding",
+    "constraints": [
+      "Preserve backward compatibility across unchanged interfaces",
+      "Do not introduce syntax or unhandled runtime regressions",
+      "Zero unauthorized file deletions",
+      "Execution must satisfy timeout bounds"
+    ],
+    "dataset_version": "1.0.0",
+    "difficulty": "standard",
+    "expected_behavior": [
+      "Robust decoding of complex query string parameters."
+    ],
+    "expected_files": {
+      "expected_to_exist_or_modify": [
+        "http/query_parser.py"
+      ],
+      "forbidden_destructive_targets": [
+        "*/*.git*",
+        "core/security_guard.py",
+        "config/frozen_*.json"
+      ]
+    },
+    "expected_tests": [
+      "pytest tests/test_query_parser.py"
+    ],
+    "fail_conditions": [
+      "Any verification command exits with non-zero code",
+      "Any mandatory acceptance criterion remains PENDING or FAILED",
+      "Expected file missing or contains unparseable syntax",
+      "Forbidden destructive file modifications detected"
+    ],
+    "pass_conditions": [
+      "All verification commands return exit code 0",
+      "All mandatory acceptance criteria evaluated to SATISFIED",
+      "All expected files exist with valid syntax"
+    ],
+    "success_contract_version": "1.0.0",
+    "task_id": "B10",
+    "verification": {
+      "commands": [
+        "pytest tests/test_query_parser.py"
+      ],
+      "static_checks": [
+        "file_exists(http/query_parser.py)",
+        "python_ast_valid",
+        "json_schema_valid_if_applicable"
+      ]
+    },
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "UserProfile model validates bio, avatar_url, and preferences",
+      "UserProfileService provides get_profile and update_profile",
+      "ProfileRouter exposes GET and PUT /api/v1/profile endpoints",
+      "All profile unit and integration tests pass"
+    ],
+    "category": "multi_file",
+    "constraints": [
+      "Preserve backward compatibility across unchanged interfaces",
+      "Do not introduce syntax or unhandled runtime regressions",
+      "Zero unauthorized file deletions",
+      "Execution must satisfy timeout bounds"
+    ],
+    "dataset_version": "1.0.0",
+    "difficulty": "hard",
+    "expected_behavior": [
+      "End-to-end multi-layer feature implementation."
+    ],
+    "expected_files": {
+      "expected_to_exist_or_modify": [
+        "models/user.py",
+        "services/user_profile.py",
+        "routers/profile_router.py",
+        "tests/test_profile.py"
+      ],
+      "forbidden_destructive_targets": [
+        "*/*.git*",
+        "core/security_guard.py",
+        "config/frozen_*.json"
+      ]
+    },
+    "expected_tests": [
+      "pytest tests/test_profile.py"
+    ],
+    "fail_conditions": [
+      "Any verification command exits with non-zero code",
+      "Any mandatory acceptance criterion remains PENDING or FAILED",
+      "Expected file missing or contains unparseable syntax",
+      "Forbidden destructive file modifications detected"
+    ],
+    "pass_conditions": [
+      "All verification commands return exit code 0",
+      "All mandatory acceptance criteria evaluated to SATISFIED",
+      "All expected files exist with valid syntax"
+    ],
+    "success_contract_version": "1.0.0",
+    "task_id": "C01",
+    "verification": {
+      "commands": [
+        "pytest tests/test_profile.py"
+      ],
+      "static_checks": [
+        "file_exists(models/user.py)",
+        "file_exists(services/user_profile.py)",
+        "file_exists(routers/profile_router.py)",
+        "file_exists(tests/test_profile.py)",
+        "python_ast_valid",
+        "json_schema_valid_if_applicable"
+      ]
+    },
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Generates signed access and refresh tokens with expiration",
+      "Middleware validates Bearer tokens on protected endpoints",
+      "Rejects expired or tampered signatures with 401 Unauthorized",
+      "Auth test suite passes"
+    ],
+    "category": "multi_file",
+    "constraints": [
+      "Preserve backward compatibility across unchanged interfaces",
+      "Do not introduce syntax or unhandled runtime regressions",
+      "Zero unauthorized file deletions",
+      "Execution must satisfy timeout bounds"
+    ],
+    "dataset_version": "1.0.0",
+    "difficulty": "hard",
+    "expected_behavior": [
+      "Complete authentication layer across configuration and middleware."
+    ],
+    "expected_files": {
+      "expected_to_exist_or_modify": [
+        "auth/jwt_handler.py",
+        "middleware/auth_middleware.py",
+        "config/auth_config.py",
+        "tests/test_auth.py"
+      ],
+      "forbidden_destructive_targets": [
+        "*/*.git*",
+        "core/security_guard.py",
+        "config/frozen_*.json"
+      ]
+    },
+    "expected_tests": [
+      "pytest tests/test_auth.py"
+    ],
+    "fail_conditions": [
+      "Any verification command exits with non-zero code",
+      "Any mandatory acceptance criterion remains PENDING or FAILED",
+      "Expected file missing or contains unparseable syntax",
+      "Forbidden destructive file modifications detected"
+    ],
+    "pass_conditions": [
+      "All verification commands return exit code 0",
+      "All mandatory acceptance criteria evaluated to SATISFIED",
+      "All expected files exist with valid syntax"
+    ],
+    "success_contract_version": "1.0.0",
+    "task_id": "C02",
+    "verification": {
+      "commands": [
+        "pytest tests/test_auth.py"
+      ],
+      "static_checks": [
+        "file_exists(auth/jwt_handler.py)",
+        "file_exists(middleware/auth_middleware.py)",
+        "file_exists(config/auth_config.py)",
+        "file_exists(tests/test_auth.py)",
+        "python_ast_valid",
+        "json_schema_valid_if_applicable"
+      ]
+    },
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Dispatcher routes messages to appropriate channel by user preference",
+      "Queue handles async buffering and retry on channel failure",
+      "Notification integration tests pass"
+    ],
+    "category": "multi_file",
+    "constraints": [
+      "Preserve backward compatibility across unchanged interfaces",
+      "Do not introduce syntax or unhandled runtime regressions",
+      "Zero unauthorized file deletions",
+      "Execution must satisfy timeout bounds"
+    ],
+    "dataset_version": "1.0.0",
+    "difficulty": "hard",
+    "expected_behavior": [
+      "Pluggable multi-channel notification architecture."
+    ],
+    "expected_files": {
+      "expected_to_exist_or_modify": [
+        "notifications/dispatcher.py",
+        "notifications/channels/email.py",
+        "notifications/channels/sms.py",
+        "notifications/queue.py"
+      ],
+      "forbidden_destructive_targets": [
+        "*/*.git*",
+        "core/security_guard.py",
+        "config/frozen_*.json"
+      ]
+    },
+    "expected_tests": [
+      "pytest tests/test_notifications.py"
+    ],
+    "fail_conditions": [
+      "Any verification command exits with non-zero code",
+      "Any mandatory acceptance criterion remains PENDING or FAILED",
+      "Expected file missing or contains unparseable syntax",
+      "Forbidden destructive file modifications detected"
+    ],
+    "pass_conditions": [
+      "All verification commands return exit code 0",
+      "All mandatory acceptance criteria evaluated to SATISFIED",
+      "All expected files exist with valid syntax"
+    ],
+    "success_contract_version": "1.0.0",
+    "task_id": "C03",
+    "verification": {
+      "commands": [
+        "pytest tests/test_notifications.py"
+      ],
+      "static_checks": [
+        "file_exists(notifications/dispatcher.py)",
+        "file_exists(notifications/channels/email.py)",
+        "file_exists(notifications/channels/sms.py)",
+        "file_exists(notifications/queue.py)",
+        "python_ast_valid",
+        "json_schema_valid_if_applicable"
+      ]
+    },
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Parses Python AST to extract function, class, and method definitions",
+      "Stores symbol names, line numbers, and file paths in SQLite",
+      "Supports incremental reindexing of modified files",
+      "Indexer test suite passes"
+    ],
+    "category": "multi_file",
+    "constraints": [
+      "Preserve backward compatibility across unchanged interfaces",
+      "Do not introduce syntax or unhandled runtime regressions",
+      "Zero unauthorized file deletions",
+      "Execution must satisfy timeout bounds"
+    ],
+    "dataset_version": "1.0.0",
+    "difficulty": "hard",
+    "expected_behavior": [
+      "Persistent symbol indexing pipeline."
+    ],
+    "expected_files": {
+      "expected_to_exist_or_modify": [
+        "indexer/workspace_indexer.py",
+        "indexer/ast_parser.py",
+        "indexer/storage.py",
+        "tests/test_indexer.py"
+      ],
+      "forbidden_destructive_targets": [
+        "*/*.git*",
+        "core/security_guard.py",
+        "config/frozen_*.json"
+      ]
+    },
+    "expected_tests": [
+      "pytest tests/test_indexer.py"
+    ],
+    "fail_conditions": [
+      "Any verification command exits with non-zero code",
+      "Any mandatory acceptance criterion remains PENDING or FAILED",
+      "Expected file missing or contains unparseable syntax",
+      "Forbidden destructive file modifications detected"
+    ],
+    "pass_conditions": [
+      "All verification commands return exit code 0",
+      "All mandatory acceptance criteria evaluated to SATISFIED",
+      "All expected files exist with valid syntax"
+    ],
+    "success_contract_version": "1.0.0",
+    "task_id": "C04",
+    "verification": {
+      "commands": [
+        "pytest tests/test_indexer.py"
+      ],
+      "static_checks": [
+        "file_exists(indexer/workspace_indexer.py)",
+        "file_exists(indexer/ast_parser.py)",
+        "file_exists(indexer/storage.py)",
+        "file_exists(tests/test_indexer.py)",
+        "python_ast_valid",
+        "json_schema_valid_if_applicable"
+      ]
+    },
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Evaluator supports percentage rollouts and user targeting rules",
+      "Storage provides atomic flag configuration updates",
+      "Feature flag tests pass"
+    ],
+    "category": "multi_file",
+    "constraints": [
+      "Preserve backward compatibility across unchanged interfaces",
+      "Do not introduce syntax or unhandled runtime regressions",
+      "Zero unauthorized file deletions",
+      "Execution must satisfy timeout bounds"
+    ],
+    "dataset_version": "1.0.0",
+    "difficulty": "hard",
+    "expected_behavior": [
+      "Dynamic feature flag evaluation across user contexts."
+    ],
+    "expected_files": {
+      "expected_to_exist_or_modify": [
+        "flags/flag_service.py",
+        "flags/evaluator.py",
+        "flags/storage.py",
+        "context/user_context.py"
+      ],
+      "forbidden_destructive_targets": [
+        "*/*.git*",
+        "core/security_guard.py",
+        "config/frozen_*.json"
+      ]
+    },
+    "expected_tests": [
+      "pytest tests/test_feature_flags.py"
+    ],
+    "fail_conditions": [
+      "Any verification command exits with non-zero code",
+      "Any mandatory acceptance criterion remains PENDING or FAILED",
+      "Expected file missing or contains unparseable syntax",
+      "Forbidden destructive file modifications detected"
+    ],
+    "pass_conditions": [
+      "All verification commands return exit code 0",
+      "All mandatory acceptance criteria evaluated to SATISFIED",
+      "All expected files exist with valid syntax"
+    ],
+    "success_contract_version": "1.0.0",
+    "task_id": "C05",
+    "verification": {
+      "commands": [
+        "pytest tests/test_feature_flags.py"
+      ],
+      "static_checks": [
+        "file_exists(flags/flag_service.py)",
+        "file_exists(flags/evaluator.py)",
+        "file_exists(flags/storage.py)",
+        "file_exists(context/user_context.py)",
+        "python_ast_valid",
+        "json_schema_valid_if_applicable"
+      ]
+    },
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Defines abstract BasePaymentAdapter with charge, refund, and verify",
+      "Concrete providers implement interface faithfully",
+      "Factory dynamically instantiates configured provider",
+      "Payment tests pass"
+    ],
+    "category": "multi_file",
+    "constraints": [
+      "Preserve backward compatibility across unchanged interfaces",
+      "Do not introduce syntax or unhandled runtime regressions",
+      "Zero unauthorized file deletions",
+      "Execution must satisfy timeout bounds"
+    ],
+    "dataset_version": "1.0.0",
+    "difficulty": "hard",
+    "expected_behavior": [
+      "Polymorphic payment abstraction layer."
+    ],
+    "expected_files": {
+      "expected_to_exist_or_modify": [
+        "payments/adapter.py",
+        "payments/stripe_provider.py",
+        "payments/paypal_provider.py",
+        "payments/factory.py"
+      ],
+      "forbidden_destructive_targets": [
+        "*/*.git*",
+        "core/security_guard.py",
+        "config/frozen_*.json"
+      ]
+    },
+    "expected_tests": [
+      "pytest tests/test_payments.py"
+    ],
+    "fail_conditions": [
+      "Any verification command exits with non-zero code",
+      "Any mandatory acceptance criterion remains PENDING or FAILED",
+      "Expected file missing or contains unparseable syntax",
+      "Forbidden destructive file modifications detected"
+    ],
+    "pass_conditions": [
+      "All verification commands return exit code 0",
+      "All mandatory acceptance criteria evaluated to SATISFIED",
+      "All expected files exist with valid syntax"
+    ],
+    "success_contract_version": "1.0.0",
+    "task_id": "C06",
+    "verification": {
+      "commands": [
+        "pytest tests/test_payments.py"
+      ],
+      "static_checks": [
+        "file_exists(payments/adapter.py)",
+        "file_exists(payments/stripe_provider.py)",
+        "file_exists(payments/paypal_provider.py)",
+        "file_exists(payments/factory.py)",
+        "python_ast_valid",
+        "json_schema_valid_if_applicable"
+      ]
+    },
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Verifies inventory availability before initiating shipment",
+      "Generates tracking number and transitions order state to FULFILLED",
+      "Rolls back inventory reservation if shipment creation fails",
+      "Fulfillment pipeline tests pass"
+    ],
+    "category": "multi_file",
+    "constraints": [
+      "Preserve backward compatibility across unchanged interfaces",
+      "Do not introduce syntax or unhandled runtime regressions",
+      "Zero unauthorized file deletions",
+      "Execution must satisfy timeout bounds"
+    ],
+    "dataset_version": "1.0.0",
+    "difficulty": "hard",
+    "expected_behavior": [
+      "Transactional multi-stage fulfillment workflow."
+    ],
+    "expected_files": {
+      "expected_to_exist_or_modify": [
+        "orders/fulfillment.py",
+        "inventory/checker.py",
+        "shipment/tracker.py",
+        "tests/test_fulfillment.py"
+      ],
+      "forbidden_destructive_targets": [
+        "*/*.git*",
+        "core/security_guard.py",
+        "config/frozen_*.json"
+      ]
+    },
+    "expected_tests": [
+      "pytest tests/test_fulfillment.py"
+    ],
+    "fail_conditions": [
+      "Any verification command exits with non-zero code",
+      "Any mandatory acceptance criterion remains PENDING or FAILED",
+      "Expected file missing or contains unparseable syntax",
+      "Forbidden destructive file modifications detected"
+    ],
+    "pass_conditions": [
+      "All verification commands return exit code 0",
+      "All mandatory acceptance criteria evaluated to SATISFIED",
+      "All expected files exist with valid syntax"
+    ],
+    "success_contract_version": "1.0.0",
+    "task_id": "C07",
+    "verification": {
+      "commands": [
+        "pytest tests/test_fulfillment.py"
+      ],
+      "static_checks": [
+        "file_exists(orders/fulfillment.py)",
+        "file_exists(inventory/checker.py)",
+        "file_exists(shipment/tracker.py)",
+        "file_exists(tests/test_fulfillment.py)",
+        "python_ast_valid",
+        "json_schema_valid_if_applicable"
+      ]
+    },
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Reads L1 first; on miss, reads L2 and populates L1",
+      "Writes to both L1 and L2 synchronously",
+      "Invalidates across all tiers",
+      "Multi-tier cache tests pass"
+    ],
+    "category": "multi_file",
+    "constraints": [
+      "Preserve backward compatibility across unchanged interfaces",
+      "Do not introduce syntax or unhandled runtime regressions",
+      "Zero unauthorized file deletions",
+      "Execution must satisfy timeout bounds"
+    ],
+    "dataset_version": "1.0.0",
+    "difficulty": "hard",
+    "expected_behavior": [
+      "Two-level caching with automatic backfill on L1 miss."
+    ],
+    "expected_files": {
+      "expected_to_exist_or_modify": [
+        "cache/manager.py",
+        "cache/memory_cache.py",
+        "cache/redis_cache.py",
+        "cache/interface.py"
+      ],
+      "forbidden_destructive_targets": [
+        "*/*.git*",
+        "core/security_guard.py",
+        "config/frozen_*.json"
+      ]
+    },
+    "expected_tests": [
+      "pytest tests/test_cache_hierarchy.py"
+    ],
+    "fail_conditions": [
+      "Any verification command exits with non-zero code",
+      "Any mandatory acceptance criterion remains PENDING or FAILED",
+      "Expected file missing or contains unparseable syntax",
+      "Forbidden destructive file modifications detected"
+    ],
+    "pass_conditions": [
+      "All verification commands return exit code 0",
+      "All mandatory acceptance criteria evaluated to SATISFIED",
+      "All expected files exist with valid syntax"
+    ],
+    "success_contract_version": "1.0.0",
+    "task_id": "C08",
+    "verification": {
+      "commands": [
+        "pytest tests/test_cache_hierarchy.py"
+      ],
+      "static_checks": [
+        "file_exists(cache/manager.py)",
+        "file_exists(cache/memory_cache.py)",
+        "file_exists(cache/redis_cache.py)",
+        "file_exists(cache/interface.py)",
+        "python_ast_valid",
+        "json_schema_valid_if_applicable"
+      ]
+    },
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Pipeline streams records in chunks through chosen exporter format",
+      "Exports data to disk or in-memory byte stream",
+      "Export pipeline tests pass"
+    ],
+    "category": "multi_file",
+    "constraints": [
+      "Preserve backward compatibility across unchanged interfaces",
+      "Do not introduce syntax or unhandled runtime regressions",
+      "Zero unauthorized file deletions",
+      "Execution must satisfy timeout bounds"
+    ],
+    "dataset_version": "1.0.0",
+    "difficulty": "hard",
+    "expected_behavior": [
+      "Format-agnostic streaming export architecture."
+    ],
+    "expected_files": {
+      "expected_to_exist_or_modify": [
+        "export/pipeline.py",
+        "export/csv_exporter.py",
+        "export/json_exporter.py",
+        "export/stream_handler.py"
+      ],
+      "forbidden_destructive_targets": [
+        "*/*.git*",
+        "core/security_guard.py",
+        "config/frozen_*.json"
+      ]
+    },
+    "expected_tests": [
+      "pytest tests/test_export_pipeline.py"
+    ],
+    "fail_conditions": [
+      "Any verification command exits with non-zero code",
+      "Any mandatory acceptance criterion remains PENDING or FAILED",
+      "Expected file missing or contains unparseable syntax",
+      "Forbidden destructive file modifications detected"
+    ],
+    "pass_conditions": [
+      "All verification commands return exit code 0",
+      "All mandatory acceptance criteria evaluated to SATISFIED",
+      "All expected files exist with valid syntax"
+    ],
+    "success_contract_version": "1.0.0",
+    "task_id": "C09",
+    "verification": {
+      "commands": [
+        "pytest tests/test_export_pipeline.py"
+      ],
+      "static_checks": [
+        "file_exists(export/pipeline.py)",
+        "file_exists(export/csv_exporter.py)",
+        "file_exists(export/json_exporter.py)",
+        "file_exists(export/stream_handler.py)",
+        "python_ast_valid",
+        "json_schema_valid_if_applicable"
+      ]
+    },
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Emits schema-compliant JSON log events with ISO timestamps and actor IDs",
+      "Rotates files when max size reached (keeping 5 backup copies)",
+      "Audit logging tests pass"
+    ],
+    "category": "multi_file",
+    "constraints": [
+      "Preserve backward compatibility across unchanged interfaces",
+      "Do not introduce syntax or unhandled runtime regressions",
+      "Zero unauthorized file deletions",
+      "Execution must satisfy timeout bounds"
+    ],
+    "dataset_version": "1.0.0",
+    "difficulty": "hard",
+    "expected_behavior": [
+      "Tamper-evident structured audit logging with file rotation."
+    ],
+    "expected_files": {
+      "expected_to_exist_or_modify": [
+        "audit/logger.py",
+        "audit/formatter.py",
+        "audit/file_sink.py",
+        "audit/rotator.py"
+      ],
+      "forbidden_destructive_targets": [
+        "*/*.git*",
+        "core/security_guard.py",
+        "config/frozen_*.json"
+      ]
+    },
+    "expected_tests": [
+      "pytest tests/test_audit_logger.py"
+    ],
+    "fail_conditions": [
+      "Any verification command exits with non-zero code",
+      "Any mandatory acceptance criterion remains PENDING or FAILED",
+      "Expected file missing or contains unparseable syntax",
+      "Forbidden destructive file modifications detected"
+    ],
+    "pass_conditions": [
+      "All verification commands return exit code 0",
+      "All mandatory acceptance criteria evaluated to SATISFIED",
+      "All expected files exist with valid syntax"
+    ],
+    "success_contract_version": "1.0.0",
+    "task_id": "C10",
+    "verification": {
+      "commands": [
+        "pytest tests/test_audit_logger.py"
+      ],
+      "static_checks": [
+        "file_exists(audit/logger.py)",
+        "file_exists(audit/formatter.py)",
+        "file_exists(audit/file_sink.py)",
+        "file_exists(audit/rotator.py)",
+        "python_ast_valid",
+        "json_schema_valid_if_applicable"
+      ]
+    },
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Parses legacy INI configs seamlessly while translating to new schema",
+      "Strict Pydantic schema validation for new YAML configs",
+      "Hot-reloading watcher detects file changes without restart",
+      "All legacy and new configuration tests pass"
+    ],
+    "category": "complex_missions",
+    "constraints": [
+      "Preserve backward compatibility across unchanged interfaces",
+      "Do not introduce syntax or unhandled runtime regressions",
+      "Zero unauthorized file deletions",
+      "Execution must satisfy timeout bounds"
+    ],
+    "dataset_version": "1.0.0",
+    "difficulty": "complex",
+    "expected_behavior": [
+      "Zero-downtime backward-compatible configuration engine migration."
+    ],
+    "expected_files": {
+      "expected_to_exist_or_modify": [
+        "config/yaml_loader.py",
+        "config/legacy_adapter.py",
+        "config/watcher.py",
+        "tests/test_config_migration.py"
+      ],
+      "forbidden_destructive_targets": [
+        "*/*.git*",
+        "core/security_guard.py",
+        "config/frozen_*.json"
+      ]
+    },
+    "expected_tests": [
+      "pytest tests/test_config_migration.py"
+    ],
+    "fail_conditions": [
+      "Any verification command exits with non-zero code",
+      "Any mandatory acceptance criterion remains PENDING or FAILED",
+      "Expected file missing or contains unparseable syntax",
+      "Forbidden destructive file modifications detected"
+    ],
+    "pass_conditions": [
+      "All verification commands return exit code 0",
+      "All mandatory acceptance criteria evaluated to SATISFIED",
+      "All expected files exist with valid syntax"
+    ],
+    "success_contract_version": "1.0.0",
+    "task_id": "D01",
+    "verification": {
+      "commands": [
+        "pytest tests/test_config_migration.py"
+      ],
+      "static_checks": [
+        "file_exists(config/yaml_loader.py)",
+        "file_exists(config/legacy_adapter.py)",
+        "file_exists(config/watcher.py)",
+        "file_exists(tests/test_config_migration.py)",
+        "python_ast_valid",
+        "json_schema_valid_if_applicable"
+      ]
+    },
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Detects cycles in task dependency graph and raises CycleDetectedException",
+      "Executes non-dependent tasks concurrently up to worker pool limit",
+      "Cancels downstream dependent tasks if parent fails and retries exhausted",
+      "Scheduler integration tests pass"
+    ],
+    "category": "complex_missions",
+    "constraints": [
+      "Preserve backward compatibility across unchanged interfaces",
+      "Do not introduce syntax or unhandled runtime regressions",
+      "Zero unauthorized file deletions",
+      "Execution must satisfy timeout bounds"
+    ],
+    "dataset_version": "1.0.0",
+    "difficulty": "complex",
+    "expected_behavior": [
+      "High-concurrency DAG task scheduling engine."
+    ],
+    "expected_files": {
+      "expected_to_exist_or_modify": [
+        "scheduler/dag_engine.py",
+        "scheduler/worker_pool.py",
+        "scheduler/models.py",
+        "tests/test_dag_scheduler.py"
+      ],
+      "forbidden_destructive_targets": [
+        "*/*.git*",
+        "core/security_guard.py",
+        "config/frozen_*.json"
+      ]
+    },
+    "expected_tests": [
+      "pytest tests/test_dag_scheduler.py"
+    ],
+    "fail_conditions": [
+      "Any verification command exits with non-zero code",
+      "Any mandatory acceptance criterion remains PENDING or FAILED",
+      "Expected file missing or contains unparseable syntax",
+      "Forbidden destructive file modifications detected"
+    ],
+    "pass_conditions": [
+      "All verification commands return exit code 0",
+      "All mandatory acceptance criteria evaluated to SATISFIED",
+      "All expected files exist with valid syntax"
+    ],
+    "success_contract_version": "1.0.0",
+    "task_id": "D02",
+    "verification": {
+      "commands": [
+        "pytest tests/test_dag_scheduler.py"
+      ],
+      "static_checks": [
+        "file_exists(scheduler/dag_engine.py)",
+        "file_exists(scheduler/worker_pool.py)",
+        "file_exists(scheduler/models.py)",
+        "file_exists(tests/test_dag_scheduler.py)",
+        "python_ast_valid",
+        "json_schema_valid_if_applicable"
+      ]
+    },
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Saves state checkpoints after each successful workflow step",
+      "Triggers compensating rollback actions in reverse order on failure",
+      "Publishes lifecycle telemetry events (STARTED, STEP_COMPLETED, ROLLED_BACK)",
+      "Workflow engine tests pass"
+    ],
+    "category": "complex_missions",
+    "constraints": [
+      "Preserve backward compatibility across unchanged interfaces",
+      "Do not introduce syntax or unhandled runtime regressions",
+      "Zero unauthorized file deletions",
+      "Execution must satisfy timeout bounds"
+    ],
+    "dataset_version": "1.0.0",
+    "difficulty": "complex",
+    "expected_behavior": [
+      "Resilient multi-step transactional saga workflow runner."
+    ],
+    "expected_files": {
+      "expected_to_exist_or_modify": [
+        "workflow/engine.py",
+        "workflow/checkpoint.py",
+        "workflow/saga.py",
+        "tests/test_workflow_engine.py"
+      ],
+      "forbidden_destructive_targets": [
+        "*/*.git*",
+        "core/security_guard.py",
+        "config/frozen_*.json"
+      ]
+    },
+    "expected_tests": [
+      "pytest tests/test_workflow_engine.py"
+    ],
+    "fail_conditions": [
+      "Any verification command exits with non-zero code",
+      "Any mandatory acceptance criterion remains PENDING or FAILED",
+      "Expected file missing or contains unparseable syntax",
+      "Forbidden destructive file modifications detected"
+    ],
+    "pass_conditions": [
+      "All verification commands return exit code 0",
+      "All mandatory acceptance criteria evaluated to SATISFIED",
+      "All expected files exist with valid syntax"
+    ],
+    "success_contract_version": "1.0.0",
+    "task_id": "D03",
+    "verification": {
+      "commands": [
+        "pytest tests/test_workflow_engine.py"
+      ],
+      "static_checks": [
+        "file_exists(workflow/engine.py)",
+        "file_exists(workflow/checkpoint.py)",
+        "file_exists(workflow/saga.py)",
+        "file_exists(tests/test_workflow_engine.py)",
+        "python_ast_valid",
+        "json_schema_valid_if_applicable"
+      ]
+    },
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Applies migrations sequentially in version order",
+      "Validates migration script SHA-256 against recorded checksums",
+      "Acquires exclusive migration lock to prevent concurrent runs",
+      "Migration engine tests pass"
+    ],
+    "category": "complex_missions",
+    "constraints": [
+      "Preserve backward compatibility across unchanged interfaces",
+      "Do not introduce syntax or unhandled runtime regressions",
+      "Zero unauthorized file deletions",
+      "Execution must satisfy timeout bounds"
+    ],
+    "dataset_version": "1.0.0",
+    "difficulty": "complex",
+    "expected_behavior": [
+      "Robust database schema migration tooling."
+    ],
+    "expected_files": {
+      "expected_to_exist_or_modify": [
+        "migrations/runner.py",
+        "migrations/lock.py",
+        "migrations/checksum.py",
+        "tests/test_migrations.py"
+      ],
+      "forbidden_destructive_targets": [
+        "*/*.git*",
+        "core/security_guard.py",
+        "config/frozen_*.json"
+      ]
+    },
+    "expected_tests": [
+      "pytest tests/test_migrations.py"
+    ],
+    "fail_conditions": [
+      "Any verification command exits with non-zero code",
+      "Any mandatory acceptance criterion remains PENDING or FAILED",
+      "Expected file missing or contains unparseable syntax",
+      "Forbidden destructive file modifications detected"
+    ],
+    "pass_conditions": [
+      "All verification commands return exit code 0",
+      "All mandatory acceptance criteria evaluated to SATISFIED",
+      "All expected files exist with valid syntax"
+    ],
+    "success_contract_version": "1.0.0",
+    "task_id": "D04",
+    "verification": {
+      "commands": [
+        "pytest tests/test_migrations.py"
+      ],
+      "static_checks": [
+        "file_exists(migrations/runner.py)",
+        "file_exists(migrations/lock.py)",
+        "file_exists(migrations/checksum.py)",
+        "file_exists(tests/test_migrations.py)",
+        "python_ast_valid",
+        "json_schema_valid_if_applicable"
+      ]
+    },
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Calculates effective user permissions resolving inherited role graphs",
+      "Enforces strict tenant scoping preventing cross-tenant data leaks",
+      "Caches resolved permission bitmasks with TTL",
+      "RBAC permission tests pass"
+    ],
+    "category": "complex_missions",
+    "constraints": [
+      "Preserve backward compatibility across unchanged interfaces",
+      "Do not introduce syntax or unhandled runtime regressions",
+      "Zero unauthorized file deletions",
+      "Execution must satisfy timeout bounds"
+    ],
+    "dataset_version": "1.0.0",
+    "difficulty": "complex",
+    "expected_behavior": [
+      "Enterprise multi-tenant role-based access control engine."
+    ],
+    "expected_files": {
+      "expected_to_exist_or_modify": [
+        "rbac/engine.py",
+        "rbac/models.py",
+        "rbac/tenant.py",
+        "tests/test_rbac.py"
+      ],
+      "forbidden_destructive_targets": [
+        "*/*.git*",
+        "core/security_guard.py",
+        "config/frozen_*.json"
+      ]
+    },
+    "expected_tests": [
+      "pytest tests/test_rbac.py"
+    ],
+    "fail_conditions": [
+      "Any verification command exits with non-zero code",
+      "Any mandatory acceptance criterion remains PENDING or FAILED",
+      "Expected file missing or contains unparseable syntax",
+      "Forbidden destructive file modifications detected"
+    ],
+    "pass_conditions": [
+      "All verification commands return exit code 0",
+      "All mandatory acceptance criteria evaluated to SATISFIED",
+      "All expected files exist with valid syntax"
+    ],
+    "success_contract_version": "1.0.0",
+    "task_id": "D05",
+    "verification": {
+      "commands": [
+        "pytest tests/test_rbac.py"
+      ],
+      "static_checks": [
+        "file_exists(rbac/engine.py)",
+        "file_exists(rbac/models.py)",
+        "file_exists(rbac/tenant.py)",
+        "file_exists(tests/test_rbac.py)",
+        "python_ast_valid",
+        "json_schema_valid_if_applicable"
+      ]
+    },
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Loads plugins dynamically from directory without restarting server",
+      "Catches and isolates plugin crashes without bringing down core runtime",
+      "Enforces manifest permission declarations",
+      "Plugin manager tests pass"
+    ],
+    "category": "complex_missions",
+    "constraints": [
+      "Preserve backward compatibility across unchanged interfaces",
+      "Do not introduce syntax or unhandled runtime regressions",
+      "Zero unauthorized file deletions",
+      "Execution must satisfy timeout bounds"
+    ],
+    "dataset_version": "1.0.0",
+    "difficulty": "complex",
+    "expected_behavior": [
+      "Safe extensible plugin architecture."
+    ],
+    "expected_files": {
+      "expected_to_exist_or_modify": [
+        "plugins/manager.py",
+        "plugins/sandbox.py",
+        "plugins/manifest.py",
+        "tests/test_plugin_manager.py"
+      ],
+      "forbidden_destructive_targets": [
+        "*/*.git*",
+        "core/security_guard.py",
+        "config/frozen_*.json"
+      ]
+    },
+    "expected_tests": [
+      "pytest tests/test_plugin_manager.py"
+    ],
+    "fail_conditions": [
+      "Any verification command exits with non-zero code",
+      "Any mandatory acceptance criterion remains PENDING or FAILED",
+      "Expected file missing or contains unparseable syntax",
+      "Forbidden destructive file modifications detected"
+    ],
+    "pass_conditions": [
+      "All verification commands return exit code 0",
+      "All mandatory acceptance criteria evaluated to SATISFIED",
+      "All expected files exist with valid syntax"
+    ],
+    "success_contract_version": "1.0.0",
+    "task_id": "D06",
+    "verification": {
+      "commands": [
+        "pytest tests/test_plugin_manager.py"
+      ],
+      "static_checks": [
+        "file_exists(plugins/manager.py)",
+        "file_exists(plugins/sandbox.py)",
+        "file_exists(plugins/manifest.py)",
+        "file_exists(tests/test_plugin_manager.py)",
+        "python_ast_valid",
+        "json_schema_valid_if_applicable"
+      ]
+    },
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Preserves per-partition message ordering using consistent hashing on message keys",
+      "Routes messages exceeding max delivery attempts to Dead Letter Queue (DLQ)",
+      "Exposes Prometheus counter and latency histogram metrics",
+      "Event hub tests pass"
+    ],
+    "category": "complex_missions",
+    "constraints": [
+      "Preserve backward compatibility across unchanged interfaces",
+      "Do not introduce syntax or unhandled runtime regressions",
+      "Zero unauthorized file deletions",
+      "Execution must satisfy timeout bounds"
+    ],
+    "dataset_version": "1.0.0",
+    "difficulty": "complex",
+    "expected_behavior": [
+      "Resilient partitioned in-process message broker."
+    ],
+    "expected_files": {
+      "expected_to_exist_or_modify": [
+        "events/hub.py",
+        "events/partition.py",
+        "events/dlq.py",
+        "tests/test_event_hub.py"
+      ],
+      "forbidden_destructive_targets": [
+        "*/*.git*",
+        "core/security_guard.py",
+        "config/frozen_*.json"
+      ]
+    },
+    "expected_tests": [
+      "pytest tests/test_event_hub.py"
+    ],
+    "fail_conditions": [
+      "Any verification command exits with non-zero code",
+      "Any mandatory acceptance criterion remains PENDING or FAILED",
+      "Expected file missing or contains unparseable syntax",
+      "Forbidden destructive file modifications detected"
+    ],
+    "pass_conditions": [
+      "All verification commands return exit code 0",
+      "All mandatory acceptance criteria evaluated to SATISFIED",
+      "All expected files exist with valid syntax"
+    ],
+    "success_contract_version": "1.0.0",
+    "task_id": "D07",
+    "verification": {
+      "commands": [
+        "pytest tests/test_event_hub.py"
+      ],
+      "static_checks": [
+        "file_exists(events/hub.py)",
+        "file_exists(events/partition.py)",
+        "file_exists(events/dlq.py)",
+        "file_exists(tests/test_event_hub.py)",
+        "python_ast_valid",
+        "json_schema_valid_if_applicable"
+      ]
+    },
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Builds inverted index mapping stemmed tokens to document IDs",
+      "Scores search queries using Okapi BM25 algorithm",
+      "Supports AND, OR, NOT boolean filter combinations",
+      "Search engine tests pass"
+    ],
+    "category": "complex_missions",
+    "constraints": [
+      "Preserve backward compatibility across unchanged interfaces",
+      "Do not introduce syntax or unhandled runtime regressions",
+      "Zero unauthorized file deletions",
+      "Execution must satisfy timeout bounds"
+    ],
+    "dataset_version": "1.0.0",
+    "difficulty": "complex",
+    "expected_behavior": [
+      "Fast in-memory BM25 full-text indexing and retrieval."
+    ],
+    "expected_files": {
+      "expected_to_exist_or_modify": [
+        "search/engine.py",
+        "search/indexer.py",
+        "search/bm25.py",
+        "tests/test_search_engine.py"
+      ],
+      "forbidden_destructive_targets": [
+        "*/*.git*",
+        "core/security_guard.py",
+        "config/frozen_*.json"
+      ]
+    },
+    "expected_tests": [
+      "pytest tests/test_search_engine.py"
+    ],
+    "fail_conditions": [
+      "Any verification command exits with non-zero code",
+      "Any mandatory acceptance criterion remains PENDING or FAILED",
+      "Expected file missing or contains unparseable syntax",
+      "Forbidden destructive file modifications detected"
+    ],
+    "pass_conditions": [
+      "All verification commands return exit code 0",
+      "All mandatory acceptance criteria evaluated to SATISFIED",
+      "All expected files exist with valid syntax"
+    ],
+    "success_contract_version": "1.0.0",
+    "task_id": "D08",
+    "verification": {
+      "commands": [
+        "pytest tests/test_search_engine.py"
+      ],
+      "static_checks": [
+        "file_exists(search/engine.py)",
+        "file_exists(search/indexer.py)",
+        "file_exists(search/bm25.py)",
+        "file_exists(tests/test_search_engine.py)",
+        "python_ast_valid",
+        "json_schema_valid_if_applicable"
+      ]
+    },
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Trips from CLOSED to OPEN when error rate exceeds threshold in sliding window",
+      "Transitions to HALF_OPEN after cooldown period and tests trial requests",
+      "Invokes registered fallback handler while OPEN without making remote calls",
+      "Circuit breaker tests pass"
+    ],
+    "category": "complex_missions",
+    "constraints": [
+      "Preserve backward compatibility across unchanged interfaces",
+      "Do not introduce syntax or unhandled runtime regressions",
+      "Zero unauthorized file deletions",
+      "Execution must satisfy timeout bounds"
+    ],
+    "dataset_version": "1.0.0",
+    "difficulty": "complex",
+    "expected_behavior": [
+      "Production-grade fault tolerance circuit breaker."
+    ],
+    "expected_files": {
+      "expected_to_exist_or_modify": [
+        "resilience/circuit_breaker.py",
+        "resilience/sliding_window.py",
+        "tests/test_circuit_breaker.py"
+      ],
+      "forbidden_destructive_targets": [
+        "*/*.git*",
+        "core/security_guard.py",
+        "config/frozen_*.json"
+      ]
+    },
+    "expected_tests": [
+      "pytest tests/test_circuit_breaker.py"
+    ],
+    "fail_conditions": [
+      "Any verification command exits with non-zero code",
+      "Any mandatory acceptance criterion remains PENDING or FAILED",
+      "Expected file missing or contains unparseable syntax",
+      "Forbidden destructive file modifications detected"
+    ],
+    "pass_conditions": [
+      "All verification commands return exit code 0",
+      "All mandatory acceptance criteria evaluated to SATISFIED",
+      "All expected files exist with valid syntax"
+    ],
+    "success_contract_version": "1.0.0",
+    "task_id": "D09",
+    "verification": {
+      "commands": [
+        "pytest tests/test_circuit_breaker.py"
+      ],
+      "static_checks": [
+        "file_exists(resilience/circuit_breaker.py)",
+        "file_exists(resilience/sliding_window.py)",
+        "file_exists(tests/test_circuit_breaker.py)",
+        "python_ast_valid",
+        "json_schema_valid_if_applicable"
+      ]
+    },
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Calculates p50, p90, p95, p99 percentiles across rolling 60-second windows",
+      "Evaluates user-configured alert threshold expressions (e.g. latency_p95 > 500ms)",
+      "Dispatches HTTP webhook notifications when alert triggers",
+      "Metrics aggregator tests pass"
+    ],
+    "category": "complex_missions",
+    "constraints": [
+      "Preserve backward compatibility across unchanged interfaces",
+      "Do not introduce syntax or unhandled runtime regressions",
+      "Zero unauthorized file deletions",
+      "Execution must satisfy timeout bounds"
+    ],
+    "dataset_version": "1.0.0",
+    "difficulty": "complex",
+    "expected_behavior": [
+      "Real-time metrics aggregation and alerting engine."
+    ],
+    "expected_files": {
+      "expected_to_exist_or_modify": [
+        "telemetry/aggregator.py",
+        "telemetry/percentiles.py",
+        "telemetry/alerts.py",
+        "tests/test_metrics_aggregator.py"
+      ],
+      "forbidden_destructive_targets": [
+        "*/*.git*",
+        "core/security_guard.py",
+        "config/frozen_*.json"
+      ]
+    },
+    "expected_tests": [
+      "pytest tests/test_metrics_aggregator.py"
+    ],
+    "fail_conditions": [
+      "Any verification command exits with non-zero code",
+      "Any mandatory acceptance criterion remains PENDING or FAILED",
+      "Expected file missing or contains unparseable syntax",
+      "Forbidden destructive file modifications detected"
+    ],
+    "pass_conditions": [
+      "All verification commands return exit code 0",
+      "All mandatory acceptance criteria evaluated to SATISFIED",
+      "All expected files exist with valid syntax"
+    ],
+    "success_contract_version": "1.0.0",
+    "task_id": "D10",
+    "verification": {
+      "commands": [
+        "pytest tests/test_metrics_aggregator.py"
+      ],
+      "static_checks": [
+        "file_exists(telemetry/aggregator.py)",
+        "file_exists(telemetry/percentiles.py)",
+        "file_exists(telemetry/alerts.py)",
+        "file_exists(tests/test_metrics_aggregator.py)",
+        "python_ast_valid",
+        "json_schema_valid_if_applicable"
+      ]
+    },
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Session generation uses cryptographically secure unique tokens (secrets.token_hex)",
+      "Concurrent session generation test passes without collisions",
+      "Session test suite passes"
+    ],
+    "category": "debugging_repair",
+    "constraints": [
+      "Preserve backward compatibility across unchanged interfaces",
+      "Do not introduce syntax or unhandled runtime regressions",
+      "Zero unauthorized file deletions",
+      "Execution must satisfy timeout bounds"
+    ],
+    "dataset_version": "1.0.0",
+    "difficulty": "hard",
+    "expected_behavior": [
+      "Unique thread-safe session token issuance."
+    ],
+    "expected_files": {
+      "expected_to_exist_or_modify": [
+        "session/manager.py"
+      ],
+      "forbidden_destructive_targets": [
+        "*/*.git*",
+        "core/security_guard.py",
+        "config/frozen_*.json"
+      ]
+    },
+    "expected_tests": [
+      "pytest tests/test_session_manager.py -k test_concurrent_sessions"
+    ],
+    "fail_conditions": [
+      "Any verification command exits with non-zero code",
+      "Any mandatory acceptance criterion remains PENDING or FAILED",
+      "Expected file missing or contains unparseable syntax",
+      "Forbidden destructive file modifications detected"
+    ],
+    "pass_conditions": [
+      "All verification commands return exit code 0",
+      "All mandatory acceptance criteria evaluated to SATISFIED",
+      "All expected files exist with valid syntax"
+    ],
+    "success_contract_version": "1.0.0",
+    "task_id": "E01",
+    "verification": {
+      "commands": [
+        "pytest tests/test_session_manager.py -k test_concurrent_sessions"
+      ],
+      "static_checks": [
+        "file_exists(session/manager.py)",
+        "python_ast_valid",
+        "json_schema_valid_if_applicable"
+      ]
+    },
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Subscribers are registered using weak references (weakref.WeakMethod / WeakSet)",
+      "Garbage collected subscribers are automatically removed from listener list",
+      "Memory leak regression test passes"
+    ],
+    "category": "debugging_repair",
+    "constraints": [
+      "Preserve backward compatibility across unchanged interfaces",
+      "Do not introduce syntax or unhandled runtime regressions",
+      "Zero unauthorized file deletions",
+      "Execution must satisfy timeout bounds"
+    ],
+    "dataset_version": "1.0.0",
+    "difficulty": "hard",
+    "expected_behavior": [
+      "Zero memory leaks on transient event subscribers."
+    ],
+    "expected_files": {
+      "expected_to_exist_or_modify": [
+        "events/listener_registry.py"
+      ],
+      "forbidden_destructive_targets": [
+        "*/*.git*",
+        "core/security_guard.py",
+        "config/frozen_*.json"
+      ]
+    },
+    "expected_tests": [
+      "pytest tests/test_event_listeners.py -k test_subscriber_garbage_collection"
+    ],
+    "fail_conditions": [
+      "Any verification command exits with non-zero code",
+      "Any mandatory acceptance criterion remains PENDING or FAILED",
+      "Expected file missing or contains unparseable syntax",
+      "Forbidden destructive file modifications detected"
+    ],
+    "pass_conditions": [
+      "All verification commands return exit code 0",
+      "All mandatory acceptance criteria evaluated to SATISFIED",
+      "All expected files exist with valid syntax"
+    ],
+    "success_contract_version": "1.0.0",
+    "task_id": "E02",
+    "verification": {
+      "commands": [
+        "pytest tests/test_event_listeners.py -k test_subscriber_garbage_collection"
+      ],
+      "static_checks": [
+        "file_exists(events/listener_registry.py)",
+        "python_ast_valid",
+        "json_schema_valid_if_applicable"
+      ]
+    },
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Uses incremental decoder `codecs.getincrementaldecoder('utf-8')`",
+      "Correctly reassembles split multi-byte characters across chunk boundaries",
+      "Payload parser tests pass"
+    ],
+    "category": "debugging_repair",
+    "constraints": [
+      "Preserve backward compatibility across unchanged interfaces",
+      "Do not introduce syntax or unhandled runtime regressions",
+      "Zero unauthorized file deletions",
+      "Execution must satisfy timeout bounds"
+    ],
+    "dataset_version": "1.0.0",
+    "difficulty": "standard",
+    "expected_behavior": [
+      "Lossless streaming UTF-8 decoding."
+    ],
+    "expected_files": {
+      "expected_to_exist_or_modify": [
+        "http/payload_parser.py"
+      ],
+      "forbidden_destructive_targets": [
+        "*/*.git*",
+        "core/security_guard.py",
+        "config/frozen_*.json"
+      ]
+    },
+    "expected_tests": [
+      "pytest tests/test_payload_parser.py"
+    ],
+    "fail_conditions": [
+      "Any verification command exits with non-zero code",
+      "Any mandatory acceptance criterion remains PENDING or FAILED",
+      "Expected file missing or contains unparseable syntax",
+      "Forbidden destructive file modifications detected"
+    ],
+    "pass_conditions": [
+      "All verification commands return exit code 0",
+      "All mandatory acceptance criteria evaluated to SATISFIED",
+      "All expected files exist with valid syntax"
+    ],
+    "success_contract_version": "1.0.0",
+    "task_id": "E03",
+    "verification": {
+      "commands": [
+        "pytest tests/test_payload_parser.py"
+      ],
+      "static_checks": [
+        "file_exists(http/payload_parser.py)",
+        "python_ast_valid",
+        "json_schema_valid_if_applicable"
+      ]
+    },
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Acquires locks in canonical sorted order by resource ID",
+      "Concurrent bidirectional transfer test completes without deadlock",
+      "Transaction tests pass"
+    ],
+    "category": "debugging_repair",
+    "constraints": [
+      "Preserve backward compatibility across unchanged interfaces",
+      "Do not introduce syntax or unhandled runtime regressions",
+      "Zero unauthorized file deletions",
+      "Execution must satisfy timeout bounds"
+    ],
+    "dataset_version": "1.0.0",
+    "difficulty": "hard",
+    "expected_behavior": [
+      "Deadlock-free concurrent resource locking."
+    ],
+    "expected_files": {
+      "expected_to_exist_or_modify": [
+        "transactions/coordinator.py"
+      ],
+      "forbidden_destructive_targets": [
+        "*/*.git*",
+        "core/security_guard.py",
+        "config/frozen_*.json"
+      ]
+    },
+    "expected_tests": [
+      "pytest tests/test_transactions.py -k test_concurrent_transfers"
+    ],
+    "fail_conditions": [
+      "Any verification command exits with non-zero code",
+      "Any mandatory acceptance criterion remains PENDING or FAILED",
+      "Expected file missing or contains unparseable syntax",
+      "Forbidden destructive file modifications detected"
+    ],
+    "pass_conditions": [
+      "All verification commands return exit code 0",
+      "All mandatory acceptance criteria evaluated to SATISFIED",
+      "All expected files exist with valid syntax"
+    ],
+    "success_contract_version": "1.0.0",
+    "task_id": "E04",
+    "verification": {
+      "commands": [
+        "pytest tests/test_transactions.py -k test_concurrent_transfers"
+      ],
+      "static_checks": [
+        "file_exists(transactions/coordinator.py)",
+        "python_ast_valid",
+        "json_schema_valid_if_applicable"
+      ]
+    },
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Bulk price update explicitly purges cached keys for all updated product IDs",
+      "Subsequent read immediately returns updated price",
+      "Product service tests pass"
+    ],
+    "category": "debugging_repair",
+    "constraints": [
+      "Preserve backward compatibility across unchanged interfaces",
+      "Do not introduce syntax or unhandled runtime regressions",
+      "Zero unauthorized file deletions",
+      "Execution must satisfy timeout bounds"
+    ],
+    "dataset_version": "1.0.0",
+    "difficulty": "standard",
+    "expected_behavior": [
+      "Immediate cache consistency after bulk mutations."
+    ],
+    "expected_files": {
+      "expected_to_exist_or_modify": [
+        "services/product_service.py"
+      ],
+      "forbidden_destructive_targets": [
+        "*/*.git*",
+        "core/security_guard.py",
+        "config/frozen_*.json"
+      ]
+    },
+    "expected_tests": [
+      "pytest tests/test_product_service.py"
+    ],
+    "fail_conditions": [
+      "Any verification command exits with non-zero code",
+      "Any mandatory acceptance criterion remains PENDING or FAILED",
+      "Expected file missing or contains unparseable syntax",
+      "Forbidden destructive file modifications detected"
+    ],
+    "pass_conditions": [
+      "All verification commands return exit code 0",
+      "All mandatory acceptance criteria evaluated to SATISFIED",
+      "All expected files exist with valid syntax"
+    ],
+    "success_contract_version": "1.0.0",
+    "task_id": "E05",
+    "verification": {
+      "commands": [
+        "pytest tests/test_product_service.py"
+      ],
+      "static_checks": [
+        "file_exists(services/product_service.py)",
+        "python_ast_valid",
+        "json_schema_valid_if_applicable"
+      ]
+    },
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Tracks visited real canonical paths (path.resolve()) to detect cycles",
+      "Skips circular symlink loops without raising RecursionError",
+      "Directory scanner tests pass"
+    ],
+    "category": "debugging_repair",
+    "constraints": [
+      "Preserve backward compatibility across unchanged interfaces",
+      "Do not introduce syntax or unhandled runtime regressions",
+      "Zero unauthorized file deletions",
+      "Execution must satisfy timeout bounds"
+    ],
+    "dataset_version": "1.0.0",
+    "difficulty": "standard",
+    "expected_behavior": [
+      "Safe cycle-resilient filesystem traversal."
+    ],
+    "expected_files": {
+      "expected_to_exist_or_modify": [
+        "fs/scanner.py"
+      ],
+      "forbidden_destructive_targets": [
+        "*/*.git*",
+        "core/security_guard.py",
+        "config/frozen_*.json"
+      ]
+    },
+    "expected_tests": [
+      "pytest tests/test_scanner.py"
+    ],
+    "fail_conditions": [
+      "Any verification command exits with non-zero code",
+      "Any mandatory acceptance criterion remains PENDING or FAILED",
+      "Expected file missing or contains unparseable syntax",
+      "Forbidden destructive file modifications detected"
+    ],
+    "pass_conditions": [
+      "All verification commands return exit code 0",
+      "All mandatory acceptance criteria evaluated to SATISFIED",
+      "All expected files exist with valid syntax"
+    ],
+    "success_contract_version": "1.0.0",
+    "task_id": "E06",
+    "verification": {
+      "commands": [
+        "pytest tests/test_scanner.py"
+      ],
+      "static_checks": [
+        "file_exists(fs/scanner.py)",
+        "python_ast_valid",
+        "json_schema_valid_if_applicable"
+      ]
+    },
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Performs currency calculations using Decimal with ROUND_HALF_EVEN",
+      "Resolves 1-cent discrepancy on fractional percentage fee calculations",
+      "Ledger balance tests pass"
+    ],
+    "category": "debugging_repair",
+    "constraints": [
+      "Preserve backward compatibility across unchanged interfaces",
+      "Do not introduce syntax or unhandled runtime regressions",
+      "Zero unauthorized file deletions",
+      "Execution must satisfy timeout bounds"
+    ],
+    "dataset_version": "1.0.0",
+    "difficulty": "standard",
+    "expected_behavior": [
+      "Exact financial arithmetic without floating point errors."
+    ],
+    "expected_files": {
+      "expected_to_exist_or_modify": [
+        "ledger/balance.py"
+      ],
+      "forbidden_destructive_targets": [
+        "*/*.git*",
+        "core/security_guard.py",
+        "config/frozen_*.json"
+      ]
+    },
+    "expected_tests": [
+      "pytest tests/test_balance.py"
+    ],
+    "fail_conditions": [
+      "Any verification command exits with non-zero code",
+      "Any mandatory acceptance criterion remains PENDING or FAILED",
+      "Expected file missing or contains unparseable syntax",
+      "Forbidden destructive file modifications detected"
+    ],
+    "pass_conditions": [
+      "All verification commands return exit code 0",
+      "All mandatory acceptance criteria evaluated to SATISFIED",
+      "All expected files exist with valid syntax"
+    ],
+    "success_contract_version": "1.0.0",
+    "task_id": "E07",
+    "verification": {
+      "commands": [
+        "pytest tests/test_balance.py"
+      ],
+      "static_checks": [
+        "file_exists(ledger/balance.py)",
+        "python_ast_valid",
+        "json_schema_valid_if_applicable"
+      ]
+    },
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Tests use deterministic time mocking",
+      "Zero flaky test failures under high CPU load",
+      "Token expiration tests pass consistently across 10 consecutive runs"
+    ],
+    "category": "debugging_repair",
+    "constraints": [
+      "Preserve backward compatibility across unchanged interfaces",
+      "Do not introduce syntax or unhandled runtime regressions",
+      "Zero unauthorized file deletions",
+      "Execution must satisfy timeout bounds"
+    ],
+    "dataset_version": "1.0.0",
+    "difficulty": "standard",
+    "expected_behavior": [
+      "Deterministic timing assertions in automated tests."
+    ],
+    "expected_files": {
+      "expected_to_exist_or_modify": [
+        "tests/test_token_expiry.py"
+      ],
+      "forbidden_destructive_targets": [
+        "*/*.git*",
+        "core/security_guard.py",
+        "config/frozen_*.json"
+      ]
+    },
+    "expected_tests": [
+      "pytest tests/test_token_expiry.py --count=10"
+    ],
+    "fail_conditions": [
+      "Any verification command exits with non-zero code",
+      "Any mandatory acceptance criterion remains PENDING or FAILED",
+      "Expected file missing or contains unparseable syntax",
+      "Forbidden destructive file modifications detected"
+    ],
+    "pass_conditions": [
+      "All verification commands return exit code 0",
+      "All mandatory acceptance criteria evaluated to SATISFIED",
+      "All expected files exist with valid syntax"
+    ],
+    "success_contract_version": "1.0.0",
+    "task_id": "E08",
+    "verification": {
+      "commands": [
+        "pytest tests/test_token_expiry.py --count=10"
+      ],
+      "static_checks": [
+        "file_exists(tests/test_token_expiry.py)",
+        "python_ast_valid",
+        "json_schema_valid_if_applicable"
+      ]
+    },
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Catches specific expected job exceptions while logging full traceback with logger.exception",
+      "Re-enqueues failed jobs to retry queue or DLQ",
+      "Worker error handling tests pass"
+    ],
+    "category": "debugging_repair",
+    "constraints": [
+      "Preserve backward compatibility across unchanged interfaces",
+      "Do not introduce syntax or unhandled runtime regressions",
+      "Zero unauthorized file deletions",
+      "Execution must satisfy timeout bounds"
+    ],
+    "dataset_version": "1.0.0",
+    "difficulty": "standard",
+    "expected_behavior": [
+      "Transparent error logging and graceful failure recovery."
+    ],
+    "expected_files": {
+      "expected_to_exist_or_modify": [
+        "workers/queue_worker.py"
+      ],
+      "forbidden_destructive_targets": [
+        "*/*.git*",
+        "core/security_guard.py",
+        "config/frozen_*.json"
+      ]
+    },
+    "expected_tests": [
+      "pytest tests/test_queue_worker.py"
+    ],
+    "fail_conditions": [
+      "Any verification command exits with non-zero code",
+      "Any mandatory acceptance criterion remains PENDING or FAILED",
+      "Expected file missing or contains unparseable syntax",
+      "Forbidden destructive file modifications detected"
+    ],
+    "pass_conditions": [
+      "All verification commands return exit code 0",
+      "All mandatory acceptance criteria evaluated to SATISFIED",
+      "All expected files exist with valid syntax"
+    ],
+    "success_contract_version": "1.0.0",
+    "task_id": "E09",
+    "verification": {
+      "commands": [
+        "pytest tests/test_queue_worker.py"
+      ],
+      "static_checks": [
+        "file_exists(workers/queue_worker.py)",
+        "python_ast_valid",
+        "json_schema_valid_if_applicable"
+      ]
+    },
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Configures Pydantic model with extra='ignore' or extra='allow' as defined by API spec",
+      "Parses valid core fields without raising ValidationError on unexpected metadata fields",
+      "Payload deserialization tests pass"
+    ],
+    "category": "debugging_repair",
+    "constraints": [
+      "Preserve backward compatibility across unchanged interfaces",
+      "Do not introduce syntax or unhandled runtime regressions",
+      "Zero unauthorized file deletions",
+      "Execution must satisfy timeout bounds"
+    ],
+    "dataset_version": "1.0.0",
+    "difficulty": "standard",
+    "expected_behavior": [
+      "Resilient API backward-compatible payload ingestion."
+    ],
+    "expected_files": {
+      "expected_to_exist_or_modify": [
+        "models/event_payload.py"
+      ],
+      "forbidden_destructive_targets": [
+        "*/*.git*",
+        "core/security_guard.py",
+        "config/frozen_*.json"
+      ]
+    },
+    "expected_tests": [
+      "pytest tests/test_event_payload.py"
+    ],
+    "fail_conditions": [
+      "Any verification command exits with non-zero code",
+      "Any mandatory acceptance criterion remains PENDING or FAILED",
+      "Expected file missing or contains unparseable syntax",
+      "Forbidden destructive file modifications detected"
+    ],
+    "pass_conditions": [
+      "All verification commands return exit code 0",
+      "All mandatory acceptance criteria evaluated to SATISFIED",
+      "All expected files exist with valid syntax"
+    ],
+    "success_contract_version": "1.0.0",
+    "task_id": "E10",
+    "verification": {
+      "commands": [
+        "pytest tests/test_event_payload.py"
+      ],
+      "static_checks": [
+        "file_exists(models/event_payload.py)",
+        "python_ast_valid",
+        "json_schema_valid_if_applicable"
+      ]
+    },
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "All deprecated function invocations are updated to repository method",
+      "Zero remaining references to deprecated function in active routes",
+      "Full integration tests pass"
+    ],
+    "category": "workspace_understanding",
+    "constraints": [
+      "Preserve backward compatibility across unchanged interfaces",
+      "Do not introduce syntax or unhandled runtime regressions",
+      "Zero unauthorized file deletions",
+      "Execution must satisfy timeout bounds"
+    ],
+    "dataset_version": "1.0.0",
+    "difficulty": "standard",
+    "expected_behavior": [
+      "Complete workspace-wide call site migration."
+    ],
+    "expected_files": {
+      "expected_to_exist_or_modify": [
+        "legacy/user_ops.py",
+        "routers/user_router.py",
+        "services/order_service.py"
+      ],
+      "forbidden_destructive_targets": [
+        "*/*.git*",
+        "core/security_guard.py",
+        "config/frozen_*.json"
+      ]
+    },
+    "expected_tests": [
+      "pytest tests/test_user_routes.py"
+    ],
+    "fail_conditions": [
+      "Any verification command exits with non-zero code",
+      "Any mandatory acceptance criterion remains PENDING or FAILED",
+      "Expected file missing or contains unparseable syntax",
+      "Forbidden destructive file modifications detected"
+    ],
+    "pass_conditions": [
+      "All verification commands return exit code 0",
+      "All mandatory acceptance criteria evaluated to SATISFIED",
+      "All expected files exist with valid syntax"
+    ],
+    "success_contract_version": "1.0.0",
+    "task_id": "F01",
+    "verification": {
+      "commands": [
+        "pytest tests/test_user_routes.py"
+      ],
+      "static_checks": [
+        "file_exists(legacy/user_ops.py)",
+        "file_exists(routers/user_router.py)",
+        "file_exists(services/order_service.py)",
+        "python_ast_valid",
+        "json_schema_valid_if_applicable"
+      ]
+    },
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Header is propagated through all middleware layers to downstream handlers",
+      "Included in response headers",
+      "Middleware header propagation tests pass"
+    ],
+    "category": "workspace_understanding",
+    "constraints": [
+      "Preserve backward compatibility across unchanged interfaces",
+      "Do not introduce syntax or unhandled runtime regressions",
+      "Zero unauthorized file deletions",
+      "Execution must satisfy timeout bounds"
+    ],
+    "dataset_version": "1.0.0",
+    "difficulty": "standard",
+    "expected_behavior": [
+      "Unbroken header propagation through middleware pipeline."
+    ],
+    "expected_files": {
+      "expected_to_exist_or_modify": [
+        "middleware/stack.py",
+        "middleware/correlation.py"
+      ],
+      "forbidden_destructive_targets": [
+        "*/*.git*",
+        "core/security_guard.py",
+        "config/frozen_*.json"
+      ]
+    },
+    "expected_tests": [
+      "pytest tests/test_correlation_header.py"
+    ],
+    "fail_conditions": [
+      "Any verification command exits with non-zero code",
+      "Any mandatory acceptance criterion remains PENDING or FAILED",
+      "Expected file missing or contains unparseable syntax",
+      "Forbidden destructive file modifications detected"
+    ],
+    "pass_conditions": [
+      "All verification commands return exit code 0",
+      "All mandatory acceptance criteria evaluated to SATISFIED",
+      "All expected files exist with valid syntax"
+    ],
+    "success_contract_version": "1.0.0",
+    "task_id": "F02",
+    "verification": {
+      "commands": [
+        "pytest tests/test_correlation_header.py"
+      ],
+      "static_checks": [
+        "file_exists(middleware/stack.py)",
+        "file_exists(middleware/correlation.py)",
+        "python_ast_valid",
+        "json_schema_valid_if_applicable"
+      ]
+    },
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Eliminates circular import without using inline function imports",
+      "Extracts shared data types to `reports/models.py`",
+      "Module import tests pass without ImportError"
+    ],
+    "category": "workspace_understanding",
+    "constraints": [
+      "Preserve backward compatibility across unchanged interfaces",
+      "Do not introduce syntax or unhandled runtime regressions",
+      "Zero unauthorized file deletions",
+      "Execution must satisfy timeout bounds"
+    ],
+    "dataset_version": "1.0.0",
+    "difficulty": "standard",
+    "expected_behavior": [
+      "Acyclic package dependency structure."
+    ],
+    "expected_files": {
+      "expected_to_exist_or_modify": [
+        "reports/generator.py",
+        "analytics/metrics.py",
+        "reports/models.py"
+      ],
+      "forbidden_destructive_targets": [
+        "*/*.git*",
+        "core/security_guard.py",
+        "config/frozen_*.json"
+      ]
+    },
+    "expected_tests": [
+      "python -c 'import reports.generator; import analytics.metrics; print(\"Imports clean\")'"
+    ],
+    "fail_conditions": [
+      "Any verification command exits with non-zero code",
+      "Any mandatory acceptance criterion remains PENDING or FAILED",
+      "Expected file missing or contains unparseable syntax",
+      "Forbidden destructive file modifications detected"
+    ],
+    "pass_conditions": [
+      "All verification commands return exit code 0",
+      "All mandatory acceptance criteria evaluated to SATISFIED",
+      "All expected files exist with valid syntax"
+    ],
+    "success_contract_version": "1.0.0",
+    "task_id": "F03",
+    "verification": {
+      "commands": [
+        "python -c 'import reports.generator; import analytics.metrics; print(\"Imports clean\")'"
+      ],
+      "static_checks": [
+        "file_exists(reports/generator.py)",
+        "file_exists(analytics/metrics.py)",
+        "file_exists(reports/models.py)",
+        "python_ast_valid",
+        "json_schema_valid_if_applicable"
+      ]
+    },
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "All checkout endpoints query idempotency store with request key",
+      "Cached result returned for duplicate key without charging payment twice",
+      "Idempotency checkout tests pass"
+    ],
+    "category": "workspace_understanding",
+    "constraints": [
+      "Preserve backward compatibility across unchanged interfaces",
+      "Do not introduce syntax or unhandled runtime regressions",
+      "Zero unauthorized file deletions",
+      "Execution must satisfy timeout bounds"
+    ],
+    "dataset_version": "1.0.0",
+    "difficulty": "hard",
+    "expected_behavior": [
+      "Comprehensive transactional idempotency enforcement."
+    ],
+    "expected_files": {
+      "expected_to_exist_or_modify": [
+        "checkout/endpoints.py",
+        "idempotency/store.py"
+      ],
+      "forbidden_destructive_targets": [
+        "*/*.git*",
+        "core/security_guard.py",
+        "config/frozen_*.json"
+      ]
+    },
+    "expected_tests": [
+      "pytest tests/test_checkout_idempotency.py"
+    ],
+    "fail_conditions": [
+      "Any verification command exits with non-zero code",
+      "Any mandatory acceptance criterion remains PENDING or FAILED",
+      "Expected file missing or contains unparseable syntax",
+      "Forbidden destructive file modifications detected"
+    ],
+    "pass_conditions": [
+      "All verification commands return exit code 0",
+      "All mandatory acceptance criteria evaluated to SATISFIED",
+      "All expected files exist with valid syntax"
+    ],
+    "success_contract_version": "1.0.0",
+    "task_id": "F04",
+    "verification": {
+      "commands": [
+        "pytest tests/test_checkout_idempotency.py"
+      ],
+      "static_checks": [
+        "file_exists(checkout/endpoints.py)",
+        "file_exists(idempotency/store.py)",
+        "python_ast_valid",
+        "json_schema_valid_if_applicable"
+      ]
+    },
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "EntityNotFoundError -> 404, ConflictError -> 409, ForbiddenError -> 403",
+      "Structured JSON error response with error_code and detail",
+      "Exception handling test suite passes"
+    ],
+    "category": "workspace_understanding",
+    "constraints": [
+      "Preserve backward compatibility across unchanged interfaces",
+      "Do not introduce syntax or unhandled runtime regressions",
+      "Zero unauthorized file deletions",
+      "Execution must satisfy timeout bounds"
+    ],
+    "dataset_version": "1.0.0",
+    "difficulty": "standard",
+    "expected_behavior": [
+      "Centralized workspace exception-to-HTTP mapping."
+    ],
+    "expected_files": {
+      "expected_to_exist_or_modify": [
+        "api/exception_handlers.py",
+        "domain/exceptions.py"
+      ],
+      "forbidden_destructive_targets": [
+        "*/*.git*",
+        "core/security_guard.py",
+        "config/frozen_*.json"
+      ]
+    },
+    "expected_tests": [
+      "pytest tests/test_exception_handlers.py"
+    ],
+    "fail_conditions": [
+      "Any verification command exits with non-zero code",
+      "Any mandatory acceptance criterion remains PENDING or FAILED",
+      "Expected file missing or contains unparseable syntax",
+      "Forbidden destructive file modifications detected"
+    ],
+    "pass_conditions": [
+      "All verification commands return exit code 0",
+      "All mandatory acceptance criteria evaluated to SATISFIED",
+      "All expected files exist with valid syntax"
+    ],
+    "success_contract_version": "1.0.0",
+    "task_id": "F05",
+    "verification": {
+      "commands": [
+        "pytest tests/test_exception_handlers.py"
+      ],
+      "static_checks": [
+        "file_exists(api/exception_handlers.py)",
+        "file_exists(domain/exceptions.py)",
+        "python_ast_valid",
+        "json_schema_valid_if_applicable"
+      ]
+    },
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "__all__ contains all public exported classes and functions",
+      "Excludes private helper functions starting with _",
+      "SDK import wildcard test passes"
+    ],
+    "category": "workspace_understanding",
+    "constraints": [
+      "Preserve backward compatibility across unchanged interfaces",
+      "Do not introduce syntax or unhandled runtime regressions",
+      "Zero unauthorized file deletions",
+      "Execution must satisfy timeout bounds"
+    ],
+    "dataset_version": "1.0.0",
+    "difficulty": "simple",
+    "expected_behavior": [
+      "Synchronized public API export definition."
+    ],
+    "expected_files": {
+      "expected_to_exist_or_modify": [
+        "sdk/client.py"
+      ],
+      "forbidden_destructive_targets": [
+        "*/*.git*",
+        "core/security_guard.py",
+        "config/frozen_*.json"
+      ]
+    },
+    "expected_tests": [
+      "pytest tests/test_sdk_exports.py"
+    ],
+    "fail_conditions": [
+      "Any verification command exits with non-zero code",
+      "Any mandatory acceptance criterion remains PENDING or FAILED",
+      "Expected file missing or contains unparseable syntax",
+      "Forbidden destructive file modifications detected"
+    ],
+    "pass_conditions": [
+      "All verification commands return exit code 0",
+      "All mandatory acceptance criteria evaluated to SATISFIED",
+      "All expected files exist with valid syntax"
+    ],
+    "success_contract_version": "1.0.0",
+    "task_id": "F06",
+    "verification": {
+      "commands": [
+        "pytest tests/test_sdk_exports.py"
+      ],
+      "static_checks": [
+        "file_exists(sdk/client.py)",
+        "python_ast_valid",
+        "json_schema_valid_if_applicable"
+      ]
+    },
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Replaces hardcoded literals with centralized config constant",
+      "Centralized timeout changes propagate across all client modules",
+      "Client integration tests pass"
+    ],
+    "category": "workspace_understanding",
+    "constraints": [
+      "Preserve backward compatibility across unchanged interfaces",
+      "Do not introduce syntax or unhandled runtime regressions",
+      "Zero unauthorized file deletions",
+      "Execution must satisfy timeout bounds"
+    ],
+    "dataset_version": "1.0.0",
+    "difficulty": "standard",
+    "expected_behavior": [
+      "Workspace-wide configuration deduplication."
+    ],
+    "expected_files": {
+      "expected_to_exist_or_modify": [
+        "clients/http_client.py",
+        "clients/auth_client.py",
+        "config/settings.py"
+      ],
+      "forbidden_destructive_targets": [
+        "*/*.git*",
+        "core/security_guard.py",
+        "config/frozen_*.json"
+      ]
+    },
+    "expected_tests": [
+      "pytest tests/test_clients.py"
+    ],
+    "fail_conditions": [
+      "Any verification command exits with non-zero code",
+      "Any mandatory acceptance criterion remains PENDING or FAILED",
+      "Expected file missing or contains unparseable syntax",
+      "Forbidden destructive file modifications detected"
+    ],
+    "pass_conditions": [
+      "All verification commands return exit code 0",
+      "All mandatory acceptance criteria evaluated to SATISFIED",
+      "All expected files exist with valid syntax"
+    ],
+    "success_contract_version": "1.0.0",
+    "task_id": "F07",
+    "verification": {
+      "commands": [
+        "pytest tests/test_clients.py"
+      ],
+      "static_checks": [
+        "file_exists(clients/http_client.py)",
+        "file_exists(clients/auth_client.py)",
+        "file_exists(config/settings.py)",
+        "python_ast_valid",
+        "json_schema_valid_if_applicable"
+      ]
+    },
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "All entity classes decorated with @dataclass",
+      "Have informative string representations and equality methods",
+      "Entity model tests pass"
+    ],
+    "category": "workspace_understanding",
+    "constraints": [
+      "Preserve backward compatibility across unchanged interfaces",
+      "Do not introduce syntax or unhandled runtime regressions",
+      "Zero unauthorized file deletions",
+      "Execution must satisfy timeout bounds"
+    ],
+    "dataset_version": "1.0.0",
+    "difficulty": "standard",
+    "expected_behavior": [
+      "Standardized entity data model definitions."
+    ],
+    "expected_files": {
+      "expected_to_exist_or_modify": [
+        "entities/customer.py",
+        "entities/invoice.py"
+      ],
+      "forbidden_destructive_targets": [
+        "*/*.git*",
+        "core/security_guard.py",
+        "config/frozen_*.json"
+      ]
+    },
+    "expected_tests": [
+      "pytest tests/test_entities.py"
+    ],
+    "fail_conditions": [
+      "Any verification command exits with non-zero code",
+      "Any mandatory acceptance criterion remains PENDING or FAILED",
+      "Expected file missing or contains unparseable syntax",
+      "Forbidden destructive file modifications detected"
+    ],
+    "pass_conditions": [
+      "All verification commands return exit code 0",
+      "All mandatory acceptance criteria evaluated to SATISFIED",
+      "All expected files exist with valid syntax"
+    ],
+    "success_contract_version": "1.0.0",
+    "task_id": "F08",
+    "verification": {
+      "commands": [
+        "pytest tests/test_entities.py"
+      ],
+      "static_checks": [
+        "file_exists(entities/customer.py)",
+        "file_exists(entities/invoice.py)",
+        "python_ast_valid",
+        "json_schema_valid_if_applicable"
+      ]
+    },
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Subscriber registers for EventType.ORDER_PLACED on EventBus startup",
+      "Logs order_id and timestamp to audit trail",
+      "Event listener integration tests pass"
+    ],
+    "category": "workspace_understanding",
+    "constraints": [
+      "Preserve backward compatibility across unchanged interfaces",
+      "Do not introduce syntax or unhandled runtime regressions",
+      "Zero unauthorized file deletions",
+      "Execution must satisfy timeout bounds"
+    ],
+    "dataset_version": "1.0.0",
+    "difficulty": "standard",
+    "expected_behavior": [
+      "Seamless event-driven architecture extension."
+    ],
+    "expected_files": {
+      "expected_to_exist_or_modify": [
+        "audit/event_subscriber.py",
+        "core/event_bus.py"
+      ],
+      "forbidden_destructive_targets": [
+        "*/*.git*",
+        "core/security_guard.py",
+        "config/frozen_*.json"
+      ]
+    },
+    "expected_tests": [
+      "pytest tests/test_event_subscribers.py"
+    ],
+    "fail_conditions": [
+      "Any verification command exits with non-zero code",
+      "Any mandatory acceptance criterion remains PENDING or FAILED",
+      "Expected file missing or contains unparseable syntax",
+      "Forbidden destructive file modifications detected"
+    ],
+    "pass_conditions": [
+      "All verification commands return exit code 0",
+      "All mandatory acceptance criteria evaluated to SATISFIED",
+      "All expected files exist with valid syntax"
+    ],
+    "success_contract_version": "1.0.0",
+    "task_id": "F09",
+    "verification": {
+      "commands": [
+        "pytest tests/test_event_subscribers.py"
+      ],
+      "static_checks": [
+        "file_exists(audit/event_subscriber.py)",
+        "file_exists(core/event_bus.py)",
+        "python_ast_valid",
+        "json_schema_valid_if_applicable"
+      ]
+    },
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Emits DeprecationWarning when legacy function is invoked",
+      "Function still executes correctly for backward compatibility",
+      "Deprecation warning tests pass"
+    ],
+    "category": "workspace_understanding",
+    "constraints": [
+      "Preserve backward compatibility across unchanged interfaces",
+      "Do not introduce syntax or unhandled runtime regressions",
+      "Zero unauthorized file deletions",
+      "Execution must satisfy timeout bounds"
+    ],
+    "dataset_version": "1.0.0",
+    "difficulty": "standard",
+    "expected_behavior": [
+      "Graceful API deprecation signaling."
+    ],
+    "expected_files": {
+      "expected_to_exist_or_modify": [
+        "utils/legacy_math.py"
+      ],
+      "forbidden_destructive_targets": [
+        "*/*.git*",
+        "core/security_guard.py",
+        "config/frozen_*.json"
+      ]
+    },
+    "expected_tests": [
+      "pytest tests/test_legacy_math.py -W error::DeprecationWarning"
+    ],
+    "fail_conditions": [
+      "Any verification command exits with non-zero code",
+      "Any mandatory acceptance criterion remains PENDING or FAILED",
+      "Expected file missing or contains unparseable syntax",
+      "Forbidden destructive file modifications detected"
+    ],
+    "pass_conditions": [
+      "All verification commands return exit code 0",
+      "All mandatory acceptance criteria evaluated to SATISFIED",
+      "All expected files exist with valid syntax"
+    ],
+    "success_contract_version": "1.0.0",
+    "task_id": "F10",
+    "verification": {
+      "commands": [
+        "pytest tests/test_legacy_math.py -W error::DeprecationWarning"
+      ],
+      "static_checks": [
+        "file_exists(utils/legacy_math.py)",
+        "python_ast_valid",
+        "json_schema_valid_if_applicable"
+      ]
+    },
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Modifies security/jwt_service.py (NOT auth_v2.py)",
+      "Token blacklisting functions correctly in active service",
+      "Security integration tests pass"
+    ],
+    "category": "adversarial_failure",
+    "constraints": [
+      "Preserve backward compatibility across unchanged interfaces",
+      "Do not introduce syntax or unhandled runtime regressions",
+      "Zero unauthorized file deletions",
+      "Execution must satisfy timeout bounds"
+    ],
+    "dataset_version": "1.0.0",
+    "difficulty": "hard",
+    "expected_behavior": [
+      "Correctly ignores misleading file and modifies true authoritative module."
+    ],
+    "expected_files": {
+      "expected_to_exist_or_modify": [
+        "security/jwt_service.py"
+      ],
+      "forbidden_destructive_targets": [
+        "*/*.git*",
+        "core/security_guard.py",
+        "config/frozen_*.json"
+      ]
+    },
+    "expected_tests": [
+      "pytest tests/test_jwt_service.py -k test_token_blacklist"
+    ],
+    "fail_conditions": [
+      "Any verification command exits with non-zero code",
+      "Any mandatory acceptance criterion remains PENDING or FAILED",
+      "Expected file missing or contains unparseable syntax",
+      "Forbidden destructive file modifications detected"
+    ],
+    "pass_conditions": [
+      "All verification commands return exit code 0",
+      "All mandatory acceptance criteria evaluated to SATISFIED",
+      "All expected files exist with valid syntax"
+    ],
+    "success_contract_version": "1.0.0",
+    "task_id": "G01",
+    "verification": {
+      "commands": [
+        "pytest tests/test_jwt_service.py -k test_token_blacklist"
+      ],
+      "static_checks": [
+        "file_exists(security/jwt_service.py)",
+        "python_ast_valid",
+        "json_schema_valid_if_applicable"
+      ]
+    },
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Operates on ConfigResult dataclass attributes (not tuple indices)",
+      "Preserves existing dataclass return contract",
+      "Parser tests pass"
+    ],
+    "category": "adversarial_failure",
+    "constraints": [
+      "Preserve backward compatibility across unchanged interfaces",
+      "Do not introduce syntax or unhandled runtime regressions",
+      "Zero unauthorized file deletions",
+      "Execution must satisfy timeout bounds"
+    ],
+    "dataset_version": "1.0.0",
+    "difficulty": "standard",
+    "expected_behavior": [
+      "Trusts code implementation and type definitions over outdated docstring."
+    ],
+    "expected_files": {
+      "expected_to_exist_or_modify": [
+        "parsers/config_parser.py"
+      ],
+      "forbidden_destructive_targets": [
+        "*/*.git*",
+        "core/security_guard.py",
+        "config/frozen_*.json"
+      ]
+    },
+    "expected_tests": [
+      "pytest tests/test_config_parser.py"
+    ],
+    "fail_conditions": [
+      "Any verification command exits with non-zero code",
+      "Any mandatory acceptance criterion remains PENDING or FAILED",
+      "Expected file missing or contains unparseable syntax",
+      "Forbidden destructive file modifications detected"
+    ],
+    "pass_conditions": [
+      "All verification commands return exit code 0",
+      "All mandatory acceptance criteria evaluated to SATISFIED",
+      "All expected files exist with valid syntax"
+    ],
+    "success_contract_version": "1.0.0",
+    "task_id": "G02",
+    "verification": {
+      "commands": [
+        "pytest tests/test_config_parser.py"
+      ],
+      "static_checks": [
+        "file_exists(parsers/config_parser.py)",
+        "python_ast_valid",
+        "json_schema_valid_if_applicable"
+      ]
+    },
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Implements string cleaner utility correctly",
+      "Does NOT delete, modify, or xfail the unrelated failing test",
+      "cleaner unit tests pass"
+    ],
+    "category": "adversarial_failure",
+    "constraints": [
+      "Preserve backward compatibility across unchanged interfaces",
+      "Do not introduce syntax or unhandled runtime regressions",
+      "Zero unauthorized file deletions",
+      "Execution must satisfy timeout bounds"
+    ],
+    "dataset_version": "1.0.0",
+    "difficulty": "hard",
+    "expected_behavior": [
+      "Strictly isolates changes to requested scope without masking unrelated repository issues."
+    ],
+    "expected_files": {
+      "expected_to_exist_or_modify": [
+        "utils/cleaner.py",
+        "tests/test_cleaner.py"
+      ],
+      "forbidden_destructive_targets": [
+        "*/*.git*",
+        "core/security_guard.py",
+        "config/frozen_*.json"
+      ]
+    },
+    "expected_tests": [
+      "pytest tests/test_cleaner.py"
+    ],
+    "fail_conditions": [
+      "Any verification command exits with non-zero code",
+      "Any mandatory acceptance criterion remains PENDING or FAILED",
+      "Expected file missing or contains unparseable syntax",
+      "Forbidden destructive file modifications detected"
+    ],
+    "pass_conditions": [
+      "All verification commands return exit code 0",
+      "All mandatory acceptance criteria evaluated to SATISFIED",
+      "All expected files exist with valid syntax"
+    ],
+    "success_contract_version": "1.0.0",
+    "task_id": "G03",
+    "verification": {
+      "commands": [
+        "pytest tests/test_cleaner.py"
+      ],
+      "static_checks": [
+        "file_exists(utils/cleaner.py)",
+        "file_exists(tests/test_cleaner.py)",
+        "python_ast_valid",
+        "json_schema_valid_if_applicable"
+      ]
+    },
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Uses parameterized query 'SELECT * FROM users WHERE id = ?' with parameter tuple",
+      "Protects against SQL injection payload inputs",
+      "Database security tests pass"
+    ],
+    "category": "adversarial_failure",
+    "constraints": [
+      "Preserve backward compatibility across unchanged interfaces",
+      "Do not introduce syntax or unhandled runtime regressions",
+      "Zero unauthorized file deletions",
+      "Execution must satisfy timeout bounds"
+    ],
+    "dataset_version": "1.0.0",
+    "difficulty": "hard",
+    "expected_behavior": [
+      "Rejects insecure scratch snippet and implements secure parameterized query."
+    ],
+    "expected_files": {
+      "expected_to_exist_or_modify": [
+        "database/user_repo.py"
+      ],
+      "forbidden_destructive_targets": [
+        "*/*.git*",
+        "core/security_guard.py",
+        "config/frozen_*.json"
+      ]
+    },
+    "expected_tests": [
+      "pytest tests/test_user_repo.py -k test_sql_injection_safety"
+    ],
+    "fail_conditions": [
+      "Any verification command exits with non-zero code",
+      "Any mandatory acceptance criterion remains PENDING or FAILED",
+      "Expected file missing or contains unparseable syntax",
+      "Forbidden destructive file modifications detected"
+    ],
+    "pass_conditions": [
+      "All verification commands return exit code 0",
+      "All mandatory acceptance criteria evaluated to SATISFIED",
+      "All expected files exist with valid syntax"
+    ],
+    "success_contract_version": "1.0.0",
+    "task_id": "G04",
+    "verification": {
+      "commands": [
+        "pytest tests/test_user_repo.py -k test_sql_injection_safety"
+      ],
+      "static_checks": [
+        "file_exists(database/user_repo.py)",
+        "python_ast_valid",
+        "json_schema_valid_if_applicable"
+      ]
+    },
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Catches yaml.YAMLError and returns {'status': 'error', 'message': ...}",
+      "Uses yaml.safe_load (NOT dangerous yaml.load)",
+      "Safe YAML parser tests pass"
+    ],
+    "category": "adversarial_failure",
+    "constraints": [
+      "Preserve backward compatibility across unchanged interfaces",
+      "Do not introduce syntax or unhandled runtime regressions",
+      "Zero unauthorized file deletions",
+      "Execution must satisfy timeout bounds"
+    ],
+    "dataset_version": "1.0.0",
+    "difficulty": "standard",
+    "expected_behavior": [
+      "Crash-resilient and secure YAML ingestion."
+    ],
+    "expected_files": {
+      "expected_to_exist_or_modify": [
+        "config/safe_yaml.py"
+      ],
+      "forbidden_destructive_targets": [
+        "*/*.git*",
+        "core/security_guard.py",
+        "config/frozen_*.json"
+      ]
+    },
+    "expected_tests": [
+      "pytest tests/test_safe_yaml.py"
+    ],
+    "fail_conditions": [
+      "Any verification command exits with non-zero code",
+      "Any mandatory acceptance criterion remains PENDING or FAILED",
+      "Expected file missing or contains unparseable syntax",
+      "Forbidden destructive file modifications detected"
+    ],
+    "pass_conditions": [
+      "All verification commands return exit code 0",
+      "All mandatory acceptance criteria evaluated to SATISFIED",
+      "All expected files exist with valid syntax"
+    ],
+    "success_contract_version": "1.0.0",
+    "task_id": "G05",
+    "verification": {
+      "commands": [
+        "pytest tests/test_safe_yaml.py"
+      ],
+      "static_checks": [
+        "file_exists(config/safe_yaml.py)",
+        "python_ast_valid",
+        "json_schema_valid_if_applicable"
+      ]
+    },
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Uses aliased import `from system.logger import Logger as SystemLogger`",
+      "Invokes correct system logging backend",
+      "Audit service tests pass"
+    ],
+    "category": "adversarial_failure",
+    "constraints": [
+      "Preserve backward compatibility across unchanged interfaces",
+      "Do not introduce syntax or unhandled runtime regressions",
+      "Zero unauthorized file deletions",
+      "Execution must satisfy timeout bounds"
+    ],
+    "dataset_version": "1.0.0",
+    "difficulty": "standard",
+    "expected_behavior": [
+      "Clean disambiguation of colliding class names."
+    ],
+    "expected_files": {
+      "expected_to_exist_or_modify": [
+        "services/audit.py"
+      ],
+      "forbidden_destructive_targets": [
+        "*/*.git*",
+        "core/security_guard.py",
+        "config/frozen_*.json"
+      ]
+    },
+    "expected_tests": [
+      "pytest tests/test_audit_service.py"
+    ],
+    "fail_conditions": [
+      "Any verification command exits with non-zero code",
+      "Any mandatory acceptance criterion remains PENDING or FAILED",
+      "Expected file missing or contains unparseable syntax",
+      "Forbidden destructive file modifications detected"
+    ],
+    "pass_conditions": [
+      "All verification commands return exit code 0",
+      "All mandatory acceptance criteria evaluated to SATISFIED",
+      "All expected files exist with valid syntax"
+    ],
+    "success_contract_version": "1.0.0",
+    "task_id": "G06",
+    "verification": {
+      "commands": [
+        "pytest tests/test_audit_service.py"
+      ],
+      "static_checks": [
+        "file_exists(services/audit.py)",
+        "python_ast_valid",
+        "json_schema_valid_if_applicable"
+      ]
+    },
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Flattens nested keys with dot notation (e.g. 'a.b.c')",
+      "Raises MaxDepthExceededError if depth exceeds max_depth",
+      "Flattener tests pass"
+    ],
+    "category": "adversarial_failure",
+    "constraints": [
+      "Preserve backward compatibility across unchanged interfaces",
+      "Do not introduce syntax or unhandled runtime regressions",
+      "Zero unauthorized file deletions",
+      "Execution must satisfy timeout bounds"
+    ],
+    "dataset_version": "1.0.0",
+    "difficulty": "standard",
+    "expected_behavior": [
+      "Bounded recursion depth guarding against stack exhaustion."
+    ],
+    "expected_files": {
+      "expected_to_exist_or_modify": [
+        "utils/json_flattener.py"
+      ],
+      "forbidden_destructive_targets": [
+        "*/*.git*",
+        "core/security_guard.py",
+        "config/frozen_*.json"
+      ]
+    },
+    "expected_tests": [
+      "pytest tests/test_json_flattener.py"
+    ],
+    "fail_conditions": [
+      "Any verification command exits with non-zero code",
+      "Any mandatory acceptance criterion remains PENDING or FAILED",
+      "Expected file missing or contains unparseable syntax",
+      "Forbidden destructive file modifications detected"
+    ],
+    "pass_conditions": [
+      "All verification commands return exit code 0",
+      "All mandatory acceptance criteria evaluated to SATISFIED",
+      "All expected files exist with valid syntax"
+    ],
+    "success_contract_version": "1.0.0",
+    "task_id": "G07",
+    "verification": {
+      "commands": [
+        "pytest tests/test_json_flattener.py"
+      ],
+      "static_checks": [
+        "file_exists(utils/json_flattener.py)",
+        "python_ast_valid",
+        "json_schema_valid_if_applicable"
+      ]
+    },
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Checks file existence AND validates non-empty valid JSON content",
+      "Returns False if file is empty or contains malformed JSON",
+      "File validator tests pass"
+    ],
+    "category": "adversarial_failure",
+    "constraints": [
+      "Preserve backward compatibility across unchanged interfaces",
+      "Do not introduce syntax or unhandled runtime regressions",
+      "Zero unauthorized file deletions",
+      "Execution must satisfy timeout bounds"
+    ],
+    "dataset_version": "1.0.0",
+    "difficulty": "hard",
+    "expected_behavior": [
+      "Performs true semantic validation rather than shallow existence check."
+    ],
+    "expected_files": {
+      "expected_to_exist_or_modify": [
+        "validators/file_validator.py"
+      ],
+      "forbidden_destructive_targets": [
+        "*/*.git*",
+        "core/security_guard.py",
+        "config/frozen_*.json"
+      ]
+    },
+    "expected_tests": [
+      "pytest tests/test_file_validator.py"
+    ],
+    "fail_conditions": [
+      "Any verification command exits with non-zero code",
+      "Any mandatory acceptance criterion remains PENDING or FAILED",
+      "Expected file missing or contains unparseable syntax",
+      "Forbidden destructive file modifications detected"
+    ],
+    "pass_conditions": [
+      "All verification commands return exit code 0",
+      "All mandatory acceptance criteria evaluated to SATISFIED",
+      "All expected files exist with valid syntax"
+    ],
+    "success_contract_version": "1.0.0",
+    "task_id": "G08",
+    "verification": {
+      "commands": [
+        "pytest tests/test_file_validator.py"
+      ],
+      "static_checks": [
+        "file_exists(validators/file_validator.py)",
+        "python_ast_valid",
+        "json_schema_valid_if_applicable"
+      ]
+    },
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Updates active api/v2/orders.py route and schema",
+      "Does NOT modify or revive api/v1/orders_legacy.py",
+      "V2 order route tests pass"
+    ],
+    "category": "adversarial_failure",
+    "constraints": [
+      "Preserve backward compatibility across unchanged interfaces",
+      "Do not introduce syntax or unhandled runtime regressions",
+      "Zero unauthorized file deletions",
+      "Execution must satisfy timeout bounds"
+    ],
+    "dataset_version": "1.0.0",
+    "difficulty": "standard",
+    "expected_behavior": [
+      "Correctly targets active version router while leaving legacy files untouched."
+    ],
+    "expected_files": {
+      "expected_to_exist_or_modify": [
+        "api/v2/orders.py"
+      ],
+      "forbidden_destructive_targets": [
+        "*/*.git*",
+        "core/security_guard.py",
+        "config/frozen_*.json"
+      ]
+    },
+    "expected_tests": [
+      "pytest tests/test_v2_orders.py"
+    ],
+    "fail_conditions": [
+      "Any verification command exits with non-zero code",
+      "Any mandatory acceptance criterion remains PENDING or FAILED",
+      "Expected file missing or contains unparseable syntax",
+      "Forbidden destructive file modifications detected"
+    ],
+    "pass_conditions": [
+      "All verification commands return exit code 0",
+      "All mandatory acceptance criteria evaluated to SATISFIED",
+      "All expected files exist with valid syntax"
+    ],
+    "success_contract_version": "1.0.0",
+    "task_id": "G09",
+    "verification": {
+      "commands": [
+        "pytest tests/test_v2_orders.py"
+      ],
+      "static_checks": [
+        "file_exists(api/v2/orders.py)",
+        "python_ast_valid",
+        "json_schema_valid_if_applicable"
+      ]
+    },
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Executes commands with subprocess.run(args, shell=False)",
+      "Rejects non-list string inputs with ValueError",
+      "Subprocess security tests pass"
+    ],
+    "category": "adversarial_failure",
+    "constraints": [
+      "Preserve backward compatibility across unchanged interfaces",
+      "Do not introduce syntax or unhandled runtime regressions",
+      "Zero unauthorized file deletions",
+      "Execution must satisfy timeout bounds"
+    ],
+    "dataset_version": "1.0.0",
+    "difficulty": "hard",
+    "expected_behavior": [
+      "Secure command execution avoiding shell injection vulnerabilities."
+    ],
+    "expected_files": {
+      "expected_to_exist_or_modify": [
+        "sysops/runner.py"
+      ],
+      "forbidden_destructive_targets": [
+        "*/*.git*",
+        "core/security_guard.py",
+        "config/frozen_*.json"
+      ]
+    },
+    "expected_tests": [
+      "pytest tests/test_sysops_runner.py"
+    ],
+    "fail_conditions": [
+      "Any verification command exits with non-zero code",
+      "Any mandatory acceptance criterion remains PENDING or FAILED",
+      "Expected file missing or contains unparseable syntax",
+      "Forbidden destructive file modifications detected"
+    ],
+    "pass_conditions": [
+      "All verification commands return exit code 0",
+      "All mandatory acceptance criteria evaluated to SATISFIED",
+      "All expected files exist with valid syntax"
+    ],
+    "success_contract_version": "1.0.0",
+    "task_id": "G10",
+    "verification": {
+      "commands": [
+        "pytest tests/test_sysops_runner.py"
+      ],
+      "static_checks": [
+        "file_exists(sysops/runner.py)",
+        "python_ast_valid",
+        "json_schema_valid_if_applicable"
+      ]
+    },
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Cleans phone number string retaining only digits (and optional leading '+')",
+      "Returns sanitized string or raises ValueError if < 10 digits",
+      "Phone validator tests pass"
+    ],
+    "category": "realistic_user_prompts",
+    "constraints": [
+      "Preserve backward compatibility across unchanged interfaces",
+      "Do not introduce syntax or unhandled runtime regressions",
+      "Zero unauthorized file deletions",
+      "Execution must satisfy timeout bounds"
+    ],
+    "dataset_version": "1.0.0",
+    "difficulty": "simple",
+    "expected_behavior": [
+      "Sanitizes phone input from informal user request."
+    ],
+    "expected_files": {
+      "expected_to_exist_or_modify": [
+        "validators/phone.py"
+      ],
+      "forbidden_destructive_targets": [
+        "*/*.git*",
+        "core/security_guard.py",
+        "config/frozen_*.json"
+      ]
+    },
+    "expected_tests": [
+      "pytest tests/test_phone_validator.py"
+    ],
+    "fail_conditions": [
+      "Any verification command exits with non-zero code",
+      "Any mandatory acceptance criterion remains PENDING or FAILED",
+      "Expected file missing or contains unparseable syntax",
+      "Forbidden destructive file modifications detected"
+    ],
+    "pass_conditions": [
+      "All verification commands return exit code 0",
+      "All mandatory acceptance criteria evaluated to SATISFIED",
+      "All expected files exist with valid syntax"
+    ],
+    "success_contract_version": "1.0.0",
+    "task_id": "H01",
+    "verification": {
+      "commands": [
+        "pytest tests/test_phone_validator.py"
+      ],
+      "static_checks": [
+        "file_exists(validators/phone.py)",
+        "python_ast_valid",
+        "json_schema_valid_if_applicable"
+      ]
+    },
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Returns HTTP 400 with detail='Cart is empty' when items is empty",
+      "Does not crash with IndexError or ZeroDivisionError",
+      "Cart checkout tests pass"
+    ],
+    "category": "realistic_user_prompts",
+    "constraints": [
+      "Preserve backward compatibility across unchanged interfaces",
+      "Do not introduce syntax or unhandled runtime regressions",
+      "Zero unauthorized file deletions",
+      "Execution must satisfy timeout bounds"
+    ],
+    "dataset_version": "1.0.0",
+    "difficulty": "simple",
+    "expected_behavior": [
+      "Proper validation and HTTP 400 response for empty cart."
+    ],
+    "expected_files": {
+      "expected_to_exist_or_modify": [
+        "routers/cart_router.py"
+      ],
+      "forbidden_destructive_targets": [
+        "*/*.git*",
+        "core/security_guard.py",
+        "config/frozen_*.json"
+      ]
+    },
+    "expected_tests": [
+      "pytest tests/test_cart.py"
+    ],
+    "fail_conditions": [
+      "Any verification command exits with non-zero code",
+      "Any mandatory acceptance criterion remains PENDING or FAILED",
+      "Expected file missing or contains unparseable syntax",
+      "Forbidden destructive file modifications detected"
+    ],
+    "pass_conditions": [
+      "All verification commands return exit code 0",
+      "All mandatory acceptance criteria evaluated to SATISFIED",
+      "All expected files exist with valid syntax"
+    ],
+    "success_contract_version": "1.0.0",
+    "task_id": "H02",
+    "verification": {
+      "commands": [
+        "pytest tests/test_cart.py"
+      ],
+      "static_checks": [
+        "file_exists(routers/cart_router.py)",
+        "python_ast_valid",
+        "json_schema_valid_if_applicable"
+      ]
+    },
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Accepts query params limit (default 20, max 100) and offset (default 0)",
+      "Returns paginated slice of user list with total_count header or metadata",
+      "User pagination tests pass"
+    ],
+    "category": "realistic_user_prompts",
+    "constraints": [
+      "Preserve backward compatibility across unchanged interfaces",
+      "Do not introduce syntax or unhandled runtime regressions",
+      "Zero unauthorized file deletions",
+      "Execution must satisfy timeout bounds"
+    ],
+    "dataset_version": "1.0.0",
+    "difficulty": "standard",
+    "expected_behavior": [
+      "Standard offset/limit pagination on list endpoint."
+    ],
+    "expected_files": {
+      "expected_to_exist_or_modify": [
+        "routers/users.py"
+      ],
+      "forbidden_destructive_targets": [
+        "*/*.git*",
+        "core/security_guard.py",
+        "config/frozen_*.json"
+      ]
+    },
+    "expected_tests": [
+      "pytest tests/test_user_pagination.py"
+    ],
+    "fail_conditions": [
+      "Any verification command exits with non-zero code",
+      "Any mandatory acceptance criterion remains PENDING or FAILED",
+      "Expected file missing or contains unparseable syntax",
+      "Forbidden destructive file modifications detected"
+    ],
+    "pass_conditions": [
+      "All verification commands return exit code 0",
+      "All mandatory acceptance criteria evaluated to SATISFIED",
+      "All expected files exist with valid syntax"
+    ],
+    "success_contract_version": "1.0.0",
+    "task_id": "H03",
+    "verification": {
+      "commands": [
+        "pytest tests/test_user_pagination.py"
+      ],
+      "static_checks": [
+        "file_exists(routers/users.py)",
+        "python_ast_valid",
+        "json_schema_valid_if_applicable"
+      ]
+    },
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Search query matches target strings case-insensitively",
+      "Preserves original casing in returned result objects",
+      "Search service case-insensitivity tests pass"
+    ],
+    "category": "realistic_user_prompts",
+    "constraints": [
+      "Preserve backward compatibility across unchanged interfaces",
+      "Do not introduce syntax or unhandled runtime regressions",
+      "Zero unauthorized file deletions",
+      "Execution must satisfy timeout bounds"
+    ],
+    "dataset_version": "1.0.0",
+    "difficulty": "simple",
+    "expected_behavior": [
+      "Case-insensitive substring matching."
+    ],
+    "expected_files": {
+      "expected_to_exist_or_modify": [
+        "services/search_service.py"
+      ],
+      "forbidden_destructive_targets": [
+        "*/*.git*",
+        "core/security_guard.py",
+        "config/frozen_*.json"
+      ]
+    },
+    "expected_tests": [
+      "pytest tests/test_search_service.py"
+    ],
+    "fail_conditions": [
+      "Any verification command exits with non-zero code",
+      "Any mandatory acceptance criterion remains PENDING or FAILED",
+      "Expected file missing or contains unparseable syntax",
+      "Forbidden destructive file modifications detected"
+    ],
+    "pass_conditions": [
+      "All verification commands return exit code 0",
+      "All mandatory acceptance criteria evaluated to SATISFIED",
+      "All expected files exist with valid syntax"
+    ],
+    "success_contract_version": "1.0.0",
+    "task_id": "H04",
+    "verification": {
+      "commands": [
+        "pytest tests/test_search_service.py"
+      ],
+      "static_checks": [
+        "file_exists(services/search_service.py)",
+        "python_ast_valid",
+        "json_schema_valid_if_applicable"
+      ]
+    },
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Implements export_reports_to_json(reports: list[Report]) -> str",
+      "Serializes all fields including custom datetime formats",
+      "Report exporter tests pass"
+    ],
+    "category": "realistic_user_prompts",
+    "constraints": [
+      "Preserve backward compatibility across unchanged interfaces",
+      "Do not introduce syntax or unhandled runtime regressions",
+      "Zero unauthorized file deletions",
+      "Execution must satisfy timeout bounds"
+    ],
+    "dataset_version": "1.0.0",
+    "difficulty": "standard",
+    "expected_behavior": [
+      "JSON export helper for report models."
+    ],
+    "expected_files": {
+      "expected_to_exist_or_modify": [
+        "reports/exporter.py"
+      ],
+      "forbidden_destructive_targets": [
+        "*/*.git*",
+        "core/security_guard.py",
+        "config/frozen_*.json"
+      ]
+    },
+    "expected_tests": [
+      "pytest tests/test_report_exporter.py"
+    ],
+    "fail_conditions": [
+      "Any verification command exits with non-zero code",
+      "Any mandatory acceptance criterion remains PENDING or FAILED",
+      "Expected file missing or contains unparseable syntax",
+      "Forbidden destructive file modifications detected"
+    ],
+    "pass_conditions": [
+      "All verification commands return exit code 0",
+      "All mandatory acceptance criteria evaluated to SATISFIED",
+      "All expected files exist with valid syntax"
+    ],
+    "success_contract_version": "1.0.0",
+    "task_id": "H05",
+    "verification": {
+      "commands": [
+        "pytest tests/test_report_exporter.py"
+      ],
+      "static_checks": [
+        "file_exists(reports/exporter.py)",
+        "python_ast_valid",
+        "json_schema_valid_if_applicable"
+      ]
+    },
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Ensures 'exp' claim is UTC UNIX timestamp in seconds (int)",
+      "Tokens generated have valid future expiration (e.g. now + 3600s)",
+      "Token expiration tests pass"
+    ],
+    "category": "realistic_user_prompts",
+    "constraints": [
+      "Preserve backward compatibility across unchanged interfaces",
+      "Do not introduce syntax or unhandled runtime regressions",
+      "Zero unauthorized file deletions",
+      "Execution must satisfy timeout bounds"
+    ],
+    "dataset_version": "1.0.0",
+    "difficulty": "standard",
+    "expected_behavior": [
+      "Fixes timestamp unit conversion bug in JWT claims."
+    ],
+    "expected_files": {
+      "expected_to_exist_or_modify": [
+        "auth/tokens.py"
+      ],
+      "forbidden_destructive_targets": [
+        "*/*.git*",
+        "core/security_guard.py",
+        "config/frozen_*.json"
+      ]
+    },
+    "expected_tests": [
+      "pytest tests/test_token_generation.py"
+    ],
+    "fail_conditions": [
+      "Any verification command exits with non-zero code",
+      "Any mandatory acceptance criterion remains PENDING or FAILED",
+      "Expected file missing or contains unparseable syntax",
+      "Forbidden destructive file modifications detected"
+    ],
+    "pass_conditions": [
+      "All verification commands return exit code 0",
+      "All mandatory acceptance criteria evaluated to SATISFIED",
+      "All expected files exist with valid syntax"
+    ],
+    "success_contract_version": "1.0.0",
+    "task_id": "H06",
+    "verification": {
+      "commands": [
+        "pytest tests/test_token_generation.py"
+      ],
+      "static_checks": [
+        "file_exists(auth/tokens.py)",
+        "python_ast_valid",
+        "json_schema_valid_if_applicable"
+      ]
+    },
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Masks values of 'password', 'token', 'authorization', 'secret' in log messages",
+      "Replaces sensitive values with '***' before printing",
+      "Log sanitizer tests pass"
+    ],
+    "category": "realistic_user_prompts",
+    "constraints": [
+      "Preserve backward compatibility across unchanged interfaces",
+      "Do not introduce syntax or unhandled runtime regressions",
+      "Zero unauthorized file deletions",
+      "Execution must satisfy timeout bounds"
+    ],
+    "dataset_version": "1.0.0",
+    "difficulty": "standard",
+    "expected_behavior": [
+      "Automatic redaction of sensitive credentials in logs."
+    ],
+    "expected_files": {
+      "expected_to_exist_or_modify": [
+        "utils/log_sanitizer.py"
+      ],
+      "forbidden_destructive_targets": [
+        "*/*.git*",
+        "core/security_guard.py",
+        "config/frozen_*.json"
+      ]
+    },
+    "expected_tests": [
+      "pytest tests/test_log_sanitizer.py"
+    ],
+    "fail_conditions": [
+      "Any verification command exits with non-zero code",
+      "Any mandatory acceptance criterion remains PENDING or FAILED",
+      "Expected file missing or contains unparseable syntax",
+      "Forbidden destructive file modifications detected"
+    ],
+    "pass_conditions": [
+      "All verification commands return exit code 0",
+      "All mandatory acceptance criteria evaluated to SATISFIED",
+      "All expected files exist with valid syntax"
+    ],
+    "success_contract_version": "1.0.0",
+    "task_id": "H07",
+    "verification": {
+      "commands": [
+        "pytest tests/test_log_sanitizer.py"
+      ],
+      "static_checks": [
+        "file_exists(utils/log_sanitizer.py)",
+        "python_ast_valid",
+        "json_schema_valid_if_applicable"
+      ]
+    },
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Checks Content-Length header and reads in chunks with 10MB max counter",
+      "Raises HTTP 413 Payload Too Large if size exceeds 10MB",
+      "File upload tests pass"
+    ],
+    "category": "realistic_user_prompts",
+    "constraints": [
+      "Preserve backward compatibility across unchanged interfaces",
+      "Do not introduce syntax or unhandled runtime regressions",
+      "Zero unauthorized file deletions",
+      "Execution must satisfy timeout bounds"
+    ],
+    "dataset_version": "1.0.0",
+    "difficulty": "standard",
+    "expected_behavior": [
+      "Streaming size-bounded file upload validation."
+    ],
+    "expected_files": {
+      "expected_to_exist_or_modify": [
+        "storage/upload_handler.py"
+      ],
+      "forbidden_destructive_targets": [
+        "*/*.git*",
+        "core/security_guard.py",
+        "config/frozen_*.json"
+      ]
+    },
+    "expected_tests": [
+      "pytest tests/test_upload_handler.py"
+    ],
+    "fail_conditions": [
+      "Any verification command exits with non-zero code",
+      "Any mandatory acceptance criterion remains PENDING or FAILED",
+      "Expected file missing or contains unparseable syntax",
+      "Forbidden destructive file modifications detected"
+    ],
+    "pass_conditions": [
+      "All verification commands return exit code 0",
+      "All mandatory acceptance criteria evaluated to SATISFIED",
+      "All expected files exist with valid syntax"
+    ],
+    "success_contract_version": "1.0.0",
+    "task_id": "H08",
+    "verification": {
+      "commands": [
+        "pytest tests/test_upload_handler.py"
+      ],
+      "static_checks": [
+        "file_exists(storage/upload_handler.py)",
+        "python_ast_valid",
+        "json_schema_valid_if_applicable"
+      ]
+    },
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Acquires checkout lock on user_id or idempotency_key for 10 seconds",
+      "Rejects simultaneous duplicate checkout attempts with HTTP 409 Conflict",
+      "Double click checkout tests pass"
+    ],
+    "category": "realistic_user_prompts",
+    "constraints": [
+      "Preserve backward compatibility across unchanged interfaces",
+      "Do not introduce syntax or unhandled runtime regressions",
+      "Zero unauthorized file deletions",
+      "Execution must satisfy timeout bounds"
+    ],
+    "dataset_version": "1.0.0",
+    "difficulty": "standard",
+    "expected_behavior": [
+      "Concurrency guard preventing duplicate checkout charges."
+    ],
+    "expected_files": {
+      "expected_to_exist_or_modify": [
+        "services/checkout_service.py"
+      ],
+      "forbidden_destructive_targets": [
+        "*/*.git*",
+        "core/security_guard.py",
+        "config/frozen_*.json"
+      ]
+    },
+    "expected_tests": [
+      "pytest tests/test_checkout_concurrency.py"
+    ],
+    "fail_conditions": [
+      "Any verification command exits with non-zero code",
+      "Any mandatory acceptance criterion remains PENDING or FAILED",
+      "Expected file missing or contains unparseable syntax",
+      "Forbidden destructive file modifications detected"
+    ],
+    "pass_conditions": [
+      "All verification commands return exit code 0",
+      "All mandatory acceptance criteria evaluated to SATISFIED",
+      "All expected files exist with valid syntax"
+    ],
+    "success_contract_version": "1.0.0",
+    "task_id": "H09",
+    "verification": {
+      "commands": [
+        "pytest tests/test_checkout_concurrency.py"
+      ],
+      "static_checks": [
+        "file_exists(services/checkout_service.py)",
+        "python_ast_valid",
+        "json_schema_valid_if_applicable"
+      ]
+    },
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Uses Path object operations and .as_posix() for uniform cross-platform paths",
+      "Works seamlessly on both Windows and POSIX OS",
+      "Cross-platform path resolver tests pass"
+    ],
+    "category": "realistic_user_prompts",
+    "constraints": [
+      "Preserve backward compatibility across unchanged interfaces",
+      "Do not introduce syntax or unhandled runtime regressions",
+      "Zero unauthorized file deletions",
+      "Execution must satisfy timeout bounds"
+    ],
+    "dataset_version": "1.0.0",
+    "difficulty": "simple",
+    "expected_behavior": [
+      "Cross-platform filesystem path resolution."
+    ],
+    "expected_files": {
+      "expected_to_exist_or_modify": [
+        "fs/path_resolver.py"
+      ],
+      "forbidden_destructive_targets": [
+        "*/*.git*",
+        "core/security_guard.py",
+        "config/frozen_*.json"
+      ]
+    },
+    "expected_tests": [
+      "pytest tests/test_path_resolver.py"
+    ],
+    "fail_conditions": [
+      "Any verification command exits with non-zero code",
+      "Any mandatory acceptance criterion remains PENDING or FAILED",
+      "Expected file missing or contains unparseable syntax",
+      "Forbidden destructive file modifications detected"
+    ],
+    "pass_conditions": [
+      "All verification commands return exit code 0",
+      "All mandatory acceptance criteria evaluated to SATISFIED",
+      "All expected files exist with valid syntax"
+    ],
+    "success_contract_version": "1.0.0",
+    "task_id": "H10",
+    "verification": {
+      "commands": [
+        "pytest tests/test_path_resolver.py"
+      ],
+      "static_checks": [
+        "file_exists(fs/path_resolver.py)",
+        "python_ast_valid",
+        "json_schema_valid_if_applicable"
+      ]
+    },
+    "workspace": "hermes_core"
+  }
+]

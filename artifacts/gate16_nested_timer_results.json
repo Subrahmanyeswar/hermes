@@ -1,0 +1,41 @@
+{
+  "total_e2e_audited": 5,
+  "all_nested_coherent": true,
+  "evaluations": [
+    {
+      "mission_id": "mission_a",
+      "wall_clock_s": 0.1537,
+      "component_sum_s": 0.1545,
+      "overhead_s": 0.0,
+      "is_coherent": true
+    },
+    {
+      "mission_id": "mission_b",
+      "wall_clock_s": 0.1874,
+      "component_sum_s": 0.1891,
+      "overhead_s": 0.0,
+      "is_coherent": true
+    },
+    {
+      "mission_id": "mission_c",
+      "wall_clock_s": 0.1414,
+      "component_sum_s": 0.1431,
+      "overhead_s": 0.0,
+      "is_coherent": true
+    },
+    {
+      "mission_id": "mission_d",
+      "wall_clock_s": 0.2175,
+      "component_sum_s": 0.2192,
+      "overhead_s": 0.0,
+      "is_coherent": true
+    },
+    {
+      "mission_id": "mission_e",
+      "wall_clock_s": 0.1247,
+      "component_sum_s": 0.1256,
+      "overhead_s": 0.0,
+      "is_coherent": true
+    }
+  ]
+}

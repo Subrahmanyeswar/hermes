@@ -1,0 +1,350 @@
+[
+  {
+    "scenario_id": "C01",
+    "state_integrity_passed": true,
+    "false_mission_completed": false,
+    "late_result_resurrected": false
+  },
+  {
+    "scenario_id": "C02",
+    "state_integrity_passed": true,
+    "false_mission_completed": false,
+    "late_result_resurrected": false
+  },
+  {
+    "scenario_id": "C03",
+    "state_integrity_passed": true,
+    "false_mission_completed": false,
+    "late_result_resurrected": false
+  },
+  {
+    "scenario_id": "C04",
+    "state_integrity_passed": true,
+    "false_mission_completed": false,
+    "late_result_resurrected": false
+  },
+  {
+    "scenario_id": "C05",
+    "state_integrity_passed": true,
+    "false_mission_completed": false,
+    "late_result_resurrected": false
+  },
+  {
+    "scenario_id": "C06",
+    "state_integrity_passed": true,
+    "false_mission_completed": false,
+    "late_result_resurrected": false
+  },
+  {
+    "scenario_id": "C07",
+    "state_integrity_passed": true,
+    "false_mission_completed": false,
+    "late_result_resurrected": false
+  },
+  {
+    "scenario_id": "C08",
+    "state_integrity_passed": true,
+    "false_mission_completed": false,
+    "late_result_resurrected": false
+  },
+  {
+    "scenario_id": "C09",
+    "state_integrity_passed": true,
+    "false_mission_completed": false,
+    "late_result_resurrected": false
+  },
+  {
+    "scenario_id": "C10",
+    "state_integrity_passed": true,
+    "false_mission_completed": false,
+    "late_result_resurrected": false
+  },
+  {
+    "scenario_id": "C11",
+    "state_integrity_passed": true,
+    "false_mission_completed": false,
+    "late_result_resurrected": false
+  },
+  {
+    "scenario_id": "C12",
+    "state_integrity_passed": true,
+    "false_mission_completed": false,
+    "late_result_resurrected": false
+  },
+  {
+    "scenario_id": "C13",
+    "state_integrity_passed": true,
+    "false_mission_completed": false,
+    "late_result_resurrected": false
+  },
+  {
+    "scenario_id": "C14",
+    "state_integrity_passed": true,
+    "false_mission_completed": false,
+    "late_result_resurrected": false
+  },
+  {
+    "scenario_id": "C15",
+    "state_integrity_passed": true,
+    "false_mission_completed": false,
+    "late_result_resurrected": false
+  },
+  {
+    "scenario_id": "C16",
+    "state_integrity_passed": true,
+    "false_mission_completed": false,
+    "late_result_resurrected": false
+  },
+  {
+    "scenario_id": "C17",
+    "state_integrity_passed": true,
+    "false_mission_completed": false,
+    "late_result_resurrected": false
+  },
+  {
+    "scenario_id": "C18",
+    "state_integrity_passed": true,
+    "false_mission_completed": false,
+    "late_result_resurrected": false
+  },
+  {
+    "scenario_id": "C19",
+    "state_integrity_passed": true,
+    "false_mission_completed": false,
+    "late_result_resurrected": false
+  },
+  {
+    "scenario_id": "C20",
+    "state_integrity_passed": true,
+    "false_mission_completed": false,
+    "late_result_resurrected": false
+  },
+  {
+    "scenario_id": "R01",
+    "state_integrity_passed": true,
+    "false_mission_completed": false,
+    "late_result_resurrected": false
+  },
+  {
+    "scenario_id": "R02",
+    "state_integrity_passed": true,
+    "false_mission_completed": false,
+    "late_result_resurrected": false
+  },
+  {
+    "scenario_id": "R03",
+    "state_integrity_passed": true,
+    "false_mission_completed": false,
+    "late_result_resurrected": false
+  },
+  {
+    "scenario_id": "R04",
+    "state_integrity_passed": true,
+    "false_mission_completed": false,
+    "late_result_resurrected": false
+  },
+  {
+    "scenario_id": "R05",
+    "state_integrity_passed": true,
+    "false_mission_completed": false,
+    "late_result_resurrected": false
+  },
+  {
+    "scenario_id": "R06",
+    "state_integrity_passed": true,
+    "false_mission_completed": false,
+    "late_result_resurrected": false
+  },
+  {
+    "scenario_id": "R07",
+    "state_integrity_passed": true,
+    "false_mission_completed": false,
+    "late_result_resurrected": false
+  },
+  {
+    "scenario_id": "R08",
+    "state_integrity_passed": true,
+    "false_mission_completed": false,
+    "late_result_resurrected": false
+  },
+  {
+    "scenario_id": "R09",
+    "state_integrity_passed": true,
+    "false_mission_completed": false,
+    "late_result_resurrected": false
+  },
+  {
+    "scenario_id": "R10",
+    "state_integrity_passed": true,
+    "false_mission_completed": false,
+    "late_result_resurrected": false
+  },
+  {
+    "scenario_id": "R11",
+    "state_integrity_passed": true,
+    "false_mission_completed": false,
+    "late_result_resurrected": false
+  },
+  {
+    "scenario_id": "R12",
+    "state_integrity_passed": true,
+    "false_mission_completed": false,
+    "late_result_resurrected": false
+  },
+  {
+    "scenario_id": "R13",
+    "state_integrity_passed": true,
+    "false_mission_completed": false,
+    "late_result_resurrected": false
+  },
+  {
+    "scenario_id": "R14",
+    "state_integrity_passed": true,
+    "false_mission_completed": false,
+    "late_result_resurrected": false
+  },
+  {
+    "scenario_id": "R15",
+    "state_integrity_passed": true,
+    "false_mission_completed": false,
+    "late_result_resurrected": false
+  },
+  {
+    "scenario_id": "R16",
+    "state_integrity_passed": true,
+    "false_mission_completed": false,
+    "late_result_resurrected": false
+  },
+  {
+    "scenario_id": "R17",
+    "state_integrity_passed": true,
+    "false_mission_completed": false,
+    "late_result_resurrected": false
+  },
+  {
+    "scenario_id": "R18",
+    "state_integrity_passed": true,
+    "false_mission_completed": false,
+    "late_result_resurrected": false
+  },
+  {
+    "scenario_id": "R19",
+    "state_integrity_passed": true,
+    "false_mission_completed": false,
+    "late_result_resurrected": false
+  },
+  {
+    "scenario_id": "R20",
+    "state_integrity_passed": true,
+    "false_mission_completed": false,
+    "late_result_resurrected": false
+  },
+  {
+    "scenario_id": "CX01",
+    "state_integrity_passed": true,
+    "false_mission_completed": false,
+    "late_result_resurrected": false
+  },
+  {
+    "scenario_id": "CX02",
+    "state_integrity_passed": true,
+    "false_mission_completed": false,
+    "late_result_resurrected": false
+  },
+  {
+    "scenario_id": "CX03",
+    "state_integrity_passed": true,
+    "false_mission_completed": false,
+    "late_result_resurrected": false
+  },
+  {
+    "scenario_id": "CX04",
+    "state_integrity_passed": true,
+    "false_mission_completed": false,
+    "late_result_resurrected": false
+  },
+  {
+    "scenario_id": "CX05",
+    "state_integrity_passed": true,
+    "false_mission_completed": false,
+    "late_result_resurrected": false
+  },
+  {
+    "scenario_id": "CX06",
+    "state_integrity_passed": true,
+    "false_mission_completed": false,
+    "late_result_resurrected": false
+  },
+  {
+    "scenario_id": "CX07",
+    "state_integrity_passed": true,
+    "false_mission_completed": false,
+    "late_result_resurrected": false
+  },
+  {
+    "scenario_id": "CX08",
+    "state_integrity_passed": true,
+    "false_mission_completed": false,
+    "late_result_resurrected": false
+  },
+  {
+    "scenario_id": "L01",
+    "state_integrity_passed": true,
+    "false_mission_completed": false,
+    "late_result_resurrected": false
+  },
+  {
+    "scenario_id": "L02",
+    "state_integrity_passed": true,
+    "false_mission_completed": false,
+    "late_result_resurrected": false
+  },
+  {
+    "scenario_id": "L03",
+    "state_integrity_passed": true,
+    "false_mission_completed": false,
+    "late_result_resurrected": false
+  },
+  {
+    "scenario_id": "L04",
+    "state_integrity_passed": true,
+    "false_mission_completed": false,
+    "late_result_resurrected": false
+  },
+  {
+    "scenario_id": "L05",
+    "state_integrity_passed": true,
+    "false_mission_completed": false,
+    "late_result_resurrected": false
+  },
+  {
+    "scenario_id": "L06",
+    "state_integrity_passed": true,
+    "false_mission_completed": false,
+    "late_result_resurrected": false
+  },
+  {
+    "scenario_id": "Z01",
+    "state_integrity_passed": true,
+    "false_mission_completed": false,
+    "late_result_resurrected": false
+  },
+  {
+    "scenario_id": "Z02",
+    "state_integrity_passed": true,
+    "false_mission_completed": false,
+    "late_result_resurrected": false
+  },
+  {
+    "scenario_id": "Z03",
+    "state_integrity_passed": true,
+    "false_mission_completed": false,
+    "late_result_resurrected": false
+  },
+  {
+    "scenario_id": "Z04",
+    "state_integrity_passed": true,
+    "false_mission_completed": false,
+    "late_result_resurrected": false
+  }
+]

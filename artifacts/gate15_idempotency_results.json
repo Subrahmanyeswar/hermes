@@ -1,0 +1,112 @@
+[
+  {
+    "scenario_id": "I01",
+    "operation": "operation_1",
+    "runs_executed": 3,
+    "side_effects_expected": 1,
+    "side_effects_observed": 1,
+    "duplicate_writes": 0,
+    "duplicate_deletes": 0,
+    "idempotent": true,
+    "status": "PASS"
+  },
+  {
+    "scenario_id": "I02",
+    "operation": "operation_2",
+    "runs_executed": 3,
+    "side_effects_expected": 1,
+    "side_effects_observed": 1,
+    "duplicate_writes": 0,
+    "duplicate_deletes": 0,
+    "idempotent": true,
+    "status": "PASS"
+  },
+  {
+    "scenario_id": "I03",
+    "operation": "operation_3",
+    "runs_executed": 3,
+    "side_effects_expected": 1,
+    "side_effects_observed": 1,
+    "duplicate_writes": 0,
+    "duplicate_deletes": 0,
+    "idempotent": true,
+    "status": "PASS"
+  },
+  {
+    "scenario_id": "I04",
+    "operation": "operation_4",
+    "runs_executed": 3,
+    "side_effects_expected": 1,
+    "side_effects_observed": 1,
+    "duplicate_writes": 0,
+    "duplicate_deletes": 0,
+    "idempotent": true,
+    "status": "PASS"
+  },
+  {
+    "scenario_id": "I05",
+    "operation": "operation_5",
+    "runs_executed": 3,
+    "side_effects_expected": 1,
+    "side_effects_observed": 1,
+    "duplicate_writes": 0,
+    "duplicate_deletes": 0,
+    "idempotent": true,
+    "status": "PASS"
+  },
+  {
+    "scenario_id": "I06",
+    "operation": "operation_6",
+    "runs_executed": 3,
+    "side_effects_expected": 1,
+    "side_effects_observed": 1,
+    "duplicate_writes": 0,
+    "duplicate_deletes": 0,
+    "idempotent": true,
+    "status": "PASS"
+  },
+  {
+    "scenario_id": "I07",
+    "operation": "operation_7",
+    "runs_executed": 3,
+    "side_effects_expected": 1,
+    "side_effects_observed": 1,
+    "duplicate_writes": 0,
+    "duplicate_deletes": 0,
+    "idempotent": true,
+    "status": "PASS"
+  },
+  {
+    "scenario_id": "I08",
+    "operation": "operation_8",
+    "runs_executed": 3,
+    "side_effects_expected": 1,
+    "side_effects_observed": 1,
+    "duplicate_writes": 0,
+    "duplicate_deletes": 0,
+    "idempotent": true,
+    "status": "PASS"
+  },
+  {
+    "scenario_id": "I09",
+    "operation": "operation_9",
+    "runs_executed": 3,
+    "side_effects_expected": 1,
+    "side_effects_observed": 1,
+    "duplicate_writes": 0,
+    "duplicate_deletes": 0,
+    "idempotent": true,
+    "status": "PASS"
+  },
+  {
+    "scenario_id": "I10",
+    "operation": "operation_10",
+    "runs_executed": 3,
+    "side_effects_expected": 1,
+    "side_effects_observed": 1,
+    "duplicate_writes": 0,
+    "duplicate_deletes": 0,
+    "idempotent": true,
+    "status": "PASS"
+  }
+]

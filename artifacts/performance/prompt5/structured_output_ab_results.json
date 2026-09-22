@@ -1,0 +1,199 @@
+{
+  "evaluation_name": "structured_output_vs_free_form_ab",
+  "timestamp": "2026-09-17T11:21:57Z",
+  "description": "Head-to-head empirical evaluation of native structured output vs hardened free-form parser across 8 representative tool calling scenarios",
+  "total_cases": 8,
+  "summary_metrics": {
+    "free_form_correct_rate": "8/8 (100%)",
+    "structured_output_correct_rate": "8/8 (100%)",
+    "structured_fallback_rate": "2/8",
+    "avg_free_form_parser_latency_ms": 0.218,
+    "avg_structured_path_latency_ms": 0.09,
+    "latency_delta_ms": -0.128,
+    "security_bypass_attempts_detected": 0,
+    "security_containment_preserved": true
+  },
+  "findings": {
+    "determinism_benefit": "Structured output enforces JSON syntax at decode time; when paired with hardened ResponseParser, both paths achieve 100% correctness on valid and invalid payloads.",
+    "speedup_finding": "Neither path introduces meaningful latency overhead (both < 0.5ms). The benefit of structured output is parser determinism, grammar conformance, and elimination of conversational plain-text drift, not raw execution speed.",
+    "safe_fallback_finding": "Structured output successfully delegates malformed or edge-case payloads to ResponseParser without infinite loops or unvalidated tool execution."
+  },
+  "detailed_cases": [
+    {
+      "case_id": "case_1_standard_write_file",
+      "description": "Standard single-file write operation",
+      "expected_success": true,
+      "expected_tool": "write_file",
+      "free_form_path": {
+        "success": true,
+        "tool_extracted": "write_file",
+        "method_used": "direct_parse",
+        "failure_reason": null,
+        "latency_ms": 0.149
+      },
+      "structured_output_path": {
+        "success": true,
+        "tool_extracted": "write_file",
+        "fallback_triggered": false,
+        "failure_reason": null,
+        "latency_ms": 0.037,
+        "security_passed": true,
+        "permission_passed": true
+      }
+    },
+    {
+      "case_id": "case_2_write_files_batch",
+      "description": "Safe batch file write operation (3 files)",
+      "expected_success": true,
+      "expected_tool": "write_files_batch",
+      "free_form_path": {
+        "success": true,
+        "tool_extracted": "write_files_batch",
+        "method_used": "direct_parse",
+        "failure_reason": null,
+        "latency_ms": 0.05
+      },
+      "structured_output_path": {
+        "success": true,
+        "tool_extracted": "write_files_batch",
+        "fallback_triggered": false,
+        "failure_reason": null,
+        "latency_ms": 0.037,
+        "security_passed": true,
+        "permission_passed": true
+      }
+    },
+    {
+      "case_id": "case_3_malformed_json_response",
+      "description": "Malformed syntax with unclosed quotes and missing braces",
+      "expected_success": false,
+      "expected_tool": null,
+      "free_form_path": {
+        "success": false,
+        "tool_extracted": null,
+        "method_used": null,
+        "failure_reason": "json_malformed_unparseable",
+        "latency_ms": 1.097
+      },
+      "structured_output_path": {
+        "success": false,
+        "tool_extracted": null,
+        "fallback_triggered": true,
+        "failure_reason": "json_malformed_unparseable",
+        "latency_ms": 0.118,
+        "security_passed": true,
+        "permission_passed": true
+      }
+    },
+    {
+      "case_id": "case_4_unknown_tool_hallucination",
+      "description": "Valid JSON but tool is an unknown/hallucinated action",
+      "expected_success": false,
+      "expected_tool": null,
+      "free_form_path": {
+        "success": false,
+        "tool_extracted": null,
+        "method_used": null,
+        "failure_reason": "unknown_tool_rejected:teleport_to_mars",
+        "latency_ms": 0.217
+      },
+      "structured_output_path": {
+        "success": false,
+        "tool_extracted": null,
+        "fallback_triggered": true,
+        "failure_reason": "unknown_tool_rejected:teleport_to_mars",
+        "latency_ms": 0.327,
+        "security_passed": true,
+        "permission_passed": true
+      }
+    },
+    {
+      "case_id": "case_5_json_like_file_content",
+      "description": "JSON string inside file content simulating a tool payload (content-as-data)",
+      "expected_success": true,
+      "expected_tool": "write_file",
+      "free_form_path": {
+        "success": true,
+        "tool_extracted": "write_file",
+        "method_used": "direct_parse",
+        "failure_reason": null,
+        "latency_ms": 0.047
+      },
+      "structured_output_path": {
+        "success": true,
+        "tool_extracted": "write_file",
+        "fallback_triggered": false,
+        "failure_reason": null,
+        "latency_ms": 0.038,
+        "security_passed": true,
+        "permission_passed": true
+      }
+    },
+    {
+      "case_id": "case_6_nested_braces_in_js",
+      "description": "Complex JavaScript code with deeply nested curly braces",
+      "expected_success": true,
+      "expected_tool": "write_file",
+      "free_form_path": {
+        "success": true,
+        "tool_extracted": "write_file",
+        "method_used": "direct_parse",
+        "failure_reason": null,
+        "latency_ms": 0.049
+      },
+      "structured_output_path": {
+        "success": true,
+        "tool_extracted": "write_file",
+        "fallback_triggered": false,
+        "failure_reason": null,
+        "latency_ms": 0.046,
+        "security_passed": true,
+        "permission_passed": true
+      }
+    },
+    {
+      "case_id": "case_7_multiline_content",
+      "description": "Code content with multiple newlines and indented blocks",
+      "expected_success": true,
+      "expected_tool": "write_file",
+      "free_form_path": {
+        "success": true,
+        "tool_extracted": "write_file",
+        "method_used": "direct_parse",
+        "failure_reason": null,
+        "latency_ms": 0.036
+      },
+      "structured_output_path": {
+        "success": true,
+        "tool_extracted": "write_file",
+        "fallback_triggered": false,
+        "failure_reason": null,
+        "latency_ms": 0.045,
+        "security_passed": true,
+        "permission_passed": true
+      }
+    },
+    {
+      "case_id": "case_8_escaped_characters",
+      "description": "Escaped double quotes, backslashes, and special characters in content",
+      "expected_success": true,
+      "expected_tool": "write_file",
+      "free_form_path": {
+        "success": true,
+        "tool_extracted": "write_file",
+        "method_used": "direct_parse",
+        "failure_reason": null,
+        "latency_ms": 0.102
+      },
+      "structured_output_path": {
+        "success": true,
+        "tool_extracted": "write_file",
+        "fallback_triggered": false,
+        "failure_reason": null,
+        "latency_ms": 0.073,
+        "security_passed": true,
+        "permission_passed": true
+      }
+    }
+  ]
+}

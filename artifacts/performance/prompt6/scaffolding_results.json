@@ -1,0 +1,42 @@
+{
+  "experiment": "experiment_a_scaffolding_vs_model",
+  "timestamp": "2026-09-18T11:53:30Z",
+  "workload": "3-file standard website boilerplate (index.html, styles.css, app.js)",
+  "model_baseline": {
+    "approach": "model_generated_boilerplate",
+    "model_calls": 1,
+    "input_tokens": 150,
+    "output_tokens": 450,
+    "total_tokens": 600,
+    "wall_latency_sec": 43.764,
+    "file_count": 3,
+    "gpu_peak_vram_mb": 0.0
+  },
+  "deterministic_scaffold": {
+    "approach": "deterministic_scaffolding",
+    "template_id": "web-basic-v1",
+    "template_version": 1,
+    "model_calls": 0,
+    "input_tokens": 0,
+    "output_tokens": 0,
+    "total_tokens": 0,
+    "wall_latency_sec": 8e-05,
+    "wall_latency_ms": 0.08,
+    "file_count": 3,
+    "overall_hash": "8b7a3ddc04866f423943f034251bf10d3562f8f5c5a7dfde450a70fdd47463a7",
+    "file_hashes": {
+      "app.js": "05e7ce1399b638ecd3c718cb0a3f9d29fed7ac1e177ee9f9f9876a0110c19ca9",
+      "index.html": "242534e04299294a0008b2457ac74cdedd7eed6dc190e7dc98ae6e37dceb7257",
+      "styles.css": "937292b168c184f82c3070d2b0250910699b16a7d3ec4ad7fbc722bb43993e43"
+    },
+    "gpu_peak_vram_mb": 0.0
+  },
+  "comparison": {
+    "model_calls_saved": 1,
+    "token_reduction_pct": -100.0,
+    "baseline_latency_sec": 43.764,
+    "scaffold_latency_ms": 0.08,
+    "statement": "The deterministic scaffold rendered the tested boilerplate structure in 0.08 ms without invoking the LLM, compared with 43.764 s for the model-generated baseline.",
+    "scope": "These measurements characterize the tested deterministic boilerplate fixture and are not a general software-generation speedup."
+  }
+}

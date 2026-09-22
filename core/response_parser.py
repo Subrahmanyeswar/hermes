@@ -11,10 +11,22 @@
 # Never raises. Always returns either a ParseSuccess or ParseFailure.
 
 import json
+import os
 import re
 from dataclasses import dataclass
-from typing import Optional, Union
+from typing import Optional, Union, Any, Set
 from loguru import logger
+
+
+def _get_known_tools() -> Set[str]:
+    """Return the set of all recognized tool names, including batch tools and known aliases."""
+    try:
+        from tools.registry import list_tools
+        registered = set(list_tools())
+    except Exception:
+        registered = set()
+    registered.update({"write_files_batch", "list_files", "create_directory"})
+    return registered
 
 
 @dataclass
@@ -60,56 +72,97 @@ class ParseFailure:
 class ResponseParser:
     """Parse a Tier 1 response into a structured result. Never raises. Tries 6 strategies in order."""
 
-    def parse(self, response: str) -> Union[ParseSuccess, ParseFailure]:
-        if not response or not response.strip():
+    def parse(self, response: Any) -> Union[ParseSuccess, ParseFailure]:
+        raw_str = response.text if hasattr(response, "text") else str(response or "")
+        if not raw_str or not raw_str.strip():
             return ParseFailure(
-                raw_response=response,
+                raw_response=raw_str,
                 failure_reason="empty_response",
                 methods_tried=[],
                 response_length=0
             )
+        response = raw_str
+
+        # Extract <think> reasoning block from DeepSeek-R1 / reasoning models
+        think_reasoning = ""
+        cleaned_response = response.strip()
+        think_match = re.search(r'<think>(.*?)</think>', cleaned_response, re.DOTALL)
+        if think_match:
+            think_reasoning = think_match.group(1).strip()
+            stripped_think = re.sub(r'<think>.*?</think>', '', cleaned_response, flags=re.DOTALL).strip()
+            if stripped_think:
+                cleaned_response = stripped_think
+            else:
+                cleaned_response = think_reasoning
+        elif "<think>" in cleaned_response and "</think>" not in cleaned_response:
+            think_reasoning = cleaned_response.replace("<think>", "").strip()
+            cleaned_response = think_reasoning
 
         methods_tried = []
 
         # ── Strategy 1: Direct JSON parse ────────────────────────────────────
         methods_tried.append("direct_parse")
-        result = self._try_direct_parse(response)
+        result = self._try_direct_parse(cleaned_response)
         if result:
+            if think_reasoning and not result.reasoning:
+                result.reasoning = think_reasoning
             return result
 
         # ── Strategy 2: Strip markdown fences ────────────────────────────────
         methods_tried.append("strip_markdown_fences")
-        result = self._try_strip_fences(response)
+        result = self._try_strip_fences(cleaned_response)
         if result:
+            if think_reasoning and not result.reasoning:
+                result.reasoning = think_reasoning
             return result
 
         # ── Strategy 3: Extract first complete JSON object ───────────────────
         methods_tried.append("extract_first_json_object")
-        result = self._try_extract_json_object(response)
+        result = self._try_extract_json_object(cleaned_response)
         if result:
+            if think_reasoning and not result.reasoning:
+                result.reasoning = think_reasoning
             return result
 
         # ── Strategy 4: Fix single quotes → double quotes ────────────────────
         methods_tried.append("fix_single_quotes")
-        result = self._try_fix_single_quotes(response)
+        result = self._try_fix_single_quotes(cleaned_response)
         if result:
+            if think_reasoning and not result.reasoning:
+                result.reasoning = think_reasoning
             return result
 
         # ── Strategy 5: Reconstruct from fragments ───────────────────────────
         methods_tried.append("reconstruct_from_fragments")
-        result = self._try_reconstruct(response)
+        result = self._try_reconstruct(cleaned_response)
         if result:
+            if think_reasoning and not result.reasoning:
+                result.reasoning = think_reasoning
             return result
 
-        # ── Strategy 6: Emergency minimal extraction ─────────────────────────
-        methods_tried.append("emergency_extraction")
-        result = self._try_emergency_extraction(response)
+        # ── Strategy 6: Extract markdown code block ──────────────────────────
+        methods_tried.append("extract_code_block")
+        result = self._try_extract_code_block(cleaned_response)
+        if not result and think_reasoning and think_reasoning != cleaned_response:
+            result = self._try_extract_code_block(think_reasoning)
         if result:
+            if think_reasoning and not result.reasoning:
+                result.reasoning = think_reasoning
+            return result
+
+        # ── Strategy 7: Emergency minimal extraction ─────────────────────────
+        methods_tried.append("emergency_extraction")
+        result = self._try_emergency_extraction(cleaned_response)
+        if not result and think_reasoning and think_reasoning != cleaned_response:
+            result = self._try_emergency_extraction(think_reasoning)
+        if result:
+            if think_reasoning and not result.reasoning:
+                result.reasoning = think_reasoning
             return result
 
         # ── All strategies failed ─────────────────────────────────────────────
-        reason = self._diagnose_failure(response)
-        logger.warning(f"ResponseParser: all 6 strategies failed | reason={reason} | response={response[:100]!r}")
+        reason = self._diagnose_failure(cleaned_response)
+        logger.warning(f"ResponseParser: all strategies failed | reason={reason} | response={response[:100]!r}")
         return ParseFailure(
             raw_response=response,
             failure_reason=reason,
@@ -123,14 +176,73 @@ class ResponseParser:
         tool = data.get("tool") or data.get("action") or data.get("tool_name")
         if not tool or not isinstance(tool, str):
             return None
+
+        tool_clean = tool.strip()
+
+        # Hardening: Validate tool name against known registered tools & aliases
+        known_tools = _get_known_tools()
+        if tool_clean not in known_tools:
+            logger.warning(f"ResponseParser: rejected unknown tool '{tool_clean}' via {method}")
+            return None
+
         parameters = data.get("parameters") or data.get("params") or data.get("args") or {}
         if not isinstance(parameters, dict):
             parameters = {}
+
+        # Tools requiring parameters must not have empty parameters
+        if tool_clean in ("write_file", "read_file", "bash_exec", "create_directory", "write_files_batch") and not parameters:
+            logger.warning(f"ResponseParser: {tool_clean} requires parameters but none found via {method}")
+            return None
+
+        # Reject prompt-demo placeholders in write_file
+        if tool_clean == "write_file":
+            content_val = parameters.get("content") or parameters.get("code") or parameters.get("body")
+            if isinstance(content_val, str) and content_val.strip() in (
+                "full content here", "the code string", "# full content here", "# the code string",
+                "// full content here", "/* full content here */"
+            ):
+                logger.warning(f"ResponseParser: rejected prompt-demo placeholder in write_file: {content_val!r}")
+                return None
+
+        # Validation for write_files_batch
+        if tool_clean == "write_files_batch":
+            files = parameters.get("files")
+            if not isinstance(files, list) or len(files) == 0:
+                logger.warning(f"ResponseParser: write_files_batch requires non-empty 'files' list via {method}")
+                return None
+            if len(files) > 3:
+                logger.warning(f"ResponseParser: write_files_batch exceeded maximum 3 files ({len(files)} files)")
+                return None
+            seen_paths = set()
+            for entry in files:
+                if not isinstance(entry, dict):
+                    logger.warning(f"ResponseParser: write_files_batch invalid entry type: {type(entry)}")
+                    return None
+                p = entry.get("path")
+                c = entry.get("content")
+                if not isinstance(p, str) or not p.strip():
+                    logger.warning(f"ResponseParser: write_files_batch entry missing valid 'path'")
+                    return None
+                if not isinstance(c, str):
+                    logger.warning(f"ResponseParser: write_files_batch entry missing valid 'content' string")
+                    return None
+                if c.strip() in (
+                    "full content here", "the code string", "# full content here", "# the code string",
+                    "// full content here", "/* full content here */"
+                ):
+                    logger.warning(f"ResponseParser: write_files_batch rejected prompt-demo placeholder in {p}")
+                    return None
+                norm_p = os.path.normpath(p.strip()).replace("\\", "/")
+                if norm_p in seen_paths:
+                    logger.warning(f"ResponseParser: write_files_batch duplicate path '{norm_p}'")
+                    return None
+                seen_paths.add(norm_p)
+
         reasoning = str(data.get("reasoning") or data.get("thought") or data.get("reason") or "")
         explanation = str(data.get("explanation") or data.get("message") or data.get("output") or "")
-        logger.debug(f"ResponseParser: success via {method} | tool={tool}")
+        logger.debug(f"ResponseParser: success via {method} | tool={tool_clean}")
         return ParseSuccess(
-            tool=tool,
+            tool=tool_clean,
             parameters=parameters,
             reasoning=reasoning,
             explanation=explanation,
@@ -160,11 +272,26 @@ class ResponseParser:
             return None
 
     def _try_extract_json_object(self, response: str) -> Optional[ParseSuccess]:
-        # Find the outermost complete JSON object
+        # Find outermost complete JSON object, tracking string literals to ignore braces in content
         depth = 0
         start = -1
+        in_string = False
+        escape = False
+
         for i, char in enumerate(response):
-            if char == '{':
+            if in_string:
+                if escape:
+                    escape = False
+                elif char == '\\':
+                    escape = True
+                elif char == '"':
+                    in_string = False
+                continue
+
+            if char == '"':
+                in_string = True
+                continue
+            elif char == '{':
                 if depth == 0:
                     start = i
                 depth += 1
@@ -174,9 +301,12 @@ class ResponseParser:
                     candidate = response[start:i+1]
                     try:
                         data = json.loads(candidate)
-                        return self._validate_and_build(data, "extract_first_json_object", response)
+                        res = self._validate_and_build(data, "extract_first_json_object", response)
+                        if res:
+                            return res
                     except (json.JSONDecodeError, ValueError):
-                        start = -1  # reset and keep looking
+                        pass
+                    start = -1  # Reset start and keep scanning for other candidates
         return None
 
     def _try_fix_single_quotes(self, response: str) -> Optional[ParseSuccess]:
@@ -250,15 +380,48 @@ class ResponseParser:
             explanation_match = re.search(r"'explanation'\s*:\s*'([^']*)'", response)
         explanation = explanation_match.group(1) if explanation_match else "Action proceeding."
 
-        logger.debug(f"ResponseParser: reconstructed | tool={tool_name} | params={params}")
-        return ParseSuccess(
-            tool=tool_name,
-            parameters=params,
-            reasoning=reasoning,
-            explanation=explanation,
-            method_used="reconstruct_from_fragments",
-            raw_response=response
-        )
+        data = {
+            "tool": tool_name,
+            "parameters": params,
+            "reasoning": reasoning,
+            "explanation": explanation,
+        }
+        return self._validate_and_build(data, "reconstruct_from_fragments", response)
+
+    def _try_extract_code_block(self, response: str) -> Optional[ParseSuccess]:
+        """Extract markdown code block and target path if present."""
+        code_match = re.search(r'```(?:python|py)?\s*\n(.*?)\n```', response, re.DOTALL)
+        if not code_match:
+            return None
+        code_content = code_match.group(1).strip()
+        if not code_content or len(code_content) < 10:
+            return None
+
+        if code_content in ("full content here", "the code string", "# full content here", "# the code string"):
+            logger.warning("ResponseParser: extract_code_block rejected demo placeholder")
+            return None
+
+        # Look for target file path in response
+        path = ""
+        path_match = re.search(r'["\']?path["\']?\s*:\s*["\']([^"\']+\.[a-zA-Z0-9_]+)["\']', response)
+        if path_match:
+            path = path_match.group(1)
+        else:
+            file_match = re.search(r'(?:file|path|module|in|called|named|create)\s+[`"\']?([a-zA-Z0-9_\-\.\/]+\.[a-zA-Z0-9_]+)[`"\']?', response, re.IGNORECASE)
+            if file_match:
+                path = file_match.group(1)
+
+        if path and not path.startswith("http"):
+            logger.info(f"ResponseParser: extracted code block for path '{path}'")
+            return ParseSuccess(
+                tool="write_file",
+                parameters={"path": path, "content": code_content},
+                reasoning="Extracted code block from reasoning/response.",
+                explanation=f"Creating file {path} with extracted implementation.",
+                method_used="extract_code_block",
+                raw_response=response
+            )
+        return None
 
     def _is_conversational_prose(self, response: str) -> bool:
         r = response.strip()
@@ -275,6 +438,10 @@ class ResponseParser:
 
         response_lower = response.lower()
         for tool_name in available_tools:
+            # Tools requiring parameters must NEVER be returned with empty parameters
+            if tool_name in ("write_file", "read_file", "bash_exec", "create_directory", "write_files_batch"):
+                continue
+
             # Use word boundaries to ensure we match the exact tool name
             if re.search(r'\b' + re.escape(tool_name) + r'\b', response_lower):
                 logger.warning(f"ResponseParser: emergency extraction — found tool name '{tool_name}' in plain text response")
@@ -292,6 +459,21 @@ class ResponseParser:
         r = response.strip()
         if not r:
             return "empty_response"
+
+        # Check if valid JSON was parsed but contained an unknown/rejected tool
+        try:
+            cleaned = re.sub(r'^```(?:json)?\s*\n?', '', r)
+            cleaned = re.sub(r'\n?```\s*$', '', cleaned).strip()
+            data = json.loads(cleaned)
+            if isinstance(data, dict):
+                tool = data.get("tool") or data.get("action") or data.get("tool_name")
+                if tool and isinstance(tool, str):
+                    tool_clean = tool.strip()
+                    if tool_clean not in _get_known_tools():
+                        return f"unknown_tool_rejected:{tool_clean}"
+        except Exception:
+            pass
+
         if r.startswith(("I ", "Sure", "Of course", "I'll", "I will", "Let me", "To ")):
             return "model_responded_with_plain_text_no_json"
         if r.count("{") == 0:

@@ -1,0 +1,7 @@
+{
+  "level_0_structural_latency_ms": 0.2034,
+  "level_1_syntax_latency_ms": 1.736,
+  "short_circuit_latency_ms": 1.2786,
+  "avg_diagnosis_latency_ms": 0.0322,
+  "repair_reverification_success": true
+}

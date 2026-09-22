@@ -1,0 +1,34 @@
+{
+  "mission_id": "fa4feebc",
+  "execution_mode": "performance_baseline",
+  "mission": {
+    "start": "2026-09-17 12:19:33",
+    "end": "2026-09-17 12:19:33",
+    "duration_ms": 22.8,
+    "accounted_time_ms": 0,
+    "unaccounted_time_ms": 22.8
+  },
+  "stages": [],
+  "model_calls": [],
+  "tool_calls": [],
+  "verification_calls": [],
+  "repair_attempts": [
+    {
+      "repair_id": "c23af336",
+      "request_id": "fa4feebc",
+      "mission_id": "m_3",
+      "task_id": "t_3",
+      "attempt_number": 1,
+      "trigger": "FileNotFoundError",
+      "affected_files": [
+        "app.py"
+      ],
+      "start_time_monotonic": 46326.4182712,
+      "end_time_monotonic": 46326.440931,
+      "duration_ms": 22.659800000838004,
+      "model": "deepseek-r1:8b",
+      "success": true
+    }
+  ],
+  "model_switches": []
+}

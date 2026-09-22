@@ -1,0 +1,200 @@
+[
+  {
+    "metric": "full_regression_tests_passed",
+    "value": 945,
+    "unit": "count",
+    "source": "artifacts/gate22_regression_results.json",
+    "run_id": "GATE_22_REGRESSION",
+    "validity": "VALID",
+    "notes": "Full pytest test suite across all subsystems; 945 collected, 945 passed, 0 failed."
+  },
+  {
+    "metric": "full_regression_success_rate",
+    "value": 100.0,
+    "unit": "percent",
+    "source": "artifacts/gate22_regression_results.json",
+    "run_id": "GATE_22_REGRESSION",
+    "validity": "VALID",
+    "notes": "945/945 passed in 3655.17s."
+  },
+  {
+    "metric": "core_unit_tests_passed",
+    "value": 96,
+    "unit": "count",
+    "source": "artifacts/FINAL_REPAIR_RESULTS.json",
+    "run_id": "FINAL_REPAIR_PHASE_X",
+    "validity": "VALID",
+    "notes": "Surgical root-cause regression unit tests; 96/96 passed in 13.58s."
+  },
+  {
+    "metric": "controlled_e2e_missions_passed",
+    "value": 4,
+    "unit": "count",
+    "source": "artifacts/REAL_E2E_REPAIR_REPORT.md",
+    "run_id": "REAL_E2E_REPAIR",
+    "validity": "VALID",
+    "notes": "4/4 live local model missions with physical disk mutation, tool execution, and verification."
+  },
+  {
+    "metric": "controlled_e2e_success_rate",
+    "value": 100.0,
+    "unit": "percent",
+    "source": "artifacts/REAL_E2E_REPAIR_REPORT.md",
+    "run_id": "REAL_E2E_REPAIR",
+    "validity": "VALID",
+    "notes": "T1 E2E (37.09s), T2 E2E (53.12s), Seeded Repair (106.06s), Benchmark Synthetic (157.38s)."
+  },
+  {
+    "metric": "tool_reliability_tests_passed",
+    "value": 90,
+    "unit": "count",
+    "source": "artifacts/gate_15_9_tool_reliability_results.json",
+    "run_id": "GATE_15_9_TOOL_STRESS",
+    "validity": "VALID",
+    "notes": "90/90 adversarial and malformed tool calls handled safely across 13 failure categories."
+  },
+  {
+    "metric": "tool_reliability_success_rate",
+    "value": 100.0,
+    "unit": "percent",
+    "source": "artifacts/gate_15_9_tool_reliability_results.json",
+    "run_id": "GATE_15_9_TOOL_STRESS",
+    "validity": "VALID",
+    "notes": "0 uncaught exceptions, 0 unintended mutations, 0 false completions."
+  },
+  {
+    "metric": "security_attacks_blocked",
+    "value": 24,
+    "unit": "count",
+    "source": "artifacts/gate_15_7_security_results.json",
+    "run_id": "GATE_15_7_SECURITY",
+    "validity": "VALID",
+    "notes": "24/24 directory traversal, symlink escape, and boundary injection attacks blocked."
+  },
+  {
+    "metric": "security_defense_rate",
+    "value": 100.0,
+    "unit": "percent",
+    "source": "artifacts/gate_15_7_security_results.json",
+    "run_id": "GATE_15_7_SECURITY",
+    "validity": "VALID",
+    "notes": "Zero boundary violations, fail-closed isolation verified."
+  },
+  {
+    "metric": "cancellation_scenarios_passed",
+    "value": 58,
+    "unit": "count",
+    "source": "artifacts/gate13_cancellation_results.json",
+    "run_id": "GATE_13_CANCELLATION",
+    "validity": "VALID",
+    "notes": "58/58 cancellation lifecycle boundaries verified."
+  },
+  {
+    "metric": "zombie_processes_observed",
+    "value": 0,
+    "unit": "count",
+    "source": "artifacts/gate13_cancellation_results.json",
+    "run_id": "GATE_13_CANCELLATION",
+    "validity": "VALID",
+    "notes": "Zero zombie processes, threads, or post-cancel tool executions."
+  },
+  {
+    "metric": "sustained_load_missions_passed",
+    "value": 30,
+    "unit": "count",
+    "source": "artifacts/thermal_test_summary.json",
+    "run_id": "GATE_21_THERMAL_SUSTAINED",
+    "validity": "VALID",
+    "notes": "30/30 consecutive live missions completed without interruption or failure."
+  },
+  {
+    "metric": "sustained_load_p50_latency_s",
+    "value": 12.6,
+    "unit": "seconds",
+    "source": "artifacts/thermal_test_summary.json",
+    "run_id": "GATE_21_THERMAL_SUSTAINED",
+    "validity": "VALID",
+    "notes": "Median end-to-end mission latency across 30 sustained-load executions."
+  },
+  {
+    "metric": "sustained_load_p75_latency_s",
+    "value": 12.8,
+    "unit": "seconds",
+    "source": "artifacts/thermal_test_summary.json",
+    "run_id": "GATE_21_THERMAL_SUSTAINED",
+    "validity": "VALID",
+    "notes": "75th percentile mission latency."
+  },
+  {
+    "metric": "sustained_load_p90_latency_s",
+    "value": 13.2,
+    "unit": "seconds",
+    "source": "artifacts/thermal_test_summary.json",
+    "run_id": "GATE_21_THERMAL_SUSTAINED",
+    "validity": "VALID",
+    "notes": "90th percentile mission latency."
+  },
+  {
+    "metric": "sustained_load_p95_latency_s",
+    "value": 13.2,
+    "unit": "seconds",
+    "source": "artifacts/thermal_test_summary.json",
+    "run_id": "GATE_21_THERMAL_SUSTAINED",
+    "validity": "VALID",
+    "notes": "95th percentile mission latency."
+  },
+  {
+    "metric": "sustained_load_p99_latency_s",
+    "value": 13.2,
+    "unit": "seconds",
+    "source": "artifacts/thermal_test_summary.json",
+    "run_id": "GATE_21_THERMAL_SUSTAINED",
+    "validity": "VALID",
+    "notes": "99th percentile mission latency."
+  },
+  {
+    "metric": "tail_amplification_ratio",
+    "value": 1.05,
+    "unit": "ratio",
+    "source": "artifacts/thermal_test_summary.json",
+    "run_id": "GATE_21_THERMAL_SUSTAINED",
+    "validity": "VALID",
+    "notes": "P95 / P50 ratio = 13.20 / 12.60 = 1.05 (near-zero tail amplification under load)."
+  },
+  {
+    "metric": "peak_vram_mb",
+    "value": 5596,
+    "unit": "megabytes",
+    "source": "artifacts/gate_15_6_vram_results.json",
+    "run_id": "GATE_15_6_VRAM",
+    "validity": "VALID",
+    "notes": "Peak physical VRAM allocated on 6144 MB NVIDIA RTX 3050 Laptop GPU (548 MB headroom, 8.92%)."
+  },
+  {
+    "metric": "peak_gpu_temperature_c",
+    "value": 51.0,
+    "unit": "celsius",
+    "source": "artifacts/thermal_test_summary.json",
+    "run_id": "GATE_21_THERMAL_SUSTAINED",
+    "validity": "VALID",
+    "notes": "Peak temperature reached over 30 consecutive sustained missions (baseline 44\u00b0C, delta +7\u00b0C)."
+  },
+  {
+    "metric": "warm_residency_speedup",
+    "value": 4.83,
+    "unit": "multiplier",
+    "source": "artifacts/gate_15_6_vram_results.json",
+    "run_id": "GATE_15_6_VRAM",
+    "validity": "VALID",
+    "notes": "Cold start 10,794.16ms vs Warm resident 2,235.67ms for DeepSeek-R1 8B (4.83x speedup)."
+  },
+  {
+    "metric": "incremental_indexing_speedup",
+    "value": 9.88,
+    "unit": "multiplier",
+    "source": "artifacts/gate10_workspace_correctness_results.json",
+    "run_id": "GATE_10_WORKSPACE",
+    "validity": "VALID",
+    "notes": "Initial rescan 5,797.56ms vs Incremental rescan 586.81ms on 1022 repository files (9.88x speedup)."
+  }
+]

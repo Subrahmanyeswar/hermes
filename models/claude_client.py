@@ -238,6 +238,36 @@ class ClaudeClient:
                 f"tokens={input_tokens}+{output_tokens} | latency={latency:.2f}s"
             )
 
+            try:
+                from core.telemetry import telemetry, ModelCallTelemetry, ContextBreakdown
+                ctx = ContextBreakdown(
+                    system_prompt_chars=len(system_prompt),
+                    user_prompt_chars=len(user_prompt),
+                    total_input_chars=len(system_prompt) + len(user_prompt),
+                    exact_input_tokens=input_tokens,
+                )
+                mc = ModelCallTelemetry(
+                    model=TIER3_MODEL,
+                    provider="anthropic",
+                    stage="Tier 3",
+                    start_time_monotonic=start_time,
+                    end_time_monotonic=start_time + latency,
+                    total_latency_ms=latency * 1000.0,
+                    prompt_tokens=input_tokens,
+                    output_tokens=output_tokens,
+                    total_tokens=input_tokens + output_tokens,
+                    context=ctx,
+                    cost_usd=cost,
+                    success=True,
+                )
+                with telemetry._global_lock:
+                    for req in telemetry._active_requests.values():
+                        mc.request_id = req.request_id
+                        req.model_calls.append(mc)
+                        break
+            except Exception:
+                pass
+
             return Tier3Response(
                 content=content,
                 input_tokens=input_tokens,

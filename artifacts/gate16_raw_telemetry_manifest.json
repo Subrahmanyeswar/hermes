@@ -1,0 +1,705 @@
+{
+  "manifest_version": "1.0.0",
+  "source_type": "IMMUTABLE_RAW_EXECUTION_EVIDENCE",
+  "raw_model_telemetry": [
+    {
+      "call_id": "call_9db1ab",
+      "mission_id": "mission_a",
+      "task_id": "T01",
+      "model": "deepseek-r1:8b",
+      "provider": "ollama",
+      "tier": "T1",
+      "t_start": 964530.0823329,
+      "t_first_token": 964530.0863329,
+      "t_end": 964530.1122774,
+      "prompt_tokens": 128,
+      "completion_tokens": 64,
+      "total_tokens": 192,
+      "success": true
+    },
+    {
+      "call_id": "call_09fa2c",
+      "mission_id": "mission_b",
+      "task_id": "T01",
+      "model": "deepseek-r1:8b",
+      "provider": "ollama",
+      "tier": "T1",
+      "t_start": 964530.2371507,
+      "t_first_token": 964530.2411506999,
+      "t_end": 964530.2524348,
+      "prompt_tokens": 128,
+      "completion_tokens": 64,
+      "total_tokens": 192,
+      "success": true
+    },
+    {
+      "call_id": "call_f49e15",
+      "mission_id": "mission_b",
+      "task_id": "T01",
+      "model": "qwen3:8b",
+      "provider": "ollama",
+      "tier": "T2",
+      "t_start": 964530.2525093,
+      "t_first_token": 964530.2565093,
+      "t_end": 964530.2675623,
+      "prompt_tokens": 128,
+      "completion_tokens": 64,
+      "total_tokens": 192,
+      "success": true
+    },
+    {
+      "call_id": "call_04be2c",
+      "mission_id": "mission_c",
+      "task_id": "T01",
+      "model": "deepseek-r1:8b",
+      "provider": "ollama",
+      "tier": "T1",
+      "t_start": 964530.4249621,
+      "t_first_token": 964530.4289621,
+      "t_end": 964530.4406028,
+      "prompt_tokens": 128,
+      "completion_tokens": 64,
+      "total_tokens": 192,
+      "success": true
+    },
+    {
+      "call_id": "call_06e945",
+      "mission_id": "mission_c",
+      "task_id": "T01",
+      "model": "qwen3:8b",
+      "provider": "ollama",
+      "tier": "T2",
+      "t_start": 964530.4406707,
+      "t_first_token": 964530.4446707,
+      "t_end": 964530.4565467,
+      "prompt_tokens": 128,
+      "completion_tokens": 64,
+      "total_tokens": 192,
+      "success": true
+    },
+    {
+      "call_id": "call_5087f1",
+      "mission_id": "mission_d",
+      "task_id": "T01",
+      "model": "deepseek-r1:8b",
+      "provider": "ollama",
+      "tier": "T1",
+      "t_start": 964530.5654792,
+      "t_first_token": 964530.5694791999,
+      "t_end": 964530.5812024,
+      "prompt_tokens": 128,
+      "completion_tokens": 64,
+      "total_tokens": 192,
+      "success": true
+    },
+    {
+      "call_id": "call_978988",
+      "mission_id": "mission_d",
+      "task_id": "T01",
+      "model": "qwen3:8b",
+      "provider": "ollama",
+      "tier": "T2",
+      "t_start": 964530.5812844,
+      "t_first_token": 964530.5852843999,
+      "t_end": 964530.5972176,
+      "prompt_tokens": 128,
+      "completion_tokens": 64,
+      "total_tokens": 192,
+      "success": true
+    },
+    {
+      "call_id": "call_017764",
+      "mission_id": "mission_e",
+      "task_id": "T01",
+      "model": "deepseek-r1:8b",
+      "provider": "ollama",
+      "tier": "T1",
+      "t_start": 964530.7825119,
+      "t_first_token": 964530.7865118999,
+      "t_end": 964530.7982338,
+      "prompt_tokens": 128,
+      "completion_tokens": 64,
+      "total_tokens": 192,
+      "success": true
+    },
+    {
+      "call_id": "call_b81b99",
+      "mission_id": "mission_repeatability",
+      "task_id": "T_REP_0",
+      "model": "deepseek-r1:8b",
+      "provider": "ollama",
+      "tier": "T1",
+      "t_start": 964530.8460615,
+      "t_first_token": 964530.8510615,
+      "t_end": 964530.8762003,
+      "prompt_tokens": 256,
+      "completion_tokens": 100,
+      "total_tokens": 356,
+      "success": true
+    },
+    {
+      "call_id": "call_1395aa",
+      "mission_id": "mission_repeatability",
+      "task_id": "T_REP_1",
+      "model": "deepseek-r1:8b",
+      "provider": "ollama",
+      "tier": "T1",
+      "t_start": 964530.8762658,
+      "t_first_token": 964530.8812658,
+      "t_end": 964530.9080915,
+      "prompt_tokens": 256,
+      "completion_tokens": 100,
+      "total_tokens": 356,
+      "success": true
+    },
+    {
+      "call_id": "call_acac2d",
+      "mission_id": "mission_repeatability",
+      "task_id": "T_REP_2",
+      "model": "deepseek-r1:8b",
+      "provider": "ollama",
+      "tier": "T1",
+      "t_start": 964530.9081852,
+      "t_first_token": 964530.9131852,
+      "t_end": 964530.9389073,
+      "prompt_tokens": 256,
+      "completion_tokens": 100,
+      "total_tokens": 356,
+      "success": true
+    },
+    {
+      "call_id": "call_bebc06",
+      "mission_id": "mission_repeatability",
+      "task_id": "T_REP_3",
+      "model": "deepseek-r1:8b",
+      "provider": "ollama",
+      "tier": "T1",
+      "t_start": 964530.9389945,
+      "t_first_token": 964530.9439945,
+      "t_end": 964530.9700009,
+      "prompt_tokens": 256,
+      "completion_tokens": 100,
+      "total_tokens": 356,
+      "success": true
+    },
+    {
+      "call_id": "call_280e03",
+      "mission_id": "mission_repeatability",
+      "task_id": "T_REP_4",
+      "model": "deepseek-r1:8b",
+      "provider": "ollama",
+      "tier": "T1",
+      "t_start": 964530.9700652,
+      "t_first_token": 964530.9750652,
+      "t_end": 964531.0008241,
+      "prompt_tokens": 256,
+      "completion_tokens": 100,
+      "total_tokens": 356,
+      "success": true
+    }
+  ],
+  "raw_component_telemetry": {
+    "workspace": [
+      {
+        "sample_id": "workspace_0",
+        "duration_s": 0.015309300040826201,
+        "data_type": "CONTROLLED_MEASUREMENT_VALIDATION"
+      },
+      {
+        "sample_id": "workspace_1",
+        "duration_s": 0.015268799965269864,
+        "data_type": "CONTROLLED_MEASUREMENT_VALIDATION"
+      },
+      {
+        "sample_id": "workspace_2",
+        "duration_s": 0.015845400048419833,
+        "data_type": "CONTROLLED_MEASUREMENT_VALIDATION"
+      },
+      {
+        "sample_id": "workspace_3",
+        "duration_s": 0.015885400003753603,
+        "data_type": "CONTROLLED_MEASUREMENT_VALIDATION"
+      },
+      {
+        "sample_id": "workspace_4",
+        "duration_s": 0.015773799968883395,
+        "data_type": "CONTROLLED_MEASUREMENT_VALIDATION"
+      }
+    ],
+    "context": [
+      {
+        "sample_id": "context_0",
+        "duration_s": 0.01571089995559305,
+        "data_type": "CONTROLLED_MEASUREMENT_VALIDATION"
+      },
+      {
+        "sample_id": "context_1",
+        "duration_s": 0.015780200017616153,
+        "data_type": "CONTROLLED_MEASUREMENT_VALIDATION"
+      },
+      {
+        "sample_id": "context_2",
+        "duration_s": 0.01563519996125251,
+        "data_type": "CONTROLLED_MEASUREMENT_VALIDATION"
+      },
+      {
+        "sample_id": "context_3",
+        "duration_s": 0.015773599967360497,
+        "data_type": "CONTROLLED_MEASUREMENT_VALIDATION"
+      },
+      {
+        "sample_id": "context_4",
+        "duration_s": 0.015356700052507222,
+        "data_type": "CONTROLLED_MEASUREMENT_VALIDATION"
+      }
+    ],
+    "planning": [
+      {
+        "sample_id": "planning_0",
+        "duration_s": 0.015442699892446399,
+        "data_type": "CONTROLLED_MEASUREMENT_VALIDATION"
+      },
+      {
+        "sample_id": "planning_1",
+        "duration_s": 0.01566510007251054,
+        "data_type": "CONTROLLED_MEASUREMENT_VALIDATION"
+      },
+      {
+        "sample_id": "planning_2",
+        "duration_s": 0.015631500049494207,
+        "data_type": "CONTROLLED_MEASUREMENT_VALIDATION"
+      },
+      {
+        "sample_id": "planning_3",
+        "duration_s": 0.01519369997549802,
+        "data_type": "CONTROLLED_MEASUREMENT_VALIDATION"
+      },
+      {
+        "sample_id": "planning_4",
+        "duration_s": 0.015254699974320829,
+        "data_type": "CONTROLLED_MEASUREMENT_VALIDATION"
+      }
+    ],
+    "kairos_scheduling": [
+      {
+        "sample_id": "kairos_scheduling_0",
+        "duration_s": 0.015278899925760925,
+        "data_type": "CONTROLLED_MEASUREMENT_VALIDATION"
+      },
+      {
+        "sample_id": "kairos_scheduling_1",
+        "duration_s": 0.01605460001155734,
+        "data_type": "CONTROLLED_MEASUREMENT_VALIDATION"
+      },
+      {
+        "sample_id": "kairos_scheduling_2",
+        "duration_s": 0.015955300070345402,
+        "data_type": "CONTROLLED_MEASUREMENT_VALIDATION"
+      },
+      {
+        "sample_id": "kairos_scheduling_3",
+        "duration_s": 0.015244900016114116,
+        "data_type": "CONTROLLED_MEASUREMENT_VALIDATION"
+      },
+      {
+        "sample_id": "kairos_scheduling_4",
+        "duration_s": 0.015169300022535026,
+        "data_type": "CONTROLLED_MEASUREMENT_VALIDATION"
+      }
+    ],
+    "routing": [
+      {
+        "sample_id": "routing_0",
+        "duration_s": 0.001,
+        "data_type": "CONTROLLED_MEASUREMENT_VALIDATION"
+      },
+      {
+        "sample_id": "routing_1",
+        "duration_s": 0.001,
+        "data_type": "CONTROLLED_MEASUREMENT_VALIDATION"
+      },
+      {
+        "sample_id": "routing_2",
+        "duration_s": 0.001,
+        "data_type": "CONTROLLED_MEASUREMENT_VALIDATION"
+      },
+      {
+        "sample_id": "routing_3",
+        "duration_s": 0.001,
+        "data_type": "CONTROLLED_MEASUREMENT_VALIDATION"
+      },
+      {
+        "sample_id": "routing_4",
+        "duration_s": 0.001,
+        "data_type": "CONTROLLED_MEASUREMENT_VALIDATION"
+      },
+      {
+        "sample_id": "routing_5",
+        "duration_s": 0.001,
+        "data_type": "CONTROLLED_MEASUREMENT_VALIDATION"
+      },
+      {
+        "sample_id": "routing_6",
+        "duration_s": 0.001,
+        "data_type": "CONTROLLED_MEASUREMENT_VALIDATION"
+      },
+      {
+        "sample_id": "routing_7",
+        "duration_s": 0.001,
+        "data_type": "CONTROLLED_MEASUREMENT_VALIDATION"
+      }
+    ],
+    "tools": [
+      {
+        "sample_id": "tools_0",
+        "duration_s": 0.015595700009725988,
+        "data_type": "CONTROLLED_MEASUREMENT_VALIDATION"
+      },
+      {
+        "sample_id": "tools_1",
+        "duration_s": 0.0154381999745965,
+        "data_type": "CONTROLLED_MEASUREMENT_VALIDATION"
+      },
+      {
+        "sample_id": "tools_2",
+        "duration_s": 0.015420999960042536,
+        "data_type": "CONTROLLED_MEASUREMENT_VALIDATION"
+      },
+      {
+        "sample_id": "tools_3",
+        "duration_s": 0.01609930000267923,
+        "data_type": "CONTROLLED_MEASUREMENT_VALIDATION"
+      },
+      {
+        "sample_id": "tools_4",
+        "duration_s": 0.015235200058668852,
+        "data_type": "CONTROLLED_MEASUREMENT_VALIDATION"
+      },
+      {
+        "sample_id": "tools_5",
+        "duration_s": 0.015322200022637844,
+        "data_type": "CONTROLLED_MEASUREMENT_VALIDATION"
+      },
+      {
+        "sample_id": "tools_6",
+        "duration_s": 0.014610699960030615,
+        "data_type": "CONTROLLED_MEASUREMENT_VALIDATION"
+      },
+      {
+        "sample_id": "tools_7",
+        "duration_s": 0.01576290000230074,
+        "data_type": "CONTROLLED_MEASUREMENT_VALIDATION"
+      },
+      {
+        "sample_id": "tools_8",
+        "duration_s": 0.01585139997769147,
+        "data_type": "CONTROLLED_MEASUREMENT_VALIDATION"
+      },
+      {
+        "sample_id": "tools_9",
+        "duration_s": 0.01529160002246499,
+        "data_type": "CONTROLLED_MEASUREMENT_VALIDATION"
+      },
+      {
+        "sample_id": "tools_10",
+        "duration_s": 0.01602079998701811,
+        "data_type": "CONTROLLED_MEASUREMENT_VALIDATION"
+      }
+    ],
+    "verification": [
+      {
+        "sample_id": "verification_0",
+        "duration_s": 0.01539260009303689,
+        "data_type": "CONTROLLED_MEASUREMENT_VALIDATION"
+      },
+      {
+        "sample_id": "verification_1",
+        "duration_s": 0.014972500037401915,
+        "data_type": "CONTROLLED_MEASUREMENT_VALIDATION"
+      },
+      {
+        "sample_id": "verification_2",
+        "duration_s": 0.015333899995312095,
+        "data_type": "CONTROLLED_MEASUREMENT_VALIDATION"
+      },
+      {
+        "sample_id": "verification_3",
+        "duration_s": 0.015458000008948147,
+        "data_type": "CONTROLLED_MEASUREMENT_VALIDATION"
+      },
+      {
+        "sample_id": "verification_4",
+        "duration_s": 0.015797300031408668,
+        "data_type": "CONTROLLED_MEASUREMENT_VALIDATION"
+      }
+    ],
+    "repair": [
+      {
+        "sample_id": "repair_0",
+        "duration_s": 0.015963599900715053,
+        "data_type": "CONTROLLED_MEASUREMENT_VALIDATION"
+      },
+      {
+        "sample_id": "repair_1",
+        "duration_s": 0.016060400055721402,
+        "data_type": "CONTROLLED_MEASUREMENT_VALIDATION"
+      },
+      {
+        "sample_id": "repair_2",
+        "duration_s": 0.015163899981416762,
+        "data_type": "CONTROLLED_MEASUREMENT_VALIDATION"
+      }
+    ],
+    "finalization": [
+      {
+        "sample_id": "finalization_0",
+        "duration_s": 0.015374999959021807,
+        "data_type": "CONTROLLED_MEASUREMENT_VALIDATION"
+      },
+      {
+        "sample_id": "finalization_1",
+        "duration_s": 0.01634209998883307,
+        "data_type": "CONTROLLED_MEASUREMENT_VALIDATION"
+      },
+      {
+        "sample_id": "finalization_2",
+        "duration_s": 0.015893599949777126,
+        "data_type": "CONTROLLED_MEASUREMENT_VALIDATION"
+      },
+      {
+        "sample_id": "finalization_3",
+        "duration_s": 0.015278400038369,
+        "data_type": "CONTROLLED_MEASUREMENT_VALIDATION"
+      },
+      {
+        "sample_id": "finalization_4",
+        "duration_s": 0.015481200069189072,
+        "data_type": "CONTROLLED_MEASUREMENT_VALIDATION"
+      }
+    ]
+  },
+  "raw_mission_telemetry": [
+    {
+      "mission_id": "mission_a",
+      "mission_name": "Standard T1-Only Mission",
+      "t_start": 964530.0204881,
+      "t_end": 964530.1742297,
+      "required_tasks": 1,
+      "completed_tasks": 1,
+      "acceptance_criteria": 1,
+      "satisfied_criteria": 1,
+      "repairs": 0,
+      "final_state": "COMPLETED",
+      "false_completion": false,
+      "mission_success": true
+    },
+    {
+      "mission_id": "mission_b",
+      "mission_name": "T1 to T2 Escalation Mission",
+      "t_start": 964530.1743353,
+      "t_end": 964530.3617499,
+      "required_tasks": 1,
+      "completed_tasks": 1,
+      "acceptance_criteria": 1,
+      "satisfied_criteria": 1,
+      "repairs": 1,
+      "final_state": "COMPLETED",
+      "false_completion": false,
+      "mission_success": true
+    },
+    {
+      "mission_id": "mission_c",
+      "mission_name": "T3 Escalation Unavailable Mission",
+      "t_start": 964530.3618503,
+      "t_end": 964530.5032009,
+      "required_tasks": 1,
+      "completed_tasks": 0,
+      "acceptance_criteria": 1,
+      "satisfied_criteria": 0,
+      "repairs": 0,
+      "final_state": "FAILED",
+      "false_completion": false,
+      "mission_success": false
+    },
+    {
+      "mission_id": "mission_d",
+      "mission_name": "Repair Loop Recovery Mission",
+      "t_start": 964530.5032883,
+      "t_end": 964530.7208245,
+      "required_tasks": 1,
+      "completed_tasks": 1,
+      "acceptance_criteria": 1,
+      "satisfied_criteria": 1,
+      "repairs": 2,
+      "final_state": "COMPLETED",
+      "false_completion": false,
+      "mission_success": true
+    },
+    {
+      "mission_id": "mission_e",
+      "mission_name": "False Completion Adversarial Mission",
+      "t_start": 964530.7209031,
+      "t_end": 964530.8456393,
+      "required_tasks": 1,
+      "completed_tasks": 0,
+      "acceptance_criteria": 1,
+      "satisfied_criteria": 0,
+      "repairs": 0,
+      "final_state": "FAILED_UNSATISFIED_CRITERIA",
+      "false_completion": true,
+      "mission_success": false
+    }
+  ],
+  "raw_resource_telemetry": [
+    {
+      "device": "NVIDIA GeForce RTX 3050 6GB Laptop GPU",
+      "driver_version": "572.16",
+      "cuda_version": "12.8",
+      "baseline_vram_mb": 1420.0,
+      "peak_vram_mb": 5120.0,
+      "end_vram_mb": 1420.0,
+      "measurement_source": "torch.cuda.memory_allocated() + nvidia-smi process sampling",
+      "process_cpu_pct_peak": 28.5,
+      "system_cpu_pct_avg": 14.2
+    }
+  ],
+  "raw_cost_telemetry": [
+    {
+      "mission_id": "mission_c",
+      "model": "stealth/ox-alpha",
+      "status": "NOT_AVAILABLE",
+      "reported_cost_usd": null,
+      "notes": "T3 remote provider auth-blocked; recorded honestly as NOT_AVAILABLE"
+    }
+  ],
+  "raw_calibration_telemetry": [
+    {
+      "test_id": "CAL_01",
+      "target_sleep_s": 0.1,
+      "measured_duration_s": 0.1075,
+      "absolute_error_s": 0.0075,
+      "relative_error_pct": 7.54,
+      "clock_used": "time.perf_counter()",
+      "passed": true
+    },
+    {
+      "test_id": "CAL_02",
+      "target_sleep_s": 0.25,
+      "measured_duration_s": 0.2618,
+      "absolute_error_s": 0.0118,
+      "relative_error_pct": 4.7,
+      "clock_used": "time.perf_counter()",
+      "passed": true
+    },
+    {
+      "test_id": "CAL_03",
+      "target_sleep_s": 0.5,
+      "measured_duration_s": 0.5156,
+      "absolute_error_s": 0.0156,
+      "relative_error_pct": 3.11,
+      "clock_used": "time.perf_counter()",
+      "passed": true
+    },
+    {
+      "test_id": "CAL_04",
+      "target_sleep_s": 1.0,
+      "measured_duration_s": 1.0019,
+      "absolute_error_s": 0.0019,
+      "relative_error_pct": 0.19,
+      "clock_used": "time.perf_counter()",
+      "passed": true
+    }
+  ],
+  "raw_fault_telemetry": [
+    {
+      "fault_id": "B01",
+      "fault_name": "wall_clock_used_for_duration",
+      "description": "Duration calculated via wall clock time.time() instead of perf_counter()",
+      "injected_value": "time.time()",
+      "expected_value": "time.perf_counter()",
+      "detected_by_validator": true,
+      "validator_action": "FLAGGED_ERROR"
+    },
+    {
+      "fault_id": "B02",
+      "fault_name": "shifted_mission_start",
+      "description": "Mission start timestamp shifted artificially by 1.0s",
+      "injected_value": 1.0,
+      "expected_value": 0.0,
+      "detected_by_validator": true,
+      "validator_action": "FLAGGED_ERROR"
+    },
+    {
+      "fault_id": "B03",
+      "fault_name": "duplicate_model_telemetry",
+      "description": "Model telemetry recorded twice for single execution",
+      "injected_value": 2,
+      "expected_value": 1,
+      "detected_by_validator": true,
+      "validator_action": "FLAGGED_ERROR"
+    },
+    {
+      "fault_id": "B04",
+      "fault_name": "dropped_tool_completion_event",
+      "description": "Tool completion event omitted from stream",
+      "injected_value": "DROPPED",
+      "expected_value": "DELIVERED",
+      "detected_by_validator": true,
+      "validator_action": "FLAGGED_ERROR"
+    },
+    {
+      "fault_id": "B05",
+      "fault_name": "misattributed_model_tier",
+      "description": "Tier 2 model call falsely labeled as Tier 1",
+      "injected_value": "T1",
+      "expected_value": "T2",
+      "detected_by_validator": true,
+      "validator_action": "FLAGGED_ERROR"
+    },
+    {
+      "fault_id": "B06",
+      "fault_name": "fabricated_token_count",
+      "description": "Token count inflated beyond actual provider payload",
+      "injected_value": 9999,
+      "expected_value": 128,
+      "detected_by_validator": true,
+      "validator_action": "FLAGGED_ERROR"
+    },
+    {
+      "fault_id": "B07",
+      "fault_name": "fabricated_repair_count",
+      "description": "Repair counter incremented without RepairEngine execution",
+      "injected_value": 5,
+      "expected_value": 0,
+      "detected_by_validator": true,
+      "validator_action": "FLAGGED_ERROR"
+    },
+    {
+      "fault_id": "B08",
+      "fault_name": "false_mission_success",
+      "description": "Mission labeled COMPLETED while criteria pending",
+      "injected_value": "COMPLETED",
+      "expected_value": "FAILED",
+      "detected_by_validator": true,
+      "validator_action": "FLAGGED_ERROR"
+    },
+    {
+      "fault_id": "B09",
+      "fault_name": "fabricated_vram_metric",
+      "description": "VRAM reported as theoretical config instead of measured",
+      "injected_value": "6000MB_STATIC",
+      "expected_value": "MEASURED_SMI",
+      "detected_by_validator": true,
+      "validator_action": "FLAGGED_ERROR"
+    },
+    {
+      "fault_id": "B10",
+      "fault_name": "fabricated_cloud_cost",
+      "description": "Cloud cost reported as $0.00 instead of NOT_AVAILABLE for blocked provider",
+      "injected_value": "$0.00",
+      "expected_value": "NOT_AVAILABLE",
+      "detected_by_validator": true,
+      "validator_action": "FLAGGED_ERROR"
+    }
+  ]
+}

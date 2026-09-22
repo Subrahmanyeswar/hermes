@@ -1,0 +1,223 @@
+{
+  "gate": "15.9",
+  "correction": "MISSION_BOUNDARY_E2E_FINAL_SURGICAL",
+  "timestamp_utc": "2026-09-02T10:03:38.078887+00:00",
+  "target_hardware": "NVIDIA GeForce RTX 3050 Laptop GPU 6GB / Windows x86_64",
+  "status": "PASS & LOCKED",
+  "existing_stress_suite": {
+    "total": 90,
+    "passed": 90,
+    "failed": 0
+  },
+  "mission_boundary": {
+    "total": 8,
+    "passed": 8,
+    "failed": 0,
+    "not_verified": 0
+  },
+  "total_tests": 8,
+  "passed": 8,
+  "failed": 0,
+  "not_verified": 0,
+  "entrypoint": "core.orchestrator.Orchestrator.run / core.mission_runner.MissionRunner",
+  "real_model_e2e": 0,
+  "controlled_model_client_e2e": 8,
+  "direct_component_only": 0,
+  "uncaught_exceptions": 0,
+  "infinite_retry_loops": 0,
+  "false_completions": 0,
+  "unauthorized_executions": 0,
+  "duplicate_destructive_side_effects": 0,
+  "sentinel_intact": true,
+  "tests": [
+    {
+      "test_id": "E1",
+      "test_name": "EMPTY_OBJECT_RECOVERY",
+      "classification": "CONTROLLED_MODEL_CLIENT_E2E",
+      "mission_entrypoint": "core.orchestrator.Orchestrator.run",
+      "model_boundary": "models.ollama_client.OllamaClient.generate",
+      "raw_model_outputs": [
+        "{}",
+        "{\"tool\": \"write_file\", \"parameters\": {\"path\": \"src/gate15_9_e1.txt\", \"content\": \"RECOVERED\"}}"
+      ],
+      "model_call_count": 2,
+      "pipeline_stage_reached": 12,
+      "orchestrator_success": true,
+      "physical_side_effects": 1,
+      "file_verified": true,
+      "sentinel_intact": true,
+      "uncaught_exception": false,
+      "exception_detail": "",
+      "result": "PASS"
+    },
+    {
+      "test_id": "E2",
+      "test_name": "EMPTY_PATH_NORMALIZATION_RECOVERY",
+      "classification": "CONTROLLED_MODEL_CLIENT_E2E",
+      "mission_entrypoint": "core.orchestrator.Orchestrator.run",
+      "model_boundary": "models.ollama_client.OllamaClient.generate",
+      "normalization_observed": true,
+      "normalization_detail": "contextual_extracted_path_src/gate15_9_e2.txt",
+      "raw_model_outputs": [
+        "{\"tool\": \"write_file\", \"parameters\": {\"path\": \"\", \"content\": \"RECOVERED\"}}"
+      ],
+      "model_call_count": 1,
+      "pipeline_stage_reached": 12,
+      "orchestrator_success": true,
+      "physical_side_effects": 1,
+      "file_verified": true,
+      "sentinel_intact": true,
+      "uncaught_exception": false,
+      "exception_detail": "",
+      "result": "PASS"
+    },
+    {
+      "test_id": "E3",
+      "test_name": "WRONG_TYPE_RECOVERY",
+      "classification": "CONTROLLED_MODEL_CLIENT_E2E",
+      "mission_entrypoint": "core.orchestrator.Orchestrator.run",
+      "model_boundary": "models.ollama_client.OllamaClient.generate",
+      "raw_model_outputs": [
+        "{\"tool\": \"write_file\", \"parameters\": {\"path\": 123, \"content\": [\"RECOVERED\"]}}",
+        "{\"tool\": \"write_file\", \"parameters\": {\"path\": \"src/gate15_9_e3.txt\", \"content\": \"RECOVERED\"}}"
+      ],
+      "model_call_count": 2,
+      "pipeline_stage_reached": 12,
+      "orchestrator_success": true,
+      "physical_side_effects": 1,
+      "file_verified": true,
+      "sentinel_intact": true,
+      "uncaught_exception": false,
+      "exception_detail": "",
+      "result": "PASS"
+    },
+    {
+      "test_id": "E4",
+      "test_name": "MALFORMED_JSON_RECOVERY",
+      "classification": "CONTROLLED_MODEL_CLIENT_E2E",
+      "mission_entrypoint": "core.orchestrator.Orchestrator.run",
+      "model_boundary": "models.ollama_client.OllamaClient.generate",
+      "raw_model_outputs": [
+        "{\"tool\":\"write_file\",\"parameters\":{\"path\":\"src/gate15_9_e4.txt\"",
+        "{\"tool\": \"write_file\", \"parameters\": {\"path\": \"src/gate15_9_e4.txt\", \"content\": \"RECOVERED\"}}"
+      ],
+      "model_call_count": 2,
+      "pipeline_stage_reached": 12,
+      "orchestrator_success": true,
+      "physical_side_effects": 1,
+      "file_verified": true,
+      "sentinel_intact": true,
+      "uncaught_exception": false,
+      "exception_detail": "",
+      "result": "PASS"
+    },
+    {
+      "test_id": "E5",
+      "test_name": "BOUNDED_FAILURE",
+      "classification": "CONTROLLED_MODEL_CLIENT_E2E",
+      "mission_entrypoint": "core.orchestrator.Orchestrator.run",
+      "model_boundary": "models.ollama_client.OllamaClient.generate",
+      "raw_model_outputs": [
+        "{}",
+        "not valid json"
+      ],
+      "model_call_count": 2,
+      "pipeline_stage_reached": 4,
+      "orchestrator_success": false,
+      "physical_side_effects": 0,
+      "false_completion": false,
+      "sentinel_intact": true,
+      "uncaught_exception": false,
+      "exception_detail": "",
+      "result": "PASS"
+    },
+    {
+      "test_id": "E6",
+      "test_name": "MALICIOUS_REPAIR_SECURITY",
+      "classification": "CONTROLLED_MODEL_CLIENT_E2E",
+      "mission_entrypoint": "core.orchestrator.Orchestrator.run",
+      "model_boundary": "models.ollama_client.OllamaClient.generate",
+      "raw_model_outputs": [
+        "{\"tool\": \"write_file\", \"parameters\": {\"path\": 123}}",
+        "{\"tool\": \"write_file\", \"parameters\": {\"path\": \"../../outside/OUTSIDE_SENTINEL.txt\", \"content\": \"PWNED\"}}"
+      ],
+      "model_call_count": 2,
+      "pipeline_stage_reached": 5,
+      "orchestrator_success": false,
+      "security_denied": true,
+      "sentinel_intact": true,
+      "uncaught_exception": false,
+      "exception_detail": "",
+      "result": "PASS"
+    },
+    {
+      "test_id": "E7",
+      "test_name": "FALSE_COMPLETION_REJECTED",
+      "classification": "CONTROLLED_MODEL_CLIENT_E2E",
+      "mission_entrypoint": "core.orchestrator.Orchestrator.run",
+      "model_boundary": "models.ollama_client.OllamaClient.generate",
+      "raw_model_outputs": [
+        "{}",
+        "Done. The bug is fixed."
+      ],
+      "model_call_count": 2,
+      "pipeline_stage_reached": 4,
+      "orchestrator_success": false,
+      "false_completion": false,
+      "sentinel_intact": true,
+      "uncaught_exception": false,
+      "exception_detail": "",
+      "result": "PASS"
+    },
+    {
+      "test_id": "E8",
+      "test_name": "SINGLE_MISSION_MULTISTEP_RECOVERY",
+      "classification": "CONTROLLED_MODEL_CLIENT_E2E",
+      "mission_entrypoint": "core.mission_runner.MissionRunner.run",
+      "model_boundary": "models.ollama_client.OllamaClient.generate",
+      "mission_id": "m_gate15_9_e8_single",
+      "task_ids": [
+        "t1_read",
+        "t2_fix",
+        "t3_verify"
+      ],
+      "task_states": {
+        "t1_read": "COMPLETED",
+        "t2_fix": "COMPLETED",
+        "t3_verify": "COMPLETED"
+      },
+      "raw_model_outputs": [
+        "{}",
+        "{\"tool\": \"read_file\", \"parameters\": {\"path\": \"src/calculator.py\"}}",
+        "{\"tool\": \"write_file\", \"parameters\": {\"path\": 123}}",
+        "{\"tool\": \"write_file\", \"parameters\": {\"path\": \"src/calculator.py\", \"content\": \"\\\"\\\"\\\"\\nCalculator module for HERMES mathematical operations.\\nProvides robust arithmetic operations including addition and subtraction.\\n\\\"\\\"\\\"\\n\\n\\ndef add(a: int | float, b: int | float) -> int | float:\\n    \\\"\\\"\\\"Return the sum of two numbers.\\\"\\\"\\\"\\n    return a + b\\n\\n\\ndef subtract(a: int | float, b: int | float) -> int | float:\\n    \\\"\\\"\\\"Return the difference between two numbers.\\\"\\\"\\\"\\n    return a - b\\n\\n\\ndef multiply(a: int | float, b: int | float) -> int | float:\\n    \\\"\\\"\\\"Return the product of two numbers.\\\"\\\"\\\"\\n    return a * b\\n\\n\\ndef divide(a: int | float, b: int | float) -> float:\\n    \\\"\\\"\\\"Return the quotient of two numbers.\\\"\\\"\\\"\\n    if b == 0:\\n        raise ValueError(\\\"Cannot divide by zero\\\")\\n    return a / b\\n\"}}",
+        "{\"tool\": \"bash_exec\", \"parameters\": {\"command\": \"python -m pytest tests/test_calculator.py\"}}"
+      ],
+      "model_call_count": 8,
+      "steps_completed": 3,
+      "steps_total": 3,
+      "mission_is_complete": true,
+      "events_observed": [
+        "mission_start",
+        "task_start",
+        "thought",
+        "pipeline_stage",
+        "skill_loaded",
+        "tool_executing",
+        "tool_complete",
+        "tool_result",
+        "task_complete",
+        "quality_check",
+        "structured_feedback",
+        "phase_change",
+        "mission_complete"
+      ],
+      "pytest_exit_code": 0,
+      "pytest_passed": true,
+      "sentinel_intact": true,
+      "uncaught_exception": false,
+      "exception_detail": "",
+      "result": "PASS"
+    }
+  ]
+}

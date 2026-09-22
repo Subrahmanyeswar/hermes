@@ -22,6 +22,7 @@ class PromptContext:
     skill_context: str = ""
     active_skill_name: str = "none"
     workspace_context: str = ""      # Workspace information and skeleton
+    execution_mode: str = "production"
 
 
 HERMES_ROLE = """You are HERMES, an autonomous software engineering agent.
@@ -108,27 +109,174 @@ Mode: {mode}
 ═══ WORKSPACE ═══
 {workspace_context}
 
+═══ RESPONSE FORMAT ═══
+If you generate reasoning inside <think>...</think> tags, keep your thinking concise (under 5 sentences).
+Immediately after </think> (or directly in your response), output ONLY a single valid JSON object matching:
+```json
+{{
+  "reasoning": "Brief explanation of your thinking",
+  "tool": "write_file",
+  "parameters": {{
+    "path": "path/to/file.py",
+    "content": "def example_function():\\n    return True\\n"
+  }},
+  "explanation": "What this action accomplishes"
+}}
+```
+
 ═══ FINAL REMINDER ═══
-Respond ONLY with a single valid JSON object. No explanation text outside the JSON.
+If the task does not require modifying or reading files, running shell commands, or other tools (such as answering a direct informational question or conversational query), you may respond directly with your answer.
+Otherwise, respond ONLY with a single valid JSON tool call object. No explanation text outside the JSON.
 Remember: The mission continues until all requirements are satisfied.
 One successful file write does not mean the task is complete.
 Implement the complete requested functionality."""
 
 
+HERMES_STATIC_PREFIX = """You are HERMES, an autonomous software engineering agent.
+
+You complete software development tasks through careful planning and
+iterative implementation. You are NOT rewarded for producing something.
+You are required to produce the complete, correct result.
+
+═══ EXECUTION PHILOSOPHY ═══
+
+Your job is not to generate the minimum possible code.
+Your job is to complete the user's requested task correctly and completely.
+
+Do NOT:
+  ✗ Create placeholder implementations ("TODO", stubs, empty functions)
+  ✗ Stop after creating a folder when files were requested
+  ✗ Stop after the first successful tool call
+  ✗ Write minimal 10-line implementations for complex features
+  ✗ Pretend to implement something without writing real logic
+  ✗ Leave required features disconnected or unfunctional
+  ✗ Use lorem ipsum or generic placeholder text
+
+DO:
+  ✓ Read existing files before modifying them
+  ✓ Write complete implementations with real logic
+  ✓ Connect components together
+  ✓ Include all requested features
+  ✓ Write meaningful content, not generic text
+  ✓ Continue until the actual task is done, not just started
+  ✓ Verify your output makes sense for the request
+
+═══ FILE CONTENT REQUIREMENTS ═══
+
+Every file you write must contain complete, working implementation:
+
+HTML files (minimum 40 lines):
+  - Full document structure (DOCTYPE, html, head, body)
+  - Semantic elements (nav, main, section, article, footer)
+  - Real content in every section
+  - Links to CSS and JS files
+  - All requested sections implemented
+
+CSS files (minimum 30 lines):
+  - CSS custom properties/variables
+  - Real style rules (not just resets)
+  - Flexbox or Grid layout where appropriate
+  - Hover states and transitions
+  - @media queries if responsive was requested
+  - @keyframes if animations were requested
+
+JavaScript/JSX files (minimum 25 lines):
+  - Real DOM manipulation or React components
+  - Event listeners or hooks
+  - Actual logic, not just console.log
+  - Connected to HTML elements
+
+Python files (minimum 20 lines):
+  - Real imports
+  - Actual class/function implementations
+  - Error handling
+  - Not just pass statements
+
+═══ RESPONSE FORMAT ═══
+If you generate reasoning inside <think>...</think> tags, keep your thinking concise (under 5 sentences).
+Immediately after </think> (or directly in your response), output ONLY a single valid JSON object matching:
+```json
+{
+  "reasoning": "Brief explanation of your thinking",
+  "tool": "write_file",
+  "parameters": {
+    "path": "path/to/file.py",
+    "content": "def example_function():\\n    return True\\n"
+  },
+  "explanation": "What this action accomplishes"
+}
+```
+
+═══ FINAL REMINDER ═══
+If the task does not require modifying or reading files, running shell commands, or other tools (such as answering a direct informational question or conversational query), you may respond directly with your answer.
+Otherwise, respond ONLY with a single valid JSON tool call object. No explanation text outside the JSON.
+Remember: The mission continues until all requirements are satisfied.
+One successful file write does not mean the task is complete.
+Implement the complete requested functionality."""
+
+HERMES_DYNAMIC_SUFFIX_TEMPLATE = """═══ TOOL USAGE ═══
+
+Available tools:
+{tool_descriptions}
+
+Tool selection rules:
+  1. read_file — ALWAYS read existing files before modifying them
+  2. write_file — Write COMPLETE content, not partial/placeholder
+  3. bash_exec — Run validation: check files exist, run builds/tests
+  4. create_folder — Only when you will immediately create files inside it
+  5. Never use create_folder as your only action for an implementation task
+
+═══ PERMISSION MODE ═══
+Mode: {mode}
+
+═══ PROJECT MEMORY ═══
+{memory_context}
+
+═══ ACTIVE SKILL ═══
+{skill_context}
+
+═══ WORKSPACE ═══
+{workspace_context}"""
+
+
+def get_static_prefix_hash() -> str:
+    """Return SHA-256 hash of the invariant static prompt prefix."""
+    import hashlib
+    return hashlib.sha256(HERMES_STATIC_PREFIX.encode("utf-8")).hexdigest()
+
+
 def build_system_prompt(ctx: PromptContext) -> str:
-    """Build the complete Tier 1 system prompt."""
-    prompt = HERMES_ROLE.format(
-        tool_descriptions=ctx.tool_descriptions,
-        mode=ctx.mode.upper(),
-        memory_context=ctx.memory_context or "No memory context yet.",
-        skill_context=ctx.skill_context or "No specific skill loaded.",
-        workspace_context=ctx.workspace_context or "Workspace ready.",
-    )
+    """Build the complete Tier 1 system prompt.
+
+    BENCHMARK ISOLATION GUARANTEE:
+    When ctx.execution_mode == 'benchmark', uses the legacy HERMES_ROLE layout verbatim.
+    When ctx.execution_mode in ('production', 'demo', 'performance'), structures prompt
+    into an invariant static prefix + task-dynamic suffix for KV cache reuse.
+    """
+    if getattr(ctx, "execution_mode", "production") == "benchmark":
+        prompt = HERMES_ROLE.format(
+            tool_descriptions=ctx.tool_descriptions,
+            mode=ctx.mode.upper(),
+            memory_context=ctx.memory_context or "No memory context yet.",
+            skill_context=ctx.skill_context or "No specific skill loaded.",
+            workspace_context=ctx.workspace_context or "Workspace ready.",
+        )
+    else:
+        suffix = HERMES_DYNAMIC_SUFFIX_TEMPLATE.format(
+            tool_descriptions=ctx.tool_descriptions,
+            mode=ctx.mode.upper(),
+            memory_context=ctx.memory_context or "No memory context yet.",
+            skill_context=ctx.skill_context or "No specific skill loaded.",
+            workspace_context=ctx.workspace_context or "Workspace ready.",
+        )
+        prompt = f"{HERMES_STATIC_PREFIX}\n\n{suffix}"
+
     logger.debug(
-        "Built Tier 1 system prompt | mode={} | active_skill={} | tools={}",
+        "Built Tier 1 system prompt | mode={} | active_skill={} | tools={} | exec_mode={}",
         ctx.mode,
         ctx.active_skill_name,
         len(ctx.available_tools),
+        getattr(ctx, "execution_mode", "production"),
     )
     return prompt
 
@@ -199,7 +347,9 @@ def build_full_context_prompt(
     mode: str,
     project: str = "default",
     skill_ids: list[str] | None = None,
-    classifier=None  # IntentClassifier instance
+    classifier=None,  # IntentClassifier instance
+    execution_mode: str = "production",
+    required_tools: list[str] | None = None,
 ) -> tuple[str, str, list[str]]:
     """
     Build a complete system prompt with memory context and skill injection.
@@ -207,11 +357,15 @@ def build_full_context_prompt(
     
     Returns: (system_prompt, user_message, loaded_skill_ids)
     """
-    from tools.registry import tool_schema_for_prompt, list_tools
+    from tools.registry import selective_tool_schema_for_prompt, list_tools
     from memory.store import read_context_for_prompt
     
-    # Get memory context
-    memory_context = read_context_for_prompt(project=project)
+    # Get memory context with query relevance filtering in production
+    memory_context = read_context_for_prompt(
+        project=project,
+        query=user_task,
+        execution_mode=execution_mode
+    )
     
     # Get skill context
     skill_content = ""
@@ -222,18 +376,28 @@ def build_full_context_prompt(
         skill_ids = classifier.classify(user_task)
     
     if skill_ids and classifier is not None:
-        skill_content, loaded_skill_ids = classifier.build_skill_prompt_section(skill_ids)
+        skill_content, loaded_skill_ids = classifier.build_skill_prompt_section(
+            skill_ids,
+            execution_mode=execution_mode,
+            disclosure_level=2
+        )
         active_skill_name = loaded_skill_ids[0] if loaded_skill_ids else "none"
+    
+    tool_descriptions = selective_tool_schema_for_prompt(
+        required_tools=required_tools,
+        execution_mode=execution_mode
+    )
     
     # Build context
     ctx = PromptContext(
         user_task=user_task,
         mode=mode,
         available_tools=list_tools(),
-        tool_descriptions=tool_schema_for_prompt(),
+        tool_descriptions=tool_descriptions,
         memory_context=memory_context,
         skill_context=skill_content,
-        active_skill_name=active_skill_name
+        active_skill_name=active_skill_name,
+        execution_mode=execution_mode
     )
     
     system_prompt = build_system_prompt(ctx)

@@ -1,0 +1,40 @@
+DOCTYPE html
+<html>
+<head>
+  <title>HERMES Capabilities</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 40px; }
+    h1 { color: #1a237e; }
+    ul { list-style-type: none; padding: 0; }
+    li { margin: 10px 0; }
+    .description { max-width: 800px; margin: 20px auto; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>HERMES Autonomous Software Engineering Agent</h1>
+  </header>
+  <main>
+    <section class="description">
+      <p>HERMES is designed to complete software development tasks by writing complete, correct code files with minimum specified lines, using tools from the available list, and ensuring all requirements are met. Tasks include creating HTML, CSS, JavaScript, and Python files with detailed content, managing project structure, and handling user requests iteratively.</p>
+    </section>
+    <section>
+      <h2>Key Features</h2>
+      <ul>
+        <li>Writes complete implementations with real logic, not placeholders.</li>
+        <li>Connects components and includes all requested features.</li>
+        <li>Uses tools like append_file, bash_exec, create_folder, etc., for file operations and system commands.</li>
+        <li>Maintains project memory and skills for context-aware responses.</li>
+        <li>Responds only with JSON objects containing reasoning, tool, parameters, and explanation.</li>
+      </ul>
+    </section>
+    <section>
+      <h2>Execution Philosophy</h2>
+      <p>I prioritize correctness and completeness, avoiding minimal or incomplete implementations. I read existing files before modifying them and continue until the task is fully satisfied.</p>
+    </section>
+  </main>
+  <footer>
+    <p>© 2023 HERMES Project</p>
+  </footer>
+</body>
+</html>

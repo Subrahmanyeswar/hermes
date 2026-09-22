@@ -1,0 +1,55 @@
+{
+  "vram_unloaded": {
+    "used_mb": 0.0,
+    "total_mb": 6144.0,
+    "gpu_util": 0.0
+  },
+  "cold_t1": {
+    "wall_s": 10.789772399992216,
+    "load_ms": 8632.6572,
+    "prefill_ms": 108.5135,
+    "eval_ms": 2001.8027,
+    "tokens": 64,
+    "vram": {
+      "used_mb": 5495.0,
+      "total_mb": 6144.0,
+      "gpu_util": 96.0
+    }
+  },
+  "warm_t1": {
+    "wall_s": 0.7854254999547265,
+    "load_ms": 178.6562,
+    "prefill_ms": 31.9676,
+    "eval_ms": 569.9163,
+    "tokens": 19
+  },
+  "t1_to_t2_switch": {
+    "wall_s": 11.040101599995978,
+    "load_ms": 8642.4217,
+    "prefill_ms": 347.2745,
+    "eval_ms": 2001.513,
+    "tokens": 64,
+    "vram": {
+      "used_mb": 5495.0,
+      "total_mb": 6144.0,
+      "gpu_util": 95.0
+    }
+  },
+  "warm_t2": {
+    "wall_s": 2.202198400045745,
+    "load_ms": 164.5075,
+    "tokens": 64
+  },
+  "t2_to_t1_switch": {
+    "wall_s": 10.72682529996382,
+    "load_ms": 8531.4907,
+    "prefill_ms": 377.6316,
+    "eval_ms": 1778.6172,
+    "tokens": 57,
+    "vram": {
+      "used_mb": 5495.0,
+      "total_mb": 6144.0,
+      "gpu_util": 97.0
+    }
+  }
+}

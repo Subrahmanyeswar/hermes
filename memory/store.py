@@ -127,20 +127,64 @@ def write_fact(fact: MemoryFact, project: str = "default") -> bool:
         return False
 
 
-def read_context_for_prompt(project: str = "default") -> str:
+def read_context_for_prompt(
+    project: str = "default",
+    query: Optional[str] = None,
+    execution_mode: str = "production",
+    max_facts: int = 5,
+) -> str:
+    """Read memory facts for prompt injection.
+
+    BENCHMARK ISOLATION GUARANTEE:
+    When execution_mode == "benchmark" or query is None:
+    Preserves exact legacy behavior: returns up to MAX_CONTEXT_LINES non-stale facts.
+
+    PRODUCTION / DEMO / PERFORMANCE OPTIMIZATION:
+    - Excludes STALE facts
+    - Deduplicates identical fact content
+    - Scores facts by keyword overlap with query
+    - Injects only relevant facts (overlap > 0) up to max_facts, or empty string if no relevant facts exist.
+    """
     index = read_memory_index(project)
     if not index.facts:
         return ""
-        
-    relevant_facts = [f for f in index.facts if f.fact_type != FactType.STALE]
-    relevant_facts = relevant_facts[-MAX_CONTEXT_LINES:]
-    
+
+    non_stale = [f for f in index.facts if f.fact_type != FactType.STALE]
+    if not non_stale:
+        return ""
+
+    if execution_mode == "benchmark" or not query:
+        relevant_facts = non_stale[-MAX_CONTEXT_LINES:]
+    else:
+        # Deduplication
+        seen = set()
+        deduped = []
+        for f in non_stale:
+            norm = f.content.strip().lower()
+            if norm not in seen:
+                seen.add(norm)
+                deduped.append(f)
+
+        # Relevance scoring based on query keyword overlap
+        query_words = set(re.findall(r'\w+', query.lower()))
+        scored = []
+        for f in deduped:
+            f_words = set(re.findall(r'\w+', f.content.lower()))
+            overlap = len(query_words & f_words)
+            if overlap > 0:
+                scored.append((overlap, f))
+
+        scored.sort(key=lambda x: x[0], reverse=True)
+        relevant_facts = [f for _, f in scored[:max_facts]]
+        if not relevant_facts:
+            return ""
+
     lines = ["## Project Memory", ""]
     for fact in relevant_facts:
         lines.append(fact.to_memory_line())
-        
-    context = '\n'.join(lines)
-    logger.debug(f"Memory: injected {len(relevant_facts)} lines into context")
+
+    context = "\n".join(lines)
+    logger.debug(f"Memory: injected {len(relevant_facts)} lines into context | mode={execution_mode}")
     return context
 
 

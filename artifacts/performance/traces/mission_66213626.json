@@ -1,0 +1,26 @@
+{
+  "mission_id": "66213626",
+  "execution_mode": "performance_baseline",
+  "mission": {
+    "start": "2026-09-13 18:13:24",
+    "end": "2026-09-13 18:13:24",
+    "duration_ms": 23.19,
+    "accounted_time_ms": 23.11,
+    "unaccounted_time_ms": 0.08
+  },
+  "stages": [
+    {
+      "name": "Stage 1: Test Span",
+      "stage_number": 1,
+      "start": 377708.3162,
+      "end": 377708.3393,
+      "duration_ms": 23.11,
+      "success": true
+    }
+  ],
+  "model_calls": [],
+  "tool_calls": [],
+  "verification_calls": [],
+  "repair_attempts": [],
+  "model_switches": []
+}

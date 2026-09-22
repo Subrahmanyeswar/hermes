@@ -1,0 +1,172 @@
+{
+  "mission_id": "MISSION_5_rep1_warm",
+  "base_id": "MISSION_5",
+  "name": "Debugging and Fix Task",
+  "type": "debugging",
+  "cold": false,
+  "repetition": 1,
+  "reconciliation": {
+    "mission_id": "MISSION_5_rep1_warm",
+    "wall_clock_ms": 296666.61,
+    "wall_clock_seconds": 296.67,
+    "instrumented_duration_ms": 296644.79,
+    "unaccounted_gap_z_ms": 21.83,
+    "unaccounted_percent": 0.01,
+    "category_times_ms": {
+      "MODEL": 180296.25,
+      "MEMORY": 91744.7,
+      "VERIFICATION": 24586.82,
+      "TOOL": 13.63,
+      "PLANNING": 3.37,
+      "SUMMARY": 0.01
+    },
+    "category_times_seconds": {
+      "MODEL": 180.3,
+      "MEMORY": 91.74,
+      "VERIFICATION": 24.59,
+      "TOOL": 0.01,
+      "PLANNING": 0.0,
+      "SUMMARY": 0.0
+    },
+    "detected_gaps": [],
+    "span_count": 7,
+    "model_switches_count": 2,
+    "total_model_switch_ms": 33194.0
+  },
+  "waterfall": "=== MISSION WATERFALL: MISSION_5_rep1_warm (Total: 296.67s) ===\n    0.02s - 296.67s (296.64s) | [ MISSION  ] MISSION_RUN\n    0.02s -   0.03s ( 0.00s) |   [ PLANNING ] PIPELINE_SETUP\n    0.03s - 180.32s (180.30s) |   [  MODEL   ] STAGE_5_TIER1_GENERATION\n  180.32s - 180.34s ( 0.01s) |   [   TOOL   ] STAGE_7_TOOL_EXECUTION\n  180.34s - 204.92s (24.59s) |   [VERIFICATION] STAGE_8_TIER2_VERIFICATION\n  204.92s - 296.67s (91.74s) |   [  MEMORY  ] STAGE_11_MEMORY_EXTRACTION\n  296.67s - 296.67s ( 0.00s) |   [ SUMMARY  ] STAGE_12_FINAL_OUTPUT",
+  "spans": [
+    {
+      "span_id": "a78af11e",
+      "mission_id": "MISSION_5_rep1_warm",
+      "parent_id": null,
+      "name": "MISSION_RUN",
+      "category": "MISSION",
+      "start_ns": 815637098237100,
+      "end_ns": 815933743138600,
+      "duration_ms": 296644.9015,
+      "status": "success",
+      "metadata": {
+        "mission_id": "MISSION_5_rep1_warm"
+      },
+      "children": [
+        {
+          "span_id": "9f5d3309",
+          "mission_id": "MISSION_5_rep1_warm",
+          "parent_id": "a78af11e",
+          "name": "PIPELINE_SETUP",
+          "category": "PLANNING",
+          "start_ns": 815637098268700,
+          "end_ns": 815637101639800,
+          "duration_ms": 3.3711,
+          "status": "success",
+          "metadata": {},
+          "children": []
+        },
+        {
+          "span_id": "58958915",
+          "mission_id": "MISSION_5_rep1_warm",
+          "parent_id": "a78af11e",
+          "name": "STAGE_5_TIER1_GENERATION",
+          "category": "MODEL",
+          "start_ns": 815637101658000,
+          "end_ns": 815817397911000,
+          "duration_ms": 180296.253,
+          "status": "success",
+          "metadata": {
+            "model": "deepseek-r1:8b",
+            "error": "Ollama request timed out after 180s",
+            "success": false,
+            "timeout": true
+          },
+          "children": []
+        },
+        {
+          "span_id": "8128c992",
+          "mission_id": "MISSION_5_rep1_warm",
+          "parent_id": "a78af11e",
+          "name": "STAGE_7_TOOL_EXECUTION",
+          "category": "TOOL",
+          "start_ns": 815817397943200,
+          "end_ns": 815817411574200,
+          "duration_ms": 13.631,
+          "status": "success",
+          "metadata": {
+            "tool": "list_directory"
+          },
+          "children": []
+        },
+        {
+          "span_id": "3cec5511",
+          "mission_id": "MISSION_5_rep1_warm",
+          "parent_id": "a78af11e",
+          "name": "STAGE_8_TIER2_VERIFICATION",
+          "category": "VERIFICATION",
+          "start_ns": 815817411588300,
+          "end_ns": 815841998409400,
+          "duration_ms": 24586.8211,
+          "status": "success",
+          "metadata": {
+            "model": "qwen3:8b",
+            "agree": false,
+            "confidence": 0.2,
+            "success": true
+          },
+          "children": []
+        },
+        {
+          "span_id": "e496632e",
+          "mission_id": "MISSION_5_rep1_warm",
+          "parent_id": "a78af11e",
+          "name": "STAGE_11_MEMORY_EXTRACTION",
+          "category": "MEMORY",
+          "start_ns": 815841998419600,
+          "end_ns": 815933743122300,
+          "duration_ms": 91744.7027,
+          "status": "success",
+          "metadata": {
+            "model": "deepseek-r1:8b",
+            "facts_extracted": 0,
+            "facts_written": 0,
+            "success": true
+          },
+          "children": []
+        },
+        {
+          "span_id": "80e4fb10",
+          "mission_id": "MISSION_5_rep1_warm",
+          "parent_id": "a78af11e",
+          "name": "STAGE_12_FINAL_OUTPUT",
+          "category": "SUMMARY",
+          "start_ns": 815933743129600,
+          "end_ns": 815933743136200,
+          "duration_ms": 0.0066,
+          "status": "success",
+          "metadata": {},
+          "children": []
+        }
+      ]
+    }
+  ],
+  "model_switches": [
+    {
+      "switch_id": "7a87b9a3",
+      "mission_id": "MISSION_5_rep1_warm",
+      "from_model": "deepseek-r1:8b",
+      "to_model": "qwen3:8b",
+      "start_ns": 815817404385200,
+      "end_ns": 815841998385200,
+      "duration_ms": 24594.00000004098,
+      "reason": "Tier 2 Verification"
+    },
+    {
+      "switch_id": "056d5934",
+      "mission_id": "MISSION_5_rep1_warm",
+      "from_model": "qwen3:8b",
+      "to_model": "deepseek-r1:8b",
+      "start_ns": 815925143101800,
+      "end_ns": 815933743101800,
+      "duration_ms": 8600.0,
+      "reason": "Memory Extraction Reload"
+    }
+  ]
+}

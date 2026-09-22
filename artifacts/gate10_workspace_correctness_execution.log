@@ -1,0 +1,77 @@
+2026-09-02 16:41:34.095 | INFO     | __main__:run_all_gate10_tests:640 - ==================================================================
+2026-09-02 16:41:34.095 | INFO     | __main__:run_all_gate10_tests:641 -  HERMES PRE-BENCHMARK GATE 10: WORKSPACE & INCREMENTAL STRESS     
+2026-09-02 16:41:34.095 | INFO     | __main__:run_all_gate10_tests:642 - ==================================================================
+2026-09-02 16:41:34.139 | INFO     | __main__:run_all_gate10_tests:667 - [1/7] Generated small repository with 32 files at C:\Users\SUBBU\AppData\Local\Temp\tmpbtkwvflr\workspace_small
+2026-09-02 16:41:34.169 | INFO     | core.workspace_indexer:index_workspace:325 - WorkspaceIndexer: full indexing on 'C:\Users\SUBBU\AppData\Local\Temp\tmpbtkwvflr\workspace_small' (force_rebuild=False)
+2026-09-02 16:41:34.350 | INFO     | core.workspace_indexer:index_workspace:392 - WorkspaceIndexer: indexed 32 files (2.9 KB) in 181.47ms
+2026-09-02 16:41:34.351 | INFO     | core.workspace:lock:131 - WorkspaceManager: locked to C:\Users\SUBBU\AppData\Local\Temp\tmpbtkwvflr\workspace_small
+2026-09-02 16:41:34.352 | INFO     | core.workspace_indexer:index_workspace:325 - WorkspaceIndexer: full indexing on 'C:\Users\SUBBU\AppData\Local\Temp\tmpbtkwvflr\workspace_small' (force_rebuild=False)
+2026-09-02 16:41:34.373 | INFO     | core.workspace_indexer:index_workspace:392 - WorkspaceIndexer: indexed 32 files (2.9 KB) in 21.73ms
+2026-09-02 16:41:34.388 | INFO     | core.workspace:_build_index:283 - WorkspaceManager: indexed 32 files in 0.00s | framework=Python
+2026-09-02 16:41:34.388 | INFO     | __main__:run_all_gate10_tests:681 -  -> Small repo indexed 32 files in 219.25ms
+2026-09-02 16:41:34.553 | INFO     | __main__:run_all_gate10_tests:686 - [2/7] Generated medium repository with 245 files at C:\Users\SUBBU\AppData\Local\Temp\tmpbtkwvflr\workspace_medium
+2026-09-02 16:41:34.583 | INFO     | core.workspace_indexer:index_workspace:325 - WorkspaceIndexer: full indexing on 'C:\Users\SUBBU\AppData\Local\Temp\tmpbtkwvflr\workspace_medium' (force_rebuild=False)
+2026-09-02 16:41:36.006 | INFO     | core.workspace_indexer:index_workspace:392 - WorkspaceIndexer: indexed 245 files (20.3 KB) in 1423.29ms
+2026-09-02 16:41:36.007 | INFO     | core.workspace:lock:131 - WorkspaceManager: locked to C:\Users\SUBBU\AppData\Local\Temp\tmpbtkwvflr\workspace_medium
+2026-09-02 16:41:36.008 | INFO     | core.workspace_indexer:index_workspace:325 - WorkspaceIndexer: full indexing on 'C:\Users\SUBBU\AppData\Local\Temp\tmpbtkwvflr\workspace_medium' (force_rebuild=False)
+2026-09-02 16:41:36.098 | INFO     | core.workspace_indexer:index_workspace:392 - WorkspaceIndexer: indexed 245 files (20.3 KB) in 90.72ms
+2026-09-02 16:41:36.121 | INFO     | core.workspace:_build_index:283 - WorkspaceManager: indexed 245 files in 0.02s | framework=Python
+2026-09-02 16:41:36.121 | INFO     | __main__:run_all_gate10_tests:700 -  -> Medium repo indexed 245 files in 1538.65ms
+2026-09-02 16:41:37.062 | INFO     | __main__:run_all_gate10_tests:705 - [3/7] Generated large repository with 1022 files at C:\Users\SUBBU\AppData\Local\Temp\tmpbtkwvflr\workspace_large
+2026-09-02 16:41:37.092 | INFO     | core.workspace_indexer:index_workspace:325 - WorkspaceIndexer: full indexing on 'C:\Users\SUBBU\AppData\Local\Temp\tmpbtkwvflr\workspace_large' (force_rebuild=False)
+2026-09-02 16:41:41.943 | INFO     | core.workspace_indexer:index_workspace:392 - WorkspaceIndexer: indexed 1022 files (11193.3 KB) in 4850.55ms
+2026-09-02 16:41:41.944 | INFO     | core.workspace:lock:131 - WorkspaceManager: locked to C:\Users\SUBBU\AppData\Local\Temp\tmpbtkwvflr\workspace_large
+2026-09-02 16:41:41.944 | INFO     | core.workspace_indexer:index_workspace:325 - WorkspaceIndexer: full indexing on 'C:\Users\SUBBU\AppData\Local\Temp\tmpbtkwvflr\workspace_large' (force_rebuild=False)
+2026-09-02 16:41:42.654 | INFO     | core.workspace_indexer:index_workspace:392 - WorkspaceIndexer: indexed 1022 files (11193.3 KB) in 710.57ms
+2026-09-02 16:41:42.889 | INFO     | core.workspace:_build_index:283 - WorkspaceManager: indexed 1022 files in 0.23s | framework=Python
+2026-09-02 16:41:42.889 | INFO     | __main__:run_all_gate10_tests:719 -  -> Large repo indexed 1022 files in 5797.56ms
+2026-09-02 16:41:42.894 | INFO     | __main__:run_all_gate10_tests:746 -  -> Special directory ignore policy verified: {'.git': {'discovered': True, 'indexed': False, 'parsed': False, 'retrieved': False}, 'node_modules': {'discovered': True, 'indexed': False, 'parsed': False, 'retrieved': False}, 'venv': {'discovered': True, 'indexed': False, 'parsed': False, 'retrieved': False}, 'build': {'discovered': True, 'indexed': False, 'parsed': False, 'retrieved': False}, 'dist': {'discovered': True, 'indexed': False, 'parsed': False, 'retrieved': False}}
+2026-09-02 16:41:42.894 | INFO     | __main__:run_all_gate10_tests:749 - [4/7] Executing comprehensive external mutations (Changes A through N)...
+2026-09-02 16:41:42.952 | DEBUG    | core.workspace_indexer:update_workspace:516 - WorkspaceIndexer.update: +2 ~6 -2 =24 (52.61ms)
+2026-09-02 16:41:42.974 | DEBUG    | core.workspace_indexer:update_workspace:516 - WorkspaceIndexer.update: +2 ~6 -2 =24 (20.78ms)
+2026-09-02 16:41:42.974 | DEBUG    | core.workspace:refresh_index:315 - WorkspaceManager.refresh: incremental update in 20.78ms
+2026-09-02 16:41:42.974 | INFO     | __main__:run_all_gate10_tests:906 -  -> Small repo incremental update in 74.84ms: +2 ~6 -2 =24
+2026-09-02 16:41:42.991 | INFO     | __main__:run_all_gate10_tests:954 - [5/7] Testing incremental scalability and zero full-rescan on Large Repo (1,020+ files)...
+2026-09-02 16:41:43.285 | DEBUG    | core.workspace_indexer:update_workspace:516 - WorkspaceIndexer.update: +1 ~5 -1 =1016 (290.21ms)
+2026-09-02 16:41:43.580 | DEBUG    | core.workspace_indexer:update_workspace:516 - WorkspaceIndexer.update: +1 ~5 -1 =1016 (294.06ms)
+2026-09-02 16:41:43.582 | DEBUG    | core.workspace:refresh_index:315 - WorkspaceManager.refresh: incremental update in 294.06ms
+2026-09-02 16:41:43.582 | INFO     | __main__:run_all_gate10_tests:981 -  -> Large repo incremental update in 586.81ms: +1 ~5 -1 =1016 (semantic reindexed: 6)
+2026-09-02 16:41:43.582 | INFO     | __main__:run_all_gate10_tests:992 - [6/7] Testing restart persistence, cold-start reindex, and repeated cycles...
+2026-09-02 16:41:43.612 | DEBUG    | core.workspace_indexer:update_workspace:516 - WorkspaceIndexer.update: +0 ~1 -0 =31 (27.45ms)
+2026-09-02 16:41:43.646 | INFO     | core.workspace_indexer:index_workspace:325 - WorkspaceIndexer: full indexing on 'C:\Users\SUBBU\AppData\Local\Temp\tmpbtkwvflr\workspace_small' (force_rebuild=False)
+2026-09-02 16:41:43.687 | INFO     | core.workspace_indexer:index_workspace:392 - WorkspaceIndexer: indexed 32 files (3.2 KB) in 40.78ms
+2026-09-02 16:41:43.742 | DEBUG    | core.workspace_indexer:update_workspace:516 - WorkspaceIndexer.update: +0 ~1 -0 =244 (54.20ms)
+2026-09-02 16:41:43.798 | DEBUG    | core.workspace_indexer:update_workspace:516 - WorkspaceIndexer.update: +0 ~1 -0 =244 (55.44ms)
+2026-09-02 16:41:43.799 | DEBUG    | core.workspace:refresh_index:315 - WorkspaceManager.refresh: incremental update in 55.44ms
+2026-09-02 16:41:43.858 | DEBUG    | core.workspace_indexer:update_workspace:516 - WorkspaceIndexer.update: +0 ~1 -0 =244 (48.90ms)
+2026-09-02 16:41:43.917 | DEBUG    | core.workspace_indexer:update_workspace:516 - WorkspaceIndexer.update: +0 ~1 -0 =244 (58.20ms)
+2026-09-02 16:41:43.917 | DEBUG    | core.workspace:refresh_index:315 - WorkspaceManager.refresh: incremental update in 58.20ms
+2026-09-02 16:41:43.974 | DEBUG    | core.workspace_indexer:update_workspace:516 - WorkspaceIndexer.update: +0 ~1 -0 =244 (42.90ms)
+2026-09-02 16:41:44.014 | DEBUG    | core.workspace_indexer:update_workspace:516 - WorkspaceIndexer.update: +0 ~1 -0 =244 (39.81ms)
+2026-09-02 16:41:44.014 | DEBUG    | core.workspace:refresh_index:315 - WorkspaceManager.refresh: incremental update in 39.81ms
+2026-09-02 16:41:44.061 | DEBUG    | core.workspace_indexer:update_workspace:516 - WorkspaceIndexer.update: +0 ~1 -0 =244 (38.25ms)
+2026-09-02 16:41:44.103 | DEBUG    | core.workspace_indexer:update_workspace:516 - WorkspaceIndexer.update: +0 ~1 -0 =244 (42.78ms)
+2026-09-02 16:41:44.104 | DEBUG    | core.workspace:refresh_index:315 - WorkspaceManager.refresh: incremental update in 42.78ms
+2026-09-02 16:41:44.162 | DEBUG    | core.workspace_indexer:update_workspace:516 - WorkspaceIndexer.update: +0 ~1 -0 =244 (49.72ms)
+2026-09-02 16:41:44.215 | DEBUG    | core.workspace_indexer:update_workspace:516 - WorkspaceIndexer.update: +0 ~1 -0 =244 (52.99ms)
+2026-09-02 16:41:44.216 | DEBUG    | core.workspace:refresh_index:315 - WorkspaceManager.refresh: incremental update in 52.99ms
+2026-09-02 16:41:44.225 | INFO     | __main__:test_corruption_scenarios:468 - [CORRUPTION] Executing Dedicated Corruption Injection & Recovery Suite...
+2026-09-02 16:41:44.258 | INFO     | core.workspace_indexer:index_workspace:325 - WorkspaceIndexer: full indexing on 'C:\Users\SUBBU\AppData\Local\Temp\tmpbtkwvflr\corruption_c1_repo' (force_rebuild=False)
+2026-09-02 16:41:44.269 | INFO     | core.workspace_indexer:index_workspace:392 - WorkspaceIndexer: indexed 2 files (0.1 KB) in 11.53ms
+2026-09-02 16:41:44.273 | WARNING  | core.workspace_indexer:_init_db:173 - WorkspaceIndexStore: detected corrupt database (file is not a database). Resetting and initializing clean schema...
+2026-09-02 16:41:44.310 | INFO     | core.workspace_indexer:index_workspace:325 - WorkspaceIndexer: full indexing on 'C:\Users\SUBBU\AppData\Local\Temp\tmpbtkwvflr\corruption_c1_repo' (force_rebuild=False)
+2026-09-02 16:41:44.317 | INFO     | core.workspace_indexer:index_workspace:392 - WorkspaceIndexer: indexed 2 files (0.1 KB) in 7.53ms
+2026-09-02 16:41:44.321 | INFO     | __main__:test_corruption_scenarios:526 -  -> Scenario C1 (Truncated DB): PASS in 10.12ms
+2026-09-02 16:41:44.360 | INFO     | core.workspace_indexer:index_workspace:325 - WorkspaceIndexer: full indexing on 'C:\Users\SUBBU\AppData\Local\Temp\tmpbtkwvflr\corruption_c2_repo' (force_rebuild=False)
+2026-09-02 16:41:44.373 | INFO     | core.workspace_indexer:index_workspace:392 - WorkspaceIndexer: indexed 1 files (0.1 KB) in 12.61ms
+2026-09-02 16:41:44.388 | WARNING  | core.workspace_indexer:_init_db:173 - WorkspaceIndexStore: detected corrupt database (no such column: workspace_id). Resetting and initializing clean schema...
+2026-09-02 16:41:44.441 | INFO     | core.workspace_indexer:index_workspace:325 - WorkspaceIndexer: full indexing on 'C:\Users\SUBBU\AppData\Local\Temp\tmpbtkwvflr\corruption_c2_repo' (force_rebuild=False)
+2026-09-02 16:41:44.448 | INFO     | core.workspace_indexer:index_workspace:392 - WorkspaceIndexer: indexed 1 files (0.1 KB) in 6.22ms
+2026-09-02 16:41:44.450 | INFO     | __main__:test_corruption_scenarios:577 -  -> Scenario C2 (Corrupted Table): PASS in 8.67ms
+2026-09-02 16:41:44.482 | INFO     | core.workspace_indexer:index_workspace:325 - WorkspaceIndexer: full indexing on 'C:\Users\SUBBU\AppData\Local\Temp\tmpbtkwvflr\corruption_c3_repo' (force_rebuild=False)
+2026-09-02 16:41:44.502 | INFO     | core.workspace_indexer:index_workspace:392 - WorkspaceIndexer: indexed 1 files (0.0 KB) in 20.76ms
+2026-09-02 16:41:44.535 | INFO     | core.workspace_indexer:index_workspace:325 - WorkspaceIndexer: full indexing on 'C:\Users\SUBBU\AppData\Local\Temp\tmpbtkwvflr\corruption_c3_repo' (force_rebuild=False)
+2026-09-02 16:41:44.542 | INFO     | core.workspace_indexer:index_workspace:392 - WorkspaceIndexer: indexed 1 files (0.0 KB) in 6.07ms
+2026-09-02 16:41:44.545 | INFO     | __main__:test_corruption_scenarios:626 -  -> Scenario C3 (Missing DB): PASS in 8.99ms
+2026-09-02 16:41:44.546 | INFO     | __main__:test_corruption_scenarios:633 - [CORRUPTION] Saved dedicated report to artifacts\gate10_corruption_recovery_results.json
+2026-09-02 16:41:44.783 | INFO     | __main__:run_all_gate10_tests:1135 - [OK] Gate 10 Stress Test Suite Complete in 10689.07ms. Status: PASS & LOCKED.

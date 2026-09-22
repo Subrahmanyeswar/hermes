@@ -1,0 +1,95 @@
+{
+  "figure_1_system_validation.png": {
+    "title": "HERMES System Validation Results",
+    "description": "Subsystem verification success rates across regression, tool reliability, safety, and live E2E missions",
+    "dpi": 300,
+    "metrics": [
+      {
+        "name": "Core Regression Suite",
+        "value_pct": 100.0,
+        "passed": 945,
+        "total": 945,
+        "source_file": "artifacts/gate22_regression_results.json"
+      },
+      {
+        "name": "Tool Reliability Stress",
+        "value_pct": 100.0,
+        "passed": 90,
+        "total": 90,
+        "source_file": "artifacts/gate_15_9_tool_reliability_results.json"
+      },
+      {
+        "name": "Cancellation Safety",
+        "value_pct": 100.0,
+        "passed": 58,
+        "total": 58,
+        "source_file": "artifacts/gate13_cancellation_results.json"
+      },
+      {
+        "name": "Sustained Load Execution",
+        "value_pct": 100.0,
+        "passed": 30,
+        "total": 30,
+        "source_file": "artifacts/thermal_test_summary.json"
+      },
+      {
+        "name": "Security Boundary Defense",
+        "value_pct": 100.0,
+        "passed": 24,
+        "total": 24,
+        "source_file": "artifacts/gate_15_7_security_results.json"
+      },
+      {
+        "name": "Adaptive Routing Calibration",
+        "value_pct": 100.0,
+        "passed": 24,
+        "total": 24,
+        "source_file": "artifacts/gate12_routing_calibration_results.json"
+      },
+      {
+        "name": "Workspace State Correctness",
+        "value_pct": 100.0,
+        "passed": 15,
+        "total": 15,
+        "source_file": "artifacts/gate10_workspace_correctness_results.json"
+      },
+      {
+        "name": "Live Multi-Tier E2E",
+        "value_pct": 100.0,
+        "passed": 4,
+        "total": 4,
+        "source_file": "artifacts/REAL_E2E_REPAIR_REPORT.md"
+      }
+    ]
+  },
+  "figure_2_runtime_performance.png": {
+    "title": "HERMES Runtime Performance & Sustained-Load Stability",
+    "description": "Panel A: Mission latency distribution across percentiles (P50\u2013P99); Panel B: Thermal progression and graphics clock stability",
+    "dpi": 300,
+    "sample_size": 30,
+    "source_file": "artifacts/thermal_test_summary.json",
+    "metrics": {
+      "panel_a_latency_distribution": {
+        "p50_s": 12.6,
+        "p75_s": 12.8,
+        "p90_s": 13.2,
+        "p95_s": 13.2,
+        "p99_s": 13.2,
+        "mean_s": 12.6,
+        "min_s": 12.0,
+        "max_s": 13.2,
+        "tail_amplification_ratio": 1.05
+      },
+      "panel_b_thermal_and_clocks": {
+        "early_window_temp_c": 45.1,
+        "middle_window_temp_c": 48.0,
+        "late_window_temp_c": 51.0,
+        "early_clock_mhz": 1472,
+        "middle_clock_mhz": 1466,
+        "late_clock_mhz": 1460,
+        "thermal_rise_c": 7.0,
+        "clock_degradation_pct": 0.82
+      }
+    }
+  }
+}

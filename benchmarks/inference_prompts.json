@@ -1,0 +1,44 @@
+{
+  "prompts": [
+    {
+      "id": "PROMPT_A",
+      "type": "short_reasoning",
+      "description": "Short reasoning task (~100 output tokens)",
+      "max_tokens": 150,
+      "system": "You are a concise reasoning assistant. Explain your reasoning briefly and provide a direct answer.",
+      "prompt": "Explain the time and space complexity of binary search on a sorted array of N elements. Give the worst-case and average-case analysis in 3 short bullet points."
+    },
+    {
+      "id": "PROMPT_B",
+      "type": "medium_coding",
+      "description": "Medium coding task (~300 output tokens)",
+      "max_tokens": 400,
+      "system": "You are an expert Python software engineer. Write clean, production-ready code with concise docstrings.",
+      "prompt": "Write a thread-safe LRU Cache in Python using collections.OrderedDict and threading.Lock. Include get(key), put(key, value), and __len__() methods with proper capacity eviction."
+    },
+    {
+      "id": "PROMPT_C",
+      "type": "code_generation",
+      "description": "Code generation task (~500 output tokens)",
+      "max_tokens": 600,
+      "system": "You are an expert systems programmer. Provide complete code implementations.",
+      "prompt": "Write a Python async connection pool manager that maintains a pool of TCP socket connections, supports acquire() and release() with context manager support, handles reconnect on disconnect, and enforces max_connections and acquire_timeout."
+    },
+    {
+      "id": "PROMPT_D",
+      "type": "repo_reasoning",
+      "description": "Repository-style reasoning task (~600 output tokens)",
+      "max_tokens": 800,
+      "system": "You are an expert software architect evaluating system reliability and lifecycle management.",
+      "prompt": "Analyze a multi-tiered agent architecture with a local 8B model (Tier 1), a verification 8B model (Tier 2), and a cloud escalation model (Tier 3) on a 6GB VRAM GPU. Identify 3 critical bottlenecks in this architecture regarding model switching latency, memory residency, and state drift, and propose concrete algorithmic mitigations for each."
+    },
+    {
+      "id": "PROMPT_E",
+      "type": "long_context",
+      "description": "Longer context task (~800 output tokens)",
+      "max_tokens": 1000,
+      "system": "You are an expert code reviewer and security analyst.",
+      "prompt": "Review the following mock architecture specification and produce a detailed security audit checklist covering authentication, memory safety, input sanitization, rate limiting, and failure modes:\n\nSpecification:\nService A receives JSON RPC payloads over WebSocket from untrusted clients. It deserializes payloads into Python dataclasses, parses AST nodes for dynamic query generation, and executes SQL queries against PostgreSQL. Telemetry is written asynchronously to an SQLite database with WAL mode. File uploads up to 50MB are buffered in memory before being written to local disk in /tmp/hermes_uploads/. When errors occur, full Python tracebacks including local variable scopes are returned to the client for debugging.\n\nProvide structured analysis with Severity, Vulnerability, and Concrete Fix for each issue found."
+    }
+  ]
+}

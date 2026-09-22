@@ -1,0 +1,67 @@
+{
+  "GOLDEN_A": {
+    "name": "Simple 1-File Blank Website",
+    "prompt": "Create a blank HTML5 page with title 'Golden A Page'",
+    "category": "A_fully_deterministic",
+    "model_calls": 0,
+    "tool_calls": 1,
+    "files_created": [
+      "index.html"
+    ],
+    "file_hash": "6848a5e2a234116017cb28789cf6eb0853571c17f8025ce3ce8f28539db5c603",
+    "status": "PASS"
+  },
+  "GOLDEN_B": {
+    "name": "Simple 3-File Website (Scaffold + Batch Commit)",
+    "prompt": "Create a website with index.html, styles.css, and app.js for EduPath Mini",
+    "category": "B_scaffold_plus_model_batch",
+    "model_calls": 1,
+    "tool_calls": 1,
+    "files_created": [
+      "index.html",
+      "styles.css",
+      "app.js"
+    ],
+    "structural_checks_run": [
+      "html_structure_check:index.html",
+      "css_syntax_check:styles.css",
+      "js_syntax_check:app.js"
+    ],
+    "verification_passed": true,
+    "status": "PASS"
+  },
+  "GOLDEN_C": {
+    "name": "Non-Website Deterministic Project Scaffold (Python)",
+    "template_id": "python-basic-v1",
+    "model_calls": 0,
+    "files_created": [
+      "main.py",
+      "utils.py",
+      "config.py"
+    ],
+    "overall_hash": "3776c6a4e04659a0107fa1ce85dcc0fd5b539e5b3a0298cabeab3eb2636d2d95",
+    "verification_passed": true,
+    "status": "PASS"
+  },
+  "GOLDEN_D": {
+    "name": "Bounded Concurrency Parallel Structural Verification",
+    "workers": 2,
+    "files_verified": 3,
+    "checks_run": [
+      "html_structure_check:index.html",
+      "css_syntax_check:styles.css",
+      "js_syntax_check:app.js"
+    ],
+    "duration_ms": 0.307,
+    "verification_passed": true,
+    "status": "PASS"
+  },
+  "GOLDEN_E": {
+    "name": "Complex Multi-Tier Website Safe Fallback",
+    "prompt": "Create a complete React web application with Flask backend and database authentication",
+    "fast_path_candidate": false,
+    "rejection_reason": "disqualified_by_framework_keyword:react",
+    "fallback_behavior": "routes_to_normal_planner_and_execution",
+    "status": "PASS"
+  }
+}

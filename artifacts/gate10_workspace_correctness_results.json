@@ -1,0 +1,196 @@
+{
+  "gate": "10",
+  "gate_name": "Workspace Intelligence, Incremental Indexing & Repository State Correctness",
+  "status": "PASS & LOCKED",
+  "repositories": {
+    "small": {
+      "file_count": 32,
+      "initial_duration_ms": 219.25
+    },
+    "medium": {
+      "file_count": 245,
+      "initial_duration_ms": 1538.65
+    },
+    "large": {
+      "file_count": 1022,
+      "initial_duration_ms": 5797.56
+    }
+  },
+  "initial_indexing": {
+    "correct": true,
+    "small_files_indexed": 32,
+    "medium_files_indexed": 245,
+    "large_files_indexed": 1022
+  },
+  "external_change_detection": {
+    "modified_files_detected": 10,
+    "new_files_detected": 3,
+    "deleted_files_detected": 3,
+    "renamed_files_detected": 1
+  },
+  "incremental_indexing": {
+    "full_rescan_triggered": false,
+    "large_repo_initial_duration_ms": 5797.56,
+    "large_repo_incremental_duration_ms": 586.81,
+    "large_repo_speedup": "9.9x",
+    "semantic_files_reindexed": 6,
+    "unchanged_files_bypassed": 1016
+  },
+  "retrieval": {
+    "fresh_results": true,
+    "stale_results_detected": 0,
+    "deleted_files_in_retrieval": 0,
+    "new_files_retrieved": 3
+  },
+  "restart_persistence": {
+    "status": "VERIFIED",
+    "restarted_detection": true,
+    "unchanged_files_preserved": true
+  },
+  "cold_start": {
+    "status": "VERIFIED",
+    "rebuild_matches_filesystem": true
+  },
+  "corruption_recovery": {
+    "status": "VERIFIED",
+    "scenarios_tested": 3,
+    "scenarios_passed": 3,
+    "scenarios": [
+      {
+        "scenario": "C1_TRUNCATED_DATABASE",
+        "description": "Corrupt/truncated database file header replaced with garbage bytes",
+        "corruption_injected": true,
+        "corruption_detected": true,
+        "crash": false,
+        "false_success": false,
+        "recovery_attempted": true,
+        "recovery_completed": true,
+        "filesystem_equals_index": true,
+        "retrieval_correct": true,
+        "stale_data_detected": false,
+        "duration_ms": 10.12
+      },
+      {
+        "scenario": "C2_INVALID_TABLE_STRUCTURE",
+        "description": "Dropped and substituted schema with incompatible table columns",
+        "corruption_injected": true,
+        "corruption_detected": true,
+        "crash": false,
+        "false_success": false,
+        "recovery_attempted": true,
+        "recovery_completed": true,
+        "filesystem_equals_index": true,
+        "retrieval_correct": true,
+        "stale_data_detected": false,
+        "duration_ms": 8.67
+      },
+      {
+        "scenario": "C3_MISSING_DATABASE_FILE",
+        "description": "Database file unlinked/deleted externally after initial index",
+        "corruption_injected": true,
+        "corruption_detected": true,
+        "crash": false,
+        "false_success": false,
+        "recovery_attempted": true,
+        "recovery_completed": true,
+        "filesystem_equals_index": true,
+        "retrieval_correct": true,
+        "stale_data_detected": false,
+        "duration_ms": 8.99
+      }
+    ]
+  },
+  "repeated_incremental_cycles": {
+    "total_cycles": 5,
+    "cycles_passed": 5,
+    "details": [
+      {
+        "cycle": 1,
+        "modified_file": "src/auth/sub_handler_1.py",
+        "duration_ms": 111.51,
+        "asts_rebuilt": 1,
+        "unchanged_files": 244
+      },
+      {
+        "cycle": 2,
+        "modified_file": "src/auth/sub_handler_2.py",
+        "duration_ms": 109.11,
+        "asts_rebuilt": 1,
+        "unchanged_files": 244
+      },
+      {
+        "cycle": 3,
+        "modified_file": "src/auth/sub_handler_3.py",
+        "duration_ms": 84.73,
+        "asts_rebuilt": 1,
+        "unchanged_files": 244
+      },
+      {
+        "cycle": 4,
+        "modified_file": "src/auth/sub_handler_4.py",
+        "duration_ms": 82.51,
+        "asts_rebuilt": 1,
+        "unchanged_files": 244
+      },
+      {
+        "cycle": 5,
+        "modified_file": "src/auth/sub_handler_5.py",
+        "duration_ms": 104.37,
+        "asts_rebuilt": 1,
+        "unchanged_files": 244
+      }
+    ]
+  },
+  "filesystem_index_consistency": true,
+  "special_directory_policy": {
+    ".git": {
+      "discovered": true,
+      "indexed": false,
+      "parsed": false,
+      "retrieved": false
+    },
+    "node_modules": {
+      "discovered": true,
+      "indexed": false,
+      "parsed": false,
+      "retrieved": false
+    },
+    "venv": {
+      "discovered": true,
+      "indexed": false,
+      "parsed": false,
+      "retrieved": false
+    },
+    "build": {
+      "discovered": true,
+      "indexed": false,
+      "parsed": false,
+      "retrieved": false
+    },
+    "dist": {
+      "discovered": true,
+      "indexed": false,
+      "parsed": false,
+      "retrieved": false
+    }
+  },
+  "invariants_verified": {
+    "inv_1": "VERIFIED",
+    "inv_2": "VERIFIED",
+    "inv_3": "VERIFIED",
+    "inv_4": "VERIFIED",
+    "inv_5": "VERIFIED",
+    "inv_6": "VERIFIED",
+    "inv_7": "VERIFIED",
+    "inv_8": "VERIFIED",
+    "inv_9": "VERIFIED",
+    "inv_10": "VERIFIED",
+    "inv_11": "VERIFIED",
+    "inv_12": "VERIFIED"
+  },
+  "regression": {
+    "passed": 16,
+    "failed": 0
+  },
+  "metrics": {}
+}

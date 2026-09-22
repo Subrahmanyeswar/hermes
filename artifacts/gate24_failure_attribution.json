@@ -1,0 +1,23 @@
+{
+  "total_tasks": 80,
+  "objective_passes": 1,
+  "objective_failures": 79,
+  "root_cause_counts": {
+    "real_agent_failure": 0,
+    "benchmark_harness_failure": 0,
+    "workspace_initialization_failure": 0,
+    "workspace_reset_failure": 0,
+    "success_contract_failure": 0,
+    "objective_evaluator_failure": 0,
+    "model_provider_failure": 79,
+    "routing_failure": 0,
+    "tool_runtime_failure": 0,
+    "verification_failure": 0,
+    "telemetry_failure": 0,
+    "environment_failure": 0,
+    "task_definition_failure": 0,
+    "inconclusive": 0
+  },
+  "confidence": "HIGH",
+  "primary_conclusion": "OllamaClient failed to ingest DeepSeek-R1 thinking tokens from Ollama v0.5+ API, returning empty string to ResponseParser on all tasks, resulting in 0 tool calls and 79 missing-file objective failures."
+}

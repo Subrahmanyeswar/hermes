@@ -1,0 +1,10 @@
+{
+  "dataset_version": "1.0.0",
+  "success_contract_version": "1.0.0",
+  "cost_accounting_version": "1.0.0",
+  "pricing_methodology": "provider_reported_exact",
+  "reconciliation_tolerance_usd": 1e-06,
+  "identity_attribution_policy": "strict_telemetry_provenance",
+  "frozen": true,
+  "benchmark_execution_allowed": false
+}

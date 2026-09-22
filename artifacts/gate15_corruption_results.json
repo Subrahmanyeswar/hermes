@@ -1,0 +1,98 @@
+[
+  {
+    "scenario_id": "D01",
+    "corruption_type": "database_missing",
+    "behavior": "Rebuilds fresh database on startup",
+    "detected": true,
+    "silent_acceptance": false,
+    "status": "PASS"
+  },
+  {
+    "scenario_id": "D02",
+    "corruption_type": "database_truncated",
+    "behavior": "Detects corruption via quick_check and fails closed or rebuilds",
+    "detected": true,
+    "silent_acceptance": false,
+    "status": "PASS"
+  },
+  {
+    "scenario_id": "D03",
+    "corruption_type": "database_garbage",
+    "behavior": "Detects malformed header; rejects corrupted store",
+    "detected": true,
+    "silent_acceptance": false,
+    "status": "PASS"
+  },
+  {
+    "scenario_id": "D04",
+    "corruption_type": "missing_mission_row",
+    "behavior": "Rejects orphan task rows referencing missing mission",
+    "detected": true,
+    "silent_acceptance": false,
+    "status": "PASS"
+  },
+  {
+    "scenario_id": "D05",
+    "corruption_type": "missing_task_row",
+    "behavior": "Rejects orphan tool execution records",
+    "detected": true,
+    "silent_acceptance": false,
+    "status": "PASS"
+  },
+  {
+    "scenario_id": "D06",
+    "corruption_type": "missing_acceptance_row",
+    "behavior": "Refuses mission completion without acceptance criteria",
+    "detected": true,
+    "silent_acceptance": false,
+    "status": "PASS"
+  },
+  {
+    "scenario_id": "D07",
+    "corruption_type": "missing_verification_row",
+    "behavior": "Rejects unverified task completion",
+    "detected": true,
+    "silent_acceptance": false,
+    "status": "PASS"
+  },
+  {
+    "scenario_id": "D08",
+    "corruption_type": "malformed_event_record",
+    "behavior": "Event parser drops malformed JSON lines safely",
+    "detected": true,
+    "silent_acceptance": false,
+    "status": "PASS"
+  },
+  {
+    "scenario_id": "D09",
+    "corruption_type": "duplicate_event",
+    "behavior": "Deduplicates monotonic event sequences",
+    "detected": true,
+    "silent_acceptance": false,
+    "status": "PASS"
+  },
+  {
+    "scenario_id": "D10",
+    "corruption_type": "inconsistent_schema_version",
+    "behavior": "Triggers schema migration or fail-closed abort",
+    "detected": true,
+    "silent_acceptance": false,
+    "status": "PASS"
+  },
+  {
+    "scenario_id": "D11",
+    "corruption_type": "stale_checkpoint",
+    "behavior": "Reconciles checkpoint against live event replay",
+    "detected": true,
+    "silent_acceptance": false,
+    "status": "PASS"
+  },
+  {
+    "scenario_id": "D12",
+    "corruption_type": "partially_written_snapshot",
+    "behavior": "Atomically rolls back partial JSON write via tempfile rename",
+    "detected": true,
+    "silent_acceptance": false,
+    "status": "PASS"
+  }
+]

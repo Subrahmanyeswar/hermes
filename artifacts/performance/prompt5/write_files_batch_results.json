@@ -1,0 +1,43 @@
+{
+  "tool_name": "write_files_batch",
+  "timestamp": "2026-09-17T10:53:07Z",
+  "implementation_file": "tools/file_tools.py",
+  "invariants": {
+    "min_files": 1,
+    "max_files": 3,
+    "max_total_bytes": 1000000,
+    "atomic_rollback": true,
+    "staging_directory": "tempfile.mkdtemp(prefix='hermes_batch_staging_')",
+    "backup_directory": "tempfile.mkdtemp(prefix='hermes_batch_backup_')",
+    "cleanup_in_finally": true,
+    "duplicate_path_detection": true,
+    "path_traversal_detection": true,
+    "workspace_boundary_enforced": true,
+    "permission_mode_blocked": [
+      "safe"
+    ]
+  },
+  "verification_suite": {
+    "test_file": "tests/test_write_files_batch.py",
+    "total_tests": 16,
+    "passed": 16,
+    "failed": 0,
+    "duration_sec": 0.64
+  },
+  "security_checks": {
+    "path_traversal_blocked": true,
+    "null_byte_blocked": true,
+    "duplicate_normalized_path_blocked": true,
+    "out_of_boundary_exit_code": 126
+  },
+  "production_routing": {
+    "test_file": "tests/test_prompt5_batch_routing.py",
+    "total_tests": 10,
+    "passed": 10,
+    "failed": 0,
+    "single_file_exposes_batch": false,
+    "multi_file_eligible_exposes_batch": true,
+    "four_plus_files_exposes_batch": false,
+    "benchmark_mode_exposes_batch": false
+  }
+}

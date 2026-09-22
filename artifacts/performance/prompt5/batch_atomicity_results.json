@@ -1,0 +1,121 @@
+{
+  "evaluation_name": "batch_staging_and_rollback_validation",
+  "timestamp": "2026-09-17T11:22:29Z",
+  "description": "Empirical evaluation of staging, backup, commit, failure rollback, existing file restoration, and cleanup",
+  "terminology_statement": "The implementation provides prevalidated multi-file staging with rollback on detected commit failure. This guarantees pre-mutation safety, backup restoration of modified files, and cleanup of newly created files upon detected exceptions, without claiming universal low-level operating system atomic transaction guarantees.",
+  "scenarios_tested": 10,
+  "scenarios_passed": 10,
+  "rollback_verified": true,
+  "existing_file_restoration_verified": true,
+  "temporary_cleanup_verified": true,
+  "pre_mutation_containment_verified": true,
+  "scenario_details": [
+    {
+      "scenario_id": "scenario_1_valid_1_file_batch",
+      "description": "Valid 1-file batch write",
+      "operation_success": true,
+      "files_expected_on_disk": [
+        "single.txt"
+      ],
+      "files_found_on_disk": [
+        "single.txt"
+      ],
+      "content_matches": true,
+      "temp_leaks": 0,
+      "status": "PASS"
+    },
+    {
+      "scenario_id": "scenario_2_valid_2_file_batch",
+      "description": "Valid 2-file batch write",
+      "operation_success": true,
+      "files_expected_on_disk": [
+        "f1.txt",
+        "f2.txt"
+      ],
+      "files_found_on_disk": [
+        "f1.txt",
+        "f2.txt"
+      ],
+      "content_matches": true,
+      "temp_leaks": 0,
+      "status": "PASS"
+    },
+    {
+      "scenario_id": "scenario_3_valid_3_file_batch",
+      "description": "Valid 3-file batch write",
+      "operation_success": true,
+      "files_expected_on_disk": [
+        "a.html",
+        "b.css",
+        "c.js"
+      ],
+      "files_found_on_disk": [
+        "a.html",
+        "b.css",
+        "c.js"
+      ],
+      "content_matches": true,
+      "temp_leaks": 0,
+      "status": "PASS"
+    },
+    {
+      "scenario_id": "scenario_4_pre_mutation_validation_failure",
+      "description": "Duplicate path detected in pre-mutation phase; zero bytes written",
+      "operation_success": false,
+      "error_message": "Duplicate path detected in batch: ./dup.txt",
+      "files_found_on_disk": [],
+      "no_disk_mutation": true,
+      "temp_leaks": 0,
+      "status": "PASS"
+    },
+    {
+      "scenario_id": "scenario_5_path_traversal_pre_mutation_failure",
+      "description": "Path traversal detected in pre-mutation phase; security exit code 126",
+      "operation_success": false,
+      "exit_code": 126,
+      "error_message": "SECURITY: Path '../../escape.txt' is invalid or outside workspace boundary 'C:\\Users\\SUBBU\\Downloads\\hermes\\temp_atomicity_eval\\ws5': 'C:\\\\Users\\\\SUBBU\\\\Downloads\\\\hermes\\\\escape.txt' is not in the subpath of 'C:\\\\Users\\\\SUBBU\\\\Downloads\\\\hermes\\\\temp_atomicity_eval\\\\ws5' OR one path is relative and the other is absolute.",
+      "files_found_on_disk": [],
+      "no_disk_mutation": true,
+      "temp_leaks": 0,
+      "status": "PASS"
+    },
+    {
+      "scenario_id": "scenario_6_new_file_commit_failure_rollback",
+      "description": "Failure committing second file rolls back first file, leaving workspace pristine",
+      "operation_success": false,
+      "error_message": "write_files_batch transaction failed and rolled back: Simulated write permission denial on second_fail.txt",
+      "files_found_on_disk": [],
+      "first_file_cleaned": true,
+      "temp_leaks": 0,
+      "status": "PASS"
+    },
+    {
+      "scenario_id": "scenario_7_existing_file_restoration_on_failure",
+      "description": "Failure on subsequent file triggers restoration of pre-existing overwritten file",
+      "operation_success": false,
+      "error_message": "write_files_batch transaction failed and rolled back: Simulated disk I/O error on error_trigger.txt",
+      "original_content_restored": true,
+      "error_file_absent": true,
+      "temp_leaks": 0,
+      "status": "PASS"
+    },
+    {
+      "scenario_id": "scenario_8_temp_directory_cleanup",
+      "description": "Verification that all staging and backup directories are cleaned up unconditionally",
+      "temporary_leaks_count": 0,
+      "status": "PASS"
+    },
+    {
+      "scenario_id": "scenario_9_hard_upper_bound_4_files",
+      "description": "Hard upper bound rejection when files count exceeds 3",
+      "pydantic_validation_error_raised": true,
+      "status": "PASS"
+    },
+    {
+      "scenario_id": "scenario_10_empty_batch_rejection",
+      "description": "Rejection when files list is empty",
+      "pydantic_validation_error_raised": true,
+      "status": "PASS"
+    }
+  ]
+}

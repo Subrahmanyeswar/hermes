@@ -1,0 +1,23 @@
+{
+  "probe_task": "Create python file containing def test(): return 1",
+  "benchmark_mode": {
+    "execution_mode": "benchmark",
+    "think": null,
+    "num_predict": 1536,
+    "verification_path": "BENCHMARK_FROZEN_T2 (Qwen3 8B LLM)",
+    "duration_seconds": 171.38,
+    "success": true,
+    "tool_name": "write_file"
+  },
+  "production_mode": {
+    "execution_mode": "production",
+    "think": false,
+    "num_predict": 1024,
+    "verification_path": "LOCAL_STRUCTURAL (deterministic AST+disk)",
+    "duration_seconds": 6.19,
+    "success": true,
+    "tool_name": "write_file",
+    "speedup_ratio": 27.69,
+    "latency_reduction_percent": 96.39
+  }
+}

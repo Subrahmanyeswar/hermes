@@ -49,8 +49,8 @@ class Task:
         return self.complexity_score < 0.4
 
     def is_complex(self) -> bool:
-        """Complex tasks: complexity >= 0.7, multiple tools or execution needed."""
-        return self.complexity_score >= 0.7
+        """Complex tasks: complexity >= 0.6, multiple tools or execution needed."""
+        return self.complexity_score >= 0.6
 
     def requires_confirmation(self) -> bool:
         """Destructive tasks always require user confirmation."""
@@ -117,25 +117,27 @@ class TaskPlanner:
         # ── Assign complexity score ───────────────────────────────────
         complexity = 0.2  # base
 
-        # More words = more complex request
+        # More words = more complex request only if not a descriptive read/inspection
         word_count = len(user_request.split())
-        if word_count > 30:
-            complexity += 0.2
-        elif word_count > 15:
-            complexity += 0.1
+        is_inspection = any(kw in request_lower for kw in ['inspect', 'check', 'list directory', 'read file', 'show contents', 'file exists', 'workspace'])
+        if not is_inspection:
+            if word_count > 30:
+                complexity += 0.2
+            elif word_count > 15:
+                complexity += 0.1
 
-        # Multiple tool categories = more complex
-        if len(task.required_tools) >= 4:
-            complexity += 0.3
-        elif len(task.required_tools) >= 2:
-            complexity += 0.15
+        # Multiple tool categories = more complex only if not an inspection task
+        if not is_inspection:
+            if len(task.required_tools) >= 4:
+                complexity += 0.2
+            elif len(task.required_tools) >= 2:
+                complexity += 0.1
 
         # Keywords that indicate complex multi-step tasks
         complex_keywords = [
-            'full', 'complete', 'entire', 'all', 'with authentication',
-            'with login', 'with database', 'with tests', 'and also', 'including',
-            'jwt', 'oauth', 'database', 'api', 'rest api', 'crud', 'flask',
-            'django', 'fastapi', 'microservice', 'middleware', 'deployment',
+            'with authentication', 'with login', 'with database',
+            'jwt', 'oauth', 'microservice', 'middleware', 'deployment',
+            'concurrency', 'race condition', 'cryptography', 'security audit'
         ]
         if any(kw in request_lower for kw in complex_keywords):
             complexity += 0.2
@@ -146,9 +148,13 @@ class TaskPlanner:
             complexity += 0.1
 
         # Keywords that indicate simple single-step tasks
-        simple_keywords = ['just', 'only', 'simply', 'quick', 'small']
+        simple_keywords = ['just', 'only', 'simply', 'quick', 'small', 'inspect', 'list', 'check', 'read']
         if any(kw in request_lower for kw in simple_keywords):
             complexity -= 0.1
+
+        # Inspection tasks should always have low complexity score
+        if is_inspection and not any(kw in request_lower for kw in ['security audit', 'architecture', 'redesign']):
+            complexity = min(complexity, 0.3)
 
         task.complexity_score = max(0.1, min(1.0, complexity))
 

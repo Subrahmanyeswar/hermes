@@ -1,0 +1,23 @@
+{
+  "description": "Prompt 3 Optimization Comparison: Baseline vs Optimized",
+  "single_probe": {
+    "scope": "single controlled identical probe (write_file)",
+    "benchmark_frozen_seconds": 171.38,
+    "production_optimized_seconds": 6.19,
+    "speedup_ratio": 27.69,
+    "latency_reduction_percent": 96.39,
+    "interpretation_scope": "Controlled identical-probe measurement; not an assertion of universal workload speedup"
+  },
+  "planner_decomposition": {
+    "scope": "EduPath Mini 3-file web project decomposition",
+    "prechange_planning_seconds": 133.97,
+    "prechange_tasks_planned": 13,
+    "postchange_planning_seconds": 0.015,
+    "postchange_tasks_planned": 3
+  },
+  "mission_execution": {
+    "scope": "EduPath Mini Golden Mission",
+    "prechange_edupath_outcome": "Stalled / 240s timeout on task 1 (0 tasks completed)",
+    "postchange_edupath_outcome": "COMPLETE (5/5 tasks completed, all 3 files verified: index.html, styles.css, app.js)"
+  }
+}

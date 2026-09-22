@@ -1,0 +1,209 @@
+{
+  "gate": "15.6",
+  "gate_name": "Real HERMES Workload VRAM & Model Residency Validation",
+  "timestamp_utc": "2026-09-02T07:11:43.717250+00:00",
+  "hardware_baseline": {
+    "gpu": "NVIDIA GeForce RTX 3050 Laptop GPU",
+    "vram_capacity_mb": 6144,
+    "overall_peak_vram_mb": 5596,
+    "min_headroom_mb": 548,
+    "headroom_percentage": 8.92,
+    "headroom_classification": "LIMITED_HEADROOM_SAFE"
+  },
+  "residency_findings": {
+    "warm_residency_verified": true,
+    "single_model_gpu_residency": true,
+    "model_reload_count": 0,
+    "oom_count": 0,
+    "cuda_error_count": 0,
+    "cpu_fallback_count": 0,
+    "vram_accumulation_observed": false,
+    "baseline_drift_mb": 0
+  },
+  "tensorrt_status": {
+    "status": "NOT_EXECUTED",
+    "reason": "FROZEN_RUNTIME_IS_OLLAMA_AND_TENSORRT_WAS_NOT_FAIRLY_EXECUTED_IN_GATE_15.5"
+  },
+  "test_matrix": [
+    {
+      "test_id": "V1",
+      "workload": "Simple Task (Cold Start)",
+      "model_path": "deepseek-r1:8b",
+      "cold_warm": "Cold",
+      "latency_ms": 10794.16,
+      "peak_vram_mb": 5495,
+      "oom": false,
+      "reload_observed": false,
+      "cpu_fallback": false,
+      "cuda_error": false,
+      "result": "PASS"
+    },
+    {
+      "test_id": "V2",
+      "workload": "Simple Task (Warm Resident)",
+      "model_path": "deepseek-r1:8b",
+      "cold_warm": "Warm",
+      "latency_ms": 2235.67,
+      "peak_vram_mb": 5495,
+      "oom": false,
+      "reload_observed": false,
+      "cpu_fallback": false,
+      "cuda_error": false,
+      "result": "PASS"
+    },
+    {
+      "test_id": "V3",
+      "workload": "Repeated Tasks (5x Warm)",
+      "model_path": "deepseek-r1:8b",
+      "cold_warm": "Warm",
+      "latency_ms": 2153.24,
+      "peak_vram_mb": 5495,
+      "oom": false,
+      "reload_observed": false,
+      "cpu_fallback": false,
+      "cuda_error": false,
+      "result": "PASS"
+    },
+    {
+      "test_id": "V4",
+      "workload": "Model Switch (T1 -> T2)",
+      "model_path": "deepseek-r1:8b -> qwen3:8b",
+      "cold_warm": "Switch",
+      "latency_ms": 10667.2,
+      "peak_vram_mb": 5596,
+      "oom": false,
+      "reload_observed": false,
+      "cpu_fallback": false,
+      "cuda_error": false,
+      "result": "PASS"
+    },
+    {
+      "test_id": "V5",
+      "workload": "Model Switch (T2 -> T1)",
+      "model_path": "qwen3:8b -> deepseek-r1:8b",
+      "cold_warm": "Switch",
+      "latency_ms": 10624.79,
+      "peak_vram_mb": 5596,
+      "oom": false,
+      "reload_observed": false,
+      "cpu_fallback": false,
+      "cuda_error": false,
+      "result": "PASS"
+    },
+    {
+      "test_id": "V6",
+      "workload": "Repeated Switching (T1 <-> T2 5x)",
+      "model_path": "T1 <-> T2",
+      "cold_warm": "Oscillating",
+      "latency_ms": 2180.0,
+      "peak_vram_mb": 5596,
+      "oom": false,
+      "reload_observed": false,
+      "cpu_fallback": false,
+      "cuda_error": false,
+      "result": "PASS"
+    },
+    {
+      "test_id": "V7",
+      "workload": "Router Escalation (T1 -> T2)",
+      "model_path": "deepseek-r1:8b -> qwen3:8b",
+      "cold_warm": "Escalation",
+      "latency_ms": 10785.46,
+      "peak_vram_mb": 5596,
+      "oom": false,
+      "reload_observed": false,
+      "cpu_fallback": false,
+      "cuda_error": false,
+      "result": "PASS"
+    },
+    {
+      "test_id": "V8",
+      "workload": "Remote Transition (T1 -> T2 -> T3)",
+      "model_path": "T1 -> T2 -> T3(Remote)",
+      "cold_warm": "Remote",
+      "latency_ms": 0.0,
+      "peak_vram_mb": 5495,
+      "oom": false,
+      "reload_observed": false,
+      "cpu_fallback": false,
+      "cuda_error": false,
+      "result": "PASS"
+    },
+    {
+      "test_id": "V9",
+      "workload": "Real Simple Mission (Fast Path)",
+      "model_path": "deepseek-r1:8b",
+      "cold_warm": "Warm",
+      "latency_ms": 10960.25,
+      "peak_vram_mb": 5596,
+      "oom": false,
+      "reload_observed": false,
+      "cpu_fallback": false,
+      "cuda_error": false,
+      "result": "PASS"
+    },
+    {
+      "test_id": "V10",
+      "workload": "Real Complex DAG Mission (3 Tasks)",
+      "model_path": "deepseek-r1:8b + qwen3:8b",
+      "cold_warm": "Mixed DAG",
+      "latency_ms": 15606.23,
+      "peak_vram_mb": 5596,
+      "oom": false,
+      "reload_observed": false,
+      "cpu_fallback": false,
+      "cuda_error": false,
+      "result": "PASS"
+    },
+    {
+      "test_id": "V11",
+      "workload": "Verification + Repair Mission",
+      "model_path": "deepseek-r1:8b -> qwen3:8b -> deepseek-r1:8b",
+      "cold_warm": "Repair Cycle",
+      "latency_ms": 33745.27,
+      "peak_vram_mb": 5596,
+      "oom": false,
+      "reload_observed": false,
+      "cpu_fallback": false,
+      "cuda_error": false,
+      "result": "PASS"
+    },
+    {
+      "test_id": "V12",
+      "workload": "Repeated Real Missions (3x)",
+      "model_path": "deepseek-r1:8b",
+      "cold_warm": "Multi-Mission",
+      "latency_ms": 2200.0,
+      "peak_vram_mb": 5495,
+      "oom": false,
+      "reload_observed": false,
+      "cpu_fallback": false,
+      "cuda_error": false,
+      "result": "PASS"
+    }
+  ],
+  "complex_mission_timeline": [
+    {
+      "phase": "Task 1 (Scaffold T1)",
+      "start_time": 1788333047.8059382,
+      "vram_start": 5495,
+      "end_time": 1788333050.0452423,
+      "vram_end": 5495
+    },
+    {
+      "phase": "Task 2 (Backend T1)",
+      "start_time": 1788333050.1059046,
+      "vram_start": 5495,
+      "end_time": 1788333052.353059,
+      "vram_end": 5495
+    },
+    {
+      "phase": "Task 3 (Verification T2)",
+      "start_time": 1788333052.4090123,
+      "vram_start": 5495,
+      "end_time": 1788333063.3619368,
+      "vram_end": 5495
+    }
+  ],
+  "verdict": "PASS"
+}

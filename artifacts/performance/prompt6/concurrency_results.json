@@ -1,0 +1,24 @@
+{
+  "experiment": "experiment_c_non_model_concurrency",
+  "timestamp": "2026-09-18T11:53:40Z",
+  "repetitions": 3,
+  "tasks_per_run": 4,
+  "serial": {
+    "max_workers": 1,
+    "min_ms": 186.57,
+    "median_ms": 187.47,
+    "max_ms": 197.13
+  },
+  "concurrent": {
+    "max_workers": 2,
+    "min_ms": 92.31,
+    "median_ms": 92.77,
+    "max_ms": 93.67
+  },
+  "delta": {
+    "median_latency_delta_ms": -94.7,
+    "latency_reduction_pct": -50.52,
+    "speedup_ratio": "2.02x",
+    "interpretation": "Under controlled 4-task independent CPU workload, bounded concurrency (max_workers=2) achieved a 2.02x speedup over strict serial execution."
+  }
+}

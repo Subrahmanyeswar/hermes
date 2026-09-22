@@ -1,0 +1,25 @@
+{
+  "description": "Mission Planner Decomposition Comparison: EduPath Mini",
+  "pre_change": {
+    "decomposition_strategy": "LLM decomposition with Rule 9 (Min 8 tasks)",
+    "planning_latency_seconds": 133.97,
+    "tasks_planned": 13,
+    "first_task_complexity": "L4_VERY_COMPLEX (score=0.90)",
+    "first_task_timeout_seconds": 240,
+    "first_task_outcome": "Timeout / runaway reasoning"
+  },
+  "post_change": {
+    "decomposition_strategy": "Strategy 2.5: Deterministic file-based decomposition (production mode)",
+    "planning_latency_seconds": 0.015,
+    "tasks_planned": 3,
+    "tasks_completed": 5,
+    "repair_tasks_needed": 2,
+    "planning_speedup_ratio": 8931.3,
+    "files_created": [
+      "index.html",
+      "styles.css",
+      "app.js"
+    ],
+    "mission_success": true
+  }
+}

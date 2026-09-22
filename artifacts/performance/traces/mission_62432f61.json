@@ -1,0 +1,156 @@
+{
+  "mission_id": "62432f61",
+  "execution_mode": "performance_baseline",
+  "mission": {
+    "start": "2026-09-14 00:20:42",
+    "end": "2026-09-14 00:20:42",
+    "duration_ms": 42.71,
+    "accounted_time_ms": 7.47,
+    "unaccounted_time_ms": 35.24
+  },
+  "stages": [
+    {
+      "name": "Input Sanitisation",
+      "stage_number": 1,
+      "start": 21166.3424,
+      "end": 21166.343,
+      "duration_ms": 0.62,
+      "success": true
+    },
+    {
+      "name": "Planning",
+      "stage_number": 2,
+      "start": 21166.3431,
+      "end": 21166.35,
+      "duration_ms": 6.85,
+      "success": true
+    }
+  ],
+  "model_calls": [],
+  "tool_calls": [
+    {
+      "tool_name": "list_dir",
+      "category": "other",
+      "start_time_monotonic": 21166.328,
+      "duration_ms": 0.0,
+      "subprocess_duration_ms": 0.0,
+      "filesystem_duration_ms": 0.0,
+      "success": false,
+      "exit_code": 2,
+      "args_size_bytes": 35,
+      "output_size_bytes": 11,
+      "retry_count": 0,
+      "error": "fatal error",
+      "mission_id": "4321a92a",
+      "task_id": "4321a92a",
+      "start": 21166.328,
+      "end": 21166.328
+    },
+    {
+      "tool_name": "list_dir",
+      "category": "other",
+      "start_time_monotonic": 21166.343,
+      "duration_ms": 0.0,
+      "subprocess_duration_ms": 0.0,
+      "filesystem_duration_ms": 0.0,
+      "success": false,
+      "exit_code": 2,
+      "args_size_bytes": 35,
+      "output_size_bytes": 11,
+      "retry_count": 1,
+      "error": "fatal error",
+      "mission_id": "4321a92a",
+      "task_id": "4321a92a",
+      "start": 21166.343,
+      "end": 21166.343
+    },
+    {
+      "tool_name": "list_dir",
+      "category": "other",
+      "start_time_monotonic": 21166.343,
+      "duration_ms": 0.0,
+      "subprocess_duration_ms": 0.0,
+      "filesystem_duration_ms": 0.0,
+      "success": false,
+      "exit_code": 2,
+      "args_size_bytes": 35,
+      "output_size_bytes": 11,
+      "retry_count": 2,
+      "error": "fatal error",
+      "mission_id": "4321a92a",
+      "task_id": "4321a92a",
+      "start": 21166.343,
+      "end": 21166.343
+    },
+    {
+      "tool_name": "list_dir",
+      "category": "other",
+      "start_time_monotonic": 21166.343,
+      "duration_ms": 0.0,
+      "subprocess_duration_ms": 0.0,
+      "filesystem_duration_ms": 0.0,
+      "success": false,
+      "exit_code": 2,
+      "args_size_bytes": 35,
+      "output_size_bytes": 11,
+      "retry_count": 3,
+      "error": "fatal error",
+      "mission_id": "4321a92a",
+      "task_id": "4321a92a",
+      "start": 21166.343,
+      "end": 21166.343
+    }
+  ],
+  "verification_calls": [],
+  "repair_attempts": [
+    {
+      "repair_id": "88ba3099",
+      "request_id": "62432f61",
+      "mission_id": "4321a92a",
+      "task_id": "4321a92a",
+      "attempt_number": 1,
+      "trigger": "Tool 'list_dir' failed with exit_code=2. Retry 1/3. Error: fatal error",
+      "affected_files": [
+        "."
+      ],
+      "start_time_monotonic": 21166.343,
+      "end_time_monotonic": 21166.343,
+      "duration_ms": 0.0,
+      "model": "deepseek-r1:8b",
+      "success": false
+    },
+    {
+      "repair_id": "bfa8fbd7",
+      "request_id": "62432f61",
+      "mission_id": "4321a92a",
+      "task_id": "4321a92a",
+      "attempt_number": 2,
+      "trigger": "Tool 'list_dir' failed with exit_code=2. Retry 2/3. Error: fatal error",
+      "affected_files": [
+        "."
+      ],
+      "start_time_monotonic": 21166.343,
+      "end_time_monotonic": 21166.343,
+      "duration_ms": 0.0,
+      "model": "deepseek-r1:8b",
+      "success": false
+    },
+    {
+      "repair_id": "be0d5b06",
+      "request_id": "62432f61",
+      "mission_id": "4321a92a",
+      "task_id": "4321a92a",
+      "attempt_number": 3,
+      "trigger": "Tool 'list_dir' failed with exit_code=2. Retry 3/3. Error: fatal error",
+      "affected_files": [
+        "."
+      ],
+      "start_time_monotonic": 21166.343,
+      "end_time_monotonic": 21166.343,
+      "duration_ms": 0.0,
+      "model": "deepseek-r1:8b",
+      "success": false
+    }
+  ],
+  "model_switches": []
+}

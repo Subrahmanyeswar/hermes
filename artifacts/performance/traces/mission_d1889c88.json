@@ -1,0 +1,32 @@
+{
+  "mission_id": "d1889c88",
+  "execution_mode": "performance_baseline",
+  "mission": {
+    "start": "2026-09-13 21:53:12",
+    "end": "2026-09-13 21:53:12",
+    "duration_ms": 21.98,
+    "accounted_time_ms": 21.9,
+    "unaccounted_time_ms": 0.08
+  },
+  "stages": [],
+  "model_calls": [],
+  "tool_calls": [],
+  "verification_calls": [
+    {
+      "verification_id": "75130613",
+      "request_id": "d1889c88",
+      "mission_id": "m_2",
+      "task_id": "t_2",
+      "method": "deterministic",
+      "start_time_monotonic": 12316.4080916,
+      "end_time_monotonic": 12316.4299941,
+      "duration_ms": 21.902500000578584,
+      "verdict": "AGREE",
+      "escalated": false,
+      "issues_count": 0,
+      "issues": []
+    }
+  ],
+  "repair_attempts": [],
+  "model_switches": []
+}

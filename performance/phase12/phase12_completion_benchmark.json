@@ -1,0 +1,6 @@
+{
+  "avg_evaluation_latency_ms": 0.006,
+  "evaluation_accuracy_pct": 100.0,
+  "false_completion_prevention_pct": 100.0,
+  "extra_llm_calls": 0
+}

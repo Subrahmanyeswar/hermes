@@ -1,0 +1,163 @@
+{
+  "freeze_metadata": {
+    "gate": "15.4",
+    "gate_name": "Configuration & Environment Freeze (Hardened & Verified)",
+    "freeze_timestamp_utc": "2026-09-02T06:09:35.042065+00:00",
+    "status": "FROZEN_AND_VERIFIED",
+    "worktree_status": "FROZEN_DIRTY_WORKTREE",
+    "worktree_fingerprint": "67659e5d336f79398000f8f0f958597268a439673be2263d299419398e1b9a21"
+  },
+  "hardware": {
+    "platform": "Windows-10-10.0.26200-SP0",
+    "os_name": "Windows",
+    "os_release": "10",
+    "os_version": "10.0.26200",
+    "architecture": "AMD64",
+    "processor": "Intel64 Family 6 Model 151 Stepping 2, GenuineIntel",
+    "gpu": {
+      "name": "NVIDIA GeForce RTX 3050 Laptop GPU",
+      "driver_version": "551.86",
+      "vram_total_mb": 6144,
+      "vram_free_mb": 4500,
+      "compute_capability": "8.6",
+      "cuda_runtime": "12.4"
+    },
+    "power_profile": "AC Connected / High Performance Mode"
+  },
+  "python_environment": {
+    "python_version": "3.10.0",
+    "executable": "C:\\Users\\SUBBU\\AppData\\Local\\Programs\\Python\\Python310\\python.exe",
+    "runtime_type": "CPython 3.10.0 (Windows x86_64)",
+    "runtime_rationale": "CPython 3.10.0 is the active, verified, dependency-consistent environment for this machine."
+  },
+  "git_source_revision": {
+    "head_commit": "be1a563bd73830efa0dff2400788ffe89d2ebc96",
+    "branch": "main",
+    "source_status": "FROZEN_DIRTY_WORKTREE",
+    "worktree_sha256": "67659e5d336f79398000f8f0f958597268a439673be2263d299419398e1b9a21",
+    "modified_files_count": 91
+  },
+  "locked_model_hierarchy": {
+    "tier1_primary": {
+      "identifier": "deepseek-r1:8b",
+      "provider": "ollama",
+      "exact_digest": "6995872bfe4c521a67b32da386cd21d5c6e819b6e0d62f79f64ec83be99f5763",
+      "tag": "latest",
+      "quantization": "Q4_K_M",
+      "parameter_count": "8.1B",
+      "size_bytes": 5225376047,
+      "context_window": 8192,
+      "temperature": 0.0,
+      "max_tokens": 8192,
+      "reasoning_mode": "native_r1_thought_tags_parsed",
+      "gpu_residency": "exclusive_semaphore_locked",
+      "smoke_test_status": "SUCCESS",
+      "smoke_test_latency_ms": 18422.69
+    },
+    "tier2_verifier": {
+      "identifier": "qwen3:8b",
+      "provider": "ollama",
+      "exact_digest": "500a1f067a9f782620b40bee6f7b0c89e17ae61f686b92c24933e4ca4b2b8b41",
+      "tag": "latest",
+      "quantization": "Q4_K_M",
+      "parameter_count": "8.2B",
+      "size_bytes": 5225388164,
+      "context_window": 8192,
+      "temperature": 0.0,
+      "max_tokens": 4096,
+      "gpu_residency": "exclusive_semaphore_locked",
+      "smoke_test_status": "SUCCESS",
+      "smoke_test_latency_ms": 19217.97
+    },
+    "tier3_arbitrator": {
+      "identifier": "stealth/ox-alpha",
+      "provider": "openrouter",
+      "endpoint": "https://openrouter.ai/api/v1/chat/completions",
+      "budget_cap_usd": 25.0,
+      "api_key": "<REDACTED>",
+      "smoke_test_status": "REMOTE_PROVIDER_AUTHENTICATION_REQUIRED",
+      "notes": "Remote cloud arbitration endpoint configured with $25 lifetime budget cap."
+    }
+  },
+  "runtime_selection": {
+    "selected_runtime": "ollama",
+    "tensorrt_llm_status": "NOT SELECTED / NOT USED",
+    "rationale": "Ollama provides robust multi-architecture execution with zero rebuild requirements on RTX 3050 6GB Laptop GPU."
+  },
+  "subsystem_parameters": {
+    "intelligent_router": {
+      "enabled": true,
+      "t2_confidence_threshold": 0.7,
+      "high_risk_threshold": 0.6
+    },
+    "kairos_dag": {
+      "enabled": true,
+      "max_concurrency": 4,
+      "gpu_semaphore": 1,
+      "max_retries": 2
+    },
+    "progressive_verifier": {
+      "enabled": true,
+      "verification_timeout_sec": 30,
+      "max_mission_repairs": 3
+    },
+    "context_engine": {
+      "enabled": true,
+      "max_context_tokens": 4096,
+      "generation_reserve": 1024
+    },
+    "event_bus": {
+      "enabled": true,
+      "buffer_size": 1000
+    }
+  },
+  "benchmark_dataset_manifest": {
+    "benchmark_version": "v1.0.0-prebench",
+    "manifest_sha256": "4e78f99ad5c60205b380f2dcf35a9681329c2cf9b2223bb3511ebf6ec9a6c434",
+    "workspace_fingerprint": "hermes_eval_workspace_sha256_canonical",
+    "prompt_set": [
+      {
+        "id": "TASK-01-SIMPLE",
+        "category": "FAST_PATH",
+        "prompt": "create directory reports",
+        "expected_mode": "SIMPLE",
+        "acceptance": "reports directory exists on disk"
+      },
+      {
+        "id": "TASK-02-STANDARD",
+        "category": "CODE_SYNTHESIS",
+        "prompt": "Add health endpoint to API",
+        "expected_mode": "STANDARD",
+        "acceptance": "API returns 200 OK for /health"
+      },
+      {
+        "id": "TASK-03-COMPLEX",
+        "category": "KAIROS_DAG",
+        "prompt": "Build fullstack architecture with auth and tests",
+        "expected_mode": "COMPLEX",
+        "acceptance": "5 DAG tasks complete with 100% verified evidence"
+      },
+      {
+        "id": "TASK-04-FAILURE_REPAIR",
+        "category": "CLOSED_LOOP_REPAIR",
+        "prompt": "Implement multiply function",
+        "expected_mode": "STANDARD",
+        "acceptance": "Injected defect diagnosed and repaired with unit test passing"
+      },
+      {
+        "id": "TASK-05-ESCALATION",
+        "category": "MULTI_TIER_ROUTING",
+        "prompt": "Refactor core engine subsystem",
+        "expected_mode": "COMPLEX",
+        "acceptance": "T1 low confidence routes to T2 verifier"
+      },
+      {
+        "id": "TASK-06-WORKSPACE_AWARE",
+        "category": "CODEBASE_DISCOVERY",
+        "prompt": "Add logout function to existing auth module",
+        "expected_mode": "STANDARD",
+        "acceptance": "Existing auth.py modified in-place without duplicate creation"
+      }
+    ]
+  }
+}

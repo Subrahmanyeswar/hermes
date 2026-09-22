@@ -1,0 +1,142 @@
+{
+  "mission_id": "2cca9986",
+  "execution_mode": "performance_baseline",
+  "mission": {
+    "start": "2026-09-13 21:34:23",
+    "end": "2026-09-13 21:34:37",
+    "duration_ms": 13410.7,
+    "accounted_time_ms": 13278.43,
+    "unaccounted_time_ms": 132.27
+  },
+  "stages": [
+    {
+      "name": "Input Sanitisation",
+      "stage_number": 1,
+      "start": 11187.8424,
+      "end": 11187.8431,
+      "duration_ms": 0.7,
+      "success": true
+    },
+    {
+      "name": "Planning",
+      "stage_number": 2,
+      "start": 11187.8444,
+      "end": 11187.8545,
+      "duration_ms": 10.13,
+      "success": true
+    }
+  ],
+  "model_calls": [
+    {
+      "inference_id": "20bb0f3b",
+      "request_id": "2cca9986",
+      "mission_id": "2cca9986",
+      "task_id": "2cca9986",
+      "stage": "",
+      "execution_mode": "performance_baseline",
+      "model": "deepseek-r1:8b",
+      "provider": "ollama",
+      "start_time_monotonic": 11187.8667307,
+      "end_time_monotonic": 11201.1343286,
+      "start_timestamp": "2026-09-13T16:04:37Z",
+      "first_token_timestamp": null,
+      "end_timestamp": "2026-09-13T16:04:37Z",
+      "total_latency_ms": 13267.5978999996,
+      "total_duration": 12998.2901,
+      "load_duration_ms": 9031.4587,
+      "load_duration": 9031.4587,
+      "prompt_eval_duration_ms": 1325.4851,
+      "prompt_eval_duration": 1325.4851,
+      "eval_duration_ms": 2559.351,
+      "eval_duration": 2559.351,
+      "ttft_ms": 10356.9438,
+      "prompt_eval_count": 1562,
+      "eval_count": 78,
+      "prompt_tokens": 1562,
+      "output_tokens": 78,
+      "total_tokens": 1640,
+      "tokens_per_second": 30.48,
+      "think_enabled": false,
+      "thinking_present": false,
+      "thinking_available": false,
+      "thinking_length": 0,
+      "final_response_length": 325,
+      "thinking_tokens": null,
+      "tool_call_count": 1,
+      "context": {
+        "system_prompt_chars": 6848,
+        "tool_defs_chars": 0,
+        "user_prompt_chars": 57,
+        "memory_context_chars": 0,
+        "skill_context_chars": 0,
+        "workspace_context_chars": 0,
+        "total_input_chars": 6905,
+        "estimated_input_tokens": 1726,
+        "exact_input_tokens": 1562
+      },
+      "temperature": 0.1,
+      "num_ctx": 4096,
+      "keep_alive": "300s",
+      "lifecycle_state": "COLD",
+      "warm_cold_state": "COLD",
+      "model_switch_state": "SAME",
+      "previous_model": null,
+      "requested_model": "deepseek-r1:8b",
+      "success": true,
+      "retry_count": 0,
+      "timed_out": false,
+      "error": null,
+      "error_type": null,
+      "error_message": null,
+      "cost_usd": 0.0,
+      "gpu_vram_used_mb": 5495.0,
+      "gpu_util_percent": 96.0,
+      "raw_timing_metadata": {
+        "total_duration": 12998290100,
+        "load_duration": 9031458700,
+        "prompt_eval_count": 1562,
+        "prompt_eval_duration": 1325485100,
+        "eval_count": 78,
+        "eval_duration": 2559351000
+      }
+    }
+  ],
+  "tool_calls": [
+    {
+      "tool_name": "list_directory",
+      "category": "other",
+      "start_time_monotonic": 11201.203,
+      "duration_ms": 0.0,
+      "subprocess_duration_ms": 0.0,
+      "filesystem_duration_ms": 0.0,
+      "success": true,
+      "exit_code": 0,
+      "args_size_bytes": 13,
+      "output_size_bytes": 2524,
+      "retry_count": 0,
+      "error": null,
+      "mission_id": "7dfff285",
+      "task_id": "7dfff285",
+      "start": 11201.203,
+      "end": 11201.203
+    }
+  ],
+  "verification_calls": [
+    {
+      "verification_id": "67cda6ad",
+      "request_id": "2cca9986",
+      "mission_id": "7dfff285",
+      "task_id": "7dfff285",
+      "method": "LOCAL_DETERMINISTIC",
+      "start_time_monotonic": 11201.203,
+      "end_time_monotonic": 11201.203,
+      "duration_ms": 0.0,
+      "verdict": "AGREE",
+      "escalated": false,
+      "issues_count": 0,
+      "issues": []
+    }
+  ],
+  "repair_attempts": [],
+  "model_switches": []
+}

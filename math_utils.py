@@ -1,0 +1,1 @@
+def add_numbers(a: int, b: int) -> int:\n    """Add two integers and return the result.\n\n    Args:\n        a (int): First integer\n        b (int): Second integer\n\n    Returns:\n        int: Sum of the two integers\n    """\n    return a + b

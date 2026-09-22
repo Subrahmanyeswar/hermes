@@ -1,0 +1,62 @@
+{
+  "root": "MISSION (1800s default / User Deadline)",
+  "children": [
+    {
+      "scope": "KAIROS Scheduler",
+      "concurrency_limit": 4,
+      "deadline_policy": "Inherits remaining mission deadline for critical path",
+      "children": [
+        {
+          "scope": "TASK",
+          "deadline_policy": "min(configured_task_budget, parent_remaining_mission_deadline)",
+          "children": [
+            {
+              "scope": "MODEL Reasoning & Generation",
+              "levels": {
+                "L0_DIRECT": "45s",
+                "L1_SIMPLE": "75s",
+                "L2_NORMAL": "120s",
+                "L3_COMPLEX": "180s",
+                "L4_VERY_COMPLEX": "240s"
+              },
+              "provider_ceiling": "180s (MODEL_TIMEOUT_SECONDS)",
+              "expiry_action": "Tag [TIMEOUT], abort generation, invoke router escalation"
+            },
+            {
+              "scope": "TOOL Execution",
+              "tools": {
+                "WriteFileTool / ReadFileTool": "Synchronous non-preemptive (<5ms)",
+                "BashExecTool": "30s (range 1-300s)",
+                "RunTestsTool": "60s (range 1-600s)",
+                "GitCommandTool": "120s (range 1-600s)",
+                "WebSearchTool": "15s",
+                "FetchUrlTool": "20s"
+              },
+              "expiry_action": "Subprocess terminated via SIGTERM -> SIGKILL (1.5s timeout)"
+            },
+            {
+              "scope": "VERIFICATION",
+              "default": "30s (VERIFICATION_TIMEOUT_SECONDS)",
+              "expiry_action": "Short-circuit progressive verification to FAILED"
+            },
+            {
+              "scope": "REPAIR",
+              "max_attempts": 3,
+              "expiry_action": "Halt repair loop on 3 attempts; escalate or fail task"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "scope": "BACKGROUND MEMORY WORKER",
+      "default": "60s (MEMORY_EXTRACTION_TIMEOUT_SECONDS)",
+      "expiry_action": "Discard stale background extraction job"
+    }
+  ],
+  "deadline_invariants": {
+    "effective_child_deadline": "min(child_configured_timeout, parent_remaining_deadline)",
+    "mission_timeout_propagation": "CancellationController.cancel_mission() -> halts KAIROS, models, tools, verifier, repair",
+    "terminal_state_lock": "Once status == CANCELLED / TIMEOUT, no late event can mutate state to COMPLETED"
+  }
+}

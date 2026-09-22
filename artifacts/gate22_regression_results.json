@@ -1,0 +1,31 @@
+{
+  "gate": "22",
+  "suite": "full_regression",
+  "command": "pytest tests/ -v",
+  "repository": {
+    "path": "c:\\Users\\SUBBU\\Downloads\\hermes",
+    "branch": "main",
+    "commit": "be1a563bd73830efa0dff2400788ffe89d2ebc96",
+    "working_tree_clean": false
+  },
+  "environment": {
+    "os": "Windows",
+    "python": "3.10.0",
+    "pytest": "9.0.3",
+    "gpu": "NVIDIA GeForce RTX 3050 Laptop GPU 6GB"
+  },
+  "tests": {
+    "collected": 945,
+    "passed": 945,
+    "failed": 0,
+    "errors": 0,
+    "skipped": 0,
+    "xfailed": 0,
+    "xpassed": 0,
+    "deselected": 0
+  },
+  "duration_seconds": 3655.17,
+  "status": "PASS",
+  "final_benchmark_executed": false,
+  "benchmark_execution_allowed": false
+}

@@ -1,0 +1,26 @@
+{
+  "mission_id": "acdc63ab",
+  "execution_mode": "performance_baseline",
+  "mission": {
+    "start": "2026-09-18 13:09:09",
+    "end": "2026-09-18 13:09:09",
+    "duration_ms": 22.72,
+    "accounted_time_ms": 22.65,
+    "unaccounted_time_ms": 0.07
+  },
+  "stages": [
+    {
+      "name": "Stage 1: Test Span",
+      "stage_number": 1,
+      "start": 135703.9002,
+      "end": 135703.9229,
+      "duration_ms": 22.65,
+      "success": true
+    }
+  ],
+  "model_calls": [],
+  "tool_calls": [],
+  "verification_calls": [],
+  "repair_attempts": [],
+  "model_switches": []
+}

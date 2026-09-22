@@ -1,0 +1,34 @@
+{
+  "mission_id": "46771970",
+  "execution_mode": "performance_baseline",
+  "mission": {
+    "start": "2026-09-13 22:00:58",
+    "end": "2026-09-13 22:00:58",
+    "duration_ms": 30.52,
+    "accounted_time_ms": 9.77,
+    "unaccounted_time_ms": 20.75
+  },
+  "stages": [
+    {
+      "name": "Input Sanitisation",
+      "stage_number": 1,
+      "start": 12782.654,
+      "end": 12782.6548,
+      "duration_ms": 0.8,
+      "success": true
+    },
+    {
+      "name": "Planning",
+      "stage_number": 2,
+      "start": 12782.6549,
+      "end": 12782.6639,
+      "duration_ms": 8.97,
+      "success": true
+    }
+  ],
+  "model_calls": [],
+  "tool_calls": [],
+  "verification_calls": [],
+  "repair_attempts": [],
+  "model_switches": []
+}

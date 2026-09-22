@@ -1,0 +1,100 @@
+{
+  "gpu_initial": {
+    "vram_used_mb": 0.0,
+    "vram_free_mb": 6002.0,
+    "vram_total_mb": 6144.0,
+    "gpu_util": 0.0
+  },
+  "gpu_clean": {
+    "vram_used_mb": 0.0,
+    "vram_free_mb": 6002.0,
+    "vram_total_mb": 6144.0,
+    "gpu_util": 0.0
+  },
+  "t1_cold": {
+    "model": "deepseek-r1:8b",
+    "elapsed_sec": 11.417,
+    "load_dur_ms": 9101.0,
+    "eval_count": 64,
+    "tok_per_sec": 31.92,
+    "gpu": {
+      "vram_used_mb": 5495.0,
+      "vram_free_mb": 508.0,
+      "vram_total_mb": 6144.0,
+      "gpu_util": 97.0
+    }
+  },
+  "t1_warm": {
+    "model": "deepseek-r1:8b",
+    "elapsed_sec": 2.232,
+    "load_dur_ms": 193.1,
+    "eval_count": 64,
+    "tok_per_sec": 32.05,
+    "gpu": {
+      "vram_used_mb": 5495.0,
+      "vram_free_mb": 508.0,
+      "vram_total_mb": 6144.0,
+      "gpu_util": 97.0
+    }
+  },
+  "t2_cold": {
+    "model": "qwen3:8b",
+    "elapsed_sec": 10.885,
+    "load_dur_ms": 8606.8,
+    "eval_count": 64,
+    "tok_per_sec": 31.88,
+    "gpu": {
+      "vram_used_mb": 5495.0,
+      "vram_free_mb": 508.0,
+      "vram_total_mb": 6144.0,
+      "gpu_util": 97.0
+    }
+  },
+  "t2_warm": {
+    "model": "qwen3:8b",
+    "elapsed_sec": 2.218,
+    "load_dur_ms": 179.2,
+    "eval_count": 64,
+    "tok_per_sec": 32.04,
+    "gpu": {
+      "vram_used_mb": 5495.0,
+      "vram_free_mb": 508.0,
+      "vram_total_mb": 6144.0,
+      "gpu_util": 97.0
+    }
+  },
+  "t1_reload": {
+    "model": "deepseek-r1:8b",
+    "elapsed_sec": 10.623,
+    "load_dur_ms": 8341.7,
+    "eval_count": 64,
+    "tok_per_sec": 31.89,
+    "gpu": {
+      "vram_used_mb": 5495.0,
+      "vram_free_mb": 508.0,
+      "vram_total_mb": 6144.0,
+      "gpu_util": 97.0
+    }
+  },
+  "models_in_ps_final": [
+    {
+      "name": "deepseek-r1:8b",
+      "model": "deepseek-r1:8b",
+      "size": 6005854336,
+      "digest": "6995872bfe4c521a67b32da386cd21d5c6e819b6e0d62f79f64ec83be99f5763",
+      "details": {
+        "parent_model": "",
+        "format": "gguf",
+        "family": "qwen3",
+        "families": [
+          "qwen3"
+        ],
+        "parameter_size": "8.2B",
+        "quantization_level": "Q4_K_M"
+      },
+      "expires_at": "2026-09-01T22:01:15.0047765+05:30",
+      "size_vram": 6005854336,
+      "context_length": 4096
+    }
+  ]
+}

@@ -1,0 +1,142 @@
+{
+  "mission_id": "42d30a4a",
+  "execution_mode": "performance_baseline",
+  "mission": {
+    "start": "2026-09-20 00:15:14",
+    "end": "2026-09-20 00:16:50",
+    "duration_ms": 96727.42,
+    "accounted_time_ms": 96612.87,
+    "unaccounted_time_ms": 114.55
+  },
+  "stages": [
+    {
+      "name": "Input Sanitisation",
+      "stage_number": 1,
+      "start": 262070.2789,
+      "end": 262070.28,
+      "duration_ms": 1.13,
+      "success": true
+    },
+    {
+      "name": "Planning",
+      "stage_number": 2,
+      "start": 262070.2803,
+      "end": 262070.289,
+      "duration_ms": 8.74,
+      "success": true
+    }
+  ],
+  "model_calls": [
+    {
+      "inference_id": "3f445b67",
+      "request_id": "42d30a4a",
+      "mission_id": "42d30a4a",
+      "task_id": "42d30a4a",
+      "stage": "",
+      "execution_mode": "performance_baseline",
+      "model": "deepseek-r1:8b",
+      "provider": "ollama",
+      "start_time_monotonic": 262070.318741,
+      "end_time_monotonic": 262166.9067399,
+      "start_timestamp": "2026-09-19T18:46:50Z",
+      "first_token_timestamp": null,
+      "end_timestamp": "2026-09-19T18:46:50Z",
+      "total_latency_ms": 96587.99890000955,
+      "total_duration": 96310.8667,
+      "load_duration_ms": 262.1483,
+      "load_duration": 262.1483,
+      "prompt_eval_duration_ms": 1850.8024,
+      "prompt_eval_duration": 1850.8024,
+      "eval_duration_ms": 35086.0092,
+      "eval_duration": 35086.0092,
+      "ttft_ms": 2112.9507,
+      "prompt_eval_count": 2299,
+      "eval_count": 1024,
+      "prompt_tokens": 2299,
+      "output_tokens": 1024,
+      "total_tokens": 3323,
+      "tokens_per_second": 29.19,
+      "think_enabled": false,
+      "thinking_present": false,
+      "thinking_available": false,
+      "thinking_length": 0,
+      "final_response_length": 3270,
+      "thinking_tokens": null,
+      "tool_call_count": 1,
+      "context": {
+        "system_prompt_chars": 7381,
+        "tool_defs_chars": 0,
+        "user_prompt_chars": 2006,
+        "memory_context_chars": 0,
+        "skill_context_chars": 0,
+        "workspace_context_chars": 0,
+        "total_input_chars": 9387,
+        "estimated_input_tokens": 2346,
+        "exact_input_tokens": 2299
+      },
+      "temperature": 0.1,
+      "num_ctx": 4096,
+      "keep_alive": "300s",
+      "lifecycle_state": "WARM",
+      "warm_cold_state": "WARM",
+      "model_switch_state": "SAME",
+      "previous_model": "deepseek-r1:8b",
+      "requested_model": "deepseek-r1:8b",
+      "success": true,
+      "retry_count": 0,
+      "timed_out": false,
+      "error": null,
+      "error_type": null,
+      "error_message": null,
+      "cost_usd": 0.0,
+      "gpu_vram_used_mb": 5499.0,
+      "gpu_util_percent": 97.0,
+      "raw_timing_metadata": {
+        "total_duration": 96310866700,
+        "load_duration": 262148300,
+        "prompt_eval_count": 2299,
+        "prompt_eval_duration": 1850802400,
+        "eval_count": 1024,
+        "eval_duration": 35086009200
+      }
+    }
+  ],
+  "tool_calls": [
+    {
+      "tool_name": "write_file",
+      "category": "filesystem",
+      "start_time_monotonic": 262160.453,
+      "duration_ms": 15.000000013969839,
+      "subprocess_duration_ms": 0.0,
+      "filesystem_duration_ms": 15.000000013969839,
+      "success": true,
+      "exit_code": 0,
+      "args_size_bytes": 1651,
+      "output_size_bytes": 82,
+      "retry_count": 0,
+      "error": null,
+      "mission_id": "c78c14c0",
+      "task_id": "c78c14c0",
+      "start": 262160.453,
+      "end": 262160.468
+    }
+  ],
+  "verification_calls": [
+    {
+      "verification_id": "7a353474",
+      "request_id": "42d30a4a",
+      "mission_id": "c78c14c0",
+      "task_id": "c78c14c0",
+      "method": "LOCAL_STRUCTURAL",
+      "start_time_monotonic": 262160.468,
+      "end_time_monotonic": 262160.468,
+      "duration_ms": 0.0,
+      "verdict": "AGREE",
+      "escalated": false,
+      "issues_count": 0,
+      "issues": []
+    }
+  ],
+  "repair_attempts": [],
+  "model_switches": []
+}

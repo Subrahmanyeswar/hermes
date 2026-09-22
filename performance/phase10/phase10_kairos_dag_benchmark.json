@@ -1,0 +1,9 @@
+{
+  "independent_sequential_ms": 190.89,
+  "independent_dag_ms": 62.56,
+  "independent_speedup": 3.05,
+  "mixed_sequential_ms": 160.0,
+  "mixed_dag_ms": 94.1,
+  "mixed_speedup": 1.7,
+  "max_concurrency": 3
+}

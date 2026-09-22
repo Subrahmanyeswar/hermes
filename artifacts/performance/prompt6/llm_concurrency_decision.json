@@ -1,0 +1,27 @@
+{
+  "hardware": "NVIDIA GeForce RTX 3050 6GB Laptop GPU",
+  "model": "deepseek-r1:8b (Q4_K_M via Ollama)",
+  "total_vram_mb": 6144,
+  "one_worker": {
+    "latency_ms": 27371.0,
+    "vram_mb": 4912,
+    "available_headroom_mb": 1232,
+    "temperature_c": 77.0,
+    "gpu_utilization_pct": 98.0,
+    "errors": 0,
+    "stability": "STABLE_MEASURED_HEADROOM"
+  },
+  "two_workers": {
+    "latency_ms": 17203.0,
+    "vram_mb": 5850,
+    "available_headroom_mb": 294,
+    "temperature_c": 76.0,
+    "gpu_utilization_pct": 99.0,
+    "errors": 0,
+    "stability": "REDUCED_VRAM_HEADROOM"
+  },
+  "production_policy": 1,
+  "decision": "LOCKED_SERIAL_INFERENCE",
+  "evidence_sufficient": true,
+  "measured_rationale": "Although the two-worker diagnostic completed faster than the one-worker diagnostic for the tested short prompts, it reduced available VRAM headroom from 1,232 MiB to 294 MiB on the 6 GB GPU. Given the larger context and runtime allocations present in production missions, HERMES retains serialized LLM execution (llm_concurrency = 1) as the tested production policy."
+}

@@ -1,0 +1,30 @@
+{
+  "task_id": "SYNTH_01",
+  "dataset_version": "1.0.0",
+  "success_contract_version": "1.0.0",
+  "evaluator_version": "1.0.0",
+  "hermes_reported_status": "PASS",
+  "objective_status": "FAIL",
+  "false_completion": false,
+  "false_negative": false,
+  "criteria_results": {},
+  "test_results": {
+    "C:\\Users\\SUBBU\\AppData\\Local\\Programs\\Python\\Python310\\python.exe -c \"from generated_projects.synth_probe import probe; assert probe() == 100\"": {
+      "exit_code": 1,
+      "status": "FAIL",
+      "stdout_snippet": "",
+      "stderr_snippet": "Traceback (most recent call last):\n  File \"<string>\", line 1, in <module>\nImportError: cannot import name 'probe' from 'generated_projects.synth_probe' (c:\\Users\\SUBBU\\Downloads\\hermes\\generated_proje"
+    }
+  },
+  "file_checks": {
+    "generated_projects/synth_probe.py": true
+  },
+  "constraints_satisfied": false,
+  "failure_reasons": [
+    "Verification command failed (exit code 1): C:\\Users\\SUBBU\\AppData\\Local\\Programs\\Python\\Python310\\python.exe -c \"from generated_projects.synth_probe import probe; assert probe() == 100\""
+  ],
+  "evidence": [
+    "Valid Python AST: generated_projects/synth_probe.py"
+  ],
+  "evaluation_timestamp": 1788681293.6173775
+}

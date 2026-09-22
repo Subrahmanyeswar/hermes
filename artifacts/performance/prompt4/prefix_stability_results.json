@@ -1,0 +1,20 @@
+{
+  "prefix_hash": "f2f5a3b999a8808e4e9eb1aefab1b6e53d38b7ccab575bb3fecfc1d27baee06c",
+  "prefix_stable": true,
+  "prefix_chars": 3141,
+  "prefix_tokens_isolated": 686,
+  "prefix_tokens_estimated": 827,
+  "suffix_chars_baseline": 4790,
+  "suffix_chars_optimized": 2511,
+  "stability_across_turns": {
+    "turn_1_hash": "f2f5a3b999a8808e4e9eb1aefab1b6e53d38b7ccab575bb3fecfc1d27baee06c",
+    "turn_2_hash": "f2f5a3b999a8808e4e9eb1aefab1b6e53d38b7ccab575bb3fecfc1d27baee06c",
+    "turn_3_hash": "f2f5a3b999a8808e4e9eb1aefab1b6e53d38b7ccab575bb3fecfc1d27baee06c",
+    "invariant": true
+  },
+  "cache_reuse_directly_measured": false,
+  "ollama_runtime_kv_investigation": {
+    "status": "VERIFIED_PREREQUISITE_ONLY",
+    "findings": "Prefix stability is structurally proven and establishes the exact invariant prefix required for engine-level KV cache reuse. However, direct KV-cache reuse latency reduction was NOT experimentally observed in Ollama Experiment B (prompt_eval_ms was 1071.02 ms vs 368.48 ms baseline). Ollama/llama.cpp runtime cache reuse under this harness did not yield an observed speedup, and no runtime cache speedup is claimed."
+  }
+}

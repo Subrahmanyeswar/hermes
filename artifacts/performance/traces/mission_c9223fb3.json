@@ -1,0 +1,32 @@
+{
+  "mission_id": "c9223fb3",
+  "execution_mode": "performance_baseline",
+  "mission": {
+    "start": "2026-09-18 12:55:12",
+    "end": "2026-09-18 12:55:12",
+    "duration_ms": 23.71,
+    "accounted_time_ms": 23.58,
+    "unaccounted_time_ms": 0.13
+  },
+  "stages": [],
+  "model_calls": [],
+  "tool_calls": [],
+  "verification_calls": [
+    {
+      "verification_id": "23c5adb9",
+      "request_id": "c9223fb3",
+      "mission_id": "m_2",
+      "task_id": "t_2",
+      "method": "deterministic",
+      "start_time_monotonic": 134866.6601797,
+      "end_time_monotonic": 134866.6837566,
+      "duration_ms": 23.57689998461865,
+      "verdict": "AGREE",
+      "escalated": false,
+      "issues_count": 0,
+      "issues": []
+    }
+  ],
+  "repair_attempts": [],
+  "model_switches": []
+}

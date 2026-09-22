@@ -1,0 +1,2157 @@
+[
+  {
+    "task_id": "A01",
+    "objective_result": "FAIL",
+    "primary_cause": "MODEL_PROVIDER_FAILURE",
+    "secondary_causes": [
+      "EMPTY_RESPONSE_ON_REASONING_INGESTION",
+      "ZERO_TOOL_INVOCATIONS"
+    ],
+    "agent_failure": false,
+    "harness_failure": false,
+    "workspace_failure": false,
+    "contract_failure": false,
+    "evaluator_failure": false,
+    "routing_failure": false,
+    "tool_runtime_failure": false,
+    "verification_failure": false,
+    "telemetry_failure": false,
+    "environment_failure": false,
+    "model_provider_failure": true,
+    "inconclusive": false,
+    "evidence": [
+      "OllamaClient ingested only response field and dropped thinking field for DeepSeek-R1 8B",
+      "ResponseParser failed with empty_response on both attempts",
+      "0 tool calls executed, expected output files not created"
+    ],
+    "confidence": "HIGH"
+  },
+  {
+    "task_id": "A02",
+    "objective_result": "FAIL",
+    "primary_cause": "MODEL_PROVIDER_FAILURE",
+    "secondary_causes": [
+      "EMPTY_RESPONSE_ON_REASONING_INGESTION",
+      "ZERO_TOOL_INVOCATIONS"
+    ],
+    "agent_failure": false,
+    "harness_failure": false,
+    "workspace_failure": false,
+    "contract_failure": false,
+    "evaluator_failure": false,
+    "routing_failure": false,
+    "tool_runtime_failure": false,
+    "verification_failure": false,
+    "telemetry_failure": false,
+    "environment_failure": false,
+    "model_provider_failure": true,
+    "inconclusive": false,
+    "evidence": [
+      "OllamaClient ingested only response field and dropped thinking field for DeepSeek-R1 8B",
+      "ResponseParser failed with empty_response on both attempts",
+      "0 tool calls executed, expected output files not created"
+    ],
+    "confidence": "HIGH"
+  },
+  {
+    "task_id": "A03",
+    "objective_result": "FAIL",
+    "primary_cause": "MODEL_PROVIDER_FAILURE",
+    "secondary_causes": [
+      "EMPTY_RESPONSE_ON_REASONING_INGESTION",
+      "ZERO_TOOL_INVOCATIONS"
+    ],
+    "agent_failure": false,
+    "harness_failure": false,
+    "workspace_failure": false,
+    "contract_failure": false,
+    "evaluator_failure": false,
+    "routing_failure": false,
+    "tool_runtime_failure": false,
+    "verification_failure": false,
+    "telemetry_failure": false,
+    "environment_failure": false,
+    "model_provider_failure": true,
+    "inconclusive": false,
+    "evidence": [
+      "OllamaClient ingested only response field and dropped thinking field for DeepSeek-R1 8B",
+      "ResponseParser failed with empty_response on both attempts",
+      "0 tool calls executed, expected output files not created"
+    ],
+    "confidence": "HIGH"
+  },
+  {
+    "task_id": "A04",
+    "objective_result": "PASS",
+    "primary_cause": "NONE_PASSED",
+    "secondary_causes": [],
+    "agent_failure": false,
+    "harness_failure": false,
+    "workspace_failure": false,
+    "contract_failure": false,
+    "evaluator_failure": false,
+    "routing_failure": false,
+    "tool_runtime_failure": false,
+    "verification_failure": false,
+    "telemetry_failure": false,
+    "environment_failure": false,
+    "model_provider_failure": false,
+    "inconclusive": false,
+    "evidence": [
+      "Pre-existing file satisfied verification requirements without tool execution"
+    ],
+    "confidence": "HIGH"
+  },
+  {
+    "task_id": "A05",
+    "objective_result": "FAIL",
+    "primary_cause": "MODEL_PROVIDER_FAILURE",
+    "secondary_causes": [
+      "EMPTY_RESPONSE_ON_REASONING_INGESTION",
+      "ZERO_TOOL_INVOCATIONS"
+    ],
+    "agent_failure": false,
+    "harness_failure": false,
+    "workspace_failure": false,
+    "contract_failure": false,
+    "evaluator_failure": false,
+    "routing_failure": false,
+    "tool_runtime_failure": false,
+    "verification_failure": false,
+    "telemetry_failure": false,
+    "environment_failure": false,
+    "model_provider_failure": true,
+    "inconclusive": false,
+    "evidence": [
+      "OllamaClient ingested only response field and dropped thinking field for DeepSeek-R1 8B",
+      "ResponseParser failed with empty_response on both attempts",
+      "0 tool calls executed, expected output files not created"
+    ],
+    "confidence": "HIGH"
+  },
+  {
+    "task_id": "A06",
+    "objective_result": "FAIL",
+    "primary_cause": "MODEL_PROVIDER_FAILURE",
+    "secondary_causes": [
+      "EMPTY_RESPONSE_ON_REASONING_INGESTION",
+      "ZERO_TOOL_INVOCATIONS"
+    ],
+    "agent_failure": false,
+    "harness_failure": false,
+    "workspace_failure": false,
+    "contract_failure": false,
+    "evaluator_failure": false,
+    "routing_failure": false,
+    "tool_runtime_failure": false,
+    "verification_failure": false,
+    "telemetry_failure": false,
+    "environment_failure": false,
+    "model_provider_failure": true,
+    "inconclusive": false,
+    "evidence": [
+      "OllamaClient ingested only response field and dropped thinking field for DeepSeek-R1 8B",
+      "ResponseParser failed with empty_response on both attempts",
+      "0 tool calls executed, expected output files not created"
+    ],
+    "confidence": "HIGH"
+  },
+  {
+    "task_id": "A07",
+    "objective_result": "FAIL",
+    "primary_cause": "MODEL_PROVIDER_FAILURE",
+    "secondary_causes": [
+      "EMPTY_RESPONSE_ON_REASONING_INGESTION",
+      "ZERO_TOOL_INVOCATIONS"
+    ],
+    "agent_failure": false,
+    "harness_failure": false,
+    "workspace_failure": false,
+    "contract_failure": false,
+    "evaluator_failure": false,
+    "routing_failure": false,
+    "tool_runtime_failure": false,
+    "verification_failure": false,
+    "telemetry_failure": false,
+    "environment_failure": false,
+    "model_provider_failure": true,
+    "inconclusive": false,
+    "evidence": [
+      "OllamaClient ingested only response field and dropped thinking field for DeepSeek-R1 8B",
+      "ResponseParser failed with empty_response on both attempts",
+      "0 tool calls executed, expected output files not created"
+    ],
+    "confidence": "HIGH"
+  },
+  {
+    "task_id": "A08",
+    "objective_result": "FAIL",
+    "primary_cause": "MODEL_PROVIDER_FAILURE",
+    "secondary_causes": [
+      "EMPTY_RESPONSE_ON_REASONING_INGESTION",
+      "ZERO_TOOL_INVOCATIONS"
+    ],
+    "agent_failure": false,
+    "harness_failure": false,
+    "workspace_failure": false,
+    "contract_failure": false,
+    "evaluator_failure": false,
+    "routing_failure": false,
+    "tool_runtime_failure": false,
+    "verification_failure": false,
+    "telemetry_failure": false,
+    "environment_failure": false,
+    "model_provider_failure": true,
+    "inconclusive": false,
+    "evidence": [
+      "OllamaClient ingested only response field and dropped thinking field for DeepSeek-R1 8B",
+      "ResponseParser failed with empty_response on both attempts",
+      "0 tool calls executed, expected output files not created"
+    ],
+    "confidence": "HIGH"
+  },
+  {
+    "task_id": "A09",
+    "objective_result": "FAIL",
+    "primary_cause": "MODEL_PROVIDER_FAILURE",
+    "secondary_causes": [
+      "EMPTY_RESPONSE_ON_REASONING_INGESTION",
+      "ZERO_TOOL_INVOCATIONS"
+    ],
+    "agent_failure": false,
+    "harness_failure": false,
+    "workspace_failure": false,
+    "contract_failure": false,
+    "evaluator_failure": false,
+    "routing_failure": false,
+    "tool_runtime_failure": false,
+    "verification_failure": false,
+    "telemetry_failure": false,
+    "environment_failure": false,
+    "model_provider_failure": true,
+    "inconclusive": false,
+    "evidence": [
+      "OllamaClient ingested only response field and dropped thinking field for DeepSeek-R1 8B",
+      "ResponseParser failed with empty_response on both attempts",
+      "0 tool calls executed, expected output files not created"
+    ],
+    "confidence": "HIGH"
+  },
+  {
+    "task_id": "A10",
+    "objective_result": "FAIL",
+    "primary_cause": "MODEL_PROVIDER_FAILURE",
+    "secondary_causes": [
+      "EMPTY_RESPONSE_ON_REASONING_INGESTION",
+      "ZERO_TOOL_INVOCATIONS"
+    ],
+    "agent_failure": false,
+    "harness_failure": false,
+    "workspace_failure": false,
+    "contract_failure": false,
+    "evaluator_failure": false,
+    "routing_failure": false,
+    "tool_runtime_failure": false,
+    "verification_failure": false,
+    "telemetry_failure": false,
+    "environment_failure": false,
+    "model_provider_failure": true,
+    "inconclusive": false,
+    "evidence": [
+      "OllamaClient ingested only response field and dropped thinking field for DeepSeek-R1 8B",
+      "ResponseParser failed with empty_response on both attempts",
+      "0 tool calls executed, expected output files not created"
+    ],
+    "confidence": "HIGH"
+  },
+  {
+    "task_id": "B01",
+    "objective_result": "FAIL",
+    "primary_cause": "MODEL_PROVIDER_FAILURE",
+    "secondary_causes": [
+      "EMPTY_RESPONSE_ON_REASONING_INGESTION",
+      "ZERO_TOOL_INVOCATIONS"
+    ],
+    "agent_failure": false,
+    "harness_failure": false,
+    "workspace_failure": false,
+    "contract_failure": false,
+    "evaluator_failure": false,
+    "routing_failure": false,
+    "tool_runtime_failure": false,
+    "verification_failure": false,
+    "telemetry_failure": false,
+    "environment_failure": false,
+    "model_provider_failure": true,
+    "inconclusive": false,
+    "evidence": [
+      "OllamaClient ingested only response field and dropped thinking field for DeepSeek-R1 8B",
+      "ResponseParser failed with empty_response on both attempts",
+      "0 tool calls executed, expected output files not created"
+    ],
+    "confidence": "HIGH"
+  },
+  {
+    "task_id": "B02",
+    "objective_result": "FAIL",
+    "primary_cause": "MODEL_PROVIDER_FAILURE",
+    "secondary_causes": [
+      "EMPTY_RESPONSE_ON_REASONING_INGESTION",
+      "ZERO_TOOL_INVOCATIONS"
+    ],
+    "agent_failure": false,
+    "harness_failure": false,
+    "workspace_failure": false,
+    "contract_failure": false,
+    "evaluator_failure": false,
+    "routing_failure": false,
+    "tool_runtime_failure": false,
+    "verification_failure": false,
+    "telemetry_failure": false,
+    "environment_failure": false,
+    "model_provider_failure": true,
+    "inconclusive": false,
+    "evidence": [
+      "OllamaClient ingested only response field and dropped thinking field for DeepSeek-R1 8B",
+      "ResponseParser failed with empty_response on both attempts",
+      "0 tool calls executed, expected output files not created"
+    ],
+    "confidence": "HIGH"
+  },
+  {
+    "task_id": "B03",
+    "objective_result": "FAIL",
+    "primary_cause": "MODEL_PROVIDER_FAILURE",
+    "secondary_causes": [
+      "EMPTY_RESPONSE_ON_REASONING_INGESTION",
+      "ZERO_TOOL_INVOCATIONS"
+    ],
+    "agent_failure": false,
+    "harness_failure": false,
+    "workspace_failure": false,
+    "contract_failure": false,
+    "evaluator_failure": false,
+    "routing_failure": false,
+    "tool_runtime_failure": false,
+    "verification_failure": false,
+    "telemetry_failure": false,
+    "environment_failure": false,
+    "model_provider_failure": true,
+    "inconclusive": false,
+    "evidence": [
+      "OllamaClient ingested only response field and dropped thinking field for DeepSeek-R1 8B",
+      "ResponseParser failed with empty_response on both attempts",
+      "0 tool calls executed, expected output files not created"
+    ],
+    "confidence": "HIGH"
+  },
+  {
+    "task_id": "B04",
+    "objective_result": "FAIL",
+    "primary_cause": "MODEL_PROVIDER_FAILURE",
+    "secondary_causes": [
+      "EMPTY_RESPONSE_ON_REASONING_INGESTION",
+      "ZERO_TOOL_INVOCATIONS"
+    ],
+    "agent_failure": false,
+    "harness_failure": false,
+    "workspace_failure": false,
+    "contract_failure": false,
+    "evaluator_failure": false,
+    "routing_failure": false,
+    "tool_runtime_failure": false,
+    "verification_failure": false,
+    "telemetry_failure": false,
+    "environment_failure": false,
+    "model_provider_failure": true,
+    "inconclusive": false,
+    "evidence": [
+      "OllamaClient ingested only response field and dropped thinking field for DeepSeek-R1 8B",
+      "ResponseParser failed with empty_response on both attempts",
+      "0 tool calls executed, expected output files not created"
+    ],
+    "confidence": "HIGH"
+  },
+  {
+    "task_id": "B05",
+    "objective_result": "FAIL",
+    "primary_cause": "MODEL_PROVIDER_FAILURE",
+    "secondary_causes": [
+      "EMPTY_RESPONSE_ON_REASONING_INGESTION",
+      "ZERO_TOOL_INVOCATIONS"
+    ],
+    "agent_failure": false,
+    "harness_failure": false,
+    "workspace_failure": false,
+    "contract_failure": false,
+    "evaluator_failure": false,
+    "routing_failure": false,
+    "tool_runtime_failure": false,
+    "verification_failure": false,
+    "telemetry_failure": false,
+    "environment_failure": false,
+    "model_provider_failure": true,
+    "inconclusive": false,
+    "evidence": [
+      "OllamaClient ingested only response field and dropped thinking field for DeepSeek-R1 8B",
+      "ResponseParser failed with empty_response on both attempts",
+      "0 tool calls executed, expected output files not created"
+    ],
+    "confidence": "HIGH"
+  },
+  {
+    "task_id": "B06",
+    "objective_result": "FAIL",
+    "primary_cause": "MODEL_PROVIDER_FAILURE",
+    "secondary_causes": [
+      "EMPTY_RESPONSE_ON_REASONING_INGESTION",
+      "ZERO_TOOL_INVOCATIONS"
+    ],
+    "agent_failure": false,
+    "harness_failure": false,
+    "workspace_failure": false,
+    "contract_failure": false,
+    "evaluator_failure": false,
+    "routing_failure": false,
+    "tool_runtime_failure": false,
+    "verification_failure": false,
+    "telemetry_failure": false,
+    "environment_failure": false,
+    "model_provider_failure": true,
+    "inconclusive": false,
+    "evidence": [
+      "OllamaClient ingested only response field and dropped thinking field for DeepSeek-R1 8B",
+      "ResponseParser failed with empty_response on both attempts",
+      "0 tool calls executed, expected output files not created"
+    ],
+    "confidence": "HIGH"
+  },
+  {
+    "task_id": "B07",
+    "objective_result": "FAIL",
+    "primary_cause": "MODEL_PROVIDER_FAILURE",
+    "secondary_causes": [
+      "EMPTY_RESPONSE_ON_REASONING_INGESTION",
+      "ZERO_TOOL_INVOCATIONS"
+    ],
+    "agent_failure": false,
+    "harness_failure": false,
+    "workspace_failure": false,
+    "contract_failure": false,
+    "evaluator_failure": false,
+    "routing_failure": false,
+    "tool_runtime_failure": false,
+    "verification_failure": false,
+    "telemetry_failure": false,
+    "environment_failure": false,
+    "model_provider_failure": true,
+    "inconclusive": false,
+    "evidence": [
+      "OllamaClient ingested only response field and dropped thinking field for DeepSeek-R1 8B",
+      "ResponseParser failed with empty_response on both attempts",
+      "0 tool calls executed, expected output files not created"
+    ],
+    "confidence": "HIGH"
+  },
+  {
+    "task_id": "B08",
+    "objective_result": "FAIL",
+    "primary_cause": "MODEL_PROVIDER_FAILURE",
+    "secondary_causes": [
+      "EMPTY_RESPONSE_ON_REASONING_INGESTION",
+      "ZERO_TOOL_INVOCATIONS"
+    ],
+    "agent_failure": false,
+    "harness_failure": false,
+    "workspace_failure": false,
+    "contract_failure": false,
+    "evaluator_failure": false,
+    "routing_failure": false,
+    "tool_runtime_failure": false,
+    "verification_failure": false,
+    "telemetry_failure": false,
+    "environment_failure": false,
+    "model_provider_failure": true,
+    "inconclusive": false,
+    "evidence": [
+      "OllamaClient ingested only response field and dropped thinking field for DeepSeek-R1 8B",
+      "ResponseParser failed with empty_response on both attempts",
+      "0 tool calls executed, expected output files not created"
+    ],
+    "confidence": "HIGH"
+  },
+  {
+    "task_id": "B09",
+    "objective_result": "FAIL",
+    "primary_cause": "MODEL_PROVIDER_FAILURE",
+    "secondary_causes": [
+      "EMPTY_RESPONSE_ON_REASONING_INGESTION",
+      "ZERO_TOOL_INVOCATIONS"
+    ],
+    "agent_failure": false,
+    "harness_failure": false,
+    "workspace_failure": false,
+    "contract_failure": false,
+    "evaluator_failure": false,
+    "routing_failure": false,
+    "tool_runtime_failure": false,
+    "verification_failure": false,
+    "telemetry_failure": false,
+    "environment_failure": false,
+    "model_provider_failure": true,
+    "inconclusive": false,
+    "evidence": [
+      "OllamaClient ingested only response field and dropped thinking field for DeepSeek-R1 8B",
+      "ResponseParser failed with empty_response on both attempts",
+      "0 tool calls executed, expected output files not created"
+    ],
+    "confidence": "HIGH"
+  },
+  {
+    "task_id": "B10",
+    "objective_result": "FAIL",
+    "primary_cause": "MODEL_PROVIDER_FAILURE",
+    "secondary_causes": [
+      "EMPTY_RESPONSE_ON_REASONING_INGESTION",
+      "ZERO_TOOL_INVOCATIONS"
+    ],
+    "agent_failure": false,
+    "harness_failure": false,
+    "workspace_failure": false,
+    "contract_failure": false,
+    "evaluator_failure": false,
+    "routing_failure": false,
+    "tool_runtime_failure": false,
+    "verification_failure": false,
+    "telemetry_failure": false,
+    "environment_failure": false,
+    "model_provider_failure": true,
+    "inconclusive": false,
+    "evidence": [
+      "OllamaClient ingested only response field and dropped thinking field for DeepSeek-R1 8B",
+      "ResponseParser failed with empty_response on both attempts",
+      "0 tool calls executed, expected output files not created"
+    ],
+    "confidence": "HIGH"
+  },
+  {
+    "task_id": "C01",
+    "objective_result": "FAIL",
+    "primary_cause": "MODEL_PROVIDER_FAILURE",
+    "secondary_causes": [
+      "EMPTY_RESPONSE_ON_REASONING_INGESTION",
+      "ZERO_TOOL_INVOCATIONS"
+    ],
+    "agent_failure": false,
+    "harness_failure": false,
+    "workspace_failure": false,
+    "contract_failure": false,
+    "evaluator_failure": false,
+    "routing_failure": false,
+    "tool_runtime_failure": false,
+    "verification_failure": false,
+    "telemetry_failure": false,
+    "environment_failure": false,
+    "model_provider_failure": true,
+    "inconclusive": false,
+    "evidence": [
+      "OllamaClient ingested only response field and dropped thinking field for DeepSeek-R1 8B",
+      "ResponseParser failed with empty_response on both attempts",
+      "0 tool calls executed, expected output files not created"
+    ],
+    "confidence": "HIGH"
+  },
+  {
+    "task_id": "C02",
+    "objective_result": "FAIL",
+    "primary_cause": "MODEL_PROVIDER_FAILURE",
+    "secondary_causes": [
+      "EMPTY_RESPONSE_ON_REASONING_INGESTION",
+      "ZERO_TOOL_INVOCATIONS"
+    ],
+    "agent_failure": false,
+    "harness_failure": false,
+    "workspace_failure": false,
+    "contract_failure": false,
+    "evaluator_failure": false,
+    "routing_failure": false,
+    "tool_runtime_failure": false,
+    "verification_failure": false,
+    "telemetry_failure": false,
+    "environment_failure": false,
+    "model_provider_failure": true,
+    "inconclusive": false,
+    "evidence": [
+      "OllamaClient ingested only response field and dropped thinking field for DeepSeek-R1 8B",
+      "ResponseParser failed with empty_response on both attempts",
+      "0 tool calls executed, expected output files not created"
+    ],
+    "confidence": "HIGH"
+  },
+  {
+    "task_id": "C03",
+    "objective_result": "FAIL",
+    "primary_cause": "MODEL_PROVIDER_FAILURE",
+    "secondary_causes": [
+      "EMPTY_RESPONSE_ON_REASONING_INGESTION",
+      "ZERO_TOOL_INVOCATIONS"
+    ],
+    "agent_failure": false,
+    "harness_failure": false,
+    "workspace_failure": false,
+    "contract_failure": false,
+    "evaluator_failure": false,
+    "routing_failure": false,
+    "tool_runtime_failure": false,
+    "verification_failure": false,
+    "telemetry_failure": false,
+    "environment_failure": false,
+    "model_provider_failure": true,
+    "inconclusive": false,
+    "evidence": [
+      "OllamaClient ingested only response field and dropped thinking field for DeepSeek-R1 8B",
+      "ResponseParser failed with empty_response on both attempts",
+      "0 tool calls executed, expected output files not created"
+    ],
+    "confidence": "HIGH"
+  },
+  {
+    "task_id": "C04",
+    "objective_result": "FAIL",
+    "primary_cause": "MODEL_PROVIDER_FAILURE",
+    "secondary_causes": [
+      "EMPTY_RESPONSE_ON_REASONING_INGESTION",
+      "ZERO_TOOL_INVOCATIONS"
+    ],
+    "agent_failure": false,
+    "harness_failure": false,
+    "workspace_failure": false,
+    "contract_failure": false,
+    "evaluator_failure": false,
+    "routing_failure": false,
+    "tool_runtime_failure": false,
+    "verification_failure": false,
+    "telemetry_failure": false,
+    "environment_failure": false,
+    "model_provider_failure": true,
+    "inconclusive": false,
+    "evidence": [
+      "OllamaClient ingested only response field and dropped thinking field for DeepSeek-R1 8B",
+      "ResponseParser failed with empty_response on both attempts",
+      "0 tool calls executed, expected output files not created"
+    ],
+    "confidence": "HIGH"
+  },
+  {
+    "task_id": "C05",
+    "objective_result": "FAIL",
+    "primary_cause": "MODEL_PROVIDER_FAILURE",
+    "secondary_causes": [
+      "EMPTY_RESPONSE_ON_REASONING_INGESTION",
+      "ZERO_TOOL_INVOCATIONS"
+    ],
+    "agent_failure": false,
+    "harness_failure": false,
+    "workspace_failure": false,
+    "contract_failure": false,
+    "evaluator_failure": false,
+    "routing_failure": false,
+    "tool_runtime_failure": false,
+    "verification_failure": false,
+    "telemetry_failure": false,
+    "environment_failure": false,
+    "model_provider_failure": true,
+    "inconclusive": false,
+    "evidence": [
+      "OllamaClient ingested only response field and dropped thinking field for DeepSeek-R1 8B",
+      "ResponseParser failed with empty_response on both attempts",
+      "0 tool calls executed, expected output files not created"
+    ],
+    "confidence": "HIGH"
+  },
+  {
+    "task_id": "C06",
+    "objective_result": "FAIL",
+    "primary_cause": "MODEL_PROVIDER_FAILURE",
+    "secondary_causes": [
+      "EMPTY_RESPONSE_ON_REASONING_INGESTION",
+      "ZERO_TOOL_INVOCATIONS"
+    ],
+    "agent_failure": false,
+    "harness_failure": false,
+    "workspace_failure": false,
+    "contract_failure": false,
+    "evaluator_failure": false,
+    "routing_failure": false,
+    "tool_runtime_failure": false,
+    "verification_failure": false,
+    "telemetry_failure": false,
+    "environment_failure": false,
+    "model_provider_failure": true,
+    "inconclusive": false,
+    "evidence": [
+      "OllamaClient ingested only response field and dropped thinking field for DeepSeek-R1 8B",
+      "ResponseParser failed with empty_response on both attempts",
+      "0 tool calls executed, expected output files not created"
+    ],
+    "confidence": "HIGH"
+  },
+  {
+    "task_id": "C07",
+    "objective_result": "FAIL",
+    "primary_cause": "MODEL_PROVIDER_FAILURE",
+    "secondary_causes": [
+      "EMPTY_RESPONSE_ON_REASONING_INGESTION",
+      "ZERO_TOOL_INVOCATIONS"
+    ],
+    "agent_failure": false,
+    "harness_failure": false,
+    "workspace_failure": false,
+    "contract_failure": false,
+    "evaluator_failure": false,
+    "routing_failure": false,
+    "tool_runtime_failure": false,
+    "verification_failure": false,
+    "telemetry_failure": false,
+    "environment_failure": false,
+    "model_provider_failure": true,
+    "inconclusive": false,
+    "evidence": [
+      "OllamaClient ingested only response field and dropped thinking field for DeepSeek-R1 8B",
+      "ResponseParser failed with empty_response on both attempts",
+      "0 tool calls executed, expected output files not created"
+    ],
+    "confidence": "HIGH"
+  },
+  {
+    "task_id": "C08",
+    "objective_result": "FAIL",
+    "primary_cause": "MODEL_PROVIDER_FAILURE",
+    "secondary_causes": [
+      "EMPTY_RESPONSE_ON_REASONING_INGESTION",
+      "ZERO_TOOL_INVOCATIONS"
+    ],
+    "agent_failure": false,
+    "harness_failure": false,
+    "workspace_failure": false,
+    "contract_failure": false,
+    "evaluator_failure": false,
+    "routing_failure": false,
+    "tool_runtime_failure": false,
+    "verification_failure": false,
+    "telemetry_failure": false,
+    "environment_failure": false,
+    "model_provider_failure": true,
+    "inconclusive": false,
+    "evidence": [
+      "OllamaClient ingested only response field and dropped thinking field for DeepSeek-R1 8B",
+      "ResponseParser failed with empty_response on both attempts",
+      "0 tool calls executed, expected output files not created"
+    ],
+    "confidence": "HIGH"
+  },
+  {
+    "task_id": "C09",
+    "objective_result": "FAIL",
+    "primary_cause": "MODEL_PROVIDER_FAILURE",
+    "secondary_causes": [
+      "EMPTY_RESPONSE_ON_REASONING_INGESTION",
+      "ZERO_TOOL_INVOCATIONS"
+    ],
+    "agent_failure": false,
+    "harness_failure": false,
+    "workspace_failure": false,
+    "contract_failure": false,
+    "evaluator_failure": false,
+    "routing_failure": false,
+    "tool_runtime_failure": false,
+    "verification_failure": false,
+    "telemetry_failure": false,
+    "environment_failure": false,
+    "model_provider_failure": true,
+    "inconclusive": false,
+    "evidence": [
+      "OllamaClient ingested only response field and dropped thinking field for DeepSeek-R1 8B",
+      "ResponseParser failed with empty_response on both attempts",
+      "0 tool calls executed, expected output files not created"
+    ],
+    "confidence": "HIGH"
+  },
+  {
+    "task_id": "C10",
+    "objective_result": "FAIL",
+    "primary_cause": "MODEL_PROVIDER_FAILURE",
+    "secondary_causes": [
+      "EMPTY_RESPONSE_ON_REASONING_INGESTION",
+      "ZERO_TOOL_INVOCATIONS"
+    ],
+    "agent_failure": false,
+    "harness_failure": false,
+    "workspace_failure": false,
+    "contract_failure": false,
+    "evaluator_failure": false,
+    "routing_failure": false,
+    "tool_runtime_failure": false,
+    "verification_failure": false,
+    "telemetry_failure": false,
+    "environment_failure": false,
+    "model_provider_failure": true,
+    "inconclusive": false,
+    "evidence": [
+      "OllamaClient ingested only response field and dropped thinking field for DeepSeek-R1 8B",
+      "ResponseParser failed with empty_response on both attempts",
+      "0 tool calls executed, expected output files not created"
+    ],
+    "confidence": "HIGH"
+  },
+  {
+    "task_id": "D01",
+    "objective_result": "FAIL",
+    "primary_cause": "MODEL_PROVIDER_FAILURE",
+    "secondary_causes": [
+      "EMPTY_RESPONSE_ON_REASONING_INGESTION",
+      "ZERO_TOOL_INVOCATIONS"
+    ],
+    "agent_failure": false,
+    "harness_failure": false,
+    "workspace_failure": false,
+    "contract_failure": false,
+    "evaluator_failure": false,
+    "routing_failure": false,
+    "tool_runtime_failure": false,
+    "verification_failure": false,
+    "telemetry_failure": false,
+    "environment_failure": false,
+    "model_provider_failure": true,
+    "inconclusive": false,
+    "evidence": [
+      "OllamaClient ingested only response field and dropped thinking field for DeepSeek-R1 8B",
+      "ResponseParser failed with empty_response on both attempts",
+      "0 tool calls executed, expected output files not created"
+    ],
+    "confidence": "HIGH"
+  },
+  {
+    "task_id": "D02",
+    "objective_result": "FAIL",
+    "primary_cause": "MODEL_PROVIDER_FAILURE",
+    "secondary_causes": [
+      "EMPTY_RESPONSE_ON_REASONING_INGESTION",
+      "ZERO_TOOL_INVOCATIONS"
+    ],
+    "agent_failure": false,
+    "harness_failure": false,
+    "workspace_failure": false,
+    "contract_failure": false,
+    "evaluator_failure": false,
+    "routing_failure": false,
+    "tool_runtime_failure": false,
+    "verification_failure": false,
+    "telemetry_failure": false,
+    "environment_failure": false,
+    "model_provider_failure": true,
+    "inconclusive": false,
+    "evidence": [
+      "OllamaClient ingested only response field and dropped thinking field for DeepSeek-R1 8B",
+      "ResponseParser failed with empty_response on both attempts",
+      "0 tool calls executed, expected output files not created"
+    ],
+    "confidence": "HIGH"
+  },
+  {
+    "task_id": "D03",
+    "objective_result": "FAIL",
+    "primary_cause": "MODEL_PROVIDER_FAILURE",
+    "secondary_causes": [
+      "EMPTY_RESPONSE_ON_REASONING_INGESTION",
+      "ZERO_TOOL_INVOCATIONS"
+    ],
+    "agent_failure": false,
+    "harness_failure": false,
+    "workspace_failure": false,
+    "contract_failure": false,
+    "evaluator_failure": false,
+    "routing_failure": false,
+    "tool_runtime_failure": false,
+    "verification_failure": false,
+    "telemetry_failure": false,
+    "environment_failure": false,
+    "model_provider_failure": true,
+    "inconclusive": false,
+    "evidence": [
+      "OllamaClient ingested only response field and dropped thinking field for DeepSeek-R1 8B",
+      "ResponseParser failed with empty_response on both attempts",
+      "0 tool calls executed, expected output files not created"
+    ],
+    "confidence": "HIGH"
+  },
+  {
+    "task_id": "D04",
+    "objective_result": "FAIL",
+    "primary_cause": "MODEL_PROVIDER_FAILURE",
+    "secondary_causes": [
+      "EMPTY_RESPONSE_ON_REASONING_INGESTION",
+      "ZERO_TOOL_INVOCATIONS"
+    ],
+    "agent_failure": false,
+    "harness_failure": false,
+    "workspace_failure": false,
+    "contract_failure": false,
+    "evaluator_failure": false,
+    "routing_failure": false,
+    "tool_runtime_failure": false,
+    "verification_failure": false,
+    "telemetry_failure": false,
+    "environment_failure": false,
+    "model_provider_failure": true,
+    "inconclusive": false,
+    "evidence": [
+      "OllamaClient ingested only response field and dropped thinking field for DeepSeek-R1 8B",
+      "ResponseParser failed with empty_response on both attempts",
+      "0 tool calls executed, expected output files not created"
+    ],
+    "confidence": "HIGH"
+  },
+  {
+    "task_id": "D05",
+    "objective_result": "FAIL",
+    "primary_cause": "MODEL_PROVIDER_FAILURE",
+    "secondary_causes": [
+      "EMPTY_RESPONSE_ON_REASONING_INGESTION",
+      "ZERO_TOOL_INVOCATIONS"
+    ],
+    "agent_failure": false,
+    "harness_failure": false,
+    "workspace_failure": false,
+    "contract_failure": false,
+    "evaluator_failure": false,
+    "routing_failure": false,
+    "tool_runtime_failure": false,
+    "verification_failure": false,
+    "telemetry_failure": false,
+    "environment_failure": false,
+    "model_provider_failure": true,
+    "inconclusive": false,
+    "evidence": [
+      "OllamaClient ingested only response field and dropped thinking field for DeepSeek-R1 8B",
+      "ResponseParser failed with empty_response on both attempts",
+      "0 tool calls executed, expected output files not created"
+    ],
+    "confidence": "HIGH"
+  },
+  {
+    "task_id": "D06",
+    "objective_result": "FAIL",
+    "primary_cause": "MODEL_PROVIDER_FAILURE",
+    "secondary_causes": [
+      "EMPTY_RESPONSE_ON_REASONING_INGESTION",
+      "ZERO_TOOL_INVOCATIONS"
+    ],
+    "agent_failure": false,
+    "harness_failure": false,
+    "workspace_failure": false,
+    "contract_failure": false,
+    "evaluator_failure": false,
+    "routing_failure": false,
+    "tool_runtime_failure": false,
+    "verification_failure": false,
+    "telemetry_failure": false,
+    "environment_failure": false,
+    "model_provider_failure": true,
+    "inconclusive": false,
+    "evidence": [
+      "OllamaClient ingested only response field and dropped thinking field for DeepSeek-R1 8B",
+      "ResponseParser failed with empty_response on both attempts",
+      "0 tool calls executed, expected output files not created"
+    ],
+    "confidence": "HIGH"
+  },
+  {
+    "task_id": "D07",
+    "objective_result": "FAIL",
+    "primary_cause": "MODEL_PROVIDER_FAILURE",
+    "secondary_causes": [
+      "EMPTY_RESPONSE_ON_REASONING_INGESTION",
+      "ZERO_TOOL_INVOCATIONS"
+    ],
+    "agent_failure": false,
+    "harness_failure": false,
+    "workspace_failure": false,
+    "contract_failure": false,
+    "evaluator_failure": false,
+    "routing_failure": false,
+    "tool_runtime_failure": false,
+    "verification_failure": false,
+    "telemetry_failure": false,
+    "environment_failure": false,
+    "model_provider_failure": true,
+    "inconclusive": false,
+    "evidence": [
+      "OllamaClient ingested only response field and dropped thinking field for DeepSeek-R1 8B",
+      "ResponseParser failed with empty_response on both attempts",
+      "0 tool calls executed, expected output files not created"
+    ],
+    "confidence": "HIGH"
+  },
+  {
+    "task_id": "D08",
+    "objective_result": "FAIL",
+    "primary_cause": "MODEL_PROVIDER_FAILURE",
+    "secondary_causes": [
+      "EMPTY_RESPONSE_ON_REASONING_INGESTION",
+      "ZERO_TOOL_INVOCATIONS"
+    ],
+    "agent_failure": false,
+    "harness_failure": false,
+    "workspace_failure": false,
+    "contract_failure": false,
+    "evaluator_failure": false,
+    "routing_failure": false,
+    "tool_runtime_failure": false,
+    "verification_failure": false,
+    "telemetry_failure": false,
+    "environment_failure": false,
+    "model_provider_failure": true,
+    "inconclusive": false,
+    "evidence": [
+      "OllamaClient ingested only response field and dropped thinking field for DeepSeek-R1 8B",
+      "ResponseParser failed with empty_response on both attempts",
+      "0 tool calls executed, expected output files not created"
+    ],
+    "confidence": "HIGH"
+  },
+  {
+    "task_id": "D09",
+    "objective_result": "FAIL",
+    "primary_cause": "MODEL_PROVIDER_FAILURE",
+    "secondary_causes": [
+      "EMPTY_RESPONSE_ON_REASONING_INGESTION",
+      "ZERO_TOOL_INVOCATIONS"
+    ],
+    "agent_failure": false,
+    "harness_failure": false,
+    "workspace_failure": false,
+    "contract_failure": false,
+    "evaluator_failure": false,
+    "routing_failure": false,
+    "tool_runtime_failure": false,
+    "verification_failure": false,
+    "telemetry_failure": false,
+    "environment_failure": false,
+    "model_provider_failure": true,
+    "inconclusive": false,
+    "evidence": [
+      "OllamaClient ingested only response field and dropped thinking field for DeepSeek-R1 8B",
+      "ResponseParser failed with empty_response on both attempts",
+      "0 tool calls executed, expected output files not created"
+    ],
+    "confidence": "HIGH"
+  },
+  {
+    "task_id": "D10",
+    "objective_result": "FAIL",
+    "primary_cause": "MODEL_PROVIDER_FAILURE",
+    "secondary_causes": [
+      "EMPTY_RESPONSE_ON_REASONING_INGESTION",
+      "ZERO_TOOL_INVOCATIONS"
+    ],
+    "agent_failure": false,
+    "harness_failure": false,
+    "workspace_failure": false,
+    "contract_failure": false,
+    "evaluator_failure": false,
+    "routing_failure": false,
+    "tool_runtime_failure": false,
+    "verification_failure": false,
+    "telemetry_failure": false,
+    "environment_failure": false,
+    "model_provider_failure": true,
+    "inconclusive": false,
+    "evidence": [
+      "OllamaClient ingested only response field and dropped thinking field for DeepSeek-R1 8B",
+      "ResponseParser failed with empty_response on both attempts",
+      "0 tool calls executed, expected output files not created"
+    ],
+    "confidence": "HIGH"
+  },
+  {
+    "task_id": "E01",
+    "objective_result": "FAIL",
+    "primary_cause": "MODEL_PROVIDER_FAILURE",
+    "secondary_causes": [
+      "EMPTY_RESPONSE_ON_REASONING_INGESTION",
+      "ZERO_TOOL_INVOCATIONS"
+    ],
+    "agent_failure": false,
+    "harness_failure": false,
+    "workspace_failure": false,
+    "contract_failure": false,
+    "evaluator_failure": false,
+    "routing_failure": false,
+    "tool_runtime_failure": false,
+    "verification_failure": false,
+    "telemetry_failure": false,
+    "environment_failure": false,
+    "model_provider_failure": true,
+    "inconclusive": false,
+    "evidence": [
+      "OllamaClient ingested only response field and dropped thinking field for DeepSeek-R1 8B",
+      "ResponseParser failed with empty_response on both attempts",
+      "0 tool calls executed, expected output files not created"
+    ],
+    "confidence": "HIGH"
+  },
+  {
+    "task_id": "E02",
+    "objective_result": "FAIL",
+    "primary_cause": "MODEL_PROVIDER_FAILURE",
+    "secondary_causes": [
+      "EMPTY_RESPONSE_ON_REASONING_INGESTION",
+      "ZERO_TOOL_INVOCATIONS"
+    ],
+    "agent_failure": false,
+    "harness_failure": false,
+    "workspace_failure": false,
+    "contract_failure": false,
+    "evaluator_failure": false,
+    "routing_failure": false,
+    "tool_runtime_failure": false,
+    "verification_failure": false,
+    "telemetry_failure": false,
+    "environment_failure": false,
+    "model_provider_failure": true,
+    "inconclusive": false,
+    "evidence": [
+      "OllamaClient ingested only response field and dropped thinking field for DeepSeek-R1 8B",
+      "ResponseParser failed with empty_response on both attempts",
+      "0 tool calls executed, expected output files not created"
+    ],
+    "confidence": "HIGH"
+  },
+  {
+    "task_id": "E03",
+    "objective_result": "FAIL",
+    "primary_cause": "MODEL_PROVIDER_FAILURE",
+    "secondary_causes": [
+      "EMPTY_RESPONSE_ON_REASONING_INGESTION",
+      "ZERO_TOOL_INVOCATIONS"
+    ],
+    "agent_failure": false,
+    "harness_failure": false,
+    "workspace_failure": false,
+    "contract_failure": false,
+    "evaluator_failure": false,
+    "routing_failure": false,
+    "tool_runtime_failure": false,
+    "verification_failure": false,
+    "telemetry_failure": false,
+    "environment_failure": false,
+    "model_provider_failure": true,
+    "inconclusive": false,
+    "evidence": [
+      "OllamaClient ingested only response field and dropped thinking field for DeepSeek-R1 8B",
+      "ResponseParser failed with empty_response on both attempts",
+      "0 tool calls executed, expected output files not created"
+    ],
+    "confidence": "HIGH"
+  },
+  {
+    "task_id": "E04",
+    "objective_result": "FAIL",
+    "primary_cause": "MODEL_PROVIDER_FAILURE",
+    "secondary_causes": [
+      "EMPTY_RESPONSE_ON_REASONING_INGESTION",
+      "ZERO_TOOL_INVOCATIONS"
+    ],
+    "agent_failure": false,
+    "harness_failure": false,
+    "workspace_failure": false,
+    "contract_failure": false,
+    "evaluator_failure": false,
+    "routing_failure": false,
+    "tool_runtime_failure": false,
+    "verification_failure": false,
+    "telemetry_failure": false,
+    "environment_failure": false,
+    "model_provider_failure": true,
+    "inconclusive": false,
+    "evidence": [
+      "OllamaClient ingested only response field and dropped thinking field for DeepSeek-R1 8B",
+      "ResponseParser failed with empty_response on both attempts",
+      "0 tool calls executed, expected output files not created"
+    ],
+    "confidence": "HIGH"
+  },
+  {
+    "task_id": "E05",
+    "objective_result": "FAIL",
+    "primary_cause": "MODEL_PROVIDER_FAILURE",
+    "secondary_causes": [
+      "EMPTY_RESPONSE_ON_REASONING_INGESTION",
+      "ZERO_TOOL_INVOCATIONS"
+    ],
+    "agent_failure": false,
+    "harness_failure": false,
+    "workspace_failure": false,
+    "contract_failure": false,
+    "evaluator_failure": false,
+    "routing_failure": false,
+    "tool_runtime_failure": false,
+    "verification_failure": false,
+    "telemetry_failure": false,
+    "environment_failure": false,
+    "model_provider_failure": true,
+    "inconclusive": false,
+    "evidence": [
+      "OllamaClient ingested only response field and dropped thinking field for DeepSeek-R1 8B",
+      "ResponseParser failed with empty_response on both attempts",
+      "0 tool calls executed, expected output files not created"
+    ],
+    "confidence": "HIGH"
+  },
+  {
+    "task_id": "E06",
+    "objective_result": "FAIL",
+    "primary_cause": "MODEL_PROVIDER_FAILURE",
+    "secondary_causes": [
+      "EMPTY_RESPONSE_ON_REASONING_INGESTION",
+      "ZERO_TOOL_INVOCATIONS"
+    ],
+    "agent_failure": false,
+    "harness_failure": false,
+    "workspace_failure": false,
+    "contract_failure": false,
+    "evaluator_failure": false,
+    "routing_failure": false,
+    "tool_runtime_failure": false,
+    "verification_failure": false,
+    "telemetry_failure": false,
+    "environment_failure": false,
+    "model_provider_failure": true,
+    "inconclusive": false,
+    "evidence": [
+      "OllamaClient ingested only response field and dropped thinking field for DeepSeek-R1 8B",
+      "ResponseParser failed with empty_response on both attempts",
+      "0 tool calls executed, expected output files not created"
+    ],
+    "confidence": "HIGH"
+  },
+  {
+    "task_id": "E07",
+    "objective_result": "FAIL",
+    "primary_cause": "MODEL_PROVIDER_FAILURE",
+    "secondary_causes": [
+      "EMPTY_RESPONSE_ON_REASONING_INGESTION",
+      "ZERO_TOOL_INVOCATIONS"
+    ],
+    "agent_failure": false,
+    "harness_failure": false,
+    "workspace_failure": false,
+    "contract_failure": false,
+    "evaluator_failure": false,
+    "routing_failure": false,
+    "tool_runtime_failure": false,
+    "verification_failure": false,
+    "telemetry_failure": false,
+    "environment_failure": false,
+    "model_provider_failure": true,
+    "inconclusive": false,
+    "evidence": [
+      "OllamaClient ingested only response field and dropped thinking field for DeepSeek-R1 8B",
+      "ResponseParser failed with empty_response on both attempts",
+      "0 tool calls executed, expected output files not created"
+    ],
+    "confidence": "HIGH"
+  },
+  {
+    "task_id": "E08",
+    "objective_result": "FAIL",
+    "primary_cause": "MODEL_PROVIDER_FAILURE",
+    "secondary_causes": [
+      "EMPTY_RESPONSE_ON_REASONING_INGESTION",
+      "ZERO_TOOL_INVOCATIONS"
+    ],
+    "agent_failure": false,
+    "harness_failure": false,
+    "workspace_failure": false,
+    "contract_failure": false,
+    "evaluator_failure": false,
+    "routing_failure": false,
+    "tool_runtime_failure": false,
+    "verification_failure": false,
+    "telemetry_failure": false,
+    "environment_failure": false,
+    "model_provider_failure": true,
+    "inconclusive": false,
+    "evidence": [
+      "OllamaClient ingested only response field and dropped thinking field for DeepSeek-R1 8B",
+      "ResponseParser failed with empty_response on both attempts",
+      "0 tool calls executed, expected output files not created"
+    ],
+    "confidence": "HIGH"
+  },
+  {
+    "task_id": "E09",
+    "objective_result": "FAIL",
+    "primary_cause": "MODEL_PROVIDER_FAILURE",
+    "secondary_causes": [
+      "EMPTY_RESPONSE_ON_REASONING_INGESTION",
+      "ZERO_TOOL_INVOCATIONS"
+    ],
+    "agent_failure": false,
+    "harness_failure": false,
+    "workspace_failure": false,
+    "contract_failure": false,
+    "evaluator_failure": false,
+    "routing_failure": false,
+    "tool_runtime_failure": false,
+    "verification_failure": false,
+    "telemetry_failure": false,
+    "environment_failure": false,
+    "model_provider_failure": true,
+    "inconclusive": false,
+    "evidence": [
+      "OllamaClient ingested only response field and dropped thinking field for DeepSeek-R1 8B",
+      "ResponseParser failed with empty_response on both attempts",
+      "0 tool calls executed, expected output files not created"
+    ],
+    "confidence": "HIGH"
+  },
+  {
+    "task_id": "E10",
+    "objective_result": "FAIL",
+    "primary_cause": "MODEL_PROVIDER_FAILURE",
+    "secondary_causes": [
+      "EMPTY_RESPONSE_ON_REASONING_INGESTION",
+      "ZERO_TOOL_INVOCATIONS"
+    ],
+    "agent_failure": false,
+    "harness_failure": false,
+    "workspace_failure": false,
+    "contract_failure": false,
+    "evaluator_failure": false,
+    "routing_failure": false,
+    "tool_runtime_failure": false,
+    "verification_failure": false,
+    "telemetry_failure": false,
+    "environment_failure": false,
+    "model_provider_failure": true,
+    "inconclusive": false,
+    "evidence": [
+      "OllamaClient ingested only response field and dropped thinking field for DeepSeek-R1 8B",
+      "ResponseParser failed with empty_response on both attempts",
+      "0 tool calls executed, expected output files not created"
+    ],
+    "confidence": "HIGH"
+  },
+  {
+    "task_id": "F01",
+    "objective_result": "FAIL",
+    "primary_cause": "MODEL_PROVIDER_FAILURE",
+    "secondary_causes": [
+      "EMPTY_RESPONSE_ON_REASONING_INGESTION",
+      "ZERO_TOOL_INVOCATIONS"
+    ],
+    "agent_failure": false,
+    "harness_failure": false,
+    "workspace_failure": false,
+    "contract_failure": false,
+    "evaluator_failure": false,
+    "routing_failure": false,
+    "tool_runtime_failure": false,
+    "verification_failure": false,
+    "telemetry_failure": false,
+    "environment_failure": false,
+    "model_provider_failure": true,
+    "inconclusive": false,
+    "evidence": [
+      "OllamaClient ingested only response field and dropped thinking field for DeepSeek-R1 8B",
+      "ResponseParser failed with empty_response on both attempts",
+      "0 tool calls executed, expected output files not created"
+    ],
+    "confidence": "HIGH"
+  },
+  {
+    "task_id": "F02",
+    "objective_result": "FAIL",
+    "primary_cause": "MODEL_PROVIDER_FAILURE",
+    "secondary_causes": [
+      "EMPTY_RESPONSE_ON_REASONING_INGESTION",
+      "ZERO_TOOL_INVOCATIONS"
+    ],
+    "agent_failure": false,
+    "harness_failure": false,
+    "workspace_failure": false,
+    "contract_failure": false,
+    "evaluator_failure": false,
+    "routing_failure": false,
+    "tool_runtime_failure": false,
+    "verification_failure": false,
+    "telemetry_failure": false,
+    "environment_failure": false,
+    "model_provider_failure": true,
+    "inconclusive": false,
+    "evidence": [
+      "OllamaClient ingested only response field and dropped thinking field for DeepSeek-R1 8B",
+      "ResponseParser failed with empty_response on both attempts",
+      "0 tool calls executed, expected output files not created"
+    ],
+    "confidence": "HIGH"
+  },
+  {
+    "task_id": "F03",
+    "objective_result": "FAIL",
+    "primary_cause": "MODEL_PROVIDER_FAILURE",
+    "secondary_causes": [
+      "EMPTY_RESPONSE_ON_REASONING_INGESTION",
+      "ZERO_TOOL_INVOCATIONS"
+    ],
+    "agent_failure": false,
+    "harness_failure": false,
+    "workspace_failure": false,
+    "contract_failure": false,
+    "evaluator_failure": false,
+    "routing_failure": false,
+    "tool_runtime_failure": false,
+    "verification_failure": false,
+    "telemetry_failure": false,
+    "environment_failure": false,
+    "model_provider_failure": true,
+    "inconclusive": false,
+    "evidence": [
+      "OllamaClient ingested only response field and dropped thinking field for DeepSeek-R1 8B",
+      "ResponseParser failed with empty_response on both attempts",
+      "0 tool calls executed, expected output files not created"
+    ],
+    "confidence": "HIGH"
+  },
+  {
+    "task_id": "F04",
+    "objective_result": "FAIL",
+    "primary_cause": "MODEL_PROVIDER_FAILURE",
+    "secondary_causes": [
+      "EMPTY_RESPONSE_ON_REASONING_INGESTION",
+      "ZERO_TOOL_INVOCATIONS"
+    ],
+    "agent_failure": false,
+    "harness_failure": false,
+    "workspace_failure": false,
+    "contract_failure": false,
+    "evaluator_failure": false,
+    "routing_failure": false,
+    "tool_runtime_failure": false,
+    "verification_failure": false,
+    "telemetry_failure": false,
+    "environment_failure": false,
+    "model_provider_failure": true,
+    "inconclusive": false,
+    "evidence": [
+      "OllamaClient ingested only response field and dropped thinking field for DeepSeek-R1 8B",
+      "ResponseParser failed with empty_response on both attempts",
+      "0 tool calls executed, expected output files not created"
+    ],
+    "confidence": "HIGH"
+  },
+  {
+    "task_id": "F05",
+    "objective_result": "FAIL",
+    "primary_cause": "MODEL_PROVIDER_FAILURE",
+    "secondary_causes": [
+      "EMPTY_RESPONSE_ON_REASONING_INGESTION",
+      "ZERO_TOOL_INVOCATIONS"
+    ],
+    "agent_failure": false,
+    "harness_failure": false,
+    "workspace_failure": false,
+    "contract_failure": false,
+    "evaluator_failure": false,
+    "routing_failure": false,
+    "tool_runtime_failure": false,
+    "verification_failure": false,
+    "telemetry_failure": false,
+    "environment_failure": false,
+    "model_provider_failure": true,
+    "inconclusive": false,
+    "evidence": [
+      "OllamaClient ingested only response field and dropped thinking field for DeepSeek-R1 8B",
+      "ResponseParser failed with empty_response on both attempts",
+      "0 tool calls executed, expected output files not created"
+    ],
+    "confidence": "HIGH"
+  },
+  {
+    "task_id": "F06",
+    "objective_result": "FAIL",
+    "primary_cause": "MODEL_PROVIDER_FAILURE",
+    "secondary_causes": [
+      "EMPTY_RESPONSE_ON_REASONING_INGESTION",
+      "ZERO_TOOL_INVOCATIONS"
+    ],
+    "agent_failure": false,
+    "harness_failure": false,
+    "workspace_failure": false,
+    "contract_failure": false,
+    "evaluator_failure": false,
+    "routing_failure": false,
+    "tool_runtime_failure": false,
+    "verification_failure": false,
+    "telemetry_failure": false,
+    "environment_failure": false,
+    "model_provider_failure": true,
+    "inconclusive": false,
+    "evidence": [
+      "OllamaClient ingested only response field and dropped thinking field for DeepSeek-R1 8B",
+      "ResponseParser failed with empty_response on both attempts",
+      "0 tool calls executed, expected output files not created"
+    ],
+    "confidence": "HIGH"
+  },
+  {
+    "task_id": "F07",
+    "objective_result": "FAIL",
+    "primary_cause": "MODEL_PROVIDER_FAILURE",
+    "secondary_causes": [
+      "EMPTY_RESPONSE_ON_REASONING_INGESTION",
+      "ZERO_TOOL_INVOCATIONS"
+    ],
+    "agent_failure": false,
+    "harness_failure": false,
+    "workspace_failure": false,
+    "contract_failure": false,
+    "evaluator_failure": false,
+    "routing_failure": false,
+    "tool_runtime_failure": false,
+    "verification_failure": false,
+    "telemetry_failure": false,
+    "environment_failure": false,
+    "model_provider_failure": true,
+    "inconclusive": false,
+    "evidence": [
+      "OllamaClient ingested only response field and dropped thinking field for DeepSeek-R1 8B",
+      "ResponseParser failed with empty_response on both attempts",
+      "0 tool calls executed, expected output files not created"
+    ],
+    "confidence": "HIGH"
+  },
+  {
+    "task_id": "F08",
+    "objective_result": "FAIL",
+    "primary_cause": "MODEL_PROVIDER_FAILURE",
+    "secondary_causes": [
+      "EMPTY_RESPONSE_ON_REASONING_INGESTION",
+      "ZERO_TOOL_INVOCATIONS"
+    ],
+    "agent_failure": false,
+    "harness_failure": false,
+    "workspace_failure": false,
+    "contract_failure": false,
+    "evaluator_failure": false,
+    "routing_failure": false,
+    "tool_runtime_failure": false,
+    "verification_failure": false,
+    "telemetry_failure": false,
+    "environment_failure": false,
+    "model_provider_failure": true,
+    "inconclusive": false,
+    "evidence": [
+      "OllamaClient ingested only response field and dropped thinking field for DeepSeek-R1 8B",
+      "ResponseParser failed with empty_response on both attempts",
+      "0 tool calls executed, expected output files not created"
+    ],
+    "confidence": "HIGH"
+  },
+  {
+    "task_id": "F09",
+    "objective_result": "FAIL",
+    "primary_cause": "MODEL_PROVIDER_FAILURE",
+    "secondary_causes": [
+      "EMPTY_RESPONSE_ON_REASONING_INGESTION",
+      "ZERO_TOOL_INVOCATIONS"
+    ],
+    "agent_failure": false,
+    "harness_failure": false,
+    "workspace_failure": false,
+    "contract_failure": false,
+    "evaluator_failure": false,
+    "routing_failure": false,
+    "tool_runtime_failure": false,
+    "verification_failure": false,
+    "telemetry_failure": false,
+    "environment_failure": false,
+    "model_provider_failure": true,
+    "inconclusive": false,
+    "evidence": [
+      "OllamaClient ingested only response field and dropped thinking field for DeepSeek-R1 8B",
+      "ResponseParser failed with empty_response on both attempts",
+      "0 tool calls executed, expected output files not created"
+    ],
+    "confidence": "HIGH"
+  },
+  {
+    "task_id": "F10",
+    "objective_result": "FAIL",
+    "primary_cause": "MODEL_PROVIDER_FAILURE",
+    "secondary_causes": [
+      "EMPTY_RESPONSE_ON_REASONING_INGESTION",
+      "ZERO_TOOL_INVOCATIONS"
+    ],
+    "agent_failure": false,
+    "harness_failure": false,
+    "workspace_failure": false,
+    "contract_failure": false,
+    "evaluator_failure": false,
+    "routing_failure": false,
+    "tool_runtime_failure": false,
+    "verification_failure": false,
+    "telemetry_failure": false,
+    "environment_failure": false,
+    "model_provider_failure": true,
+    "inconclusive": false,
+    "evidence": [
+      "OllamaClient ingested only response field and dropped thinking field for DeepSeek-R1 8B",
+      "ResponseParser failed with empty_response on both attempts",
+      "0 tool calls executed, expected output files not created"
+    ],
+    "confidence": "HIGH"
+  },
+  {
+    "task_id": "G01",
+    "objective_result": "FAIL",
+    "primary_cause": "MODEL_PROVIDER_FAILURE",
+    "secondary_causes": [
+      "EMPTY_RESPONSE_ON_REASONING_INGESTION",
+      "ZERO_TOOL_INVOCATIONS"
+    ],
+    "agent_failure": false,
+    "harness_failure": false,
+    "workspace_failure": false,
+    "contract_failure": false,
+    "evaluator_failure": false,
+    "routing_failure": false,
+    "tool_runtime_failure": false,
+    "verification_failure": false,
+    "telemetry_failure": false,
+    "environment_failure": false,
+    "model_provider_failure": true,
+    "inconclusive": false,
+    "evidence": [
+      "OllamaClient ingested only response field and dropped thinking field for DeepSeek-R1 8B",
+      "ResponseParser failed with empty_response on both attempts",
+      "0 tool calls executed, expected output files not created"
+    ],
+    "confidence": "HIGH"
+  },
+  {
+    "task_id": "G02",
+    "objective_result": "FAIL",
+    "primary_cause": "MODEL_PROVIDER_FAILURE",
+    "secondary_causes": [
+      "EMPTY_RESPONSE_ON_REASONING_INGESTION",
+      "ZERO_TOOL_INVOCATIONS"
+    ],
+    "agent_failure": false,
+    "harness_failure": false,
+    "workspace_failure": false,
+    "contract_failure": false,
+    "evaluator_failure": false,
+    "routing_failure": false,
+    "tool_runtime_failure": false,
+    "verification_failure": false,
+    "telemetry_failure": false,
+    "environment_failure": false,
+    "model_provider_failure": true,
+    "inconclusive": false,
+    "evidence": [
+      "OllamaClient ingested only response field and dropped thinking field for DeepSeek-R1 8B",
+      "ResponseParser failed with empty_response on both attempts",
+      "0 tool calls executed, expected output files not created"
+    ],
+    "confidence": "HIGH"
+  },
+  {
+    "task_id": "G03",
+    "objective_result": "FAIL",
+    "primary_cause": "MODEL_PROVIDER_FAILURE",
+    "secondary_causes": [
+      "EMPTY_RESPONSE_ON_REASONING_INGESTION",
+      "ZERO_TOOL_INVOCATIONS"
+    ],
+    "agent_failure": false,
+    "harness_failure": false,
+    "workspace_failure": false,
+    "contract_failure": false,
+    "evaluator_failure": false,
+    "routing_failure": false,
+    "tool_runtime_failure": false,
+    "verification_failure": false,
+    "telemetry_failure": false,
+    "environment_failure": false,
+    "model_provider_failure": true,
+    "inconclusive": false,
+    "evidence": [
+      "OllamaClient ingested only response field and dropped thinking field for DeepSeek-R1 8B",
+      "ResponseParser failed with empty_response on both attempts",
+      "0 tool calls executed, expected output files not created"
+    ],
+    "confidence": "HIGH"
+  },
+  {
+    "task_id": "G04",
+    "objective_result": "FAIL",
+    "primary_cause": "MODEL_PROVIDER_FAILURE",
+    "secondary_causes": [
+      "EMPTY_RESPONSE_ON_REASONING_INGESTION",
+      "ZERO_TOOL_INVOCATIONS"
+    ],
+    "agent_failure": false,
+    "harness_failure": false,
+    "workspace_failure": false,
+    "contract_failure": false,
+    "evaluator_failure": false,
+    "routing_failure": false,
+    "tool_runtime_failure": false,
+    "verification_failure": false,
+    "telemetry_failure": false,
+    "environment_failure": false,
+    "model_provider_failure": true,
+    "inconclusive": false,
+    "evidence": [
+      "OllamaClient ingested only response field and dropped thinking field for DeepSeek-R1 8B",
+      "ResponseParser failed with empty_response on both attempts",
+      "0 tool calls executed, expected output files not created"
+    ],
+    "confidence": "HIGH"
+  },
+  {
+    "task_id": "G05",
+    "objective_result": "FAIL",
+    "primary_cause": "MODEL_PROVIDER_FAILURE",
+    "secondary_causes": [
+      "EMPTY_RESPONSE_ON_REASONING_INGESTION",
+      "ZERO_TOOL_INVOCATIONS"
+    ],
+    "agent_failure": false,
+    "harness_failure": false,
+    "workspace_failure": false,
+    "contract_failure": false,
+    "evaluator_failure": false,
+    "routing_failure": false,
+    "tool_runtime_failure": false,
+    "verification_failure": false,
+    "telemetry_failure": false,
+    "environment_failure": false,
+    "model_provider_failure": true,
+    "inconclusive": false,
+    "evidence": [
+      "OllamaClient ingested only response field and dropped thinking field for DeepSeek-R1 8B",
+      "ResponseParser failed with empty_response on both attempts",
+      "0 tool calls executed, expected output files not created"
+    ],
+    "confidence": "HIGH"
+  },
+  {
+    "task_id": "G06",
+    "objective_result": "FAIL",
+    "primary_cause": "MODEL_PROVIDER_FAILURE",
+    "secondary_causes": [
+      "EMPTY_RESPONSE_ON_REASONING_INGESTION",
+      "ZERO_TOOL_INVOCATIONS"
+    ],
+    "agent_failure": false,
+    "harness_failure": false,
+    "workspace_failure": false,
+    "contract_failure": false,
+    "evaluator_failure": false,
+    "routing_failure": false,
+    "tool_runtime_failure": false,
+    "verification_failure": false,
+    "telemetry_failure": false,
+    "environment_failure": false,
+    "model_provider_failure": true,
+    "inconclusive": false,
+    "evidence": [
+      "OllamaClient ingested only response field and dropped thinking field for DeepSeek-R1 8B",
+      "ResponseParser failed with empty_response on both attempts",
+      "0 tool calls executed, expected output files not created"
+    ],
+    "confidence": "HIGH"
+  },
+  {
+    "task_id": "G07",
+    "objective_result": "FAIL",
+    "primary_cause": "MODEL_PROVIDER_FAILURE",
+    "secondary_causes": [
+      "EMPTY_RESPONSE_ON_REASONING_INGESTION",
+      "ZERO_TOOL_INVOCATIONS"
+    ],
+    "agent_failure": false,
+    "harness_failure": false,
+    "workspace_failure": false,
+    "contract_failure": false,
+    "evaluator_failure": false,
+    "routing_failure": false,
+    "tool_runtime_failure": false,
+    "verification_failure": false,
+    "telemetry_failure": false,
+    "environment_failure": false,
+    "model_provider_failure": true,
+    "inconclusive": false,
+    "evidence": [
+      "OllamaClient ingested only response field and dropped thinking field for DeepSeek-R1 8B",
+      "ResponseParser failed with empty_response on both attempts",
+      "0 tool calls executed, expected output files not created"
+    ],
+    "confidence": "HIGH"
+  },
+  {
+    "task_id": "G08",
+    "objective_result": "FAIL",
+    "primary_cause": "MODEL_PROVIDER_FAILURE",
+    "secondary_causes": [
+      "EMPTY_RESPONSE_ON_REASONING_INGESTION",
+      "ZERO_TOOL_INVOCATIONS"
+    ],
+    "agent_failure": false,
+    "harness_failure": false,
+    "workspace_failure": false,
+    "contract_failure": false,
+    "evaluator_failure": false,
+    "routing_failure": false,
+    "tool_runtime_failure": false,
+    "verification_failure": false,
+    "telemetry_failure": false,
+    "environment_failure": false,
+    "model_provider_failure": true,
+    "inconclusive": false,
+    "evidence": [
+      "OllamaClient ingested only response field and dropped thinking field for DeepSeek-R1 8B",
+      "ResponseParser failed with empty_response on both attempts",
+      "0 tool calls executed, expected output files not created"
+    ],
+    "confidence": "HIGH"
+  },
+  {
+    "task_id": "G09",
+    "objective_result": "FAIL",
+    "primary_cause": "MODEL_PROVIDER_FAILURE",
+    "secondary_causes": [
+      "EMPTY_RESPONSE_ON_REASONING_INGESTION",
+      "ZERO_TOOL_INVOCATIONS"
+    ],
+    "agent_failure": false,
+    "harness_failure": false,
+    "workspace_failure": false,
+    "contract_failure": false,
+    "evaluator_failure": false,
+    "routing_failure": false,
+    "tool_runtime_failure": false,
+    "verification_failure": false,
+    "telemetry_failure": false,
+    "environment_failure": false,
+    "model_provider_failure": true,
+    "inconclusive": false,
+    "evidence": [
+      "OllamaClient ingested only response field and dropped thinking field for DeepSeek-R1 8B",
+      "ResponseParser failed with empty_response on both attempts",
+      "0 tool calls executed, expected output files not created"
+    ],
+    "confidence": "HIGH"
+  },
+  {
+    "task_id": "G10",
+    "objective_result": "FAIL",
+    "primary_cause": "MODEL_PROVIDER_FAILURE",
+    "secondary_causes": [
+      "EMPTY_RESPONSE_ON_REASONING_INGESTION",
+      "ZERO_TOOL_INVOCATIONS"
+    ],
+    "agent_failure": false,
+    "harness_failure": false,
+    "workspace_failure": false,
+    "contract_failure": false,
+    "evaluator_failure": false,
+    "routing_failure": false,
+    "tool_runtime_failure": false,
+    "verification_failure": false,
+    "telemetry_failure": false,
+    "environment_failure": false,
+    "model_provider_failure": true,
+    "inconclusive": false,
+    "evidence": [
+      "OllamaClient ingested only response field and dropped thinking field for DeepSeek-R1 8B",
+      "ResponseParser failed with empty_response on both attempts",
+      "0 tool calls executed, expected output files not created"
+    ],
+    "confidence": "HIGH"
+  },
+  {
+    "task_id": "H01",
+    "objective_result": "FAIL",
+    "primary_cause": "MODEL_PROVIDER_FAILURE",
+    "secondary_causes": [
+      "EMPTY_RESPONSE_ON_REASONING_INGESTION",
+      "ZERO_TOOL_INVOCATIONS"
+    ],
+    "agent_failure": false,
+    "harness_failure": false,
+    "workspace_failure": false,
+    "contract_failure": false,
+    "evaluator_failure": false,
+    "routing_failure": false,
+    "tool_runtime_failure": false,
+    "verification_failure": false,
+    "telemetry_failure": false,
+    "environment_failure": false,
+    "model_provider_failure": true,
+    "inconclusive": false,
+    "evidence": [
+      "OllamaClient ingested only response field and dropped thinking field for DeepSeek-R1 8B",
+      "ResponseParser failed with empty_response on both attempts",
+      "0 tool calls executed, expected output files not created"
+    ],
+    "confidence": "HIGH"
+  },
+  {
+    "task_id": "H02",
+    "objective_result": "FAIL",
+    "primary_cause": "MODEL_PROVIDER_FAILURE",
+    "secondary_causes": [
+      "EMPTY_RESPONSE_ON_REASONING_INGESTION",
+      "ZERO_TOOL_INVOCATIONS"
+    ],
+    "agent_failure": false,
+    "harness_failure": false,
+    "workspace_failure": false,
+    "contract_failure": false,
+    "evaluator_failure": false,
+    "routing_failure": false,
+    "tool_runtime_failure": false,
+    "verification_failure": false,
+    "telemetry_failure": false,
+    "environment_failure": false,
+    "model_provider_failure": true,
+    "inconclusive": false,
+    "evidence": [
+      "OllamaClient ingested only response field and dropped thinking field for DeepSeek-R1 8B",
+      "ResponseParser failed with empty_response on both attempts",
+      "0 tool calls executed, expected output files not created"
+    ],
+    "confidence": "HIGH"
+  },
+  {
+    "task_id": "H03",
+    "objective_result": "FAIL",
+    "primary_cause": "MODEL_PROVIDER_FAILURE",
+    "secondary_causes": [
+      "EMPTY_RESPONSE_ON_REASONING_INGESTION",
+      "ZERO_TOOL_INVOCATIONS"
+    ],
+    "agent_failure": false,
+    "harness_failure": false,
+    "workspace_failure": false,
+    "contract_failure": false,
+    "evaluator_failure": false,
+    "routing_failure": false,
+    "tool_runtime_failure": false,
+    "verification_failure": false,
+    "telemetry_failure": false,
+    "environment_failure": false,
+    "model_provider_failure": true,
+    "inconclusive": false,
+    "evidence": [
+      "OllamaClient ingested only response field and dropped thinking field for DeepSeek-R1 8B",
+      "ResponseParser failed with empty_response on both attempts",
+      "0 tool calls executed, expected output files not created"
+    ],
+    "confidence": "HIGH"
+  },
+  {
+    "task_id": "H04",
+    "objective_result": "FAIL",
+    "primary_cause": "MODEL_PROVIDER_FAILURE",
+    "secondary_causes": [
+      "EMPTY_RESPONSE_ON_REASONING_INGESTION",
+      "ZERO_TOOL_INVOCATIONS"
+    ],
+    "agent_failure": false,
+    "harness_failure": false,
+    "workspace_failure": false,
+    "contract_failure": false,
+    "evaluator_failure": false,
+    "routing_failure": false,
+    "tool_runtime_failure": false,
+    "verification_failure": false,
+    "telemetry_failure": false,
+    "environment_failure": false,
+    "model_provider_failure": true,
+    "inconclusive": false,
+    "evidence": [
+      "OllamaClient ingested only response field and dropped thinking field for DeepSeek-R1 8B",
+      "ResponseParser failed with empty_response on both attempts",
+      "0 tool calls executed, expected output files not created"
+    ],
+    "confidence": "HIGH"
+  },
+  {
+    "task_id": "H05",
+    "objective_result": "FAIL",
+    "primary_cause": "MODEL_PROVIDER_FAILURE",
+    "secondary_causes": [
+      "EMPTY_RESPONSE_ON_REASONING_INGESTION",
+      "ZERO_TOOL_INVOCATIONS"
+    ],
+    "agent_failure": false,
+    "harness_failure": false,
+    "workspace_failure": false,
+    "contract_failure": false,
+    "evaluator_failure": false,
+    "routing_failure": false,
+    "tool_runtime_failure": false,
+    "verification_failure": false,
+    "telemetry_failure": false,
+    "environment_failure": false,
+    "model_provider_failure": true,
+    "inconclusive": false,
+    "evidence": [
+      "OllamaClient ingested only response field and dropped thinking field for DeepSeek-R1 8B",
+      "ResponseParser failed with empty_response on both attempts",
+      "0 tool calls executed, expected output files not created"
+    ],
+    "confidence": "HIGH"
+  },
+  {
+    "task_id": "H06",
+    "objective_result": "FAIL",
+    "primary_cause": "MODEL_PROVIDER_FAILURE",
+    "secondary_causes": [
+      "EMPTY_RESPONSE_ON_REASONING_INGESTION",
+      "ZERO_TOOL_INVOCATIONS"
+    ],
+    "agent_failure": false,
+    "harness_failure": false,
+    "workspace_failure": false,
+    "contract_failure": false,
+    "evaluator_failure": false,
+    "routing_failure": false,
+    "tool_runtime_failure": false,
+    "verification_failure": false,
+    "telemetry_failure": false,
+    "environment_failure": false,
+    "model_provider_failure": true,
+    "inconclusive": false,
+    "evidence": [
+      "OllamaClient ingested only response field and dropped thinking field for DeepSeek-R1 8B",
+      "ResponseParser failed with empty_response on both attempts",
+      "0 tool calls executed, expected output files not created"
+    ],
+    "confidence": "HIGH"
+  },
+  {
+    "task_id": "H07",
+    "objective_result": "FAIL",
+    "primary_cause": "MODEL_PROVIDER_FAILURE",
+    "secondary_causes": [
+      "EMPTY_RESPONSE_ON_REASONING_INGESTION",
+      "ZERO_TOOL_INVOCATIONS"
+    ],
+    "agent_failure": false,
+    "harness_failure": false,
+    "workspace_failure": false,
+    "contract_failure": false,
+    "evaluator_failure": false,
+    "routing_failure": false,
+    "tool_runtime_failure": false,
+    "verification_failure": false,
+    "telemetry_failure": false,
+    "environment_failure": false,
+    "model_provider_failure": true,
+    "inconclusive": false,
+    "evidence": [
+      "OllamaClient ingested only response field and dropped thinking field for DeepSeek-R1 8B",
+      "ResponseParser failed with empty_response on both attempts",
+      "0 tool calls executed, expected output files not created"
+    ],
+    "confidence": "HIGH"
+  },
+  {
+    "task_id": "H08",
+    "objective_result": "FAIL",
+    "primary_cause": "MODEL_PROVIDER_FAILURE",
+    "secondary_causes": [
+      "EMPTY_RESPONSE_ON_REASONING_INGESTION",
+      "ZERO_TOOL_INVOCATIONS"
+    ],
+    "agent_failure": false,
+    "harness_failure": false,
+    "workspace_failure": false,
+    "contract_failure": false,
+    "evaluator_failure": false,
+    "routing_failure": false,
+    "tool_runtime_failure": false,
+    "verification_failure": false,
+    "telemetry_failure": false,
+    "environment_failure": false,
+    "model_provider_failure": true,
+    "inconclusive": false,
+    "evidence": [
+      "OllamaClient ingested only response field and dropped thinking field for DeepSeek-R1 8B",
+      "ResponseParser failed with empty_response on both attempts",
+      "0 tool calls executed, expected output files not created"
+    ],
+    "confidence": "HIGH"
+  },
+  {
+    "task_id": "H09",
+    "objective_result": "FAIL",
+    "primary_cause": "MODEL_PROVIDER_FAILURE",
+    "secondary_causes": [
+      "EMPTY_RESPONSE_ON_REASONING_INGESTION",
+      "ZERO_TOOL_INVOCATIONS"
+    ],
+    "agent_failure": false,
+    "harness_failure": false,
+    "workspace_failure": false,
+    "contract_failure": false,
+    "evaluator_failure": false,
+    "routing_failure": false,
+    "tool_runtime_failure": false,
+    "verification_failure": false,
+    "telemetry_failure": false,
+    "environment_failure": false,
+    "model_provider_failure": true,
+    "inconclusive": false,
+    "evidence": [
+      "OllamaClient ingested only response field and dropped thinking field for DeepSeek-R1 8B",
+      "ResponseParser failed with empty_response on both attempts",
+      "0 tool calls executed, expected output files not created"
+    ],
+    "confidence": "HIGH"
+  },
+  {
+    "task_id": "H10",
+    "objective_result": "FAIL",
+    "primary_cause": "MODEL_PROVIDER_FAILURE",
+    "secondary_causes": [
+      "EMPTY_RESPONSE_ON_REASONING_INGESTION",
+      "ZERO_TOOL_INVOCATIONS"
+    ],
+    "agent_failure": false,
+    "harness_failure": false,
+    "workspace_failure": false,
+    "contract_failure": false,
+    "evaluator_failure": false,
+    "routing_failure": false,
+    "tool_runtime_failure": false,
+    "verification_failure": false,
+    "telemetry_failure": false,
+    "environment_failure": false,
+    "model_provider_failure": true,
+    "inconclusive": false,
+    "evidence": [
+      "OllamaClient ingested only response field and dropped thinking field for DeepSeek-R1 8B",
+      "ResponseParser failed with empty_response on both attempts",
+      "0 tool calls executed, expected output files not created"
+    ],
+    "confidence": "HIGH"
+  }
+]

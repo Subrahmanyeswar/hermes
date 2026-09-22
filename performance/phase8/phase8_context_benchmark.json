@@ -1,0 +1,15 @@
+{
+  "legacy_build_ms": 0.16,
+  "legacy_tokens": 2111,
+  "context_engine_build_ms": 0.14,
+  "context_engine_tokens": 1742,
+  "token_reduction_pct": 17.5,
+  "items_included": 8,
+  "items_dropped": 0,
+  "sources": {
+    "SYSTEM_CORE": 1,
+    "USER_TASK": 1,
+    "SKILL": 1,
+    "MEMORY": 5
+  }
+}

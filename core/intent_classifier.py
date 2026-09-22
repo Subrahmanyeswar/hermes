@@ -269,12 +269,21 @@ class IntentClassifier:
     def build_skill_prompt_section(
         self,
         skill_ids: list[str],
+        execution_mode: str = "production",
+        disclosure_level: int = 2,
     ) -> tuple[str, list[str]]:
         """
-        Load SKILL.md files for the given skill IDs and build a combined
-        prompt section string.
+        Load SKILL.md files for the given skill IDs and build a combined prompt section string.
 
-        Returns (combined_content: str, successfully_loaded_ids: list[str])
+        BENCHMARK ISOLATION GUARANTEE:
+        When execution_mode == "benchmark":
+        Always loads full procedural SKILL.md content without modification.
+
+        PRODUCTION / DEMO / PERFORMANCE OPTIMIZATION:
+        disclosure_level:
+          1 = compact summary (description & core directives)
+          2 = concise procedural instructions (code fences compressed to avoid token bloat)
+          3 = full content
         """
         loaded_ids: list[str] = []
         sections: list[str] = []
@@ -304,6 +313,15 @@ class IntentClassifier:
                     parts = content.split("---", 2)
                     if len(parts) >= 3:
                         content = parts[2].strip()
+
+                if execution_mode != "benchmark":
+                    if disclosure_level == 1:
+                        lines = [l for l in content.split("\n") if l.strip() and not l.startswith("#")]
+                        summary = " ".join(lines[:3])[:250]
+                        content = summary
+                    elif disclosure_level == 2:
+                        content = re.sub(r'```[\s\S]*?```', '[Pattern available in domain skill]', content)
+
                 sections.append(f"# Skill: {skill_id}\n{content}")
                 loaded_ids.append(skill_id)
             except Exception as e:

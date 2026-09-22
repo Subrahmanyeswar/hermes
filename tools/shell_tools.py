@@ -18,6 +18,28 @@ from tools.registry import tool
 from tools.security import check_all_gates
 from loguru import logger
 
+# Global registry of active subprocesses for reliable termination during cancellation
+ACTIVE_SUBPROCESSES: set[subprocess.Popen] = set()
+
+
+def terminate_active_subprocesses() -> int:
+    """Terminates all active subprocesses tracked during mission execution."""
+    count = 0
+    for proc in list(ACTIVE_SUBPROCESSES):
+        try:
+            if proc.poll() is None:
+                proc.terminate()
+                try:
+                    proc.wait(timeout=1.5)
+                except subprocess.TimeoutExpired:
+                    proc.kill()
+                count += 1
+        except Exception as e:
+            logger.debug(f"Error terminating subprocess {getattr(proc, 'pid', 'unknown')}: {e}")
+        finally:
+            ACTIVE_SUBPROCESSES.discard(proc)
+    return count
+
 
 def _command_for_platform(command: str) -> str:
     """Translate minimal POSIX shell commands needed for Windows compatibility."""
@@ -96,20 +118,26 @@ class BashExecTool(BaseTool):
             )
 
         start_time = time.monotonic()
+        proc = None
         try:
             command_to_run = _command_for_platform(inp.command)
-            result = subprocess.run(
+            proc = subprocess.Popen(
                 command_to_run,
                 shell=True,
-                capture_output=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
                 text=True,
                 cwd=str(work_dir),
                 env={**os.environ, "PWD": str(work_dir)},
-                timeout=inp.timeout_seconds,
                 stdin=subprocess.DEVNULL,
             )
+            ACTIVE_SUBPROCESSES.add(proc)
+            stdout, stderr = proc.communicate(timeout=inp.timeout_seconds)
             duration = time.monotonic() - start_time
+            exit_code = proc.returncode
         except subprocess.TimeoutExpired:
+            if proc:
+                proc.kill()
             duration = time.monotonic() - start_time
             return ToolResult(
                 success=False,
@@ -127,23 +155,26 @@ class BashExecTool(BaseTool):
                 exit_code=1,
                 duration_seconds=duration,
             )
+        finally:
+            if proc:
+                ACTIVE_SUBPROCESSES.discard(proc)
 
-        combined_output = result.stdout
-        if result.stderr:
+        combined_output = stdout
+        if stderr:
             combined_output += (
-                f"\n[STDERR]:\n{result.stderr}" if result.stdout else result.stderr
+                f"\n[STDERR]:\n{stderr}" if stdout else stderr
             )
 
-        success = result.returncode == 0
+        success = exit_code == 0
         logger.info(
-            f"bash_exec | exit={result.returncode} | duration={duration:.2f}s | "
+            f"bash_exec | exit={exit_code} | duration={duration:.2f}s | "
             f"cmd={inp.command[:60]!r}"
         )
         return ToolResult(
             success=success,
             output=combined_output,
-            error=result.stderr if not success else None,
-            exit_code=result.returncode,
+            error=stderr if not success else None,
+            exit_code=exit_code,
             duration_seconds=duration,
         )
 

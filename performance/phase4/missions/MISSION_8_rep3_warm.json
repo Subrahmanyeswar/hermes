@@ -1,0 +1,39 @@
+{
+  "mission_id": "MISSION_8_rep3_warm",
+  "base_id": "MISSION_8",
+  "name": "Task Requiring Repair Cycle",
+  "type": "repair",
+  "cold": false,
+  "repetition": 3,
+  "wall_clock_ms": 450495.03,
+  "success": true,
+  "tool_name": "write_file",
+  "pipeline_stage_reached": 12,
+  "tier3_was_called": true,
+  "critical_path": {
+    "wall_clock_ms": 450525.77,
+    "cumulative_span_ms": 450495.0,
+    "leaf_span_ms": 450495.0,
+    "category_times_ms": {
+      "MISSION": 450495.0
+    },
+    "span_count": 1
+  },
+  "spans": [
+    {
+      "span_id": "c113825f",
+      "mission_id": "MISSION_8_rep3_warm",
+      "parent_id": null,
+      "name": "TOTAL_MISSION",
+      "category": "MISSION",
+      "start_ns": 809409711320100,
+      "end_ns": 809860206323700,
+      "duration_ms": 450495.0036,
+      "status": "success",
+      "metadata": {
+        "mission_id": "MISSION_8_rep3_warm"
+      },
+      "children": []
+    }
+  ]
+}

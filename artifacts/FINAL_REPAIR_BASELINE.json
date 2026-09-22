@@ -1,0 +1,14 @@
+{
+  "python_version": "3.10.0 (tags/v3.10.0:b494f59, Oct  4 2021, 19:00:18) [MSC v.1929 64 bit (AMD64)]",
+  "platform": "Windows-10-10.0.26200-SP0",
+  "ollama_version": "0.17.1",
+  "gpu_info": "NVIDIA GeForce RTX 3050 6GB Laptop GPU, 6144 MiB, 6002 MiB",
+  "t1_model": "deepseek-r1:8b",
+  "t2_model": "qwen3:8b",
+  "t3_model": "claude-3-5-sonnet (via OpenRouter)",
+  "frozen_hashes": {
+    "dataset": "f3475b6415364ccea70f4710bfe2137fe84d91cce5d1db822e8d156716cf4d72",
+    "contract": "4cf78a7dce0cfedfeb81e5e6929241fb7fd69d5eba0ba2b91888f6744834fff3",
+    "protocol": "8740e0a6face5b1b4ce1b23839a97605cffb63045e289bda7b297fb83d8bfe15"
+  }
+}

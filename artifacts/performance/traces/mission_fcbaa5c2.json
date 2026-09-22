@@ -1,0 +1,32 @@
+{
+  "mission_id": "fcbaa5c2",
+  "execution_mode": "performance_baseline",
+  "mission": {
+    "start": "2026-09-13 17:07:36",
+    "end": "2026-09-13 17:07:36",
+    "duration_ms": 8.7,
+    "accounted_time_ms": 15.0,
+    "unaccounted_time_ms": 0.0
+  },
+  "stages": [],
+  "model_calls": [],
+  "tool_calls": [],
+  "verification_calls": [
+    {
+      "verification_id": "df6f7123",
+      "request_id": "fcbaa5c2",
+      "mission_id": "m_2",
+      "task_id": "t_2",
+      "method": "deterministic",
+      "start_time_monotonic": 373737.203,
+      "end_time_monotonic": 373737.218,
+      "duration_ms": 15.000000013969839,
+      "verdict": "AGREE",
+      "escalated": false,
+      "issues_count": 0,
+      "issues": []
+    }
+  ],
+  "repair_attempts": [],
+  "model_switches": []
+}

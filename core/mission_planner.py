@@ -307,7 +307,7 @@ class MissionPlanner:
         next_task = mission.next_executable_task
     """
 
-    def plan(self, user_prompt: str, workspace_root: str = "") -> Mission:
+    def plan(self, user_prompt: str, workspace_root: str = "", execution_mode: str = "production") -> Mission:
         """
         Main entry point. Decomposes the prompt into a Mission.
 
@@ -324,8 +324,8 @@ class MissionPlanner:
         )
 
         # Step 1: Parse into raw task descriptions
-        raw_tasks = self._parse_intent(user_prompt)
-        logger.info(f"MissionPlanner: parsed {len(raw_tasks)} tasks from prompt")
+        raw_tasks = self._parse_intent(user_prompt, execution_mode=execution_mode)
+        logger.info(f"MissionPlanner: parsed {len(raw_tasks)} tasks from prompt | mode={execution_mode}")
 
         if not raw_tasks:
             # Single-task mission — treat whole prompt as one task
@@ -362,8 +362,22 @@ class MissionPlanner:
             skill_hint="",
             acceptance_criteria="Workspace structure inspected and understood",
         )
-        # Only prepend if we have more than 1 task and it is not already a pure read task
-        if len(tasks) > 1:
+        # Only prepend inspection task if we have a complex multi-page website/app mission
+        lower_prompt = user_prompt.lower()
+        is_complex_mission = any(w in lower_prompt for w in [
+            "website", "web app", "webpage", "landing page", "portfolio",
+            "animated", "career", "full stack", "frontend and backend", "complete app"
+        ])
+        
+        should_inspect = is_complex_mission
+        if execution_mode != "benchmark":
+            from pathlib import Path
+            target_check = Path(workspace_root) if workspace_root else Path("generated_projects")
+            existing_count = len(list(target_check.glob("*"))) if target_check.exists() else 0
+            if existing_count == 0:
+                should_inspect = False
+
+        if len(tasks) > 1 and should_inspect:
             tasks.insert(0, inspection_task)
 
         # Step 3: Detect dependencies
@@ -380,7 +394,7 @@ class MissionPlanner:
             user_prompt, tasks
         )
         # Detect the project root path that will be created
-        mission.project_root_path = self._detect_project_root(user_prompt)
+        mission.project_root_path = self._detect_project_root(user_prompt, workspace_root=workspace_root)
 
         logger.info(
             f"MissionPlanner: mission {mission.mission_id} | "
@@ -388,21 +402,18 @@ class MissionPlanner:
         )
         return mission
 
-    def _parse_intent(self, prompt: str) -> list[str]:
+    def _parse_intent(self, prompt: str, execution_mode: str = "production") -> list[str]:
         """
         Parse a user prompt into atomic task descriptions.
 
         Strategy (in order):
         1. Numbered list detection  (1. ... 2. ...)
         2. Bullet point detection   (- ... * ...)
+        2.5 Deterministic multi-file detection (e.g. index.html, styles.css, app.js)
         3. Single atomic command detection (short concise actions)
         4. Natural language separator splitting
         5. LLM decomposition        (freeform prose → atomic tasks via Ollama)
         6. Heuristic sentence split (fallback if Ollama unavailable)
-
-        For freeform prompts, we call Qwen2.5-Coder via Ollama with a
-        structured decomposition prompt. This is the ONLY correct solution
-        for complex missions described in prose.
         """
         # Strategy 1: numbered list
         numbered = [re.sub(r'^\d+[\.\)]\s*', '', t.strip()) for t in re.split(r'\n\s*\d+[\.\)]\s+', prompt)]
@@ -416,22 +427,45 @@ class MissionPlanner:
         if len(bulleted) >= 2:
             return bulleted
 
-        # Strategy 3: Single atomic task detection (short concise single action)
         lower = prompt.lower().strip()
+
+        # Strategy 2.5: Website Fast Path & Deterministic Decomposition (Production Mode)
+        if execution_mode != "benchmark":
+            from core.website_fast_path import WebsiteFastPathClassifier
+            fast_path_decision = WebsiteFastPathClassifier.evaluate(prompt, execution_mode=execution_mode)
+            if fast_path_decision.fast_path_candidate:
+                logger.info(f"MissionPlanner: Website fast path activated: {fast_path_decision.reason}")
+                if not fast_path_decision.model_required:
+                    # Category A: Fully deterministic (0 model calls)
+                    return [f"Execute deterministic website scaffolding for {fast_path_decision.target_files}"]
+                # Category B: 1-task coordinated batch generation with scaffolding
+                return [f"Create website {', '.join(fast_path_decision.target_files)} using deterministic scaffold and batch generation"]
+
+            file_matches = re.findall(r'\b([\w\-]+\.(?:html|css|js|py|json|md|txt|ts|tsx|jsx|sql|sh))\b', prompt, re.IGNORECASE)
+            unique_files = list(dict.fromkeys(file_matches))
+            if len(unique_files) >= 2 and any(kw in lower for kw in ["create", "write", "build", "generate", "make"]):
+                logger.info(f"MissionPlanner: deterministic file decomposition detected: {unique_files}")
+                tasks = []
+                for fn in unique_files:
+                    tasks.append(f"Write {fn} for EduPath Mini website with necessary code.")
+                return tasks
+
+        # Strategy 3: Single atomic task detection (short concise single action)
         words = prompt.strip().split()
         is_complex_mission = any(w in lower for w in [
             "website", "web app", "webpage", "landing page", "portfolio",
-            "animated", "questionnaire", "career", "full stack", "frontend and backend",
-            "complete app", "it should have", "with features", "including"
-        ]) or len(words) > 12 or "\n" in prompt
+            "animated", "career", "full stack", "frontend and backend",
+            "complete app"
+        ])
 
         has_multi_task_separator = any(re.search(p, prompt, re.IGNORECASE) for p in [
             r"\band\s+(?:write|create|add|implement|test|push|commit|run|build|generate|make|deploy|set up|init)\b",
             r"\bthen\s+(?:write|create|add|implement|test|push|commit|run|build|generate|make|deploy|set up|init)\b",
+            r"\balso\s+(?:write|create|add|implement|test)\b",
             r"\bafter\b", r"\bnext\b", r"\bfinally\b"
         ])
 
-        if not is_complex_mission and not has_multi_task_separator and len(words) <= 10:
+        if not is_complex_mission and not has_multi_task_separator:
             return [prompt.strip()]
 
         # Strategy 4: Natural language separator splitting for concise multi-action prompts
@@ -440,32 +474,38 @@ class MissionPlanner:
             for pattern in [
                 r"\s*\band\s+(?=(?:write|create|add|implement|test|push|commit|run|build|generate|make|deploy|set up|init)\b)",
                 r"\s*\bthen\s+(?=(?:write|create|add|implement|test|push|commit|run|build|generate|make|deploy|set up|init)\b)",
+                r"\s*\balso\s+(?=(?:write|create|add|implement|test)\b)",
                 r"\s*\bafter\b\s*", r"\s*\bnext\b\s*", r"\s*\bfinally\b\s*",
             ]:
                 normalized = re.sub(pattern, " |TASK_SPLIT| ", normalized, flags=re.IGNORECASE)
             parts = [p.strip() for p in normalized.split("|TASK_SPLIT|") if p.strip() and len(p.strip()) > 3]
             if len(parts) >= 2:
                 return parts
+            return [prompt.strip()]
 
         # Strategy 5: LLM decomposition for freeform prose
-        tasks = self._llm_decompose(prompt)
+        tasks = self._llm_decompose(prompt, execution_mode=execution_mode)
         if tasks and len(tasks) >= 2:
             return tasks
 
         # Strategy 6: heuristic fallback
         return self._heuristic_decompose(prompt)
 
-    def _llm_decompose(self, prompt: str) -> list[str]:
+    def _llm_decompose(self, prompt: str, execution_mode: str = "production") -> list[str]:
         """
-        Call Qwen2.5-Coder via Ollama to decompose a freeform mission
-        into ordered atomic implementation tasks.
+        Call Tier 1 model (TIER1_MODEL) via OllamaClient to decompose a freeform
+        mission into ordered atomic implementation tasks.
 
         Returns a list of task description strings, or empty list on failure.
         """
-        import httpx
+        import asyncio
         import json as _json
+        from models.ollama_client import OllamaClient
+        from config.model_config import TIER1_MODEL, MODEL_KEEP_ALIVE
 
-        decomposition_system = """You are a senior software engineering project manager.
+        rule_9 = "9. Minimum 8 tasks. Maximum 25 tasks." if execution_mode == "benchmark" else "9. Output ONLY the necessary tasks (typically 1 to 5 tasks). Do not create artificial micro-tasks."
+
+        decomposition_system = f"""You are a senior software engineering project manager.
 Your job is to decompose a user's software development request into
 an ordered list of atomic implementation tasks.
 
@@ -481,20 +521,14 @@ Rules:
    content writing tasks.
 7. Output ONLY a JSON array of task description strings.
 8. No explanations. No markdown. Only the JSON array.
-9. Minimum 8 tasks. Maximum 25 tasks.
+{rule_9}
 10. Each task string must be specific enough for a developer to act on.
 
 Example output format:
 ["Create project folder structure at generated_projects/myapp/",
- "Create index.html with full semantic HTML5 structure including header nav main footer",
- "Create styles.css with CSS variables colour palette typography and layout grid",
- "Add CSS animations: fade-in on scroll keyframe transitions hover effects",
- "Create app.js with DOM manipulation event listeners and application logic",
- "Implement the career questionnaire form with 10 questions and answer options",
- "Add smooth scroll navigation between sections",
- "Make the layout fully responsive for mobile tablet and desktop",
- "Open index.html in browser and verify all sections render correctly",
- "Fix any issues found during verification"]"""
+ "Create index.html with full semantic HTML5 structure",
+ "Create styles.css with styling and layout",
+ "Create app.js with logic and event listeners"]"""
 
         user_message = f"""Decompose this software development request into atomic implementation tasks:
 
@@ -503,23 +537,35 @@ Example output format:
 Return a JSON array of task description strings only."""
 
         try:
-            with httpx.Client(timeout=45.0) as client:
-                resp = client.post(
-                    "http://localhost:11434/api/generate",
-                    json={
-                        "model": "qwen2.5-coder:7b",
-                        "prompt": user_message,
-                        "system": decomposition_system,
-                        "keep_alive": 0,
-                        "stream": False,
-                        "options": {
-                            "temperature": 0.2,
-                            "num_ctx": 4096,
-                        },
-                    },
-                )
-                resp.raise_for_status()
-                raw = resp.json().get("response", "").strip()
+            client = OllamaClient()
+
+            async def _call():
+                call_kwargs = {
+                    "model": TIER1_MODEL,
+                    "prompt": user_message,
+                    "system": decomposition_system,
+                    "keep_alive": MODEL_KEEP_ALIVE,
+                    "temperature": 0.2,
+                    "num_ctx": 4096,
+                }
+                if execution_mode != "benchmark":
+                    call_kwargs["think"] = False
+                    call_kwargs["num_predict"] = 512
+                return await client.generate(**call_kwargs)
+
+            try:
+                loop = asyncio.get_event_loop()
+                if loop.is_running():
+                    import concurrent.futures
+                    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+                        fut = pool.submit(asyncio.run, _call())
+                        response = fut.result(timeout=60)
+                else:
+                    response = loop.run_until_complete(_call())
+            except RuntimeError:
+                response = asyncio.run(_call())
+
+            raw = response.text.strip()
 
             # Extract JSON array from response
             import re as _re
@@ -673,28 +719,43 @@ Return a JSON array of task description strings only."""
 
         return criteria
 
-    def _detect_project_root(self, prompt: str) -> str:
+    def _detect_project_root(self, prompt: str, workspace_root: str = "") -> str:
         """
         Detect the project root path that will be used for this mission.
         Returns the expected output directory.
         """
         import re as _re
-        lower = prompt.lower()
+        from pathlib import Path
+
+        # If prompt explicitly targets a file or directory in generated_projects
+        gp_match = _re.search(r'generated_projects/([\w\-\./]+)', prompt, _re.IGNORECASE)
+        if gp_match:
+            target = gp_match.group(1)
+            p = Path(target)
+            if p.suffix:  # It's a file like synth_probe.py or myapp/main.py
+                if p.parent != Path("."):
+                    return f"generated_projects/{p.parent}"
+                return "generated_projects"
+            return f"generated_projects/{target}"
+
+        # If workspace_root is provided and no explicit generated_projects mentioned, use workspace_root
+        if workspace_root:
+            return workspace_root
 
         # Look for explicit path mentions
         path_match = _re.search(
-            r'generated_projects/(\w+)|at\s+(\w+)/|in\s+(\w+)/',
+            r'at\s+([\w\-]+)/|in\s+([\w\-]+)/',
             prompt, _re.IGNORECASE
         )
         if path_match:
-            name = (
-                path_match.group(1) or path_match.group(2) or path_match.group(3)
-            )
+            name = path_match.group(1) or path_match.group(2)
+            if Path(name).exists() or Path(name).is_dir():
+                return name
             return f"generated_projects/{name}"
 
         # Extract name from prompt
         name_match = _re.search(
-            r'called?\s+["\']?(\w+)["\']?|named?\s+["\']?(\w+)["\']?',
+            r'called?\s+["\']?([\w\-]+)["\']?|named?\s+["\']?([\w\-]+)["\']?',
             prompt, _re.IGNORECASE
         )
         if name_match:

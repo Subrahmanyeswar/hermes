@@ -1,0 +1,39 @@
+{
+  "mission_id": "MISSION_1_rep3_warm",
+  "base_id": "MISSION_1",
+  "name": "Simple Filesystem Operation",
+  "type": "filesystem",
+  "cold": false,
+  "repetition": 3,
+  "wall_clock_ms": 230753.07,
+  "success": true,
+  "tool_name": "list_directory",
+  "pipeline_stage_reached": 12,
+  "tier3_was_called": false,
+  "critical_path": {
+    "wall_clock_ms": 230772.76,
+    "cumulative_span_ms": 230753.05,
+    "leaf_span_ms": 230753.05,
+    "category_times_ms": {
+      "MISSION": 230753.05
+    },
+    "span_count": 1
+  },
+  "spans": [
+    {
+      "span_id": "9eb637cd",
+      "mission_id": "MISSION_1_rep3_warm",
+      "parent_id": null,
+      "name": "TOTAL_MISSION",
+      "category": "MISSION",
+      "start_ns": 803852878257700,
+      "end_ns": 804083631307000,
+      "duration_ms": 230753.0493,
+      "status": "success",
+      "metadata": {
+        "mission_id": "MISSION_1_rep3_warm"
+      },
+      "children": []
+    }
+  ]
+}

@@ -1,0 +1,32 @@
+{
+  "mission_id": "28920d80",
+  "execution_mode": "performance_baseline",
+  "mission": {
+    "start": "2026-09-17 13:31:25",
+    "end": "2026-09-17 13:31:25",
+    "duration_ms": 19.48,
+    "accounted_time_ms": 19.38,
+    "unaccounted_time_ms": 0.1
+  },
+  "stages": [],
+  "model_calls": [],
+  "tool_calls": [],
+  "verification_calls": [
+    {
+      "verification_id": "758eadff",
+      "request_id": "28920d80",
+      "mission_id": "m_2",
+      "task_id": "t_2",
+      "method": "deterministic",
+      "start_time_monotonic": 50638.4764235,
+      "end_time_monotonic": 50638.4958005,
+      "duration_ms": 19.37700000416953,
+      "verdict": "AGREE",
+      "escalated": false,
+      "issues_count": 0,
+      "issues": []
+    }
+  ],
+  "repair_attempts": [],
+  "model_switches": []
+}

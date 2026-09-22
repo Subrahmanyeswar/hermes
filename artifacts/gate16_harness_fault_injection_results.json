@@ -1,0 +1,92 @@
+[
+  {
+    "fault_id": "B01",
+    "fault_name": "wall_clock_used_for_duration",
+    "description": "Duration calculated via wall clock time.time() instead of perf_counter()",
+    "injected_value": "time.time()",
+    "expected_value": "time.perf_counter()",
+    "detected_by_validator": true,
+    "validator_action": "FLAGGED_ERROR"
+  },
+  {
+    "fault_id": "B02",
+    "fault_name": "shifted_mission_start",
+    "description": "Mission start timestamp shifted artificially by 1.0s",
+    "injected_value": 1.0,
+    "expected_value": 0.0,
+    "detected_by_validator": true,
+    "validator_action": "FLAGGED_ERROR"
+  },
+  {
+    "fault_id": "B03",
+    "fault_name": "duplicate_model_telemetry",
+    "description": "Model telemetry recorded twice for single execution",
+    "injected_value": 2,
+    "expected_value": 1,
+    "detected_by_validator": true,
+    "validator_action": "FLAGGED_ERROR"
+  },
+  {
+    "fault_id": "B04",
+    "fault_name": "dropped_tool_completion_event",
+    "description": "Tool completion event omitted from stream",
+    "injected_value": "DROPPED",
+    "expected_value": "DELIVERED",
+    "detected_by_validator": true,
+    "validator_action": "FLAGGED_ERROR"
+  },
+  {
+    "fault_id": "B05",
+    "fault_name": "misattributed_model_tier",
+    "description": "Tier 2 model call falsely labeled as Tier 1",
+    "injected_value": "T1",
+    "expected_value": "T2",
+    "detected_by_validator": true,
+    "validator_action": "FLAGGED_ERROR"
+  },
+  {
+    "fault_id": "B06",
+    "fault_name": "fabricated_token_count",
+    "description": "Token count inflated beyond actual provider payload",
+    "injected_value": 9999,
+    "expected_value": 128,
+    "detected_by_validator": true,
+    "validator_action": "FLAGGED_ERROR"
+  },
+  {
+    "fault_id": "B07",
+    "fault_name": "fabricated_repair_count",
+    "description": "Repair counter incremented without RepairEngine execution",
+    "injected_value": 5,
+    "expected_value": 0,
+    "detected_by_validator": true,
+    "validator_action": "FLAGGED_ERROR"
+  },
+  {
+    "fault_id": "B08",
+    "fault_name": "false_mission_success",
+    "description": "Mission labeled COMPLETED while criteria pending",
+    "injected_value": "COMPLETED",
+    "expected_value": "FAILED",
+    "detected_by_validator": true,
+    "validator_action": "FLAGGED_ERROR"
+  },
+  {
+    "fault_id": "B09",
+    "fault_name": "fabricated_vram_metric",
+    "description": "VRAM reported as theoretical config instead of measured",
+    "injected_value": "6000MB_STATIC",
+    "expected_value": "MEASURED_SMI",
+    "detected_by_validator": true,
+    "validator_action": "FLAGGED_ERROR"
+  },
+  {
+    "fault_id": "B10",
+    "fault_name": "fabricated_cloud_cost",
+    "description": "Cloud cost reported as $0.00 instead of NOT_AVAILABLE for blocked provider",
+    "injected_value": "$0.00",
+    "expected_value": "NOT_AVAILABLE",
+    "detected_by_validator": true,
+    "validator_action": "FLAGGED_ERROR"
+  }
+]

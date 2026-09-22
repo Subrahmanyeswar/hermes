@@ -1,0 +1,87 @@
+{
+  "audit_name": "prompt6_prechange_architecture_and_concurrency_audit",
+  "timestamp": "2026-09-18T11:42:00Z",
+  "runtime": "HERMES v4.0 Local-First Autonomous SWE Engine",
+  "hardware_profile": {
+    "gpu": "NVIDIA GeForce RTX 3050 Laptop GPU",
+    "vram_gb": 6,
+    "system_ram_gb": 16,
+    "model_t1": "deepseek-r1:8b",
+    "model_t2": "qwen3:8b",
+    "concurrency_constraint": "RTX 3050 6GB VRAM cannot safely support simultaneous multi-model residency or heavy concurrent 8B LLM generation. Model execution lane must default to serial (concurrency=1)."
+  },
+  "audit_findings": {
+    "q1_deterministic_tasks": [
+      "Directory and folder hierarchy creation (create_folder, mkdir)",
+      "Standard boilerplate file scaffolding (HTML5 shell, CSS reset/variables, JS module skeleton, project metadata)",
+      "Read-only filesystem queries (read_file, list_directory, file_exists, git_status)",
+      "Level 0 (existence) and Level 1 (Python AST parse, JSON/HTML/CSS syntax) verification checks",
+      "Cryptographic hashing (SHA-256) and path boundary validation (workspace_manager.validate_path)"
+    ],
+    "q2_llm_generation_required_tasks": [
+      "Semantic application logic, complex business rules, dynamic algorithms",
+      "Creative layout and user-specified bespoke copywriting/copy-text",
+      "Refactoring, bug fixing, error diagnosis, and repair synthesis",
+      "Ambiguous natural-language planning and open-ended requirement interpretation"
+    ],
+    "q3_boilerplate_repeatedly_generated": [
+      "Standard HTML5 boilerplate (doctype, head, meta viewport/charset, link stylesheet, body container, script tags)",
+      "Standard CSS resets and variable setups (* { box-sizing: border-box; } :root { ... })",
+      "Standard JavaScript DOMContentLoaded wrappers and element selector scaffolding",
+      "In Prompt 5 EduPath Mini run, 719 HTML tokens + 753 CSS tokens included redundant structural boilerplate across 3 separate LLM turns"
+    ],
+    "q4_serially_executed_independent_operations": [
+      "MissionRunner executes tasks in a strict serial while-loop with 200ms sleep delays between tasks",
+      "Multi-file structural verifications in VerificationGate run in serial iteration",
+      "Independent non-model tasks (e.g. verifying independent files) are blocked serially"
+    ],
+    "q5_safe_concurrent_operations": [
+      "Deterministic template rendering with validated variables",
+      "Independent file writes targeting strictly distinct normalized paths (guarded by per-path locks)",
+      "Independent Level 1 structural verification (HTML parsing, CSS tokenization, JS/Python AST parsing)",
+      "CPU-only pre-processing, hash computation, and read-only static analysis"
+    ],
+    "q6_shared_mutable_state_operations": [
+      "Persistent SQLite index (hermes_workspace_index.db via WorkspaceIndexStore)",
+      "TrajectoryMemory and SQLite memory store writes",
+      "Unified EventBus state and Mission terminal state transitions",
+      "Single physical GPU VRAM and Ollama server inference slot",
+      "Identical filesystem target paths"
+    ],
+    "q7_dependent_operations": [
+      "Writing files inside a directory depends on parent directory creation",
+      "Level 0/Level 1 verification depends on successful file commit",
+      "Repair tasks depend on prior failed task execution and verifier diagnosis",
+      "Import analysis depends on target files existing on disk"
+    ],
+    "q8_gpu_operations": [
+      "Tier 1 code generation (OllamaClient.generate with deepseek-r1:8b)",
+      "Tier 2 semantic verification (Tier2Verifier with qwen3:8b)",
+      "Model residency switching (ModelResidencyManager.ensure_residency)"
+    ],
+    "q9_cpu_filesystem_operations": [
+      "Deterministic scaffolding rendering (ScaffoldRegistry)",
+      "Fast-path rule-based intent classification (WebsiteFastPathClassifier)",
+      "Filesystem staging, backup, commit, rollback, and cleanup (WriteFilesBatchTool)",
+      "AST parsing, regex matching, JSON validation, and SHA-256 calculation"
+    ],
+    "q10_verification_and_index_refresh_triggers": [
+      "Every file write tool (write_file, write_files_batch) triggers workspace_manager.refresh_index()",
+      "Task completion triggers VerificationGate.verify_tool_execution()",
+      "Mission completion triggers QualityVerifier.verify_project_completeness()"
+    ],
+    "q11_potential_race_conditions": [
+      "Concurrent writes to the exact same file path (prevented by Kairos file_locks)",
+      "Concurrent SQLite writes to hermes_workspace_index.db resulting in database is locked errors (prevented by single refresh barrier)",
+      "Concurrent LLM calls to Ollama causing VRAM exhaustion or latency spikes (prevented by gpu_semaphore(1))",
+      "Premature MISSION_COMPLETED event emission while asynchronous background workers are active",
+      "Mission cancellation racing against worker task completion"
+    ]
+  },
+  "baseline_audit_summary": {
+    "kairos_dag_status": "core/kairos_dag.py exists with DependencyGraph, gpu_semaphore(1), and file_locks, but is not connected to MissionRunner",
+    "scaffolding_status": "No formal template registry exists; Strategy 2.5 decomposed files into 3 separate LLM generation tasks",
+    "fast_path_status": "Keyword heuristics exist in mission_planner.py, but no dedicated low-risk website fast-path classifier with safe fallback exists",
+    "concurrency_status": "MissionRunner executes sequentially; safe bounded concurrency for CPU/IO work is feasible under explicit worker limits (max_workers <= 2)"
+  }
+}

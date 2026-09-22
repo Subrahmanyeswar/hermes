@@ -1,0 +1,38 @@
+[
+  {
+    "test_id": "CAL_01",
+    "target_sleep_s": 0.1,
+    "measured_duration_s": 0.1075,
+    "absolute_error_s": 0.0075,
+    "relative_error_pct": 7.54,
+    "clock_used": "time.perf_counter()",
+    "passed": true
+  },
+  {
+    "test_id": "CAL_02",
+    "target_sleep_s": 0.25,
+    "measured_duration_s": 0.2618,
+    "absolute_error_s": 0.0118,
+    "relative_error_pct": 4.7,
+    "clock_used": "time.perf_counter()",
+    "passed": true
+  },
+  {
+    "test_id": "CAL_03",
+    "target_sleep_s": 0.5,
+    "measured_duration_s": 0.5156,
+    "absolute_error_s": 0.0156,
+    "relative_error_pct": 3.11,
+    "clock_used": "time.perf_counter()",
+    "passed": true
+  },
+  {
+    "test_id": "CAL_04",
+    "target_sleep_s": 1.0,
+    "measured_duration_s": 1.0019,
+    "absolute_error_s": 0.0019,
+    "relative_error_pct": 0.19,
+    "clock_used": "time.perf_counter()",
+    "passed": true
+  }
+]

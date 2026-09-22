@@ -1,0 +1,46 @@
+{
+  "t1_real_e2e": {
+    "model": "deepseek-r1:8b",
+    "task": "create hello_t1.py",
+    "success": true,
+    "pipeline_stage": 12,
+    "tool_name": "write_file",
+    "file_exists": true,
+    "ast_ok": true,
+    "content_len": 31,
+    "duration_s": 37.09,
+    "status": "PASS"
+  },
+  "t2_real_e2e": {
+    "model": "qwen3:8b",
+    "task": "create hello_t2.py",
+    "parse_success": true,
+    "tool_name": "write_file",
+    "tool_executed": true,
+    "file_exists": true,
+    "ast_ok": true,
+    "content_len": 31,
+    "duration_s": 53.12,
+    "status": "PASS"
+  },
+  "real_repair": {
+    "initial_test_failed": true,
+    "repair_orchestrator_success": true,
+    "repaired_file_content": "def add(a: int, b: int) -> int: return a + b",
+    "post_repair_pytest_passed": true,
+    "repair_ast_ok": true,
+    "duration_s": 106.06,
+    "status": "PASS"
+  },
+  "synthetic_benchmark_task": {
+    "target": "src/benchmark_probe.py",
+    "success": true,
+    "stage_reached": 12,
+    "file_exists": true,
+    "ast_ok": true,
+    "returns_42": true,
+    "content_preview": "def probe():\n    return 42",
+    "duration_s": 157.38,
+    "status": "PASS"
+  }
+}

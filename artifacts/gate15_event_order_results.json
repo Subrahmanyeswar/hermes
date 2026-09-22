@@ -1,0 +1,72 @@
+[
+  {
+    "scenario_id": "E01",
+    "out_of_order_injected": true,
+    "terminal_state_protected": true,
+    "late_completion_rejected": true,
+    "status": "PASS"
+  },
+  {
+    "scenario_id": "E02",
+    "out_of_order_injected": true,
+    "terminal_state_protected": true,
+    "late_completion_rejected": true,
+    "status": "PASS"
+  },
+  {
+    "scenario_id": "E03",
+    "out_of_order_injected": true,
+    "terminal_state_protected": true,
+    "late_completion_rejected": true,
+    "status": "PASS"
+  },
+  {
+    "scenario_id": "E04",
+    "out_of_order_injected": true,
+    "terminal_state_protected": true,
+    "late_completion_rejected": true,
+    "status": "PASS"
+  },
+  {
+    "scenario_id": "E05",
+    "out_of_order_injected": true,
+    "terminal_state_protected": true,
+    "late_completion_rejected": true,
+    "status": "PASS"
+  },
+  {
+    "scenario_id": "E06",
+    "out_of_order_injected": true,
+    "terminal_state_protected": true,
+    "late_completion_rejected": true,
+    "status": "PASS"
+  },
+  {
+    "scenario_id": "E07",
+    "out_of_order_injected": true,
+    "terminal_state_protected": true,
+    "late_completion_rejected": true,
+    "status": "PASS"
+  },
+  {
+    "scenario_id": "E08",
+    "out_of_order_injected": true,
+    "terminal_state_protected": true,
+    "late_completion_rejected": true,
+    "status": "PASS"
+  },
+  {
+    "scenario_id": "E09",
+    "out_of_order_injected": true,
+    "terminal_state_protected": true,
+    "late_completion_rejected": true,
+    "status": "PASS"
+  },
+  {
+    "scenario_id": "E10",
+    "out_of_order_injected": true,
+    "terminal_state_protected": true,
+    "late_completion_rejected": true,
+    "status": "PASS"
+  }
+]

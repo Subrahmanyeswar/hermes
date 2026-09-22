@@ -1,0 +1,98 @@
+================================================================
+ HERMES PRE-BENCHMARK GATE 15.9: TOOL RELIABILITY STRESS SUITE  
+================================================================
+
+[1/13] Category A: Empty & Minimal Objects (A1-A8)...
+ -> A1: Parser=PARSE_FAILURE (json_found_but_no_tool_key) | Schema=False | Executed=False | PASS
+ -> A2: Parser=PARSE_FAILURE (json_found_but_no_tool_key) | Schema=False | Executed=False | PASS
+ -> A3: Parser=PARSE_FAILURE (json_found_but_no_tool_key) | Schema=False | Executed=False | PASS
+ -> A4: Parser=PARSE_FAILURE (json_found_but_no_tool_key) | Schema=False | Executed=False | PASS
+ -> A5: Parser=PARSE_FAILURE (json_malformed_unparseable) | Schema=False | Executed=False | PASS
+ -> A6: Parser=PARSE_SUCCESS | Schema=False | Executed=False | PASS
+ -> A7: Parser=PARSE_FAILURE (json_found_but_no_tool_key) | Schema=False | Executed=False | PASS
+ -> A8: Parser=PARSE_SUCCESS | Schema=False | Executed=False | PASS
+
+[2/13] Category B: Unknown & Extra Fields (B9-B13)...
+ -> B9: Parser=PARSE_FAILURE (json_found_but_no_tool_key) | Schema=False | Executed=False | PASS
+ -> B10: Parser=PARSE_FAILURE (json_found_but_no_tool_key) | Schema=False | Executed=False | PASS
+ -> B11: Parser=PARSE_SUCCESS | Schema=True | Executed=True | PASS
+ -> B12: Parser=PARSE_SUCCESS | Schema=True | Executed=True | PASS
+ -> B13: Parser=PARSE_SUCCESS | Schema=True | Executed=True | PASS
+
+[3/13] Category C: Missing Required Fields (C14-C19)...
+ -> C14: Parser=PARSE_SUCCESS | Schema=False | Executed=False | PASS
+ -> C15: Parser=PARSE_SUCCESS | Schema=False | Executed=False | PASS
+ -> C16: Parser=PARSE_SUCCESS | Schema=False | Executed=False | PASS
+ -> C17: Parser=PARSE_SUCCESS | Schema=False | Executed=False | PASS
+ -> C18: Parser=PARSE_SUCCESS | Schema=False | Executed=False | PASS
+ -> C19: Parser=PARSE_SUCCESS | Schema=False | Executed=False | PASS
+
+[4/13] Category D: Wrong Parameter Types (D20-D30)...
+ -> D20: Parser=PARSE_SUCCESS | Schema=False | Executed=False | PASS
+ -> D21: Parser=PARSE_SUCCESS | Schema=False | Executed=False | PASS
+ -> D22: Parser=PARSE_SUCCESS | Schema=False | Executed=False | PASS
+ -> D23: Parser=PARSE_SUCCESS | Schema=False | Executed=False | PASS
+ -> D24: Parser=PARSE_SUCCESS | Schema=False | Executed=False | PASS
+ -> D25: Parser=PARSE_SUCCESS | Schema=False | Executed=False | PASS
+ -> D26: Parser=PARSE_SUCCESS | Schema=False | Executed=False | PASS
+ -> D27: Parser=PARSE_SUCCESS | Schema=False | Executed=False | PASS
+ -> D28: Parser=PARSE_SUCCESS | Schema=False | Executed=False | PASS
+ -> D29: Parser=PARSE_SUCCESS | Schema=False | Executed=False | PASS
+ -> D30: Parser=PARSE_SUCCESS | Schema=False | Executed=False | PASS
+
+[5/13] Category E: Malformed JSON Strings (E31-E43)...
+ -> E31: Parser=PARSE_FAILURE (json_found_but_no_tool_key) | Schema=False | Executed=False | PASS
+ -> E32: Parser=PARSE_FAILURE (json_found_but_no_tool_key) | Schema=False | Executed=False | PASS
+ -> E33: Parser=PARSE_FAILURE (json_found_but_no_tool_key) | Schema=False | Executed=False | PASS
+ -> E34: Parser=PARSE_FAILURE (json_found_but_no_tool_key) | Schema=False | Executed=False | PASS
+ -> E35: Parser=PARSE_SUCCESS | Schema=False | Executed=False | PASS
+ -> E36: Parser=PARSE_SUCCESS | Schema=False | Executed=False | PASS
+ -> E37: Parser=PARSE_SUCCESS | Schema=True | Executed=True | PASS
+ -> E38: Parser=PARSE_SUCCESS | Schema=False | Executed=False | PASS
+ -> E39: Parser=PARSE_FAILURE (insufficient_json_quotes) | Schema=False | Executed=False | PASS
+ -> E40: Parser=PARSE_FAILURE (no_json_braces_found_at_all) | Schema=False | Executed=False | PASS
+ -> E41: Parser=PARSE_FAILURE (no_json_braces_found_at_all) | Schema=False | Executed=False | PASS
+ -> E42: Parser=PARSE_SUCCESS | Schema=True | Executed=True | PASS
+ -> E43: Parser=PARSE_SUCCESS | Schema=True | Executed=True | PASS
+
+[6/13] Category F: Partial / Truncated JSON (F44-F50)...
+ -> F44: Parser=PARSE_SUCCESS | Schema=False | Executed=False | PASS
+ -> F45: Parser=PARSE_SUCCESS | Schema=False | Executed=False | PASS
+ -> F46: Parser=PARSE_SUCCESS | Schema=False | Executed=False | PASS
+ -> F47: Parser=PARSE_SUCCESS | Schema=False | Executed=False | PASS
+ -> F48: Parser=PARSE_SUCCESS | Schema=False | Executed=False | PASS
+ -> F49: Parser=PARSE_SUCCESS | Schema=False | Executed=False | PASS
+ -> F50: Parser=PARSE_FAILURE (insufficient_json_quotes) | Schema=False | Executed=False | PASS
+
+[7/13] Category G: Mixed Prose & Tool Calls (G51-G55)...
+ -> G51: Parser=PARSE_SUCCESS | Schema=True | Executed=True | PASS
+ -> G52: Parser=PARSE_SUCCESS | Schema=True | Executed=True | PASS
+ -> G53: Parser=PARSE_SUCCESS | Schema=True | Executed=True | PASS
+ -> G54: Parser=PARSE_SUCCESS | Schema=True | Executed=True | PASS
+ -> G55: Parser=PARSE_SUCCESS | Schema=True | Executed=True | PASS
+
+[8/13] Category H: Multiple Tool Calls (H56-H60)...
+ -> H56: Parser=PARSE_SUCCESS | Schema=True | Executed=True | PASS
+ -> H57: Parser=PARSE_SUCCESS | Schema=True | Executed=True | PASS
+ -> H58: Parser=PARSE_SUCCESS | Schema=True | Executed=True | PASS
+ -> H59: Parser=PARSE_SUCCESS | Schema=True | Executed=True | PASS
+ -> H60: Parser=PARSE_SUCCESS | Schema=True | Executed=True | PASS
+
+[9/13] Category I: Duplicate Calls & Idempotency (I61-I65)...
+
+[10/13] Category J: Bounded Repair Loop Stress (J66-J72)...
+
+[11/13] Category K: Security After Repair (K73-K76)...
+
+[12/13] Category L: Security-Adjacent Malformed Inputs (L77-L85)...
+ -> L77: Parser=PARSE_SUCCESS | Schema=True | Security=False | Executed=False | PASS
+ -> L78: Parser=PARSE_SUCCESS | Schema=True | Security=False | Executed=False | PASS
+ -> L79: Parser=PARSE_SUCCESS | Schema=True | Security=False | Executed=False | PASS
+ -> L80: Parser=PARSE_SUCCESS | Schema=True | Security=False | Executed=False | PASS
+ -> L81: Parser=PARSE_SUCCESS | Schema=True | Security=True | Executed=False | PASS
+ -> L82: Parser=PARSE_SUCCESS | Schema=False | Security=False | Executed=False | PASS
+ -> L83: Parser=PARSE_SUCCESS | Schema=True | Security=False | Executed=False | PASS
+ -> L84: Parser=PARSE_SUCCESS | Schema=True | Security=False | Executed=False | PASS
+ -> L85: Parser=PARSE_SUCCESS | Schema=True | Security=False | Executed=False | PASS
+
+[13/13] Category M: Full Mission Loop E2E (M86-M90)...

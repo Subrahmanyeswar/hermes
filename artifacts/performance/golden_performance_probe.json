@@ -1,0 +1,9 @@
+{
+  "probe_id": "golden_performance_probe_01",
+  "name": "Single Function Code Generation",
+  "task": "Create a Python file performance_probe.py containing a single function that returns 42.",
+  "expected_tool": "write_file",
+  "expected_file": "performance_probe.py",
+  "mode": "auto",
+  "created_at": "2026-09-13T12:00:00Z"
+}

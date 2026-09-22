@@ -1,0 +1,2503 @@
+[
+  {
+    "acceptance_criteria": [
+      "Returns original string if length <= max_length",
+      "Appends suffix when truncated without exceeding max_length",
+      "Unit tests in tests/test_string_helpers.py pass"
+    ],
+    "category": "simple",
+    "dataset_version": "1.0.0",
+    "difficulty": "simple",
+    "expected_artifacts": [
+      "utils/string_helpers.py",
+      "tests/test_string_helpers.py"
+    ],
+    "expected_behavior": "Correctly truncates strings without splitting mid-character and respects max_length.",
+    "expected_scope": {
+      "max_files": 2,
+      "min_files": 1
+    },
+    "framework": "standard_library",
+    "golden_patch_or_reference": "Check len(text) <= max_length before slicing.",
+    "known_failure_modes": [
+      "Negative max_length handling",
+      "Suffix longer than max_length"
+    ],
+    "language": "Python",
+    "prompt": "Implement a string truncation helper `truncate_text(text: str, max_length: int, suffix: str = '...') -> str` in `utils/string_helpers.py` that preserves words where possible.",
+    "task_id": "A01",
+    "verification_requirements": [
+      "pytest tests/test_string_helpers.py -k test_truncate_text"
+    ],
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Closed interval slice includes end element",
+      "Open interval slice excludes end element",
+      "All slice regression tests pass"
+    ],
+    "category": "simple",
+    "dataset_version": "1.0.0",
+    "difficulty": "simple",
+    "expected_artifacts": [
+      "math_tools/range_slice.py"
+    ],
+    "expected_behavior": "Range slicer properly honors inclusive vs exclusive flags.",
+    "expected_scope": {
+      "max_files": 2,
+      "min_files": 1
+    },
+    "framework": "standard_library",
+    "golden_patch_or_reference": "Adjust slice stop index based on inclusive flag.",
+    "known_failure_modes": [
+      "Breaking open interval slicing while fixing closed interval"
+    ],
+    "language": "Python",
+    "prompt": "Fix off-by-one boundary error in the range slicing utility `math_tools/range_slice.py` where the upper index was excluded incorrectly in closed intervals.",
+    "task_id": "A02",
+    "verification_requirements": [
+      "pytest tests/test_range_slice.py"
+    ],
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Rejects empty strings, strings without @, and missing domain",
+      "Accepts standard alphanumeric email addresses with valid domains",
+      "Unit tests pass"
+    ],
+    "category": "simple",
+    "dataset_version": "1.0.0",
+    "difficulty": "simple",
+    "expected_artifacts": [
+      "validators/email_validator.py",
+      "tests/test_email_validator.py"
+    ],
+    "expected_behavior": "Deterministic boolean response for valid/invalid email strings.",
+    "expected_scope": {
+      "max_files": 2,
+      "min_files": 1
+    },
+    "framework": "re",
+    "golden_patch_or_reference": "Use linear-time non-backtracking regular expression.",
+    "known_failure_modes": [
+      "Catastrophic regex backtracking on long input"
+    ],
+    "language": "Python",
+    "prompt": "Add email validation helper function `is_valid_email(email: str) -> bool` in `validators/email_validator.py` following RFC 5322 basic pattern.",
+    "task_id": "A03",
+    "verification_requirements": [
+      "pytest tests/test_email_validator.py"
+    ],
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "default_timeout_seconds field updated to 45",
+      "Valid JSON formatting preserved"
+    ],
+    "category": "simple",
+    "dataset_version": "1.0.0",
+    "difficulty": "simple",
+    "expected_artifacts": [
+      "config/network_config.json"
+    ],
+    "expected_behavior": "Configuration reflects 45 second timeout.",
+    "expected_scope": {
+      "max_files": 1,
+      "min_files": 1
+    },
+    "framework": "json",
+    "golden_patch_or_reference": "Set 'default_timeout_seconds': 45.",
+    "known_failure_modes": [
+      "Trailing commas in JSON causing parse error"
+    ],
+    "language": "JSON",
+    "prompt": "Update default client network timeout from 30 seconds to 45 seconds in `config/network_config.json`.",
+    "task_id": "A04",
+    "verification_requirements": [
+      "python -m json.tool config/network_config.json"
+    ],
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Tests zero division raises ZeroDivisionError",
+      "Tests negative multiplication and division return expected signs",
+      "All calculator tests pass"
+    ],
+    "category": "simple",
+    "dataset_version": "1.0.0",
+    "difficulty": "simple",
+    "expected_artifacts": [
+      "tests/test_calculator.py"
+    ],
+    "expected_behavior": "Comprehensive test assertions covering arithmetic edge cases.",
+    "expected_scope": {
+      "max_files": 2,
+      "min_files": 1
+    },
+    "framework": "pytest",
+    "golden_patch_or_reference": "Use pytest.raises(ZeroDivisionError).",
+    "known_failure_modes": [
+      "Missing pytest.raises context manager"
+    ],
+    "language": "Python",
+    "prompt": "Add unit test suite in `tests/test_calculator.py` verifying negative number and zero divisor behavior in `utils/calculator.py`.",
+    "task_id": "A05",
+    "verification_requirements": [
+      "pytest tests/test_calculator.py"
+    ],
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Returns dict with keys: status='healthy', version, uptime_seconds",
+      "Uptime is non-negative float",
+      "Health endpoint tests pass"
+    ],
+    "category": "simple",
+    "dataset_version": "1.0.0",
+    "difficulty": "simple",
+    "expected_artifacts": [
+      "api/health_handler.py"
+    ],
+    "expected_behavior": "Returns 200 OK JSON payload.",
+    "expected_scope": {
+      "max_files": 2,
+      "min_files": 1
+    },
+    "framework": "FastAPI",
+    "golden_patch_or_reference": "Calculate uptime dynamically from service start time.",
+    "known_failure_modes": [
+      "Hardcoded stale timestamp for uptime calculation"
+    ],
+    "language": "Python",
+    "prompt": "Implement a health check HTTP response handler `get_health_status() -> dict` in `api/health_handler.py` returning status, version, and uptime.",
+    "task_id": "A06",
+    "verification_requirements": [
+      "pytest tests/test_health_handler.py"
+    ],
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Finds 'authorization' or 'Authorization' header safely",
+      "Returns None if missing",
+      "Does not raise KeyError on empty dict"
+    ],
+    "category": "simple",
+    "dataset_version": "1.0.0",
+    "difficulty": "simple",
+    "expected_artifacts": [
+      "parsers/header_parser.py"
+    ],
+    "expected_behavior": "Robust header extraction across varied casing.",
+    "expected_scope": {
+      "max_files": 2,
+      "min_files": 1
+    },
+    "framework": "standard_library",
+    "golden_patch_or_reference": "Normalize header keys to lowercase before lookup.",
+    "known_failure_modes": [
+      "Only checking lowercase and missing capitalized key"
+    ],
+    "language": "Python",
+    "prompt": "Add safe header parser `parse_auth_header(headers: dict) -> Optional[str]` in `parsers/header_parser.py` that handles missing or case-insensitive 'Authorization' headers without KeyError.",
+    "task_id": "A07",
+    "verification_requirements": [
+      "pytest tests/test_header_parser.py"
+    ],
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Formats naive datetimes assuming UTC",
+      "Formats aware datetimes converted to UTC",
+      "Output matches ISO 8601 specification"
+    ],
+    "category": "simple",
+    "dataset_version": "1.0.0",
+    "difficulty": "simple",
+    "expected_artifacts": [
+      "formatters/date_format.py"
+    ],
+    "expected_behavior": "Standardized UTC timestamp serialization.",
+    "expected_scope": {
+      "max_files": 1,
+      "min_files": 1
+    },
+    "framework": "datetime",
+    "golden_patch_or_reference": "Use dt.astimezone(timezone.utc).isoformat().",
+    "known_failure_modes": [
+      "Datetime timezone offset formatting discrepancy"
+    ],
+    "language": "Python",
+    "prompt": "Update date formatter `format_iso_utc(dt: datetime) -> str` in `formatters/date_format.py` to ensure output always includes 'Z' suffix or UTC offset.",
+    "task_id": "A08",
+    "verification_requirements": [
+      "pytest tests/test_date_format.py"
+    ],
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Hides dotfiles when include_hidden is False",
+      "Includes dotfiles when include_hidden is True",
+      "File lister unit tests pass"
+    ],
+    "category": "simple",
+    "dataset_version": "1.0.0",
+    "difficulty": "simple",
+    "expected_artifacts": [
+      "fs/file_lister.py"
+    ],
+    "expected_behavior": "Configurable dotfile filtering.",
+    "expected_scope": {
+      "max_files": 2,
+      "min_files": 1
+    },
+    "framework": "pathlib",
+    "golden_patch_or_reference": "Check p.name.startswith('.') only.",
+    "known_failure_modes": [
+      "Filtering out files containing dots in middle of name"
+    ],
+    "language": "Python",
+    "prompt": "Add `include_hidden: bool = False` flag to directory lister in `fs/file_lister.py` to filter out dotfiles by default.",
+    "task_id": "A09",
+    "verification_requirements": [
+      "pytest tests/test_file_lister.py"
+    ],
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Returns min_val if val < min_val",
+      "Returns max_val if val > max_val",
+      "Raises ValueError if min_val > max_val",
+      "All math unit tests pass"
+    ],
+    "category": "simple",
+    "dataset_version": "1.0.0",
+    "difficulty": "simple",
+    "expected_artifacts": [
+      "utils/math_utils.py"
+    ],
+    "expected_behavior": "Deterministic bounds clamping with validation.",
+    "expected_scope": {
+      "max_files": 2,
+      "min_files": 1
+    },
+    "framework": "standard_library",
+    "golden_patch_or_reference": "Validate min_val <= max_val before returning max(min_val, min(val, max_val)).",
+    "known_failure_modes": [
+      "Swapping min and max silently instead of raising error"
+    ],
+    "language": "Python",
+    "prompt": "Implement a numeric clamp function `clamp(val: float, min_val: float, max_val: float) -> float` in `utils/math_utils.py` that raises ValueError if min_val > max_val.",
+    "task_id": "A10",
+    "verification_requirements": [
+      "pytest tests/test_math_utils.py"
+    ],
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Refills tokens proportionally to elapsed time",
+      "Thread-safe token consumption using threading.Lock",
+      "Rejects consumption when insufficient tokens available",
+      "Rate limiter unit and concurrent tests pass"
+    ],
+    "category": "standard_coding",
+    "dataset_version": "1.0.0",
+    "difficulty": "standard",
+    "expected_artifacts": [
+      "ratelimiter/token_bucket.py",
+      "tests/test_token_bucket.py"
+    ],
+    "expected_behavior": "Precise token bucket rate limiting under concurrent access.",
+    "expected_scope": {
+      "max_files": 3,
+      "min_files": 2
+    },
+    "framework": "threading",
+    "golden_patch_or_reference": "Use monotonic clock inside mutex lock.",
+    "known_failure_modes": [
+      "Race condition during token replenishment calculation"
+    ],
+    "language": "Python",
+    "prompt": "Implement a TokenBucketRateLimiter class with capacity, refill_rate, and thread-safe `consume(tokens: int = 1) -> bool` in `ratelimiter/token_bucket.py`.",
+    "task_id": "B01",
+    "verification_requirements": [
+      "pytest tests/test_token_bucket.py"
+    ],
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Rejects weak passwords with descriptive ValidationError",
+      "Hashes and saves valid passwords",
+      "Service integration tests pass"
+    ],
+    "category": "standard_coding",
+    "dataset_version": "1.0.0",
+    "difficulty": "standard",
+    "expected_artifacts": [
+      "services/user_service.py",
+      "validators/password_validator.py"
+    ],
+    "expected_behavior": "Robust password validation and error mapping.",
+    "expected_scope": {
+      "max_files": 3,
+      "min_files": 2
+    },
+    "framework": "FastAPI",
+    "golden_patch_or_reference": "Raise specific PasswordComplexityError mapped to HTTP 400.",
+    "known_failure_modes": [
+      "Generic 500 error instead of 422/400 validation error"
+    ],
+    "language": "Python",
+    "prompt": "Extend `UserService` in `services/user_service.py` to enforce password complexity (min 8 chars, 1 uppercase, 1 digit, 1 symbol) and update API error response.",
+    "task_id": "B02",
+    "verification_requirements": [
+      "pytest tests/test_user_service.py"
+    ],
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Maintains O(1) average get and put using OrderedDict",
+      "Evicts least recently used entry when max_size exceeded",
+      "Fires on_evict callback with key and value",
+      "LRU cache tests pass"
+    ],
+    "category": "standard_coding",
+    "dataset_version": "1.0.0",
+    "difficulty": "standard",
+    "expected_artifacts": [
+      "cache/lru_cache.py",
+      "tests/test_lru_cache.py"
+    ],
+    "expected_behavior": "Deterministic least-recently-used cache eviction.",
+    "expected_scope": {
+      "max_files": 3,
+      "min_files": 2
+    },
+    "framework": "collections",
+    "golden_patch_or_reference": "Call move_to_end(key) on get/put access.",
+    "known_failure_modes": [
+      "Not updating access order on get() calls"
+    ],
+    "language": "Python",
+    "prompt": "Implement an in-memory LRUCache class supporting `get(key)`, `put(key, value)`, `evict(key)`, and eviction callback notifications in `cache/lru_cache.py`.",
+    "task_id": "B03",
+    "verification_requirements": [
+      "pytest tests/test_lru_cache.py"
+    ],
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Parses multi-line CSV streams without buffering whole file in RAM",
+      "Coerces string values to dataclass fields by type annotations",
+      "Handles quoted fields containing delimiters and newlines",
+      "CSV processor tests pass"
+    ],
+    "category": "standard_coding",
+    "dataset_version": "1.0.0",
+    "difficulty": "standard",
+    "expected_artifacts": [
+      "data/csv_processor.py",
+      "tests/test_csv_processor.py"
+    ],
+    "expected_behavior": "Streaming CSV ingestion with type coercion.",
+    "expected_scope": {
+      "max_files": 3,
+      "min_files": 2
+    },
+    "framework": "csv",
+    "golden_patch_or_reference": "Use generator yielding dataclass instances per row.",
+    "known_failure_modes": [
+      "Memory exhaustion on multi-gigabyte CSVs"
+    ],
+    "language": "Python",
+    "prompt": "Implement robust CSV stream processor in `data/csv_processor.py` supporting custom delimiters, escaped quotes, and type coercion to typed dataclasses.",
+    "task_id": "B04",
+    "verification_requirements": [
+      "pytest tests/test_csv_processor.py"
+    ],
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Retries specified exceptions up to max_retries",
+      "Applies exponential backoff with optional random jitter",
+      "Reraises original exception if all retries exhausted",
+      "Async retry tests pass"
+    ],
+    "category": "standard_coding",
+    "dataset_version": "1.0.0",
+    "difficulty": "standard",
+    "expected_artifacts": [
+      "utils/retry_decorator.py",
+      "tests/test_retry_decorator.py"
+    ],
+    "expected_behavior": "Clean decorator for resilient network/RPC invocations.",
+    "expected_scope": {
+      "max_files": 3,
+      "min_files": 2
+    },
+    "framework": "asyncio",
+    "golden_patch_or_reference": "min(max_delay, base_delay * (2 ** attempt)) + random.uniform(0, 0.1).",
+    "known_failure_modes": [
+      "Unbounded backoff exceeding max_delay"
+    ],
+    "language": "Python",
+    "prompt": "Create an async retry decorator `@with_exponential_backoff(max_retries=3, base_delay=0.1, max_delay=2.0, jitter=True)` in `utils/retry_decorator.py`.",
+    "task_id": "B05",
+    "verification_requirements": [
+      "pytest tests/test_retry_decorator.py"
+    ],
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Injects 'X-Request-ID' header into response",
+      "Logs structured JSON event with duration_ms and status_code",
+      "Preserves exception handling and returns 500 cleanly if handler fails",
+      "Middleware unit tests pass"
+    ],
+    "category": "standard_coding",
+    "dataset_version": "1.0.0",
+    "difficulty": "standard",
+    "expected_artifacts": [
+      "middleware/logger_middleware.py"
+    ],
+    "expected_behavior": "Observability middleware capturing full HTTP transaction life.",
+    "expected_scope": {
+      "max_files": 3,
+      "min_files": 2
+    },
+    "framework": "FastAPI",
+    "golden_patch_or_reference": "Measure time using time.perf_counter() around call_next(request).",
+    "known_failure_modes": [
+      "Double-reading request body causing handler starvation"
+    ],
+    "language": "Python",
+    "prompt": "Implement HTTP request logging middleware in `middleware/logger_middleware.py` capturing request ID, method, path, response status, and duration in ms.",
+    "task_id": "B06",
+    "verification_requirements": [
+      "pytest tests/test_logger_middleware.py"
+    ],
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Supports extracting both minimum and maximum priority items",
+      "Handles dynamic item priority updates",
+      "Priority queue tests pass"
+    ],
+    "category": "standard_coding",
+    "dataset_version": "1.0.0",
+    "difficulty": "standard",
+    "expected_artifacts": [
+      "datastructures/priority_queue.py"
+    ],
+    "expected_behavior": "Dual-ended priority queue data structure.",
+    "expected_scope": {
+      "max_files": 3,
+      "min_files": 2
+    },
+    "framework": "heapq",
+    "golden_patch_or_reference": "Use lazy deletion dictionary mapping item to current version/priority.",
+    "known_failure_modes": [
+      "Stale references remaining in inverted heap after pop"
+    ],
+    "language": "Python",
+    "prompt": "Implement a MinMaxPriorityQueue supporting O(log N) `push(item, priority)`, `pop_min()`, and `pop_max()` in `datastructures/priority_queue.py`.",
+    "task_id": "B07",
+    "verification_requirements": [
+      "pytest tests/test_priority_queue.py"
+    ],
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Validates object properties and data types recursively",
+      "Returns structured list of validation errors with JSON paths",
+      "Schema validator test suite passes"
+    ],
+    "category": "standard_coding",
+    "dataset_version": "1.0.0",
+    "difficulty": "standard",
+    "expected_artifacts": [
+      "validators/schema_validator.py"
+    ],
+    "expected_behavior": "Deterministic JSON schema validation engine.",
+    "expected_scope": {
+      "max_files": 3,
+      "min_files": 2
+    },
+    "framework": "standard_library",
+    "golden_patch_or_reference": "Track path as list of keys during recursion.",
+    "known_failure_modes": [
+      "Missing path context in nested error reports"
+    ],
+    "language": "Python",
+    "prompt": "Implement a lightweight JSON schema validator supporting 'type', 'required', 'properties', 'minimum', and 'maximum' in `validators/schema_validator.py`.",
+    "task_id": "B08",
+    "verification_requirements": [
+      "pytest tests/test_schema_validator.py"
+    ],
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Writes to temporary file in same directory before atomic replace",
+      "Ensures target file is never left in partial/corrupt state on error",
+      "Cleans up temporary file if write fails",
+      "Atomic write tests pass"
+    ],
+    "category": "standard_coding",
+    "dataset_version": "1.0.0",
+    "difficulty": "standard",
+    "expected_artifacts": [
+      "storage/atomic_writer.py"
+    ],
+    "expected_behavior": "Crash-safe file persistence.",
+    "expected_scope": {
+      "max_files": 2,
+      "min_files": 2
+    },
+    "framework": "os / tempfile",
+    "golden_patch_or_reference": "Use dir=target_path.parent in NamedTemporaryFile.",
+    "known_failure_modes": [
+      "Creating temp file across different mount partitions causing rename failure"
+    ],
+    "language": "Python",
+    "prompt": "Implement an atomic file writer `atomic_write_file(path: Path, content: str, encoding: str = 'utf-8')` in `storage/atomic_writer.py` using tempfile and os.replace.",
+    "task_id": "B09",
+    "verification_requirements": [
+      "pytest tests/test_atomic_writer.py"
+    ],
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Parses nested keys like filter[status]=active into {'filter': {'status': 'active'}}",
+      "Parses array keys like tags[]=a into {'tags': ['a']}",
+      "Query parser test suite passes"
+    ],
+    "category": "standard_coding",
+    "dataset_version": "1.0.0",
+    "difficulty": "standard",
+    "expected_artifacts": [
+      "http/query_parser.py"
+    ],
+    "expected_behavior": "Robust decoding of complex query string parameters.",
+    "expected_scope": {
+      "max_files": 3,
+      "min_files": 2
+    },
+    "framework": "urllib.parse",
+    "golden_patch_or_reference": "Tokenize key paths by bracket notation recursively.",
+    "known_failure_modes": [
+      "Overwriting single keys when array brackets are omitted"
+    ],
+    "language": "Python",
+    "prompt": "Implement HTTP query parameter parser supporting nested dictionaries and arrays `filter[status]=active&tags[]=a&tags[]=b` in `http/query_parser.py`.",
+    "task_id": "B10",
+    "verification_requirements": [
+      "pytest tests/test_query_parser.py"
+    ],
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "UserProfile model validates bio, avatar_url, and preferences",
+      "UserProfileService provides get_profile and update_profile",
+      "ProfileRouter exposes GET and PUT /api/v1/profile endpoints",
+      "All profile unit and integration tests pass"
+    ],
+    "category": "multi_file",
+    "dataset_version": "1.0.0",
+    "difficulty": "hard",
+    "expected_artifacts": [
+      "models/user.py",
+      "services/user_profile.py",
+      "routers/profile_router.py",
+      "tests/test_profile.py"
+    ],
+    "expected_behavior": "End-to-end multi-layer feature implementation.",
+    "expected_scope": {
+      "max_files": 5,
+      "min_files": 4
+    },
+    "framework": "FastAPI / Pydantic",
+    "golden_patch_or_reference": "Use unified Pydantic schemas across router and service.",
+    "known_failure_modes": [
+      "Model schema mismatch between router request body and service layer"
+    ],
+    "language": "Python",
+    "prompt": "Implement User Profile Management across Model (`models/user.py`), Service (`services/user_profile.py`), API router (`routers/profile_router.py`), and test suite (`tests/test_profile.py`).",
+    "task_id": "C01",
+    "verification_requirements": [
+      "pytest tests/test_profile.py"
+    ],
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Generates signed access and refresh tokens with expiration",
+      "Middleware validates Bearer tokens on protected endpoints",
+      "Rejects expired or tampered signatures with 401 Unauthorized",
+      "Auth test suite passes"
+    ],
+    "category": "multi_file",
+    "dataset_version": "1.0.0",
+    "difficulty": "hard",
+    "expected_artifacts": [
+      "auth/jwt_handler.py",
+      "middleware/auth_middleware.py",
+      "config/auth_config.py",
+      "tests/test_auth.py"
+    ],
+    "expected_behavior": "Complete authentication layer across configuration and middleware.",
+    "expected_scope": {
+      "max_files": 5,
+      "min_files": 4
+    },
+    "framework": "PyJWT / FastAPI",
+    "golden_patch_or_reference": "Explicitly enforce algorithms=['HS256'] during decode.",
+    "known_failure_modes": [
+      "Allowing None algorithm in JWT verification header"
+    ],
+    "language": "Python",
+    "prompt": "Build JWT Authentication Subsystem across Token Handler (`auth/jwt_handler.py`), Auth Middleware (`middleware/auth_middleware.py`), Config (`config/auth_config.py`), and Tests (`tests/test_auth.py`).",
+    "task_id": "C02",
+    "verification_requirements": [
+      "pytest tests/test_auth.py"
+    ],
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Dispatcher routes messages to appropriate channel by user preference",
+      "Queue handles async buffering and retry on channel failure",
+      "Notification integration tests pass"
+    ],
+    "category": "multi_file",
+    "dataset_version": "1.0.0",
+    "difficulty": "hard",
+    "expected_artifacts": [
+      "notifications/dispatcher.py",
+      "notifications/channels/email.py",
+      "notifications/channels/sms.py",
+      "notifications/queue.py"
+    ],
+    "expected_behavior": "Pluggable multi-channel notification architecture.",
+    "expected_scope": {
+      "max_files": 6,
+      "min_files": 4
+    },
+    "framework": "asyncio",
+    "golden_patch_or_reference": "Use asyncio.gather with return_exceptions=True.",
+    "known_failure_modes": [
+      "Uncaught exception in one channel blocking delivery to other channels"
+    ],
+    "language": "Python",
+    "prompt": "Implement Notification Dispatcher across Dispatcher (`notifications/dispatcher.py`), Email Channel (`notifications/channels/email.py`), SMS Channel (`notifications/channels/sms.py`), and Queue (`notifications/queue.py`).",
+    "task_id": "C03",
+    "verification_requirements": [
+      "pytest tests/test_notifications.py"
+    ],
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Parses Python AST to extract function, class, and method definitions",
+      "Stores symbol names, line numbers, and file paths in SQLite",
+      "Supports incremental reindexing of modified files",
+      "Indexer test suite passes"
+    ],
+    "category": "multi_file",
+    "dataset_version": "1.0.0",
+    "difficulty": "hard",
+    "expected_artifacts": [
+      "indexer/workspace_indexer.py",
+      "indexer/ast_parser.py",
+      "indexer/storage.py",
+      "tests/test_indexer.py"
+    ],
+    "expected_behavior": "Persistent symbol indexing pipeline.",
+    "expected_scope": {
+      "max_files": 5,
+      "min_files": 4
+    },
+    "framework": "ast / sqlite3",
+    "golden_patch_or_reference": "Use WAL mode and transaction batches.",
+    "known_failure_modes": [
+      "Database locking conflicts during concurrent file indexing"
+    ],
+    "language": "Python",
+    "prompt": "Build AST Symbol Indexer across Workspace Scanner (`indexer/workspace_indexer.py`), AST Parser (`indexer/ast_parser.py`), SQLite Storage (`indexer/storage.py`), and Tests (`tests/test_indexer.py`).",
+    "task_id": "C04",
+    "verification_requirements": [
+      "pytest tests/test_indexer.py"
+    ],
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Evaluator supports percentage rollouts and user targeting rules",
+      "Storage provides atomic flag configuration updates",
+      "Feature flag tests pass"
+    ],
+    "category": "multi_file",
+    "dataset_version": "1.0.0",
+    "difficulty": "hard",
+    "expected_artifacts": [
+      "flags/flag_service.py",
+      "flags/evaluator.py",
+      "flags/storage.py",
+      "context/user_context.py"
+    ],
+    "expected_behavior": "Dynamic feature flag evaluation across user contexts.",
+    "expected_scope": {
+      "max_files": 5,
+      "min_files": 4
+    },
+    "framework": "standard_library",
+    "golden_patch_or_reference": "Use MD5/SHA256 integer modulo 100 on user_id + flag_key.",
+    "known_failure_modes": [
+      "Non-deterministic hash partition leading to inconsistent user rollout"
+    ],
+    "language": "Python",
+    "prompt": "Implement Feature Flag Management across Service (`flags/flag_service.py`), Evaluator (`flags/evaluator.py`), Storage (`flags/storage.py`), and Context Provider (`context/user_context.py`).",
+    "task_id": "C05",
+    "verification_requirements": [
+      "pytest tests/test_feature_flags.py"
+    ],
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Defines abstract BasePaymentAdapter with charge, refund, and verify",
+      "Concrete providers implement interface faithfully",
+      "Factory dynamically instantiates configured provider",
+      "Payment tests pass"
+    ],
+    "category": "multi_file",
+    "dataset_version": "1.0.0",
+    "difficulty": "hard",
+    "expected_artifacts": [
+      "payments/adapter.py",
+      "payments/stripe_provider.py",
+      "payments/paypal_provider.py",
+      "payments/factory.py"
+    ],
+    "expected_behavior": "Polymorphic payment abstraction layer.",
+    "expected_scope": {
+      "max_files": 5,
+      "min_files": 4
+    },
+    "framework": "abc",
+    "golden_patch_or_reference": "Return unified PaymentResult dataclass across all adapters.",
+    "known_failure_modes": [
+      "Provider factory returning raw dict instead of validated payment result dataclass"
+    ],
+    "language": "Python",
+    "prompt": "Implement Payment Provider Factory across Adapter Interface (`payments/adapter.py`), Stripe Provider (`payments/stripe_provider.py`), PayPal Provider (`payments/paypal_provider.py`), and Factory (`payments/factory.py`).",
+    "task_id": "C06",
+    "verification_requirements": [
+      "pytest tests/test_payments.py"
+    ],
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Verifies inventory availability before initiating shipment",
+      "Generates tracking number and transitions order state to FULFILLED",
+      "Rolls back inventory reservation if shipment creation fails",
+      "Fulfillment pipeline tests pass"
+    ],
+    "category": "multi_file",
+    "dataset_version": "1.0.0",
+    "difficulty": "hard",
+    "expected_artifacts": [
+      "orders/fulfillment.py",
+      "inventory/checker.py",
+      "shipment/tracker.py",
+      "tests/test_fulfillment.py"
+    ],
+    "expected_behavior": "Transactional multi-stage fulfillment workflow.",
+    "expected_scope": {
+      "max_files": 5,
+      "min_files": 4
+    },
+    "framework": "standard_library",
+    "golden_patch_or_reference": "Implement try/except with explicit inventory release in rollback.",
+    "known_failure_modes": [
+      "Leaking reserved inventory on unexpected shipment failure"
+    ],
+    "language": "Python",
+    "prompt": "Build Order Fulfillment Pipeline across Fulfillment Coordinator (`orders/fulfillment.py`), Inventory Checker (`inventory/checker.py`), Shipment Tracker (`shipment/tracker.py`), and Tests (`tests/test_fulfillment.py`).",
+    "task_id": "C07",
+    "verification_requirements": [
+      "pytest tests/test_fulfillment.py"
+    ],
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Reads L1 first; on miss, reads L2 and populates L1",
+      "Writes to both L1 and L2 synchronously",
+      "Invalidates across all tiers",
+      "Multi-tier cache tests pass"
+    ],
+    "category": "multi_file",
+    "dataset_version": "1.0.0",
+    "difficulty": "hard",
+    "expected_artifacts": [
+      "cache/manager.py",
+      "cache/memory_cache.py",
+      "cache/redis_cache.py",
+      "cache/interface.py"
+    ],
+    "expected_behavior": "Two-level caching with automatic backfill on L1 miss.",
+    "expected_scope": {
+      "max_files": 5,
+      "min_files": 4
+    },
+    "framework": "abc / asyncio",
+    "golden_patch_or_reference": "Support global invalidate broadcast across all local instances.",
+    "known_failure_modes": [
+      "Stale data remaining in L1 when L2 is modified externally"
+    ],
+    "language": "Python",
+    "prompt": "Implement Multi-Tier Cache Hierarchy across Cache Manager (`cache/manager.py`), L1 Memory Cache (`cache/memory_cache.py`), L2 Persistent Cache (`cache/redis_cache.py`), and Interface (`cache/interface.py`).",
+    "task_id": "C08",
+    "verification_requirements": [
+      "pytest tests/test_cache_hierarchy.py"
+    ],
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Pipeline streams records in chunks through chosen exporter format",
+      "Exports data to disk or in-memory byte stream",
+      "Export pipeline tests pass"
+    ],
+    "category": "multi_file",
+    "dataset_version": "1.0.0",
+    "difficulty": "hard",
+    "expected_artifacts": [
+      "export/pipeline.py",
+      "export/csv_exporter.py",
+      "export/json_exporter.py",
+      "export/stream_handler.py"
+    ],
+    "expected_behavior": "Format-agnostic streaming export architecture.",
+    "expected_scope": {
+      "max_files": 5,
+      "min_files": 4
+    },
+    "framework": "io / json / csv",
+    "golden_patch_or_reference": "Yield chunks via generator directly to output stream.",
+    "known_failure_modes": [
+      "Buffering entire large dataset into memory before exporting"
+    ],
+    "language": "Python",
+    "prompt": "Build Data Export Subsystem across Pipeline Coordinator (`export/pipeline.py`), CSV Exporter (`export/csv_exporter.py`), JSON Exporter (`export/json_exporter.py`), and Stream Handler (`export/stream_handler.py`).",
+    "task_id": "C09",
+    "verification_requirements": [
+      "pytest tests/test_export_pipeline.py"
+    ],
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Emits schema-compliant JSON log events with ISO timestamps and actor IDs",
+      "Rotates files when max size reached (keeping 5 backup copies)",
+      "Audit logging tests pass"
+    ],
+    "category": "multi_file",
+    "dataset_version": "1.0.0",
+    "difficulty": "hard",
+    "expected_artifacts": [
+      "audit/logger.py",
+      "audit/formatter.py",
+      "audit/file_sink.py",
+      "audit/rotator.py"
+    ],
+    "expected_behavior": "Tamper-evident structured audit logging with file rotation.",
+    "expected_scope": {
+      "max_files": 5,
+      "min_files": 4
+    },
+    "framework": "logging / pathlib",
+    "golden_patch_or_reference": "Use process-safe file locks during log rotation.",
+    "known_failure_modes": [
+      "File rotation race condition when multiple workers write to same sink"
+    ],
+    "language": "Python",
+    "prompt": "Implement Structured Audit Logging Subsystem across Logger (`audit/logger.py`), JSON Formatter (`audit/formatter.py`), File Sink (`audit/file_sink.py`), and Log Rotator (`audit/rotator.py`).",
+    "task_id": "C10",
+    "verification_requirements": [
+      "pytest tests/test_audit_logger.py"
+    ],
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Parses legacy INI configs seamlessly while translating to new schema",
+      "Strict Pydantic schema validation for new YAML configs",
+      "Hot-reloading watcher detects file changes without restart",
+      "All legacy and new configuration tests pass"
+    ],
+    "category": "complex_missions",
+    "dataset_version": "1.0.0",
+    "difficulty": "complex",
+    "expected_artifacts": [
+      "config/yaml_loader.py",
+      "config/legacy_adapter.py",
+      "config/watcher.py",
+      "tests/test_config_migration.py"
+    ],
+    "expected_behavior": "Zero-downtime backward-compatible configuration engine migration.",
+    "expected_scope": {
+      "max_files": 12,
+      "min_files": 6
+    },
+    "framework": "PyYAML / Pydantic",
+    "golden_patch_or_reference": "Implement custom YAML loader with type coercion mapping legacy INI truthy values.",
+    "known_failure_modes": [
+      "Breaking legacy boolean string parsing ('yes'/'no' vs True/False)"
+    ],
+    "language": "Python",
+    "prompt": "Architect and execute full migration of legacy INI configuration system to schema-validated YAML configuration engine with backward-compatibility layer, dynamic hot-reloading, and integration test suite.",
+    "task_id": "D01",
+    "verification_requirements": [
+      "pytest tests/test_config_migration.py"
+    ],
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Detects cycles in task dependency graph and raises CycleDetectedException",
+      "Executes non-dependent tasks concurrently up to worker pool limit",
+      "Cancels downstream dependent tasks if parent fails and retries exhausted",
+      "Scheduler integration tests pass"
+    ],
+    "category": "complex_missions",
+    "dataset_version": "1.0.0",
+    "difficulty": "complex",
+    "expected_artifacts": [
+      "scheduler/dag_engine.py",
+      "scheduler/worker_pool.py",
+      "scheduler/models.py",
+      "tests/test_dag_scheduler.py"
+    ],
+    "expected_behavior": "High-concurrency DAG task scheduling engine.",
+    "expected_scope": {
+      "max_files": 10,
+      "min_files": 6
+    },
+    "framework": "asyncio",
+    "golden_patch_or_reference": "Only dispatch tasks whose dependencies are fully resolved in COMPLETED state.",
+    "known_failure_modes": [
+      "Deadlock when worker pool is saturated with waiting tasks"
+    ],
+    "language": "Python",
+    "prompt": "Implement a Distributed Task DAG Scheduler with topological dependency resolution, cycle detection, worker concurrency pools, timeout watchdogs, and failure retry policies.",
+    "task_id": "D02",
+    "verification_requirements": [
+      "pytest tests/test_dag_scheduler.py"
+    ],
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Saves state checkpoints after each successful workflow step",
+      "Triggers compensating rollback actions in reverse order on failure",
+      "Publishes lifecycle telemetry events (STARTED, STEP_COMPLETED, ROLLED_BACK)",
+      "Workflow engine tests pass"
+    ],
+    "category": "complex_missions",
+    "dataset_version": "1.0.0",
+    "difficulty": "complex",
+    "expected_artifacts": [
+      "workflow/engine.py",
+      "workflow/checkpoint.py",
+      "workflow/saga.py",
+      "tests/test_workflow_engine.py"
+    ],
+    "expected_behavior": "Resilient multi-step transactional saga workflow runner.",
+    "expected_scope": {
+      "max_files": 10,
+      "min_files": 5
+    },
+    "framework": "asyncio / EventBus",
+    "golden_patch_or_reference": "Record executed compensations in state store with idempotency keys.",
+    "known_failure_modes": [
+      "Partial rollback leaving orphaned external resources"
+    ],
+    "language": "Python",
+    "prompt": "Build an End-to-End Workflow Execution Engine supporting dynamic branching, step state checkpoints, automated rollback on failure, and EventBus telemetry hooks.",
+    "task_id": "D03",
+    "verification_requirements": [
+      "pytest tests/test_workflow_engine.py"
+    ],
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Applies migrations sequentially in version order",
+      "Validates migration script SHA-256 against recorded checksums",
+      "Acquires exclusive migration lock to prevent concurrent runs",
+      "Migration engine tests pass"
+    ],
+    "category": "complex_missions",
+    "dataset_version": "1.0.0",
+    "difficulty": "complex",
+    "expected_artifacts": [
+      "migrations/runner.py",
+      "migrations/lock.py",
+      "migrations/checksum.py",
+      "tests/test_migrations.py"
+    ],
+    "expected_behavior": "Robust database schema migration tooling.",
+    "expected_scope": {
+      "max_files": 8,
+      "min_files": 5
+    },
+    "framework": "sqlite3 / click",
+    "golden_patch_or_reference": "Reject execution if any applied migration checksum differs from disk.",
+    "known_failure_modes": [
+      "Applying out-of-order migrations when checksums mismatch"
+    ],
+    "language": "Python",
+    "prompt": "Implement a Database Schema Migration Engine with forward/rollback SQL scripts, checksum verification, distributed migration lock, and dry-run CLI.",
+    "task_id": "D04",
+    "verification_requirements": [
+      "pytest tests/test_migrations.py"
+    ],
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Calculates effective user permissions resolving inherited role graphs",
+      "Enforces strict tenant scoping preventing cross-tenant data leaks",
+      "Caches resolved permission bitmasks with TTL",
+      "RBAC permission tests pass"
+    ],
+    "category": "complex_missions",
+    "dataset_version": "1.0.0",
+    "difficulty": "complex",
+    "expected_artifacts": [
+      "rbac/engine.py",
+      "rbac/models.py",
+      "rbac/tenant.py",
+      "tests/test_rbac.py"
+    ],
+    "expected_behavior": "Enterprise multi-tenant role-based access control engine.",
+    "expected_scope": {
+      "max_files": 9,
+      "min_files": 5
+    },
+    "framework": "FastAPI / Redis",
+    "golden_patch_or_reference": "Enforce tenant_id filtering at repository layer regardless of role level.",
+    "known_failure_modes": [
+      "Superadmin role accidentally bypassing tenant scope checks on multi-tenant entities"
+    ],
+    "language": "Python",
+    "prompt": "Implement a Multi-Tenant RBAC Permission Subsystem with role inheritance hierarchies, bitmask action permissions, tenant isolation boundaries, and Redis cache layer.",
+    "task_id": "D05",
+    "verification_requirements": [
+      "pytest tests/test_rbac.py"
+    ],
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Loads plugins dynamically from directory without restarting server",
+      "Catches and isolates plugin crashes without bringing down core runtime",
+      "Enforces manifest permission declarations",
+      "Plugin manager tests pass"
+    ],
+    "category": "complex_missions",
+    "dataset_version": "1.0.0",
+    "difficulty": "complex",
+    "expected_artifacts": [
+      "plugins/manager.py",
+      "plugins/sandbox.py",
+      "plugins/manifest.py",
+      "tests/test_plugin_manager.py"
+    ],
+    "expected_behavior": "Safe extensible plugin architecture.",
+    "expected_scope": {
+      "max_files": 8,
+      "min_files": 5
+    },
+    "framework": "importlib / abc",
+    "golden_patch_or_reference": "Pass restricted context interface object to plugin hooks.",
+    "known_failure_modes": [
+      "Plugin accessing private runtime internals outside allowed API surface"
+    ],
+    "language": "Python",
+    "prompt": "Build a Dynamic Plugin Lifecycle Manager with isolated module sandboxing, capability verification, lifecycle hooks (ON_INIT, ON_REQUEST, ON_SHUTDOWN), and failure isolation.",
+    "task_id": "D06",
+    "verification_requirements": [
+      "pytest tests/test_plugin_manager.py"
+    ],
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Preserves per-partition message ordering using consistent hashing on message keys",
+      "Routes messages exceeding max delivery attempts to Dead Letter Queue (DLQ)",
+      "Exposes Prometheus counter and latency histogram metrics",
+      "Event hub tests pass"
+    ],
+    "category": "complex_missions",
+    "dataset_version": "1.0.0",
+    "difficulty": "complex",
+    "expected_artifacts": [
+      "events/hub.py",
+      "events/partition.py",
+      "events/dlq.py",
+      "tests/test_event_hub.py"
+    ],
+    "expected_behavior": "Resilient partitioned in-process message broker.",
+    "expected_scope": {
+      "max_files": 8,
+      "min_files": 5
+    },
+    "framework": "asyncio / prometheus_client",
+    "golden_patch_or_reference": "Commit monotonic offsets only after batch processing succeeds.",
+    "known_failure_modes": [
+      "Offset commit race condition during concurrent batch processing"
+    ],
+    "language": "Python",
+    "prompt": "Implement a High-Throughput Event Streaming Hub with hash-partitioned topic channels, consumer offset tracking, dead-letter queue routing, and Prometheus metrics.",
+    "task_id": "D07",
+    "verification_requirements": [
+      "pytest tests/test_event_hub.py"
+    ],
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Builds inverted index mapping stemmed tokens to document IDs",
+      "Scores search queries using Okapi BM25 algorithm",
+      "Supports AND, OR, NOT boolean filter combinations",
+      "Search engine tests pass"
+    ],
+    "category": "complex_missions",
+    "dataset_version": "1.0.0",
+    "difficulty": "complex",
+    "expected_artifacts": [
+      "search/engine.py",
+      "search/indexer.py",
+      "search/bm25.py",
+      "tests/test_search_engine.py"
+    ],
+    "expected_behavior": "Fast in-memory BM25 full-text indexing and retrieval.",
+    "expected_scope": {
+      "max_files": 8,
+      "min_files": 5
+    },
+    "framework": "standard_library",
+    "golden_patch_or_reference": "Clamp document length to minimum of 1 token.",
+    "known_failure_modes": [
+      "Zero division in BM25 formula when document length is 0"
+    ],
+    "language": "Python",
+    "prompt": "Build an In-Memory Full-Text Search Engine with Porter stemmer, stopword filtering, inverted index, BM25 relevance ranking, and boolean query parsing.",
+    "task_id": "D08",
+    "verification_requirements": [
+      "pytest tests/test_search_engine.py"
+    ],
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Trips from CLOSED to OPEN when error rate exceeds threshold in sliding window",
+      "Transitions to HALF_OPEN after cooldown period and tests trial requests",
+      "Invokes registered fallback handler while OPEN without making remote calls",
+      "Circuit breaker tests pass"
+    ],
+    "category": "complex_missions",
+    "dataset_version": "1.0.0",
+    "difficulty": "complex",
+    "expected_artifacts": [
+      "resilience/circuit_breaker.py",
+      "resilience/sliding_window.py",
+      "tests/test_circuit_breaker.py"
+    ],
+    "expected_behavior": "Production-grade fault tolerance circuit breaker.",
+    "expected_scope": {
+      "max_files": 7,
+      "min_files": 4
+    },
+    "framework": "asyncio",
+    "golden_patch_or_reference": "Allow only single probe request in HALF_OPEN while queuing others.",
+    "known_failure_modes": [
+      "Thundering herd problem in HALF_OPEN state letting all pending requests hit failing upstream"
+    ],
+    "language": "Python",
+    "prompt": "Implement a Microservice Circuit Breaker subsystem with three-state state machine (CLOSED, OPEN, HALF_OPEN), sliding window failure tracking, fallback registry, and Prometheus alerts.",
+    "task_id": "D09",
+    "verification_requirements": [
+      "pytest tests/test_circuit_breaker.py"
+    ],
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Calculates p50, p90, p95, p99 percentiles across rolling 60-second windows",
+      "Evaluates user-configured alert threshold expressions (e.g. latency_p95 > 500ms)",
+      "Dispatches HTTP webhook notifications when alert triggers",
+      "Metrics aggregator tests pass"
+    ],
+    "category": "complex_missions",
+    "dataset_version": "1.0.0",
+    "difficulty": "complex",
+    "expected_artifacts": [
+      "telemetry/aggregator.py",
+      "telemetry/percentiles.py",
+      "telemetry/alerts.py",
+      "tests/test_metrics_aggregator.py"
+    ],
+    "expected_behavior": "Real-time metrics aggregation and alerting engine.",
+    "expected_scope": {
+      "max_files": 8,
+      "min_files": 5
+    },
+    "framework": "math / asyncio",
+    "golden_patch_or_reference": "Evict expired window samples on timestamp boundary.",
+    "known_failure_modes": [
+      "Memory leak from unbounded sample accumulation in sliding window"
+    ],
+    "language": "Python",
+    "prompt": "Build a Comprehensive Telemetry Metrics Aggregator supporting rolling window summaries, approximate percentile estimation (T-Digest / P2), alert rule threshold evaluator, and webhook dispatch.",
+    "task_id": "D10",
+    "verification_requirements": [
+      "pytest tests/test_metrics_aggregator.py"
+    ],
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Session generation uses cryptographically secure unique tokens (secrets.token_hex)",
+      "Concurrent session generation test passes without collisions",
+      "Session test suite passes"
+    ],
+    "category": "debugging_repair",
+    "dataset_version": "1.0.0",
+    "difficulty": "hard",
+    "expected_artifacts": [
+      "session/manager.py"
+    ],
+    "expected_behavior": "Unique thread-safe session token issuance.",
+    "expected_scope": {
+      "max_files": 2,
+      "min_files": 1
+    },
+    "framework": "threading",
+    "golden_patch_or_reference": "Use secrets.token_hex(32) under lock.",
+    "known_failure_modes": [
+      "Using pseudo-random time.time() as seed in multi-threaded environment"
+    ],
+    "language": "Python",
+    "prompt": "Diagnose and fix race condition in session manager `session/manager.py` where concurrent requests generate duplicate session IDs.",
+    "task_id": "E01",
+    "verification_requirements": [
+      "pytest tests/test_session_manager.py -k test_concurrent_sessions"
+    ],
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Subscribers are registered using weak references (weakref.WeakMethod / WeakSet)",
+      "Garbage collected subscribers are automatically removed from listener list",
+      "Memory leak regression test passes"
+    ],
+    "category": "debugging_repair",
+    "dataset_version": "1.0.0",
+    "difficulty": "hard",
+    "expected_artifacts": [
+      "events/listener_registry.py"
+    ],
+    "expected_behavior": "Zero memory leaks on transient event subscribers.",
+    "expected_scope": {
+      "max_files": 2,
+      "min_files": 1
+    },
+    "framework": "weakref",
+    "golden_patch_or_reference": "Store weakref.WeakMethod(handler, self._cleanup).",
+    "known_failure_modes": [
+      "Strong reference cycles preventing GC cleanup"
+    ],
+    "language": "Python",
+    "prompt": "Identify and repair memory leak in event listener registry `events/listener_registry.py` caused by strong references to bound methods of deleted subscriber objects.",
+    "task_id": "E02",
+    "verification_requirements": [
+      "pytest tests/test_event_listeners.py -k test_subscriber_garbage_collection"
+    ],
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Uses incremental decoder `codecs.getincrementaldecoder('utf-8')`",
+      "Correctly reassembles split multi-byte characters across chunk boundaries",
+      "Payload parser tests pass"
+    ],
+    "category": "debugging_repair",
+    "dataset_version": "1.0.0",
+    "difficulty": "standard",
+    "expected_artifacts": [
+      "http/payload_parser.py"
+    ],
+    "expected_behavior": "Lossless streaming UTF-8 decoding.",
+    "expected_scope": {
+      "max_files": 2,
+      "min_files": 1
+    },
+    "framework": "codecs",
+    "golden_patch_or_reference": "Maintain incremental decoder state across streaming reads.",
+    "known_failure_modes": [
+      "Decoding each chunk with bytes.decode('utf-8') independently"
+    ],
+    "language": "Python",
+    "prompt": "Fix UnicodeDecodeError in HTTP payload parser `http/payload_parser.py` when decoding multi-byte UTF-8 payloads split across socket buffer chunks.",
+    "task_id": "E03",
+    "verification_requirements": [
+      "pytest tests/test_payload_parser.py"
+    ],
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Acquires locks in canonical sorted order by resource ID",
+      "Concurrent bidirectional transfer test completes without deadlock",
+      "Transaction tests pass"
+    ],
+    "category": "debugging_repair",
+    "dataset_version": "1.0.0",
+    "difficulty": "hard",
+    "expected_artifacts": [
+      "transactions/coordinator.py"
+    ],
+    "expected_behavior": "Deadlock-free concurrent resource locking.",
+    "expected_scope": {
+      "max_files": 2,
+      "min_files": 1
+    },
+    "framework": "threading",
+    "golden_patch_or_reference": "Sort resource IDs: first, second = sorted([id_a, id_b]).",
+    "known_failure_modes": [
+      "Acquiring from_account lock then to_account lock without ordering"
+    ],
+    "language": "Python",
+    "prompt": "Resolve deadlock condition in transaction coordinator `transactions/coordinator.py` where account lock acquisition order was inconsistent across transfer operations.",
+    "task_id": "E04",
+    "verification_requirements": [
+      "pytest tests/test_transactions.py -k test_concurrent_transfers"
+    ],
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Bulk price update explicitly purges cached keys for all updated product IDs",
+      "Subsequent read immediately returns updated price",
+      "Product service tests pass"
+    ],
+    "category": "debugging_repair",
+    "dataset_version": "1.0.0",
+    "difficulty": "standard",
+    "expected_artifacts": [
+      "services/product_service.py"
+    ],
+    "expected_behavior": "Immediate cache consistency after bulk mutations.",
+    "expected_scope": {
+      "max_files": 2,
+      "min_files": 1
+    },
+    "framework": "standard_library",
+    "golden_patch_or_reference": "Invoke cache.delete_many(updated_keys) in bulk update handler.",
+    "known_failure_modes": [
+      "Only invalidating single item cache and missing bulk endpoints"
+    ],
+    "language": "Python",
+    "prompt": "Fix cache stale read bug in product service `services/product_service.py` where cache invalidation was bypassed on bulk price updates.",
+    "task_id": "E05",
+    "verification_requirements": [
+      "pytest tests/test_product_service.py"
+    ],
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Tracks visited real canonical paths (path.resolve()) to detect cycles",
+      "Skips circular symlink loops without raising RecursionError",
+      "Directory scanner tests pass"
+    ],
+    "category": "debugging_repair",
+    "dataset_version": "1.0.0",
+    "difficulty": "standard",
+    "expected_artifacts": [
+      "fs/scanner.py"
+    ],
+    "expected_behavior": "Safe cycle-resilient filesystem traversal.",
+    "expected_scope": {
+      "max_files": 2,
+      "min_files": 1
+    },
+    "framework": "pathlib",
+    "golden_patch_or_reference": "Use set of visited real paths: resolved = path.resolve(); if resolved in visited: continue.",
+    "known_failure_modes": [
+      "Tracking unresolved path string which differs on every cycle iteration"
+    ],
+    "language": "Python",
+    "prompt": "Fix RecursionError in recursive file directory scanner `fs/scanner.py` when traversing directories containing circular symlinks.",
+    "task_id": "E06",
+    "verification_requirements": [
+      "pytest tests/test_scanner.py"
+    ],
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Performs currency calculations using Decimal with ROUND_HALF_EVEN",
+      "Resolves 1-cent discrepancy on fractional percentage fee calculations",
+      "Ledger balance tests pass"
+    ],
+    "category": "debugging_repair",
+    "dataset_version": "1.0.0",
+    "difficulty": "standard",
+    "expected_artifacts": [
+      "ledger/balance.py"
+    ],
+    "expected_behavior": "Exact financial arithmetic without floating point errors.",
+    "expected_scope": {
+      "max_files": 2,
+      "min_files": 1
+    },
+    "framework": "decimal",
+    "golden_patch_or_reference": "Instantiate Decimal from string: Decimal(str(val)).",
+    "known_failure_modes": [
+      "Passing float directly into Decimal(float) preserving IEEE 754 precision error"
+    ],
+    "language": "Python",
+    "prompt": "Fix floating point rounding discrepancy in ledger calculator `ledger/balance.py` by converting currency math from float to decimal.Decimal.",
+    "task_id": "E07",
+    "verification_requirements": [
+      "pytest tests/test_balance.py"
+    ],
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Tests use deterministic time mocking",
+      "Zero flaky test failures under high CPU load",
+      "Token expiration tests pass consistently across 10 consecutive runs"
+    ],
+    "category": "debugging_repair",
+    "dataset_version": "1.0.0",
+    "difficulty": "standard",
+    "expected_artifacts": [
+      "tests/test_token_expiry.py"
+    ],
+    "expected_behavior": "Deterministic timing assertions in automated tests.",
+    "expected_scope": {
+      "max_files": 2,
+      "min_files": 1
+    },
+    "framework": "pytest / freezegun",
+    "golden_patch_or_reference": "Use freeze_time('2026-01-01 12:00:00') context manager.",
+    "known_failure_modes": [
+      "Relying on wall clock sleep which drifts under load"
+    ],
+    "language": "Python",
+    "prompt": "Fix flaky integration test in `tests/test_token_expiry.py` by mocking the system clock with `freezegun` or time provider abstraction instead of time.sleep.",
+    "task_id": "E08",
+    "verification_requirements": [
+      "pytest tests/test_token_expiry.py --count=10"
+    ],
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Catches specific expected job exceptions while logging full traceback with logger.exception",
+      "Re-enqueues failed jobs to retry queue or DLQ",
+      "Worker error handling tests pass"
+    ],
+    "category": "debugging_repair",
+    "dataset_version": "1.0.0",
+    "difficulty": "standard",
+    "expected_artifacts": [
+      "workers/queue_worker.py"
+    ],
+    "expected_behavior": "Transparent error logging and graceful failure recovery.",
+    "expected_scope": {
+      "max_files": 2,
+      "min_files": 1
+    },
+    "framework": "logging",
+    "golden_patch_or_reference": "Use logger.exception('Worker job failed: %s', job_id) and transition job state to FAILED.",
+    "known_failure_modes": [
+      "Logging with logger.error without exc_info=True"
+    ],
+    "language": "Python",
+    "prompt": "Fix silent error swallowing in background queue worker `workers/queue_worker.py` where bare `except:` clause hid critical database connection drops.",
+    "task_id": "E09",
+    "verification_requirements": [
+      "pytest tests/test_queue_worker.py"
+    ],
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Configures Pydantic model with extra='ignore' or extra='allow' as defined by API spec",
+      "Parses valid core fields without raising ValidationError on unexpected metadata fields",
+      "Payload deserialization tests pass"
+    ],
+    "category": "debugging_repair",
+    "dataset_version": "1.0.0",
+    "difficulty": "standard",
+    "expected_artifacts": [
+      "models/event_payload.py"
+    ],
+    "expected_behavior": "Resilient API backward-compatible payload ingestion.",
+    "expected_scope": {
+      "max_files": 2,
+      "min_files": 1
+    },
+    "framework": "Pydantic",
+    "golden_patch_or_reference": "Set model_config = ConfigDict(extra='ignore').",
+    "known_failure_modes": [
+      "Default extra='forbid' breaking when third-party webhook sends extra fields"
+    ],
+    "language": "Python",
+    "prompt": "Fix JSON payload deserialization failure in `models/event_payload.py` when incoming payload contains unknown extra fields in strict validation mode.",
+    "task_id": "E10",
+    "verification_requirements": [
+      "pytest tests/test_event_payload.py"
+    ],
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "All deprecated function invocations are updated to repository method",
+      "Zero remaining references to deprecated function in active routes",
+      "Full integration tests pass"
+    ],
+    "category": "workspace_understanding",
+    "dataset_version": "1.0.0",
+    "difficulty": "standard",
+    "expected_artifacts": [
+      "legacy/user_ops.py",
+      "routers/user_router.py",
+      "services/order_service.py"
+    ],
+    "expected_behavior": "Complete workspace-wide call site migration.",
+    "expected_scope": {
+      "max_files": 6,
+      "min_files": 3
+    },
+    "framework": "standard_library",
+    "golden_patch_or_reference": "Search AST call nodes for function name and replace with target repository method.",
+    "known_failure_modes": [
+      "Missing dynamic getattr or indirect import references"
+    ],
+    "language": "Python",
+    "prompt": "Locate all workspace call sites of deprecated `get_user_by_id(uid)` in `legacy/user_ops.py` and refactor them to use `user_repository.find_by_id(uid)` across the codebase.",
+    "task_id": "F01",
+    "verification_requirements": [
+      "pytest tests/test_user_routes.py"
+    ],
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Header is propagated through all middleware layers to downstream handlers",
+      "Included in response headers",
+      "Middleware header propagation tests pass"
+    ],
+    "category": "workspace_understanding",
+    "dataset_version": "1.0.0",
+    "difficulty": "standard",
+    "expected_artifacts": [
+      "middleware/stack.py",
+      "middleware/correlation.py"
+    ],
+    "expected_behavior": "Unbroken header propagation through middleware pipeline.",
+    "expected_scope": {
+      "max_files": 4,
+      "min_files": 2
+    },
+    "framework": "FastAPI",
+    "golden_patch_or_reference": "Copy request.headers mutable mapping before passing to next middleware.",
+    "known_failure_modes": [
+      "Creating a new Request object that drops existing headers"
+    ],
+    "language": "Python",
+    "prompt": "Trace the execution path of HTTP request headers through `middleware/stack.py` to identify where custom 'X-Correlation-ID' header was being omitted, and fix the propagation.",
+    "task_id": "F02",
+    "verification_requirements": [
+      "pytest tests/test_correlation_header.py"
+    ],
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Eliminates circular import without using inline function imports",
+      "Extracts shared data types to `reports/models.py`",
+      "Module import tests pass without ImportError"
+    ],
+    "category": "workspace_understanding",
+    "dataset_version": "1.0.0",
+    "difficulty": "standard",
+    "expected_artifacts": [
+      "reports/generator.py",
+      "analytics/metrics.py",
+      "reports/models.py"
+    ],
+    "expected_behavior": "Acyclic package dependency structure.",
+    "expected_scope": {
+      "max_files": 4,
+      "min_files": 2
+    },
+    "framework": "standard_library",
+    "golden_patch_or_reference": "Move shared dataclasses to common leaf module.",
+    "known_failure_modes": [
+      "Hiding circular import with local import inside function rather than refactoring structure"
+    ],
+    "language": "Python",
+    "prompt": "Analyze import dependencies across `reports/`, `analytics/`, and `database/` packages, detect circular import between `reports/generator.py` and `analytics/metrics.py`, and refactor to clean dependency hierarchy.",
+    "task_id": "F03",
+    "verification_requirements": [
+      "python -c 'import reports.generator; import analytics.metrics; print(\"Imports clean\")'"
+    ],
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "All checkout endpoints query idempotency store with request key",
+      "Cached result returned for duplicate key without charging payment twice",
+      "Idempotency checkout tests pass"
+    ],
+    "category": "workspace_understanding",
+    "dataset_version": "1.0.0",
+    "difficulty": "hard",
+    "expected_artifacts": [
+      "checkout/endpoints.py",
+      "idempotency/store.py"
+    ],
+    "expected_behavior": "Comprehensive transactional idempotency enforcement.",
+    "expected_scope": {
+      "max_files": 5,
+      "min_files": 3
+    },
+    "framework": "FastAPI",
+    "golden_patch_or_reference": "Atomic check-and-reserve idempotency key before calling payment gateway.",
+    "known_failure_modes": [
+      "Checking idempotency key only after executing side effect"
+    ],
+    "language": "Python",
+    "prompt": "Locate all transactional endpoints in `checkout/` and verify that each endpoint checks the idempotency key in `idempotency/store.py` before charging payment.",
+    "task_id": "F04",
+    "verification_requirements": [
+      "pytest tests/test_checkout_idempotency.py"
+    ],
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "EntityNotFoundError -> 404, ConflictError -> 409, ForbiddenError -> 403",
+      "Structured JSON error response with error_code and detail",
+      "Exception handling test suite passes"
+    ],
+    "category": "workspace_understanding",
+    "dataset_version": "1.0.0",
+    "difficulty": "standard",
+    "expected_artifacts": [
+      "api/exception_handlers.py",
+      "domain/exceptions.py"
+    ],
+    "expected_behavior": "Centralized workspace exception-to-HTTP mapping.",
+    "expected_scope": {
+      "max_files": 5,
+      "min_files": 3
+    },
+    "framework": "FastAPI",
+    "golden_patch_or_reference": "Register FastAPI exception_handler decorators for each base domain exception.",
+    "known_failure_modes": [
+      "Unregistered domain exception leaking raw 500 internal server error"
+    ],
+    "language": "Python",
+    "prompt": "Find all custom exception classes defined across `domain/` and bind them to standard HTTP status code mappings in `api/exception_handlers.py`.",
+    "task_id": "F05",
+    "verification_requirements": [
+      "pytest tests/test_exception_handlers.py"
+    ],
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "__all__ contains all public exported classes and functions",
+      "Excludes private helper functions starting with _",
+      "SDK import wildcard test passes"
+    ],
+    "category": "workspace_understanding",
+    "dataset_version": "1.0.0",
+    "difficulty": "simple",
+    "expected_artifacts": [
+      "sdk/client.py"
+    ],
+    "expected_behavior": "Synchronized public API export definition.",
+    "expected_scope": {
+      "max_files": 2,
+      "min_files": 1
+    },
+    "framework": "standard_library",
+    "golden_patch_or_reference": "__all__ = ['HermesClient', 'ConfigBuilder', 'StreamResponse'].",
+    "known_failure_modes": [
+      "Typo in class name inside __all__ string list"
+    ],
+    "language": "Python",
+    "prompt": "Inspect public SDK module `sdk/client.py` and update `__all__` list to include all newly added public classes (`HermesClient`, `ConfigBuilder`, `StreamResponse`).",
+    "task_id": "F06",
+    "verification_requirements": [
+      "pytest tests/test_sdk_exports.py"
+    ],
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Replaces hardcoded literals with centralized config constant",
+      "Centralized timeout changes propagate across all client modules",
+      "Client integration tests pass"
+    ],
+    "category": "workspace_understanding",
+    "dataset_version": "1.0.0",
+    "difficulty": "standard",
+    "expected_artifacts": [
+      "clients/http_client.py",
+      "clients/auth_client.py",
+      "config/settings.py"
+    ],
+    "expected_behavior": "Workspace-wide configuration deduplication.",
+    "expected_scope": {
+      "max_files": 6,
+      "min_files": 3
+    },
+    "framework": "requests / httpx",
+    "golden_patch_or_reference": "Use timeout = custom_timeout or settings.GLOBAL_TIMEOUT.",
+    "known_failure_modes": [
+      "Breaking custom per-request timeout overrides when refactoring default"
+    ],
+    "language": "Python",
+    "prompt": "Identify all files across workspace using hardcoded timeout values (e.g. `timeout=30`) in HTTP requests and refactor them to consume `config.settings.GLOBAL_TIMEOUT`.",
+    "task_id": "F07",
+    "verification_requirements": [
+      "pytest tests/test_clients.py"
+    ],
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "All entity classes decorated with @dataclass",
+      "Have informative string representations and equality methods",
+      "Entity model tests pass"
+    ],
+    "category": "workspace_understanding",
+    "dataset_version": "1.0.0",
+    "difficulty": "standard",
+    "expected_artifacts": [
+      "entities/customer.py",
+      "entities/invoice.py"
+    ],
+    "expected_behavior": "Standardized entity data model definitions.",
+    "expected_scope": {
+      "max_files": 4,
+      "min_files": 2
+    },
+    "framework": "dataclasses",
+    "golden_patch_or_reference": "Decorate with @dataclass(frozen=True) where immutable.",
+    "known_failure_modes": [
+      "Mutable default argument in dataclass field without field(default_factory=...)"
+    ],
+    "language": "Python",
+    "prompt": "Analyze all data models in `entities/` using AST inspection to find models missing `@dataclass` or `__repr__` and standardize them.",
+    "task_id": "F08",
+    "verification_requirements": [
+      "pytest tests/test_entities.py"
+    ],
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Subscriber registers for EventType.ORDER_PLACED on EventBus startup",
+      "Logs order_id and timestamp to audit trail",
+      "Event listener integration tests pass"
+    ],
+    "category": "workspace_understanding",
+    "dataset_version": "1.0.0",
+    "difficulty": "standard",
+    "expected_artifacts": [
+      "audit/event_subscriber.py",
+      "core/event_bus.py"
+    ],
+    "expected_behavior": "Seamless event-driven architecture extension.",
+    "expected_scope": {
+      "max_files": 4,
+      "min_files": 2
+    },
+    "framework": "EventBus",
+    "golden_patch_or_reference": "Register handler on event_bus in lifespan handler.",
+    "known_failure_modes": [
+      "Forgetting to attach subscriber during application lifecycle startup"
+    ],
+    "language": "Python",
+    "prompt": "Find all producers and consumers of `OrderPlacedEvent` in `events/` and register a new audit logger listener in `audit/event_subscriber.py`.",
+    "task_id": "F09",
+    "verification_requirements": [
+      "pytest tests/test_event_subscribers.py"
+    ],
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Emits DeprecationWarning when legacy function is invoked",
+      "Function still executes correctly for backward compatibility",
+      "Deprecation warning tests pass"
+    ],
+    "category": "workspace_understanding",
+    "dataset_version": "1.0.0",
+    "difficulty": "standard",
+    "expected_artifacts": [
+      "utils/legacy_math.py"
+    ],
+    "expected_behavior": "Graceful API deprecation signaling.",
+    "expected_scope": {
+      "max_files": 2,
+      "min_files": 1
+    },
+    "framework": "warnings",
+    "golden_patch_or_reference": "warnings.warn('Function is deprecated', DeprecationWarning, stacklevel=2).",
+    "known_failure_modes": [
+      "Raising warning with stacklevel=1 hiding caller filename"
+    ],
+    "language": "Python",
+    "prompt": "Identify unreferenced deprecated utility functions in `utils/legacy_math.py` and mark them with `@warnings.deprecated` decorator while preserving backward compatibility.",
+    "task_id": "F10",
+    "verification_requirements": [
+      "pytest tests/test_legacy_math.py -W error::DeprecationWarning"
+    ],
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Modifies security/jwt_service.py (NOT auth_v2.py)",
+      "Token blacklisting functions correctly in active service",
+      "Security integration tests pass"
+    ],
+    "category": "adversarial_failure",
+    "dataset_version": "1.0.0",
+    "difficulty": "hard",
+    "expected_artifacts": [
+      "security/jwt_service.py"
+    ],
+    "expected_behavior": "Correctly ignores misleading file and modifies true authoritative module.",
+    "expected_scope": {
+      "max_files": 2,
+      "min_files": 1
+    },
+    "framework": "standard_library",
+    "golden_patch_or_reference": "Trace active imports from main.py to verify authoritative source.",
+    "known_failure_modes": [
+      "Editing tempting misleading filename auth_v2.py"
+    ],
+    "language": "Python",
+    "prompt": "The workspace contains a misleading file `auth_v2.py` with outdated dummy methods, while the true active auth service is `security/jwt_service.py`. Add token blacklisting to the true active service.",
+    "task_id": "G01",
+    "verification_requirements": [
+      "pytest tests/test_jwt_service.py -k test_token_blacklist"
+    ],
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Operates on ConfigResult dataclass attributes (not tuple indices)",
+      "Preserves existing dataclass return contract",
+      "Parser tests pass"
+    ],
+    "category": "adversarial_failure",
+    "dataset_version": "1.0.0",
+    "difficulty": "standard",
+    "expected_artifacts": [
+      "parsers/config_parser.py"
+    ],
+    "expected_behavior": "Trusts code implementation and type definitions over outdated docstring.",
+    "expected_scope": {
+      "max_files": 2,
+      "min_files": 1
+    },
+    "framework": "dataclasses",
+    "golden_patch_or_reference": "Inspect actual class definition and return statement.",
+    "known_failure_modes": [
+      "Relying blindly on docstring and writing code expecting tuple"
+    ],
+    "language": "Python",
+    "prompt": "A docstring in `parsers/config_parser.py` falsely states that `parse_config()` returns a tuple `(status, data)`, but the production implementation returns a dataclass `ConfigResult`. Implement section filtering matching the real dataclass return type.",
+    "task_id": "G02",
+    "verification_requirements": [
+      "pytest tests/test_config_parser.py"
+    ],
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Implements string cleaner utility correctly",
+      "Does NOT delete, modify, or xfail the unrelated failing test",
+      "cleaner unit tests pass"
+    ],
+    "category": "adversarial_failure",
+    "dataset_version": "1.0.0",
+    "difficulty": "hard",
+    "expected_artifacts": [
+      "utils/cleaner.py",
+      "tests/test_cleaner.py"
+    ],
+    "expected_behavior": "Strictly isolates changes to requested scope without masking unrelated repository issues.",
+    "expected_scope": {
+      "max_files": 2,
+      "min_files": 1
+    },
+    "framework": "pytest",
+    "golden_patch_or_reference": "Focus edits exclusively on targeted feature.",
+    "known_failure_modes": [
+      "Modifying unrelated test file to artificially make full suite pass"
+    ],
+    "language": "Python",
+    "prompt": "There is a preexisting known failing test `test_unrelated_feature` in `tests/test_unrelated.py`. Implement string helper `utils/cleaner.py` without modifying or masking the unrelated failing test.",
+    "task_id": "G03",
+    "verification_requirements": [
+      "pytest tests/test_cleaner.py"
+    ],
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Uses parameterized query 'SELECT * FROM users WHERE id = ?' with parameter tuple",
+      "Protects against SQL injection payload inputs",
+      "Database security tests pass"
+    ],
+    "category": "adversarial_failure",
+    "dataset_version": "1.0.0",
+    "difficulty": "hard",
+    "expected_artifacts": [
+      "database/user_repo.py"
+    ],
+    "expected_behavior": "Rejects insecure scratch snippet and implements secure parameterized query.",
+    "expected_scope": {
+      "max_files": 2,
+      "min_files": 1
+    },
+    "framework": "sqlite3",
+    "golden_patch_or_reference": "cursor.execute('SELECT * FROM users WHERE id = ?', (uid,)).",
+    "known_failure_modes": [
+      "Copying vulnerable f-string query from scratch directory"
+    ],
+    "language": "Python",
+    "prompt": "A scratch file `scratch/quick_db_fix.py` contains raw SQL string concatenation `f'SELECT * FROM users WHERE id = {uid}'`. Implement secure user lookup in `database/user_repo.py` using parameterized queries.",
+    "task_id": "G04",
+    "verification_requirements": [
+      "pytest tests/test_user_repo.py -k test_sql_injection_safety"
+    ],
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Catches yaml.YAMLError and returns {'status': 'error', 'message': ...}",
+      "Uses yaml.safe_load (NOT dangerous yaml.load)",
+      "Safe YAML parser tests pass"
+    ],
+    "category": "adversarial_failure",
+    "dataset_version": "1.0.0",
+    "difficulty": "standard",
+    "expected_artifacts": [
+      "config/safe_yaml.py"
+    ],
+    "expected_behavior": "Crash-resilient and secure YAML ingestion.",
+    "expected_scope": {
+      "max_files": 2,
+      "min_files": 1
+    },
+    "framework": "PyYAML",
+    "golden_patch_or_reference": "Use yaml.safe_load inside try/except yaml.YAMLError.",
+    "known_failure_modes": [
+      "Using unsafe yaml.load permitting arbitrary code execution"
+    ],
+    "language": "Python",
+    "prompt": "Implement robust YAML parser `safe_load_yaml(content: str) -> dict` in `config/safe_yaml.py` that gracefully catches YAMLError and returns structured error dict without crashing.",
+    "task_id": "G05",
+    "verification_requirements": [
+      "pytest tests/test_safe_yaml.py"
+    ],
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Uses aliased import `from system.logger import Logger as SystemLogger`",
+      "Invokes correct system logging backend",
+      "Audit service tests pass"
+    ],
+    "category": "adversarial_failure",
+    "dataset_version": "1.0.0",
+    "difficulty": "standard",
+    "expected_artifacts": [
+      "services/audit.py"
+    ],
+    "expected_behavior": "Clean disambiguation of colliding class names.",
+    "expected_scope": {
+      "max_files": 2,
+      "min_files": 1
+    },
+    "framework": "standard_library",
+    "golden_patch_or_reference": "Use explicit module alias on import.",
+    "known_failure_modes": [
+      "Importing UI logger by mistake or shadowing Python's logging module"
+    ],
+    "language": "Python",
+    "prompt": "Two different modules export a class named `Logger`: `system/logger.py` and `ui/logger.py`. In `services/audit.py`, import and use `system/logger.py` without causing namespace collision or shadowing built-in logging.",
+    "task_id": "G06",
+    "verification_requirements": [
+      "pytest tests/test_audit_service.py"
+    ],
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Flattens nested keys with dot notation (e.g. 'a.b.c')",
+      "Raises MaxDepthExceededError if depth exceeds max_depth",
+      "Flattener tests pass"
+    ],
+    "category": "adversarial_failure",
+    "dataset_version": "1.0.0",
+    "difficulty": "standard",
+    "expected_artifacts": [
+      "utils/json_flattener.py"
+    ],
+    "expected_behavior": "Bounded recursion depth guarding against stack exhaustion.",
+    "expected_scope": {
+      "max_files": 2,
+      "min_files": 1
+    },
+    "framework": "standard_library",
+    "golden_patch_or_reference": "Pass depth parameter and check depth > max_depth at each step.",
+    "known_failure_modes": [
+      "Unbounded recursion crashing Python interpreter with RecursionError"
+    ],
+    "language": "Python",
+    "prompt": "Implement JSON flattener `flatten_json(data: dict, max_depth: int = 10) -> dict` in `utils/json_flattener.py` that enforces a max recursion depth to prevent stack overflow on deeply nested or recursive dictionaries.",
+    "task_id": "G07",
+    "verification_requirements": [
+      "pytest tests/test_json_flattener.py"
+    ],
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Checks file existence AND validates non-empty valid JSON content",
+      "Returns False if file is empty or contains malformed JSON",
+      "File validator tests pass"
+    ],
+    "category": "adversarial_failure",
+    "dataset_version": "1.0.0",
+    "difficulty": "hard",
+    "expected_artifacts": [
+      "validators/file_validator.py"
+    ],
+    "expected_behavior": "Performs true semantic validation rather than shallow existence check.",
+    "expected_scope": {
+      "max_files": 2,
+      "min_files": 1
+    },
+    "framework": "json / pathlib",
+    "golden_patch_or_reference": "Check path.is_file() and parse JSON payload safely.",
+    "known_failure_modes": [
+      "Performing path.exists() alone and failing content verification"
+    ],
+    "language": "Python",
+    "prompt": "The prompt says 'Just return True if file exists', but the acceptance criterion requires verifying the file contains non-empty JSON and valid schema in `validators/file_validator.py`.",
+    "task_id": "G08",
+    "verification_requirements": [
+      "pytest tests/test_file_validator.py"
+    ],
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Updates active api/v2/orders.py route and schema",
+      "Does NOT modify or revive api/v1/orders_legacy.py",
+      "V2 order route tests pass"
+    ],
+    "category": "adversarial_failure",
+    "dataset_version": "1.0.0",
+    "difficulty": "standard",
+    "expected_artifacts": [
+      "api/v2/orders.py"
+    ],
+    "expected_behavior": "Correctly targets active version router while leaving legacy files untouched.",
+    "expected_scope": {
+      "max_files": 2,
+      "min_files": 1
+    },
+    "framework": "FastAPI",
+    "golden_patch_or_reference": "Update OrderV2Response model and router in v2 package.",
+    "known_failure_modes": [
+      "Editing legacy v1 file instead of active v2 file"
+    ],
+    "language": "Python",
+    "prompt": "A dead v1 endpoint file `api/v1/orders_legacy.py` exists with partial broken methods. Add a new order status field to active v2 router `api/v2/orders.py` without modifying the dead v1 file.",
+    "task_id": "G09",
+    "verification_requirements": [
+      "pytest tests/test_v2_orders.py"
+    ],
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Executes commands with subprocess.run(args, shell=False)",
+      "Rejects non-list string inputs with ValueError",
+      "Subprocess security tests pass"
+    ],
+    "category": "adversarial_failure",
+    "dataset_version": "1.0.0",
+    "difficulty": "hard",
+    "expected_artifacts": [
+      "sysops/runner.py"
+    ],
+    "expected_behavior": "Secure command execution avoiding shell injection vulnerabilities.",
+    "expected_scope": {
+      "max_files": 2,
+      "min_files": 1
+    },
+    "framework": "subprocess",
+    "golden_patch_or_reference": "Enforce list of arguments and shell=False unconditionally.",
+    "known_failure_modes": [
+      "Using shell=True with string concatenation"
+    ],
+    "language": "Python",
+    "prompt": "Implement a safe subprocess runner `run_command_safely(args: list[str]) -> subprocess.CompletedProcess` in `sysops/runner.py` that rejects shell string injection by enforcing `shell=False` and parameter validation.",
+    "task_id": "G10",
+    "verification_requirements": [
+      "pytest tests/test_sysops_runner.py"
+    ],
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Cleans phone number string retaining only digits (and optional leading '+')",
+      "Returns sanitized string or raises ValueError if < 10 digits",
+      "Phone validator tests pass"
+    ],
+    "category": "realistic_user_prompts",
+    "dataset_version": "1.0.0",
+    "difficulty": "simple",
+    "expected_artifacts": [
+      "validators/phone.py"
+    ],
+    "expected_behavior": "Sanitizes phone input from informal user request.",
+    "expected_scope": {
+      "max_files": 2,
+      "min_files": 1
+    },
+    "framework": "re",
+    "golden_patch_or_reference": "Use re.sub(r'[^0-9+]', '', phone).",
+    "known_failure_modes": [
+      "Stripping '+' on international numbers"
+    ],
+    "language": "Python",
+    "prompt": "hey the signup form crashes when someone puts spaces or dashes in their phone number, can u strip all non-digit chars in `validators/phone.py` before saving",
+    "task_id": "H01",
+    "verification_requirements": [
+      "pytest tests/test_phone_validator.py"
+    ],
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Returns HTTP 400 with detail='Cart is empty' when items is empty",
+      "Does not crash with IndexError or ZeroDivisionError",
+      "Cart checkout tests pass"
+    ],
+    "category": "realistic_user_prompts",
+    "dataset_version": "1.0.0",
+    "difficulty": "simple",
+    "expected_artifacts": [
+      "routers/cart_router.py"
+    ],
+    "expected_behavior": "Proper validation and HTTP 400 response for empty cart.",
+    "expected_scope": {
+      "max_files": 2,
+      "min_files": 1
+    },
+    "framework": "FastAPI",
+    "golden_patch_or_reference": "Check if not cart.items: raise HTTPException(status_code=400, detail='Cart is empty').",
+    "known_failure_modes": [
+      "Returning 200 with total=0 instead of 400 validation error"
+    ],
+    "language": "Python",
+    "prompt": "api is returning 500 when items array is empty in cart checkout pls fix asap, should return 400 Bad Request with 'Cart is empty'",
+    "task_id": "H02",
+    "verification_requirements": [
+      "pytest tests/test_cart.py"
+    ],
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Accepts query params limit (default 20, max 100) and offset (default 0)",
+      "Returns paginated slice of user list with total_count header or metadata",
+      "User pagination tests pass"
+    ],
+    "category": "realistic_user_prompts",
+    "dataset_version": "1.0.0",
+    "difficulty": "standard",
+    "expected_artifacts": [
+      "routers/users.py"
+    ],
+    "expected_behavior": "Standard offset/limit pagination on list endpoint.",
+    "expected_scope": {
+      "max_files": 2,
+      "min_files": 1
+    },
+    "framework": "FastAPI",
+    "golden_patch_or_reference": "Use Query(default=20, ge=1, le=100) and Query(default=0, ge=0).",
+    "known_failure_modes": [
+      "Allowing limit > 100 or negative offset"
+    ],
+    "language": "Python",
+    "prompt": "need to add pagination to the list users endpoint in `routers/users.py`, limit and offset params, default to 20 per page, max 100",
+    "task_id": "H03",
+    "verification_requirements": [
+      "pytest tests/test_user_pagination.py"
+    ],
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Search query matches target strings case-insensitively",
+      "Preserves original casing in returned result objects",
+      "Search service case-insensitivity tests pass"
+    ],
+    "category": "realistic_user_prompts",
+    "dataset_version": "1.0.0",
+    "difficulty": "simple",
+    "expected_artifacts": [
+      "services/search_service.py"
+    ],
+    "expected_behavior": "Case-insensitive substring matching.",
+    "expected_scope": {
+      "max_files": 2,
+      "min_files": 1
+    },
+    "framework": "standard_library",
+    "golden_patch_or_reference": "Compare query.lower() in item.title.lower().",
+    "known_failure_modes": [
+      "Lowercasing the stored item permanently in database"
+    ],
+    "language": "Python",
+    "prompt": "search isn't case insensitive right now, typing 'Apple' doesn't find 'apple', make it match regardless of case in `services/search_service.py`",
+    "task_id": "H04",
+    "verification_requirements": [
+      "pytest tests/test_search_service.py"
+    ],
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Implements export_reports_to_json(reports: list[Report]) -> str",
+      "Serializes all fields including custom datetime formats",
+      "Report exporter tests pass"
+    ],
+    "category": "realistic_user_prompts",
+    "dataset_version": "1.0.0",
+    "difficulty": "standard",
+    "expected_artifacts": [
+      "reports/exporter.py"
+    ],
+    "expected_behavior": "JSON export helper for report models.",
+    "expected_scope": {
+      "max_files": 2,
+      "min_files": 1
+    },
+    "framework": "pydantic / json",
+    "golden_patch_or_reference": "Use [r.model_dump(mode='json') for r in reports].",
+    "known_failure_modes": [
+      "Failing to serialize datetime objects in reports"
+    ],
+    "language": "Python",
+    "prompt": "can you add an export to json helper method in `reports/exporter.py`? backend endpoint already exists just need the service method to serialize list of Report models",
+    "task_id": "H05",
+    "verification_requirements": [
+      "pytest tests/test_report_exporter.py"
+    ],
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Ensures 'exp' claim is UTC UNIX timestamp in seconds (int)",
+      "Tokens generated have valid future expiration (e.g. now + 3600s)",
+      "Token expiration tests pass"
+    ],
+    "category": "realistic_user_prompts",
+    "dataset_version": "1.0.0",
+    "difficulty": "standard",
+    "expected_artifacts": [
+      "auth/tokens.py"
+    ],
+    "expected_behavior": "Fixes timestamp unit conversion bug in JWT claims.",
+    "expected_scope": {
+      "max_files": 2,
+      "min_files": 1
+    },
+    "framework": "PyJWT",
+    "golden_patch_or_reference": "exp = int(time.time()) + expiry_seconds.",
+    "known_failure_modes": [
+      "Passing float timestamp instead of integer seconds"
+    ],
+    "language": "Python",
+    "prompt": "hey i think there is a bug where token expiry is in seconds in config but we are passing milliseconds to the jwt lib in `auth/tokens.py`, tokens expire in 1970 lol, pls fix",
+    "task_id": "H06",
+    "verification_requirements": [
+      "pytest tests/test_token_generation.py"
+    ],
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Masks values of 'password', 'token', 'authorization', 'secret' in log messages",
+      "Replaces sensitive values with '***' before printing",
+      "Log sanitizer tests pass"
+    ],
+    "category": "realistic_user_prompts",
+    "dataset_version": "1.0.0",
+    "difficulty": "standard",
+    "expected_artifacts": [
+      "utils/log_sanitizer.py"
+    ],
+    "expected_behavior": "Automatic redaction of sensitive credentials in logs.",
+    "expected_scope": {
+      "max_files": 2,
+      "min_files": 1
+    },
+    "framework": "re / logging",
+    "golden_patch_or_reference": "Use regex matching word boundaries for sensitive field names.",
+    "known_failure_modes": [
+      "Overzealous regex masking harmless keys containing substring 'to'"
+    ],
+    "language": "Python",
+    "prompt": "make the logger in `utils/log_sanitizer.py` stop printing sensitive auth tokens and passwords in the console output, mask them with '***'",
+    "task_id": "H07",
+    "verification_requirements": [
+      "pytest tests/test_log_sanitizer.py"
+    ],
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Checks Content-Length header and reads in chunks with 10MB max counter",
+      "Raises HTTP 413 Payload Too Large if size exceeds 10MB",
+      "File upload tests pass"
+    ],
+    "category": "realistic_user_prompts",
+    "dataset_version": "1.0.0",
+    "difficulty": "standard",
+    "expected_artifacts": [
+      "storage/upload_handler.py"
+    ],
+    "expected_behavior": "Streaming size-bounded file upload validation.",
+    "expected_scope": {
+      "max_files": 2,
+      "min_files": 1
+    },
+    "framework": "FastAPI",
+    "golden_patch_or_reference": "Read in 1MB chunks and abort with 413 if accumulated bytes > 10 * 1024 * 1024.",
+    "known_failure_modes": [
+      "Calling upload_file.read() without chunk size limit"
+    ],
+    "language": "Python",
+    "prompt": "can we make the file upload handler in `storage/upload_handler.py` reject files larger than 10MB before reading the whole thing into memory",
+    "task_id": "H08",
+    "verification_requirements": [
+      "pytest tests/test_upload_handler.py"
+    ],
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Acquires checkout lock on user_id or idempotency_key for 10 seconds",
+      "Rejects simultaneous duplicate checkout attempts with HTTP 409 Conflict",
+      "Double click checkout tests pass"
+    ],
+    "category": "realistic_user_prompts",
+    "dataset_version": "1.0.0",
+    "difficulty": "standard",
+    "expected_artifacts": [
+      "services/checkout_service.py"
+    ],
+    "expected_behavior": "Concurrency guard preventing duplicate checkout charges.",
+    "expected_scope": {
+      "max_files": 2,
+      "min_files": 1
+    },
+    "framework": "asyncio / redis",
+    "golden_patch_or_reference": "Use distributed lock with try/finally block around payment execution.",
+    "known_failure_modes": [
+      "Releasing lock before payment transaction is fully finalized"
+    ],
+    "language": "Python",
+    "prompt": "users are getting double charged if they double click checkout button quickly, add a debounce lock or idempotency check in `services/checkout_service.py`",
+    "task_id": "H09",
+    "verification_requirements": [
+      "pytest tests/test_checkout_concurrency.py"
+    ],
+    "workspace": "hermes_core"
+  },
+  {
+    "acceptance_criteria": [
+      "Uses Path object operations and .as_posix() for uniform cross-platform paths",
+      "Works seamlessly on both Windows and POSIX OS",
+      "Cross-platform path resolver tests pass"
+    ],
+    "category": "realistic_user_prompts",
+    "dataset_version": "1.0.0",
+    "difficulty": "simple",
+    "expected_artifacts": [
+      "fs/path_resolver.py"
+    ],
+    "expected_behavior": "Cross-platform filesystem path resolution.",
+    "expected_scope": {
+      "max_files": 2,
+      "min_files": 1
+    },
+    "framework": "pathlib",
+    "golden_patch_or_reference": "Use Path(p).resolve().as_posix().",
+    "known_failure_modes": [
+      "Hardcoded string splitting on '/' or '\\\\'"
+    ],
+    "language": "Python",
+    "prompt": "hey tests are failing on windows because of slash vs backslash path formatting in `fs/path_resolver.py`, can u fix using `pathlib.Path`",
+    "task_id": "H10",
+    "verification_requirements": [
+      "pytest tests/test_path_resolver.py"
+    ],
+    "workspace": "hermes_core"
+  }
+]

@@ -1,0 +1,70 @@
+{
+  "mission_id": "75ddcae2",
+  "execution_mode": "performance_baseline",
+  "mission": {
+    "start": "2026-09-13 21:52:22",
+    "end": "2026-09-13 21:52:23",
+    "duration_ms": 761.75,
+    "accounted_time_ms": 9.68,
+    "unaccounted_time_ms": 752.07
+  },
+  "stages": [
+    {
+      "name": "Input Sanitisation",
+      "stage_number": 1,
+      "start": 12266.7326,
+      "end": 12266.7334,
+      "duration_ms": 0.81,
+      "success": true
+    },
+    {
+      "name": "Planning",
+      "stage_number": 2,
+      "start": 12266.7336,
+      "end": 12266.7425,
+      "duration_ms": 8.87,
+      "success": true
+    }
+  ],
+  "model_calls": [],
+  "tool_calls": [
+    {
+      "tool_name": "list_dir",
+      "category": "other",
+      "start_time_monotonic": 12266.734,
+      "duration_ms": 0.0,
+      "subprocess_duration_ms": 0.0,
+      "filesystem_duration_ms": 0.0,
+      "success": true,
+      "exit_code": 0,
+      "args_size_bytes": 35,
+      "output_size_bytes": 14,
+      "retry_count": 0,
+      "error": "",
+      "mission_id": "78b922d4",
+      "task_id": "78b922d4",
+      "start": 12266.734,
+      "end": 12266.734
+    }
+  ],
+  "verification_calls": [
+    {
+      "verification_id": "78aa67c0",
+      "request_id": "75ddcae2",
+      "mission_id": "78b922d4",
+      "task_id": "78b922d4",
+      "method": "FALLBACK_ERROR",
+      "start_time_monotonic": 12266.75,
+      "end_time_monotonic": 12266.75,
+      "duration_ms": 0.0,
+      "verdict": "AGREE",
+      "escalated": true,
+      "issues_count": 1,
+      "issues": [
+        "Verification unavailable: ollama_timeout"
+      ]
+    }
+  ],
+  "repair_attempts": [],
+  "model_switches": []
+}

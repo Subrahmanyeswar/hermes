@@ -1,0 +1,32 @@
+{
+  "threshold_0.60": {
+    "confidence_threshold": 0.6,
+    "t1_accepted_count": 10,
+    "t2_escalated_count": 12,
+    "failsafe_count": 2,
+    "total_tasks": 24,
+    "false_t1_acceptance_count": 2,
+    "unnecessary_t2_count": 0,
+    "tradeoff_assessment": "More aggressive (2 false T1 acceptances on ambiguous/complex tasks)"
+  },
+  "threshold_0.70": {
+    "confidence_threshold": 0.7,
+    "t1_accepted_count": 8,
+    "t2_escalated_count": 14,
+    "failsafe_count": 2,
+    "total_tasks": 24,
+    "false_t1_acceptance_count": 0,
+    "unnecessary_t2_count": 0,
+    "tradeoff_assessment": "Current production baseline (0 false T1, 0 unnecessary T2)"
+  },
+  "threshold_0.80": {
+    "confidence_threshold": 0.8,
+    "t1_accepted_count": 6,
+    "t2_escalated_count": 16,
+    "failsafe_count": 2,
+    "total_tasks": 24,
+    "false_t1_acceptance_count": 0,
+    "unnecessary_t2_count": 2,
+    "tradeoff_assessment": "More conservative (2 unnecessary T2 escalations on verified standard tasks)"
+  }
+}

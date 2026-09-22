@@ -1,0 +1,64 @@
+{
+  "description": "T1/T2 Fast Routing & Verification Gate matrix across execution modes",
+  "routes": [
+    {
+      "category": "READ_ONLY",
+      "tools": [
+        "read_file",
+        "list_directory",
+        "file_exists",
+        "directory_exists"
+      ],
+      "benchmark_mode": {
+        "verification_level": "BENCHMARK_FROZEN_T2",
+        "requires_llm": true,
+        "model": "qwen3:8b"
+      },
+      "production_mode": {
+        "verification_level": "L0_DETERMINISTIC",
+        "requires_llm": false,
+        "model": null,
+        "rationale": "Zero filesystem side-effects; exit code is sufficient"
+      }
+    },
+    {
+      "category": "LOW_RISK_WRITE",
+      "tools": [
+        "write_file",
+        "create_file",
+        "create_folder",
+        "append_file"
+      ],
+      "benchmark_mode": {
+        "verification_level": "BENCHMARK_FROZEN_T2",
+        "requires_llm": true,
+        "model": "qwen3:8b"
+      },
+      "production_mode": {
+        "verification_level": "LOCAL_STRUCTURAL",
+        "requires_llm": false,
+        "model": null,
+        "validation_mechanism": "File exists, size > 0, python_ast_parse or syntax validation",
+        "rationale": "Deterministic AST and disk validation bypasses expensive T2 model switch"
+      }
+    },
+    {
+      "category": "HIGH_RISK_DESTRUCTIVE",
+      "tools": [
+        "delete_file",
+        "bash_exec (with state mutation / git / install)"
+      ],
+      "benchmark_mode": {
+        "verification_level": "BENCHMARK_FROZEN_T2",
+        "requires_llm": true,
+        "model": "qwen3:8b"
+      },
+      "production_mode": {
+        "verification_level": "T2_SEMANTIC_REASONING",
+        "requires_llm": true,
+        "model": "qwen3:8b",
+        "rationale": "Safety critical actions must be verified by independent Tier 2 semantic verifier"
+      }
+    }
+  ]
+}

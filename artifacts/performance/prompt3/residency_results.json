@@ -1,0 +1,15 @@
+{
+  "description": "Model Residency and VRAM Lifecycle Metrics",
+  "hardware": "NVIDIA GeForce RTX 3050 Laptop GPU (6144 MiB VRAM)",
+  "dual_residency_capable": false,
+  "vram_allocation_mb": 5495.0,
+  "single_switch_load_seconds": 8.64,
+  "round_trip_penalty_seconds": 17.17,
+  "optimizations_applied": [
+    "LOCAL_STRUCTURAL fast-path bypasses T2 for low-risk writes and read operations",
+    "ModelResidencyManager keeps T1 resident across sequential tasks in non-benchmark modes",
+    "on_mission_complete preserves warm T1 residency for subsequent user requests"
+  ],
+  "switches_avoided_on_golden_probe": 2,
+  "switches_avoided_latency_savings_seconds": 17.17
+}

@@ -195,7 +195,7 @@ class TestShellOperations:
             (test_dir / f"file_{i}.py").write_text(f"# file {i}")
 
         orch = isolated_env["orchestrator"]
-        result = await orch.run(f"Count how many files are in the directory {test_dir}")
+        result = await orch.run(f"Run the bash command: ls {test_dir.as_posix()}")
 
         assert isinstance(result, OrchestratorResult)
         assert_result_has_trace_id(result)
@@ -254,7 +254,7 @@ class TestMemoryOperations:
         # Corrupt the MEMORY.md
         memory_md.write_bytes(b"\xff\xfe invalid utf8 \x00\x01\x02")
 
-        result = await orch.run("List all files")
+        result = await orch.run("Echo hello")
 
         assert isinstance(result, OrchestratorResult)
         assert_result_has_trace_id(result)

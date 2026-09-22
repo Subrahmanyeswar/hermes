@@ -1,0 +1,98 @@
+[
+  {
+    "scenario_id": "R01",
+    "stage": "crash_during_task",
+    "recovery_policy": "RUNNING task recovers to READY",
+    "state_reconstructed": true,
+    "terminal_preserved": true,
+    "status": "PASS"
+  },
+  {
+    "scenario_id": "R02",
+    "stage": "crash_during_verification",
+    "recovery_policy": "Re-executes verification safely",
+    "state_reconstructed": true,
+    "terminal_preserved": true,
+    "status": "PASS"
+  },
+  {
+    "scenario_id": "R03",
+    "stage": "crash_during_repair",
+    "recovery_policy": "Preserves repair attempt count; resumes safely",
+    "state_reconstructed": true,
+    "terminal_preserved": true,
+    "status": "PASS"
+  },
+  {
+    "scenario_id": "R04",
+    "stage": "crash_during_retry",
+    "recovery_policy": "Maintains retry budget without reset",
+    "state_reconstructed": true,
+    "terminal_preserved": true,
+    "status": "PASS"
+  },
+  {
+    "scenario_id": "R05",
+    "stage": "crash_during_kairos_scheduling",
+    "recovery_policy": "Rebuilds DAG readiness from completed nodes",
+    "state_reconstructed": true,
+    "terminal_preserved": true,
+    "status": "PASS"
+  },
+  {
+    "scenario_id": "R06",
+    "stage": "crash_after_task_completion",
+    "recovery_policy": "Preserves COMPLETED task state and evidence",
+    "state_reconstructed": true,
+    "terminal_preserved": true,
+    "status": "PASS"
+  },
+  {
+    "scenario_id": "R07",
+    "stage": "crash_before_mission_completion",
+    "recovery_policy": "Resumes evaluation; completes if criteria met",
+    "state_reconstructed": true,
+    "terminal_preserved": true,
+    "status": "PASS"
+  },
+  {
+    "scenario_id": "R08",
+    "stage": "crash_after_mission_completion",
+    "recovery_policy": "Remains COMPLETED without re-executing tasks",
+    "state_reconstructed": true,
+    "terminal_preserved": true,
+    "status": "PASS"
+  },
+  {
+    "scenario_id": "R09",
+    "stage": "crash_during_cancellation",
+    "recovery_policy": "Remains CANCELLED; never resumes execution",
+    "state_reconstructed": true,
+    "terminal_preserved": true,
+    "status": "PASS"
+  },
+  {
+    "scenario_id": "R10",
+    "stage": "crash_during_timeout",
+    "recovery_policy": "Remains TIMEOUT/CANCELLED terminal",
+    "state_reconstructed": true,
+    "terminal_preserved": true,
+    "status": "PASS"
+  },
+  {
+    "scenario_id": "R11",
+    "stage": "crash_during_workspace_indexing",
+    "recovery_policy": "Re-scans dirty files without SQLite corruption",
+    "state_reconstructed": true,
+    "terminal_preserved": true,
+    "status": "PASS"
+  },
+  {
+    "scenario_id": "R12",
+    "stage": "crash_during_memory_persistence",
+    "recovery_policy": "Drops incomplete memory buffer safely",
+    "state_reconstructed": true,
+    "terminal_preserved": true,
+    "status": "PASS"
+  }
+]

@@ -1,0 +1,159 @@
+{
+  "baseline": {
+    "ablation_name": "Baseline (All Components Full)",
+    "prompt_chars": 8112,
+    "prompt_tokens": 1833,
+    "prompt_eval_ms": 368.48,
+    "generation_ms": 17145.12,
+    "load_ms": 147.33,
+    "ttft_ms": 515.82,
+    "total_latency_ms": 18262.04,
+    "output_tokens": 512,
+    "tool_count": 20,
+    "valid_tool_call": false,
+    "parsed_tool": "",
+    "components_meta": {
+      "tools": 20,
+      "memory_chars": 51,
+      "skill_chars": 1192,
+      "workspace_chars": 120
+    },
+    "token_reduction_pct": 0.0,
+    "prompt_eval_reduction_pct": 0.0,
+    "latency_reduction_pct": 0.0
+  },
+  "experiment_a_context_only": {
+    "ablation_name": "Experiment A (Context Selection Only)",
+    "prompt_chars": 8048,
+    "prompt_tokens": 1815,
+    "prompt_eval_ms": 238.65,
+    "generation_ms": 17122.33,
+    "load_ms": 171.4,
+    "ttft_ms": 410.05,
+    "total_latency_ms": 17706.48,
+    "output_tokens": 512,
+    "tool_count": 20,
+    "valid_tool_call": false,
+    "parsed_tool": "",
+    "components_meta": {
+      "workspace_chars": 56
+    },
+    "token_reduction_pct": 0.98,
+    "prompt_eval_reduction_pct": 35.23,
+    "latency_reduction_pct": 3.04
+  },
+  "experiment_b_prefix_only": {
+    "ablation_name": "Experiment B (Prompt Prefix Stability Only)",
+    "prompt_chars": 8112,
+    "prompt_tokens": 1833,
+    "prompt_eval_ms": 1071.02,
+    "generation_ms": 17140.65,
+    "load_ms": 161.18,
+    "ttft_ms": 1232.2,
+    "total_latency_ms": 18524.34,
+    "output_tokens": 512,
+    "tool_count": 20,
+    "valid_tool_call": false,
+    "parsed_tool": "",
+    "components_meta": {
+      "prefix_hash": "f2f5a3b999a8808e4e9eb1aefab1b6e53d38b7ccab575bb3fecfc1d27baee06c",
+      "prefix_chars": 3141
+    },
+    "token_reduction_pct": 0.0,
+    "prompt_eval_reduction_pct": -190.66,
+    "latency_reduction_pct": -1.44
+  },
+  "experiment_c_tools_only": {
+    "ablation_name": "Experiment C (Selective Tools Only)",
+    "prompt_chars": 5926,
+    "prompt_tokens": 1330,
+    "prompt_eval_ms": 673.79,
+    "generation_ms": 16926.8,
+    "load_ms": 162.72,
+    "ttft_ms": 836.51,
+    "total_latency_ms": 17919.3,
+    "output_tokens": 512,
+    "tool_count": 4,
+    "valid_tool_call": false,
+    "parsed_tool": "",
+    "components_meta": {
+      "tools": 4,
+      "tool_list": [
+        "create_folder",
+        "list_directory",
+        "read_file",
+        "write_file"
+      ],
+      "schema_chars": 723
+    },
+    "token_reduction_pct": 27.44,
+    "prompt_eval_reduction_pct": -82.86,
+    "latency_reduction_pct": 1.88
+  },
+  "experiment_d_memory_only": {
+    "ablation_name": "Experiment D (Memory Filtering Only)",
+    "prompt_chars": 8083,
+    "prompt_tokens": 1825,
+    "prompt_eval_ms": 1057.17,
+    "generation_ms": 17147.18,
+    "load_ms": 149.93,
+    "ttft_ms": 1207.1,
+    "total_latency_ms": 18482.5,
+    "output_tokens": 512,
+    "tool_count": 20,
+    "valid_tool_call": false,
+    "parsed_tool": "",
+    "components_meta": {
+      "memory_chars": 0,
+      "memory_lines": 0
+    },
+    "token_reduction_pct": 0.44,
+    "prompt_eval_reduction_pct": -186.9,
+    "latency_reduction_pct": -1.21
+  },
+  "experiment_e_skills_only": {
+    "ablation_name": "Experiment E (Skill Disclosure Only)",
+    "prompt_chars": 8112,
+    "prompt_tokens": 1833,
+    "prompt_eval_ms": 496.76,
+    "generation_ms": 17164.99,
+    "load_ms": 156.22,
+    "ttft_ms": 652.98,
+    "total_latency_ms": 17948.11,
+    "output_tokens": 512,
+    "tool_count": 20,
+    "valid_tool_call": false,
+    "parsed_tool": "",
+    "components_meta": {
+      "skill_chars": 1192,
+      "skill_level": 2
+    },
+    "token_reduction_pct": 0.0,
+    "prompt_eval_reduction_pct": -34.81,
+    "latency_reduction_pct": 1.72
+  },
+  "experiment_f_combined": {
+    "ablation_name": "Experiment F (Combined Optimized Production)",
+    "prompt_chars": 5833,
+    "prompt_tokens": 1304,
+    "prompt_eval_ms": 666.31,
+    "generation_ms": 16920.44,
+    "load_ms": 162.32,
+    "ttft_ms": 828.63,
+    "total_latency_ms": 17889.21,
+    "output_tokens": 512,
+    "tool_count": 4,
+    "valid_tool_call": false,
+    "parsed_tool": "",
+    "components_meta": {
+      "tools": 4,
+      "memory_chars": 0,
+      "skill_chars": 1192,
+      "workspace_chars": 56,
+      "prefix_hash": "f2f5a3b999a8808e4e9eb1aefab1b6e53d38b7ccab575bb3fecfc1d27baee06c"
+    },
+    "token_reduction_pct": 28.86,
+    "prompt_eval_reduction_pct": -80.83,
+    "latency_reduction_pct": 2.04
+  }
+}

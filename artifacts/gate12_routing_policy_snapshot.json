@@ -1,0 +1,43 @@
+{
+  "timestamp": "2026-09-02T16:59:13Z",
+  "git_head": "be1a563bd73830efa0dff2400788ffe89d2ebc96",
+  "python_version": "3.10.0",
+  "os_platform": "Windows-10-10.0.26200-SP0",
+  "router_policy": {
+    "intelligent_routing_enabled": true,
+    "t2_confidence_threshold": 0.7,
+    "high_risk_threshold": 0.6,
+    "read_only_tools": [
+      "file_exists",
+      "find_by_name",
+      "get_symbols",
+      "grep_search",
+      "list_directory",
+      "read_file",
+      "read_url_content"
+    ],
+    "high_risk_tools": [
+      "delete_file",
+      "execute_command",
+      "git_push",
+      "git_reset",
+      "install_package"
+    ],
+    "routing_rules": {
+      "rule_1_hard_failsafe": "risk >= 0.90 or (tool in HIGH_RISK_TOOLS and risk >= HIGH_RISK_THRESHOLD)",
+      "rule_2_repeated_failures": "attempt_count > 2 -> ESCALATE_T2 (or FAIL_SAFE if T2 offline)",
+      "rule_3_read_only_tools": "tool in READ_ONLY_TOOLS and verification != 'FAILED' -> ACCEPT_T1",
+      "rule_4_verification_failure": "verification == 'FAILED' -> RETRY_T1 (attempt < 2) else ESCALATE_T2",
+      "rule_5_direct_acceptance": "confidence >= T2_CONFIDENCE_THRESHOLD and risk < HIGH_RISK_THRESHOLD and verification == 'PASSED' -> ACCEPT_T1",
+      "rule_6_elevated_risk_low_conf": "confidence < T2_CONFIDENCE_THRESHOLD or risk >= HIGH_RISK_THRESHOLD -> ESCALATE_T2"
+    }
+  },
+  "model_hierarchy": {
+    "t1_provider": "ollama",
+    "t1_model": "deepseek-r1:8b",
+    "t2_provider": "ollama",
+    "t2_model": "qwen3:8b",
+    "t3_provider": "openrouter",
+    "t3_model": "stealth/ox-alpha"
+  }
+}

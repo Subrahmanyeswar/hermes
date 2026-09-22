@@ -1,0 +1,50 @@
+{
+  "change_a_modify_parser": {
+    "file": "src/core/engine/parser.py",
+    "old_hash": "3efb768fd9a8d950df54c2fbd0ebcc8beb77176ec6700b16148349d151fbeb26",
+    "new_hash": "21e38457258821c00144a67c0d84fc458db9c658146a12b135a166a6c83a2960",
+    "type": "MODIFY"
+  },
+  "change_b_modify_repo": {
+    "file": "src/services/database/repository.py",
+    "old_hash": "6fe49ca2c31f52636a1e571ac4727688c4fd6c67e922da6031f3e2f5856b6126",
+    "new_hash": "f9a425231546fba5a2c5b9678fca0f3ac830c7f77a26777bdaaefcb0bd6df622",
+    "type": "MODIFY"
+  },
+  "change_c_create_payment": {
+    "file": "src/services/payment/payment_service.py",
+    "new_hash": "c4a89a4c1a82929c6cf87f8ba79ef719151e64fb5bf5ebe56f1ea41282bce929",
+    "type": "CREATE"
+  },
+  "change_d_delete_old_service": {
+    "file": "src/legacy/old_service.py",
+    "type": "DELETE"
+  },
+  "change_e_rename_user": {
+    "old_file": "src/models/old_user.py",
+    "new_file": "src/models/user_account.py",
+    "new_hash": "70400af1146e7dc78d3a812ce3260a6cf6e854863cba74f0288313b5742832a9",
+    "type": "RENAME"
+  },
+  "change_f_dependency_update": {
+    "file": "src/auth/service_a.py",
+    "imported_symbol": "new_helper",
+    "type": "IMPORT_CHANGE"
+  },
+  "change_g_symbol_change": {
+    "file": "src/auth/manager.py",
+    "old_symbol": "UserManager",
+    "new_symbol": "AccountManager",
+    "type": "SYMBOL_CHANGE"
+  },
+  "change_h_same_size_modify": {
+    "file": "src/billing/invoice.py",
+    "type": "SAME_SIZE_MODIFY"
+  },
+  "change_i_touch_only": {
+    "file": "config/settings.json",
+    "old_mtime": 1788347494.111722,
+    "new_mtime": 1788347512.8986962,
+    "type": "TOUCH_ONLY"
+  }
+}

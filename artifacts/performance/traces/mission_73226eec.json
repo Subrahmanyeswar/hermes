@@ -1,0 +1,26 @@
+{
+  "mission_id": "73226eec",
+  "execution_mode": "performance_baseline",
+  "mission": {
+    "start": "2026-09-17 13:30:57",
+    "end": "2026-09-17 13:30:57",
+    "duration_ms": 0.04,
+    "accounted_time_ms": 0.01,
+    "unaccounted_time_ms": 0.03
+  },
+  "stages": [
+    {
+      "name": "Unique Span",
+      "stage_number": null,
+      "start": 50610.6621,
+      "end": 50610.6621,
+      "duration_ms": 0.01,
+      "success": true
+    }
+  ],
+  "model_calls": [],
+  "tool_calls": [],
+  "verification_calls": [],
+  "repair_attempts": [],
+  "model_switches": []
+}

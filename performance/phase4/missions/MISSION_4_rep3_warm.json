@@ -1,0 +1,39 @@
+{
+  "mission_id": "MISSION_4_rep3_warm",
+  "base_id": "MISSION_4",
+  "name": "Repository Understanding Task",
+  "type": "repo_understanding",
+  "cold": false,
+  "repetition": 3,
+  "wall_clock_ms": 412283.15,
+  "success": true,
+  "tool_name": "read_file",
+  "pipeline_stage_reached": 12,
+  "tier3_was_called": true,
+  "critical_path": {
+    "wall_clock_ms": 412296.43,
+    "cumulative_span_ms": 412283.13,
+    "leaf_span_ms": 412283.13,
+    "category_times_ms": {
+      "MISSION": 412283.13
+    },
+    "span_count": 1
+  },
+  "spans": [
+    {
+      "span_id": "47391b84",
+      "mission_id": "MISSION_4_rep3_warm",
+      "parent_id": null,
+      "name": "TOTAL_MISSION",
+      "category": "MISSION",
+      "start_ns": 806483869131200,
+      "end_ns": 806896152262500,
+      "duration_ms": 412283.1313,
+      "status": "success",
+      "metadata": {
+        "mission_id": "MISSION_4_rep3_warm"
+      },
+      "children": []
+    }
+  ]
+}

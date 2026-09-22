@@ -1,0 +1,23 @@
+{
+  "run_1_latency": 63.8,
+  "run_2_latency": 73.83,
+  "consecutive_speedup": "0.0%",
+  "residency_state": {
+    "enabled": true,
+    "active_model": "deepseek-r1:8b",
+    "state": "RESIDENT",
+    "foreground_in_progress": false,
+    "total_switches": 1,
+    "switches_avoided": 2,
+    "models": {
+      "deepseek-r1:8b": {
+        "state": "RESIDENT",
+        "keep_alive": "300s"
+      },
+      "qwen3:8b": {
+        "state": "UNLOADED",
+        "keep_alive": "60s"
+      }
+    }
+  }
+}

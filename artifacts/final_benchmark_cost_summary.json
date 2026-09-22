@@ -1,0 +1,102 @@
+{
+  "cost_accounting_version": "1.0.0",
+  "missions_evaluated": 80,
+  "t3": {
+    "logical_requests": 4,
+    "provider_attempts": 5,
+    "missions_with_t3": 4,
+    "t3_mission_rate": 0.05,
+    "t3_call_rate": 0.05,
+    "input_tokens": 4850,
+    "output_tokens": 1300,
+    "total_tokens": 6150,
+    "total_cost_usd": 0.03405,
+    "cost_status": "KNOWN",
+    "t3_successful_missions_count": 3,
+    "cost_per_successful_mission_usd": 0.01135,
+    "cost_per_100_missions_usd": 0.042563,
+    "model_fallback_count": 0,
+    "provider_failover_count": 0,
+    "both_fallback_count": 1
+  },
+  "actual_serving": {
+    "models": {
+      "stealth/ox-alpha": 3,
+      "anthropic/claude-3.5-sonnet": 1
+    },
+    "providers": {
+      "openrouter": 3,
+      "openrouter_failover": 1
+    }
+  },
+  "category_breakdown": {
+    "adversarial_failure": {
+      "n": 10,
+      "t3_missions": 1,
+      "t3_mission_rate": 0.1,
+      "t3_logical_calls": 1,
+      "average_calls_per_mission": 0.1,
+      "cost_usd": 0.0105
+    },
+    "complex_missions": {
+      "n": 10,
+      "t3_missions": 2,
+      "t3_mission_rate": 0.2,
+      "t3_logical_calls": 2,
+      "average_calls_per_mission": 0.2,
+      "cost_usd": 0.0177
+    },
+    "debugging_repair": {
+      "n": 10,
+      "t3_missions": 0,
+      "t3_mission_rate": 0.0,
+      "t3_logical_calls": 0,
+      "average_calls_per_mission": 0.0,
+      "cost_usd": null
+    },
+    "multi_file": {
+      "n": 10,
+      "t3_missions": 0,
+      "t3_mission_rate": 0.0,
+      "t3_logical_calls": 0,
+      "average_calls_per_mission": 0.0,
+      "cost_usd": null
+    },
+    "realistic_user_prompts": {
+      "n": 10,
+      "t3_missions": 1,
+      "t3_mission_rate": 0.1,
+      "t3_logical_calls": 1,
+      "average_calls_per_mission": 0.1,
+      "cost_usd": 0.00585
+    },
+    "simple": {
+      "n": 10,
+      "t3_missions": 0,
+      "t3_mission_rate": 0.0,
+      "t3_logical_calls": 0,
+      "average_calls_per_mission": 0.0,
+      "cost_usd": null
+    },
+    "standard_coding": {
+      "n": 10,
+      "t3_missions": 0,
+      "t3_mission_rate": 0.0,
+      "t3_logical_calls": 0,
+      "average_calls_per_mission": 0.0,
+      "cost_usd": null
+    },
+    "workspace_understanding": {
+      "n": 10,
+      "t3_missions": 0,
+      "t3_mission_rate": 0.0,
+      "t3_logical_calls": 0,
+      "average_calls_per_mission": 0.0,
+      "cost_usd": null
+    }
+  },
+  "reconciliation": {
+    "status": "RECONCILED",
+    "tolerance_usd": 1e-06
+  }
+}

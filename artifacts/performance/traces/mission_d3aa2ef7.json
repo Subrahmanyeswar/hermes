@@ -1,0 +1,26 @@
+{
+  "mission_id": "d3aa2ef7",
+  "execution_mode": "performance_baseline",
+  "mission": {
+    "start": "2026-09-19 23:08:26",
+    "end": "2026-09-19 23:08:26",
+    "duration_ms": 22.83,
+    "accounted_time_ms": 22.74,
+    "unaccounted_time_ms": 0.09
+  },
+  "stages": [
+    {
+      "name": "Stage 1: Test Span",
+      "stage_number": 1,
+      "start": 258063.0752,
+      "end": 258063.0979,
+      "duration_ms": 22.74,
+      "success": true
+    }
+  ],
+  "model_calls": [],
+  "tool_calls": [],
+  "verification_calls": [],
+  "repair_attempts": [],
+  "model_switches": []
+}

@@ -158,7 +158,7 @@ class QualityVerifier:
             all_files = self._find_implementation_files(root)
 
         for f_path in all_files[:20]:  # Check up to 20 files
-            file_result = self._check_file(f_path)
+            file_result = self._check_file(f_path, root=root)
             result.file_results.append(file_result)
 
         # 2. Derive requirements from task description
@@ -167,7 +167,7 @@ class QualityVerifier:
         )
 
         # 3. Check which requirements are met
-        all_content = self._read_all_content(all_files)
+        all_content = self._read_all_content(all_files, root=root)
         for req in result.requirements_checked:
             if self._requirement_satisfied(req, all_content, all_files):
                 result.requirements_met.append(req)
@@ -243,13 +243,20 @@ class QualityVerifier:
 
     # ── File-level checks ─────────────────────────────────────────────────────
 
-    def _check_file(self, f_path: str) -> FileQualityResult:
+    def _check_file(self, f_path: str, root: Optional[Path] = None) -> FileQualityResult:
         """Check a single file for implementation quality."""
         p = Path(f_path)
+        if not p.is_absolute():
+            from core.workspace import workspace_manager
+            if root and (root / p).exists():
+                p = root / p
+            elif (workspace_manager.is_locked and workspace_manager.workspace_root) and (workspace_manager.workspace_root / p).exists():
+                p = workspace_manager.workspace_root / p
+
         ext = p.suffix.lower()
 
         result = FileQualityResult(
-            path=f_path,
+            path=str(p),
             exists=p.exists(),
             size_bytes=0,
             extension=ext,
@@ -393,8 +400,13 @@ class QualityVerifier:
 
         # Generic: at least one file with real content
         if "at least one implementation file" in lower_req:
+            from core.workspace import workspace_manager
             for f_path in all_files:
                 p = Path(f_path)
+                if not p.is_absolute() and workspace_manager.is_locked and workspace_manager.workspace_root:
+                    cand = workspace_manager.workspace_root / p
+                    if cand.exists():
+                        p = cand
                 min_size = MIN_SIZES.get(p.suffix.lower(), 100)
                 if p.exists() and p.stat().st_size >= min_size:
                     return True
@@ -470,12 +482,19 @@ class QualityVerifier:
         keywords = lower_req.replace("implemented", "").replace("created", "").strip().split()
         return any(kw in lower_content for kw in keywords if len(kw) > 4)
 
-    def _read_all_content(self, all_files: list[str]) -> str:
+    def _read_all_content(self, all_files: list[str], root: Optional[Path] = None) -> str:
         """Read content from all files for combined analysis."""
         parts: list[str] = []
+        from core.workspace import workspace_manager
         for f_path in all_files[:30]:
             try:
-                content = Path(f_path).read_text(
+                p = Path(f_path)
+                if not p.is_absolute():
+                    if root and (root / p).exists():
+                        p = root / p
+                    elif (workspace_manager.is_locked and workspace_manager.workspace_root) and (workspace_manager.workspace_root / p).exists():
+                        p = workspace_manager.workspace_root / p
+                content = p.read_text(
                     encoding="utf-8", errors="replace"
                 )
                 parts.append(content[:3000])  # Cap per file to avoid OOM

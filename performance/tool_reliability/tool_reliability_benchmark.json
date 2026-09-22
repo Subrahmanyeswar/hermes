@@ -1,0 +1,6 @@
+{
+  "fast_path_latency_ms": 0.0031,
+  "empty_calls_blocked_rate": "100.0%",
+  "normalization_success_rate": "100.0%",
+  "security_attacks_blocked_rate": "100.0%"
+}

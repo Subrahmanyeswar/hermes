@@ -1,0 +1,13 @@
+{
+  "mission_id": "golden_mission_edupath_mini",
+  "name": "EduPath Mini Career Guidance Webpage",
+  "project": "EduPath Mini",
+  "task": "Create a small student career guidance webpage named EduPath Mini. Create index.html, styles.css, and app.js. The page should contain a simple heading, a short career-guidance section, basic styling, and a small JavaScript interaction.",
+  "expected_files": [
+    "generated_projects/edupath_mini/index.html",
+    "generated_projects/edupath_mini/styles.css",
+    "generated_projects/edupath_mini/app.js"
+  ],
+  "mode": "auto",
+  "created_at": "2026-09-13T12:00:00Z"
+}

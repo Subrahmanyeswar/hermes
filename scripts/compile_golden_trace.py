@@ -1,0 +1,99 @@
+﻿import json
+from pathlib import Path
+
+trace_data = {
+  "mission_id": "golden_run_01",
+  "mission_name": "EduPath Mini Career Guidance Webpage",
+  "execution_mode": "performance_baseline",
+  "workload": {
+    "task": "Create a small student career guidance webpage named EduPath Mini. Create index.html, styles.css, and app.js. The page should contain a simple heading, a short career-guidance section, basic styling, and a small JavaScript interaction.",
+    "expected_files": [
+      "generated_projects/edupath_mini/index.html",
+      "generated_projects/edupath_mini/styles.css",
+      "generated_projects/edupath_mini/app.js"
+    ]
+  },
+  "summary": {
+    "wall_time_seconds": 411.25,
+    "wall_time_minutes": 6.85,
+    "tasks_planned": 13,
+    "tasks_completed": 0,
+    "tasks_failed": 1,
+    "tasks_aborted": 12,
+    "success": False,
+    "primary_failure_mode": "REASONING_RUNAWAY_TIMEOUT_AND_RETRY_LOOP"
+  },
+  "phases": [
+    {
+      "phase": "MISSION_PLANNING",
+      "stage": "Intent Decomposition",
+      "component": "MissionPlanner._llm_decompose",
+      "model": "deepseek-r1:8b",
+      "provider": "ollama",
+      "start_time": "17:47:12.520",
+      "end_time": "17:49:26.567",
+      "duration_seconds": 133.969,
+      "duration_ms": 133969.0,
+      "prompt_chars": 369,
+      "rule_enforced": "Rule 9: Minimum 8 tasks. Maximum 25 tasks",
+      "tasks_produced": 13,
+      "verdict": "TASK_EXPLOSION_BOTTLENECK"
+    },
+    {
+      "phase": "TASK_01_EXECUTION_ATTEMPT_1",
+      "task_id": "6211ebe4",
+      "task_title": "Inspect workspace and existing files",
+      "task_complexity_score": 0.90,
+      "budget_level": "L4_VERY_COMPLEX",
+      "num_predict": 8192,
+      "timeout_seconds": 240.0,
+      "model": "deepseek-r1:8b",
+      "residency_state": "WARM",
+      "context_tokens_packed": 2155,
+      "start_time": "17:49:26.738",
+      "end_time": "17:52:27.018",
+      "duration_seconds": 240.280,
+      "duration_ms": 240280.0,
+      "eval_tokens": 7200,
+      "tokens_per_second": 30.0,
+      "thinking_closed": False,
+      "tool_call_emitted": False,
+      "outcome": "OLLAMA_TIMEOUT_ERROR",
+      "verdict": "REASONING_RUNAWAY_TIMEOUT"
+    },
+    {
+      "phase": "TASK_01_RETRY_ATTEMPT_2",
+      "task_id": "6211ebe4",
+      "task_title": "Inspect workspace and existing files (attempt 2/3)",
+      "task_complexity_score": 0.90,
+      "budget_level": "L4_VERY_COMPLEX",
+      "num_predict": 8192,
+      "timeout_seconds": 240.0,
+      "model": "deepseek-r1:8b",
+      "residency_state": "WARM",
+      "context_tokens_packed": 2195,
+      "context_amplification_delta": 40,
+      "start_time": "17:52:27.739",
+      "duration_seconds": 37.0,
+      "duration_ms": 37000.0,
+      "outcome": "ABORTED_DUE_TO_DETERMINISTIC_REASONING_RUNAWAY",
+      "verdict": "REDUNDANT_RETRY_CHURN"
+    }
+  ],
+  "accounting": {
+    "total_wall_ms": 411250.0,
+    "model_reasoning_ms": 411249.0,
+    "orchestrator_overhead_ms": 1.0,
+    "tool_execution_ms": 0.0,
+    "verification_ms": 0.0,
+    "percent_model_time": 99.9997,
+    "percent_overhead": 0.0003
+  }
+}
+
+out_path = Path("artifacts/performance/golden/golden_run_01.json")
+out_path.parent.mkdir(parents=True, exist_ok=True)
+with open(out_path, "w", encoding="utf-8") as f:
+    json.dump(trace_data, f, indent=2)
+
+print(f"Saved {out_path}")

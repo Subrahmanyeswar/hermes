@@ -1,0 +1,48 @@
+==================================================================
+ HERMES GATE 15.9: MISSION-BOUNDARY TOOL RELIABILITY E2E SUITE     
+==================================================================
+
+[E1] Running Empty Object Recovery through real Orchestrator.run()...
+ -> E1 Result: PASS | FileCreated=True | ContentMatch=True
+
+[E2] Running Empty Path Normalization & Recovery through real Orchestrator.run()...
+ -> E2 Result: PASS | FileCreated=True | ContentMatch=True | Calls=1
+
+[E3] Running Wrong Type Recovery through real Orchestrator.run()...
+ -> E3 Result: PASS | FileCreated=True | ContentMatch=True
+
+[E4] Running Malformed JSON Recovery through real Orchestrator.run()...
+ -> E4 Result: PASS | FileCreated=True | ContentMatch=True
+
+[E5] Running Bounded Failure through real Orchestrator.run()...
+ -> E5 Result: PASS | Success=False | CallsBounded=True
+
+[E6] Running Malicious Repair Security Check through real Orchestrator.run()...
+ -> E6 Result: PASS | SecurityBlocked=True | SentinelIntact=True
+
+[E7] Running False Completion Rejection through real Orchestrator.run()...
+ -> E7 Result: PASS | FalseCompletionBlocked=True
+
+[E8] Running True Single-Mission Multi-Step Recovery through MissionRunner...
+  Call #1 (TIER1_GENERATOR) model=deepseek-r1:8b: prompt='Task: ──────────────────────────────────────────────────
+[CU...' -> resp='{}...'
+  Call #2 (TIER1_GENERATOR) model=deepseek-r1:8b: prompt='Task: ──────────────────────────────────────────────────
+[CU...' -> resp='{"tool": "read_file", "parameters": {"path": "src/calculator...'
+  Call #3 (TIER2_VERIFIER) model=qwen3:8b: prompt='Review this AI agent action:
+
+ORIGINAL TASK:
+───────────────...' -> resp='{"agree": true, "confidence": 0.95, "critical_issues": [], "...'
+  Call #4 (TIER1_GENERATOR) model=deepseek-r1:8b: prompt='Task: ──────────────────────────────────────────────────
+[CU...' -> resp='{"tool": "write_file", "parameters": {"path": 123}}...'
+  Call #5 (TIER1_GENERATOR) model=deepseek-r1:8b: prompt='Your tool call to 'write_file' failed validation with the fo...' -> resp='{"tool": "write_file", "parameters": {"path": "src/calculato...'
+  Call #6 (TIER2_VERIFIER) model=qwen3:8b: prompt='Review this AI agent action:
+
+ORIGINAL TASK:
+───────────────...' -> resp='{"agree": true, "confidence": 0.95, "critical_issues": [], "...'
+  Call #7 (TIER1_GENERATOR) model=deepseek-r1:8b: prompt='Task: ──────────────────────────────────────────────────
+[CU...' -> resp='{"tool": "bash_exec", "parameters": {"command": "python -m p...'
+  Call #8 (TIER2_VERIFIER) model=qwen3:8b: prompt='Review this AI agent action:
+
+ORIGINAL TASK:
+───────────────...' -> resp='{"agree": true, "confidence": 0.95, "critical_issues": [], "...'
+ -> E8 Result: PASS | MissionID=m_gate15_9_e8_single | TasksCompleted=3/3 | PytestPassed=True

@@ -1,0 +1,54 @@
+{
+  "fixed": [
+    {
+      "task_id": "L0_DIR_LIST",
+      "level": "L0_DIRECT",
+      "mode": "FIXED",
+      "latency_sec": 107.48,
+      "success": true,
+      "error": null
+    },
+    {
+      "task_id": "L1_SIMPLE_WRITE",
+      "level": "L1_SIMPLE",
+      "mode": "FIXED",
+      "latency_sec": 180.45,
+      "success": false,
+      "error": "Ollama timeout at stage=stage_4_attempt_1 after 180s"
+    },
+    {
+      "task_id": "L2_NORMAL_CODING",
+      "level": "L2_NORMAL",
+      "mode": "FIXED",
+      "latency_sec": 180.51,
+      "success": false,
+      "error": "Ollama timeout at stage=stage_4_attempt_1 after 180s"
+    }
+  ],
+  "adaptive": [
+    {
+      "task_id": "L0_DIR_LIST",
+      "level": "L0_DIRECT",
+      "mode": "ADAPTIVE",
+      "latency_sec": 39.26,
+      "success": true,
+      "error": null
+    },
+    {
+      "task_id": "L1_SIMPLE_WRITE",
+      "level": "L1_SIMPLE",
+      "mode": "ADAPTIVE",
+      "latency_sec": 212.68,
+      "success": true,
+      "error": null
+    },
+    {
+      "task_id": "L2_NORMAL_CODING",
+      "level": "L2_NORMAL",
+      "mode": "ADAPTIVE",
+      "latency_sec": 398.21,
+      "success": true,
+      "error": null
+    }
+  ]
+}

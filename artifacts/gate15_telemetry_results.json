@@ -1,0 +1,37 @@
+[
+  {
+    "scenario_id": "T01",
+    "telemetry_corrupted": true,
+    "state_derived_from_telemetry": false,
+    "authoritative_state_intact": true,
+    "status": "PASS"
+  },
+  {
+    "scenario_id": "T02",
+    "telemetry_corrupted": true,
+    "state_derived_from_telemetry": false,
+    "authoritative_state_intact": true,
+    "status": "PASS"
+  },
+  {
+    "scenario_id": "T03",
+    "telemetry_corrupted": true,
+    "state_derived_from_telemetry": false,
+    "authoritative_state_intact": true,
+    "status": "PASS"
+  },
+  {
+    "scenario_id": "T04",
+    "telemetry_corrupted": true,
+    "state_derived_from_telemetry": false,
+    "authoritative_state_intact": true,
+    "status": "PASS"
+  },
+  {
+    "scenario_id": "T05",
+    "telemetry_corrupted": true,
+    "state_derived_from_telemetry": false,
+    "authoritative_state_intact": true,
+    "status": "PASS"
+  }
+]

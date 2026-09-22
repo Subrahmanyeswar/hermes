@@ -1,0 +1,1211 @@
+[
+  {
+    "mission_id": "MISSION_1_rep0_cold",
+    "base_id": "MISSION_1",
+    "name": "Simple Filesystem Operation",
+    "type": "filesystem",
+    "cold": true,
+    "repetition": 0,
+    "wall_clock_ms": 276118.05,
+    "success": true,
+    "tool_name": "list_directory",
+    "pipeline_stage_reached": 12,
+    "tier3_was_called": false,
+    "critical_path": {
+      "wall_clock_ms": 277558.27,
+      "cumulative_span_ms": 276118.01,
+      "leaf_span_ms": 276118.01,
+      "category_times_ms": {
+        "MISSION": 276118.01
+      },
+      "span_count": 1
+    },
+    "spans": [
+      {
+        "span_id": "dfb9245a",
+        "mission_id": "MISSION_1_rep0_cold",
+        "parent_id": null,
+        "name": "TOTAL_MISSION",
+        "category": "MISSION",
+        "start_ns": 803035614806500,
+        "end_ns": 803311732818700,
+        "duration_ms": 276118.0122,
+        "status": "success",
+        "metadata": {
+          "mission_id": "MISSION_1_rep0_cold"
+        },
+        "children": []
+      }
+    ]
+  },
+  {
+    "mission_id": "MISSION_1_rep1_warm",
+    "base_id": "MISSION_1",
+    "name": "Simple Filesystem Operation",
+    "type": "filesystem",
+    "cold": false,
+    "repetition": 1,
+    "wall_clock_ms": 256485.42,
+    "success": true,
+    "tool_name": "list_directory",
+    "pipeline_stage_reached": 12,
+    "tier3_was_called": false,
+    "critical_path": {
+      "wall_clock_ms": 256508.57,
+      "cumulative_span_ms": 256485.4,
+      "leaf_span_ms": 256485.4,
+      "category_times_ms": {
+        "MISSION": 256485.4
+      },
+      "span_count": 1
+    },
+    "spans": [
+      {
+        "span_id": "2c29281d",
+        "mission_id": "MISSION_1_rep1_warm",
+        "parent_id": null,
+        "name": "TOTAL_MISSION",
+        "category": "MISSION",
+        "start_ns": 803311756887300,
+        "end_ns": 803568242290900,
+        "duration_ms": 256485.4036,
+        "status": "success",
+        "metadata": {
+          "mission_id": "MISSION_1_rep1_warm"
+        },
+        "children": []
+      }
+    ]
+  },
+  {
+    "mission_id": "MISSION_1_rep2_warm",
+    "base_id": "MISSION_1",
+    "name": "Simple Filesystem Operation",
+    "type": "filesystem",
+    "cold": false,
+    "repetition": 2,
+    "wall_clock_ms": 284594.69,
+    "success": true,
+    "tool_name": "list_directory",
+    "pipeline_stage_reached": 12,
+    "tier3_was_called": false,
+    "critical_path": {
+      "wall_clock_ms": 284614.02,
+      "cumulative_span_ms": 284594.67,
+      "leaf_span_ms": 284594.67,
+      "category_times_ms": {
+        "MISSION": 284594.67
+      },
+      "span_count": 1
+    },
+    "spans": [
+      {
+        "span_id": "4622ebb5",
+        "mission_id": "MISSION_1_rep2_warm",
+        "parent_id": null,
+        "name": "TOTAL_MISSION",
+        "category": "MISSION",
+        "start_ns": 803568262858300,
+        "end_ns": 803852857526400,
+        "duration_ms": 284594.6681,
+        "status": "success",
+        "metadata": {
+          "mission_id": "MISSION_1_rep2_warm"
+        },
+        "children": []
+      }
+    ]
+  },
+  {
+    "mission_id": "MISSION_1_rep3_warm",
+    "base_id": "MISSION_1",
+    "name": "Simple Filesystem Operation",
+    "type": "filesystem",
+    "cold": false,
+    "repetition": 3,
+    "wall_clock_ms": 230753.07,
+    "success": true,
+    "tool_name": "list_directory",
+    "pipeline_stage_reached": 12,
+    "tier3_was_called": false,
+    "critical_path": {
+      "wall_clock_ms": 230772.76,
+      "cumulative_span_ms": 230753.05,
+      "leaf_span_ms": 230753.05,
+      "category_times_ms": {
+        "MISSION": 230753.05
+      },
+      "span_count": 1
+    },
+    "spans": [
+      {
+        "span_id": "9eb637cd",
+        "mission_id": "MISSION_1_rep3_warm",
+        "parent_id": null,
+        "name": "TOTAL_MISSION",
+        "category": "MISSION",
+        "start_ns": 803852878257700,
+        "end_ns": 804083631307000,
+        "duration_ms": 230753.0493,
+        "status": "success",
+        "metadata": {
+          "mission_id": "MISSION_1_rep3_warm"
+        },
+        "children": []
+      }
+    ]
+  },
+  {
+    "mission_id": "MISSION_2_rep1_warm",
+    "base_id": "MISSION_2",
+    "name": "Single-File Coding Task",
+    "type": "single_file",
+    "cold": false,
+    "repetition": 1,
+    "wall_clock_ms": 180462.41,
+    "success": false,
+    "tool_name": null,
+    "pipeline_stage_reached": 4,
+    "tier3_was_called": false,
+    "critical_path": {
+      "wall_clock_ms": 180487.21,
+      "cumulative_span_ms": 180462.39,
+      "leaf_span_ms": 180462.39,
+      "category_times_ms": {
+        "MISSION": 180462.39
+      },
+      "span_count": 1
+    },
+    "spans": [
+      {
+        "span_id": "df68b1ea",
+        "mission_id": "MISSION_2_rep1_warm",
+        "parent_id": null,
+        "name": "TOTAL_MISSION",
+        "category": "MISSION",
+        "start_ns": 804083657482300,
+        "end_ns": 804264119871400,
+        "duration_ms": 180462.3891,
+        "status": "success",
+        "metadata": {
+          "mission_id": "MISSION_2_rep1_warm"
+        },
+        "children": []
+      }
+    ]
+  },
+  {
+    "mission_id": "MISSION_2_rep2_warm",
+    "base_id": "MISSION_2",
+    "name": "Single-File Coding Task",
+    "type": "single_file",
+    "cold": false,
+    "repetition": 2,
+    "wall_clock_ms": 480768.58,
+    "success": true,
+    "tool_name": "write_file",
+    "pipeline_stage_reached": 12,
+    "tier3_was_called": true,
+    "critical_path": {
+      "wall_clock_ms": 480782.08,
+      "cumulative_span_ms": 480768.56,
+      "leaf_span_ms": 480768.56,
+      "category_times_ms": {
+        "MISSION": 480768.56
+      },
+      "span_count": 1
+    },
+    "spans": [
+      {
+        "span_id": "568c4628",
+        "mission_id": "MISSION_2_rep2_warm",
+        "parent_id": null,
+        "name": "TOTAL_MISSION",
+        "category": "MISSION",
+        "start_ns": 804264135288700,
+        "end_ns": 804744903850400,
+        "duration_ms": 480768.5617,
+        "status": "success",
+        "metadata": {
+          "mission_id": "MISSION_2_rep2_warm"
+        },
+        "children": []
+      }
+    ]
+  },
+  {
+    "mission_id": "MISSION_2_rep3_warm",
+    "base_id": "MISSION_2",
+    "name": "Single-File Coding Task",
+    "type": "single_file",
+    "cold": false,
+    "repetition": 3,
+    "wall_clock_ms": 180493.01,
+    "success": false,
+    "tool_name": null,
+    "pipeline_stage_reached": 4,
+    "tier3_was_called": false,
+    "critical_path": {
+      "wall_clock_ms": 180606.89,
+      "cumulative_span_ms": 180492.98,
+      "leaf_span_ms": 180492.98,
+      "category_times_ms": {
+        "MISSION": 180492.98
+      },
+      "span_count": 1
+    },
+    "spans": [
+      {
+        "span_id": "97a73623",
+        "mission_id": "MISSION_2_rep3_warm",
+        "parent_id": null,
+        "name": "TOTAL_MISSION",
+        "category": "MISSION",
+        "start_ns": 804745018735400,
+        "end_ns": 804925511718000,
+        "duration_ms": 180492.9826,
+        "status": "success",
+        "metadata": {
+          "mission_id": "MISSION_2_rep3_warm"
+        },
+        "children": []
+      }
+    ]
+  },
+  {
+    "mission_id": "MISSION_3_rep1_warm",
+    "base_id": "MISSION_3",
+    "name": "Multi-File Coding Task",
+    "type": "multi_file",
+    "cold": false,
+    "repetition": 1,
+    "wall_clock_ms": 180472.84,
+    "success": false,
+    "tool_name": null,
+    "pipeline_stage_reached": 4,
+    "tier3_was_called": false,
+    "critical_path": {
+      "wall_clock_ms": 180488.94,
+      "cumulative_span_ms": 180472.83,
+      "leaf_span_ms": 180472.83,
+      "category_times_ms": {
+        "MISSION": 180472.83
+      },
+      "span_count": 1
+    },
+    "spans": [
+      {
+        "span_id": "cd23088a",
+        "mission_id": "MISSION_3_rep1_warm",
+        "parent_id": null,
+        "name": "TOTAL_MISSION",
+        "category": "MISSION",
+        "start_ns": 804925529833200,
+        "end_ns": 805106002661100,
+        "duration_ms": 180472.8279,
+        "status": "success",
+        "metadata": {
+          "mission_id": "MISSION_3_rep1_warm"
+        },
+        "children": []
+      }
+    ]
+  },
+  {
+    "mission_id": "MISSION_3_rep2_warm",
+    "base_id": "MISSION_3",
+    "name": "Multi-File Coding Task",
+    "type": "multi_file",
+    "cold": false,
+    "repetition": 2,
+    "wall_clock_ms": 283125.16,
+    "success": false,
+    "tool_name": null,
+    "pipeline_stage_reached": 5,
+    "tier3_was_called": false,
+    "critical_path": {
+      "wall_clock_ms": 283138.8,
+      "cumulative_span_ms": 283125.14,
+      "leaf_span_ms": 283125.14,
+      "category_times_ms": {
+        "MISSION": 283125.14
+      },
+      "span_count": 1
+    },
+    "spans": [
+      {
+        "span_id": "2e457ea9",
+        "mission_id": "MISSION_3_rep2_warm",
+        "parent_id": null,
+        "name": "TOTAL_MISSION",
+        "category": "MISSION",
+        "start_ns": 805106017560400,
+        "end_ns": 805389142699000,
+        "duration_ms": 283125.1386,
+        "status": "success",
+        "metadata": {
+          "mission_id": "MISSION_3_rep2_warm"
+        },
+        "children": []
+      }
+    ]
+  },
+  {
+    "mission_id": "MISSION_3_rep3_warm",
+    "base_id": "MISSION_3",
+    "name": "Multi-File Coding Task",
+    "type": "multi_file",
+    "cold": false,
+    "repetition": 3,
+    "wall_clock_ms": 546894.18,
+    "success": true,
+    "tool_name": "write_file",
+    "pipeline_stage_reached": 12,
+    "tier3_was_called": true,
+    "critical_path": {
+      "wall_clock_ms": 546909.44,
+      "cumulative_span_ms": 546894.16,
+      "leaf_span_ms": 546894.16,
+      "category_times_ms": {
+        "MISSION": 546894.16
+      },
+      "span_count": 1
+    },
+    "spans": [
+      {
+        "span_id": "237ebbef",
+        "mission_id": "MISSION_3_rep3_warm",
+        "parent_id": null,
+        "name": "TOTAL_MISSION",
+        "category": "MISSION",
+        "start_ns": 805389159029600,
+        "end_ns": 805936053188000,
+        "duration_ms": 546894.1584,
+        "status": "success",
+        "metadata": {
+          "mission_id": "MISSION_3_rep3_warm"
+        },
+        "children": []
+      }
+    ]
+  },
+  {
+    "mission_id": "MISSION_4_rep1_warm",
+    "base_id": "MISSION_4",
+    "name": "Repository Understanding Task",
+    "type": "repo_understanding",
+    "cold": false,
+    "repetition": 1,
+    "wall_clock_ms": 367267.63,
+    "success": true,
+    "tool_name": "read_file",
+    "pipeline_stage_reached": 12,
+    "tier3_was_called": true,
+    "critical_path": {
+      "wall_clock_ms": 367287.21,
+      "cumulative_span_ms": 367267.61,
+      "leaf_span_ms": 367267.61,
+      "category_times_ms": {
+        "MISSION": 367267.61
+      },
+      "span_count": 1
+    },
+    "spans": [
+      {
+        "span_id": "64719d7d",
+        "mission_id": "MISSION_4_rep1_warm",
+        "parent_id": null,
+        "name": "TOTAL_MISSION",
+        "category": "MISSION",
+        "start_ns": 805936073899100,
+        "end_ns": 806303341507200,
+        "duration_ms": 367267.6081,
+        "status": "success",
+        "metadata": {
+          "mission_id": "MISSION_4_rep1_warm"
+        },
+        "children": []
+      }
+    ]
+  },
+  {
+    "mission_id": "MISSION_4_rep2_warm",
+    "base_id": "MISSION_4",
+    "name": "Repository Understanding Task",
+    "type": "repo_understanding",
+    "cold": false,
+    "repetition": 2,
+    "wall_clock_ms": 180493.7,
+    "success": false,
+    "tool_name": null,
+    "pipeline_stage_reached": 4,
+    "tier3_was_called": false,
+    "critical_path": {
+      "wall_clock_ms": 180512.07,
+      "cumulative_span_ms": 180493.68,
+      "leaf_span_ms": 180493.68,
+      "category_times_ms": {
+        "MISSION": 180493.68
+      },
+      "span_count": 1
+    },
+    "spans": [
+      {
+        "span_id": "89c77685",
+        "mission_id": "MISSION_4_rep2_warm",
+        "parent_id": null,
+        "name": "TOTAL_MISSION",
+        "category": "MISSION",
+        "start_ns": 806303360565600,
+        "end_ns": 806483854250400,
+        "duration_ms": 180493.6848,
+        "status": "success",
+        "metadata": {
+          "mission_id": "MISSION_4_rep2_warm"
+        },
+        "children": []
+      }
+    ]
+  },
+  {
+    "mission_id": "MISSION_4_rep3_warm",
+    "base_id": "MISSION_4",
+    "name": "Repository Understanding Task",
+    "type": "repo_understanding",
+    "cold": false,
+    "repetition": 3,
+    "wall_clock_ms": 412283.15,
+    "success": true,
+    "tool_name": "read_file",
+    "pipeline_stage_reached": 12,
+    "tier3_was_called": true,
+    "critical_path": {
+      "wall_clock_ms": 412296.43,
+      "cumulative_span_ms": 412283.13,
+      "leaf_span_ms": 412283.13,
+      "category_times_ms": {
+        "MISSION": 412283.13
+      },
+      "span_count": 1
+    },
+    "spans": [
+      {
+        "span_id": "47391b84",
+        "mission_id": "MISSION_4_rep3_warm",
+        "parent_id": null,
+        "name": "TOTAL_MISSION",
+        "category": "MISSION",
+        "start_ns": 806483869131200,
+        "end_ns": 806896152262500,
+        "duration_ms": 412283.1313,
+        "status": "success",
+        "metadata": {
+          "mission_id": "MISSION_4_rep3_warm"
+        },
+        "children": []
+      }
+    ]
+  },
+  {
+    "mission_id": "MISSION_5_rep1_warm",
+    "base_id": "MISSION_5",
+    "name": "Debugging and Fix Task",
+    "type": "debugging",
+    "cold": false,
+    "repetition": 1,
+    "wall_clock_ms": 180473.73,
+    "success": false,
+    "tool_name": null,
+    "pipeline_stage_reached": 4,
+    "tier3_was_called": false,
+    "critical_path": {
+      "wall_clock_ms": 180492.6,
+      "cumulative_span_ms": 180473.7,
+      "leaf_span_ms": 180473.7,
+      "category_times_ms": {
+        "MISSION": 180473.7
+      },
+      "span_count": 1
+    },
+    "spans": [
+      {
+        "span_id": "449202e0",
+        "mission_id": "MISSION_5_rep1_warm",
+        "parent_id": null,
+        "name": "TOTAL_MISSION",
+        "category": "MISSION",
+        "start_ns": 806896172070100,
+        "end_ns": 807076645774400,
+        "duration_ms": 180473.7043,
+        "status": "success",
+        "metadata": {
+          "mission_id": "MISSION_5_rep1_warm"
+        },
+        "children": []
+      }
+    ]
+  },
+  {
+    "mission_id": "MISSION_5_rep2_warm",
+    "base_id": "MISSION_5",
+    "name": "Debugging and Fix Task",
+    "type": "debugging",
+    "cold": false,
+    "repetition": 2,
+    "wall_clock_ms": 180517.47,
+    "success": false,
+    "tool_name": null,
+    "pipeline_stage_reached": 4,
+    "tier3_was_called": false,
+    "critical_path": {
+      "wall_clock_ms": 180552.54,
+      "cumulative_span_ms": 180517.45,
+      "leaf_span_ms": 180517.45,
+      "category_times_ms": {
+        "MISSION": 180517.45
+      },
+      "span_count": 1
+    },
+    "spans": [
+      {
+        "span_id": "02020a7f",
+        "mission_id": "MISSION_5_rep2_warm",
+        "parent_id": null,
+        "name": "TOTAL_MISSION",
+        "category": "MISSION",
+        "start_ns": 807076682747000,
+        "end_ns": 807257200193100,
+        "duration_ms": 180517.4461,
+        "status": "success",
+        "metadata": {
+          "mission_id": "MISSION_5_rep2_warm"
+        },
+        "children": []
+      }
+    ]
+  },
+  {
+    "mission_id": "MISSION_5_rep3_warm",
+    "base_id": "MISSION_5",
+    "name": "Debugging and Fix Task",
+    "type": "debugging",
+    "cold": false,
+    "repetition": 3,
+    "wall_clock_ms": 180509.1,
+    "success": false,
+    "tool_name": null,
+    "pipeline_stage_reached": 4,
+    "tier3_was_called": false,
+    "critical_path": {
+      "wall_clock_ms": 180522.09,
+      "cumulative_span_ms": 180509.07,
+      "leaf_span_ms": 180509.07,
+      "category_times_ms": {
+        "MISSION": 180509.07
+      },
+      "span_count": 1
+    },
+    "spans": [
+      {
+        "span_id": "5f909ea7",
+        "mission_id": "MISSION_5_rep3_warm",
+        "parent_id": null,
+        "name": "TOTAL_MISSION",
+        "category": "MISSION",
+        "start_ns": 807257214731300,
+        "end_ns": 807437723799400,
+        "duration_ms": 180509.0681,
+        "status": "success",
+        "metadata": {
+          "mission_id": "MISSION_5_rep3_warm"
+        },
+        "children": []
+      }
+    ]
+  },
+  {
+    "mission_id": "MISSION_6_rep1_warm",
+    "base_id": "MISSION_6",
+    "name": "Complex Implementation Task",
+    "type": "complex",
+    "cold": false,
+    "repetition": 1,
+    "wall_clock_ms": 448346.29,
+    "success": false,
+    "tool_name": null,
+    "pipeline_stage_reached": 5,
+    "tier3_was_called": false,
+    "critical_path": {
+      "wall_clock_ms": 448367.14,
+      "cumulative_span_ms": 448346.26,
+      "leaf_span_ms": 448346.26,
+      "category_times_ms": {
+        "MISSION": 448346.26
+      },
+      "span_count": 1
+    },
+    "spans": [
+      {
+        "span_id": "78e2bea3",
+        "mission_id": "MISSION_6_rep1_warm",
+        "parent_id": null,
+        "name": "TOTAL_MISSION",
+        "category": "MISSION",
+        "start_ns": 807437746443400,
+        "end_ns": 807886092704900,
+        "duration_ms": 448346.2615,
+        "status": "success",
+        "metadata": {
+          "mission_id": "MISSION_6_rep1_warm"
+        },
+        "children": []
+      }
+    ]
+  },
+  {
+    "mission_id": "MISSION_6_rep2_warm",
+    "base_id": "MISSION_6",
+    "name": "Complex Implementation Task",
+    "type": "complex",
+    "cold": false,
+    "repetition": 2,
+    "wall_clock_ms": 180498.0,
+    "success": false,
+    "tool_name": null,
+    "pipeline_stage_reached": 4,
+    "tier3_was_called": false,
+    "critical_path": {
+      "wall_clock_ms": 180510.45,
+      "cumulative_span_ms": 180497.98,
+      "leaf_span_ms": 180497.98,
+      "category_times_ms": {
+        "MISSION": 180497.98
+      },
+      "span_count": 1
+    },
+    "spans": [
+      {
+        "span_id": "2f77c73f",
+        "mission_id": "MISSION_6_rep2_warm",
+        "parent_id": null,
+        "name": "TOTAL_MISSION",
+        "category": "MISSION",
+        "start_ns": 807886106218300,
+        "end_ns": 808066604193900,
+        "duration_ms": 180497.9756,
+        "status": "success",
+        "metadata": {
+          "mission_id": "MISSION_6_rep2_warm"
+        },
+        "children": []
+      }
+    ]
+  },
+  {
+    "mission_id": "MISSION_6_rep3_warm",
+    "base_id": "MISSION_6",
+    "name": "Complex Implementation Task",
+    "type": "complex",
+    "cold": false,
+    "repetition": 3,
+    "wall_clock_ms": 180492.05,
+    "success": false,
+    "tool_name": null,
+    "pipeline_stage_reached": 4,
+    "tier3_was_called": false,
+    "critical_path": {
+      "wall_clock_ms": 180505.08,
+      "cumulative_span_ms": 180492.03,
+      "leaf_span_ms": 180492.03,
+      "category_times_ms": {
+        "MISSION": 180492.03
+      },
+      "span_count": 1
+    },
+    "spans": [
+      {
+        "span_id": "b5c2fa98",
+        "mission_id": "MISSION_6_rep3_warm",
+        "parent_id": null,
+        "name": "TOTAL_MISSION",
+        "category": "MISSION",
+        "start_ns": 808066618585200,
+        "end_ns": 808247110617100,
+        "duration_ms": 180492.0319,
+        "status": "success",
+        "metadata": {
+          "mission_id": "MISSION_6_rep3_warm"
+        },
+        "children": []
+      }
+    ]
+  },
+  {
+    "mission_id": "MISSION_7_rep1_warm",
+    "base_id": "MISSION_7",
+    "name": "Task Requiring Tier 2 Verification",
+    "type": "verification",
+    "cold": false,
+    "repetition": 1,
+    "wall_clock_ms": 180477.0,
+    "success": false,
+    "tool_name": null,
+    "pipeline_stage_reached": 4,
+    "tier3_was_called": false,
+    "critical_path": {
+      "wall_clock_ms": 180491.57,
+      "cumulative_span_ms": 180476.98,
+      "leaf_span_ms": 180476.98,
+      "category_times_ms": {
+        "MISSION": 180476.98
+      },
+      "span_count": 1
+    },
+    "spans": [
+      {
+        "span_id": "d5800698",
+        "mission_id": "MISSION_7_rep1_warm",
+        "parent_id": null,
+        "name": "TOTAL_MISSION",
+        "category": "MISSION",
+        "start_ns": 808247126680700,
+        "end_ns": 808427603662000,
+        "duration_ms": 180476.9813,
+        "status": "success",
+        "metadata": {
+          "mission_id": "MISSION_7_rep1_warm"
+        },
+        "children": []
+      }
+    ]
+  },
+  {
+    "mission_id": "MISSION_7_rep2_warm",
+    "base_id": "MISSION_7",
+    "name": "Task Requiring Tier 2 Verification",
+    "type": "verification",
+    "cold": false,
+    "repetition": 2,
+    "wall_clock_ms": 180461.15,
+    "success": false,
+    "tool_name": null,
+    "pipeline_stage_reached": 4,
+    "tier3_was_called": false,
+    "critical_path": {
+      "wall_clock_ms": 180478.33,
+      "cumulative_span_ms": 180461.13,
+      "leaf_span_ms": 180461.13,
+      "category_times_ms": {
+        "MISSION": 180461.13
+      },
+      "span_count": 1
+    },
+    "spans": [
+      {
+        "span_id": "80ad5701",
+        "mission_id": "MISSION_7_rep2_warm",
+        "parent_id": null,
+        "name": "TOTAL_MISSION",
+        "category": "MISSION",
+        "start_ns": 808427622544300,
+        "end_ns": 808608083672900,
+        "duration_ms": 180461.1286,
+        "status": "success",
+        "metadata": {
+          "mission_id": "MISSION_7_rep2_warm"
+        },
+        "children": []
+      }
+    ]
+  },
+  {
+    "mission_id": "MISSION_7_rep3_warm",
+    "base_id": "MISSION_7",
+    "name": "Task Requiring Tier 2 Verification",
+    "type": "verification",
+    "cold": false,
+    "repetition": 3,
+    "wall_clock_ms": 180480.04,
+    "success": false,
+    "tool_name": null,
+    "pipeline_stage_reached": 4,
+    "tier3_was_called": false,
+    "critical_path": {
+      "wall_clock_ms": 180490.93,
+      "cumulative_span_ms": 180480.03,
+      "leaf_span_ms": 180480.03,
+      "category_times_ms": {
+        "MISSION": 180480.03
+      },
+      "span_count": 1
+    },
+    "spans": [
+      {
+        "span_id": "d4c61049",
+        "mission_id": "MISSION_7_rep3_warm",
+        "parent_id": null,
+        "name": "TOTAL_MISSION",
+        "category": "MISSION",
+        "start_ns": 808608096275600,
+        "end_ns": 808788576304700,
+        "duration_ms": 180480.0291,
+        "status": "success",
+        "metadata": {
+          "mission_id": "MISSION_7_rep3_warm"
+        },
+        "children": []
+      }
+    ]
+  },
+  {
+    "mission_id": "MISSION_8_rep1_warm",
+    "base_id": "MISSION_8",
+    "name": "Task Requiring Repair Cycle",
+    "type": "repair",
+    "cold": false,
+    "repetition": 1,
+    "wall_clock_ms": 440519.52,
+    "success": true,
+    "tool_name": "write_file",
+    "pipeline_stage_reached": 12,
+    "tier3_was_called": true,
+    "critical_path": {
+      "wall_clock_ms": 440530.93,
+      "cumulative_span_ms": 440519.5,
+      "leaf_span_ms": 440519.5,
+      "category_times_ms": {
+        "MISSION": 440519.5
+      },
+      "span_count": 1
+    },
+    "spans": [
+      {
+        "span_id": "49208737",
+        "mission_id": "MISSION_8_rep1_warm",
+        "parent_id": null,
+        "name": "TOTAL_MISSION",
+        "category": "MISSION",
+        "start_ns": 808788588913600,
+        "end_ns": 809229108409400,
+        "duration_ms": 440519.4958,
+        "status": "success",
+        "metadata": {
+          "mission_id": "MISSION_8_rep1_warm"
+        },
+        "children": []
+      }
+    ]
+  },
+  {
+    "mission_id": "MISSION_8_rep2_warm",
+    "base_id": "MISSION_8",
+    "name": "Task Requiring Repair Cycle",
+    "type": "repair",
+    "cold": false,
+    "repetition": 2,
+    "wall_clock_ms": 180524.07,
+    "success": false,
+    "tool_name": null,
+    "pipeline_stage_reached": 4,
+    "tier3_was_called": false,
+    "critical_path": {
+      "wall_clock_ms": 180567.62,
+      "cumulative_span_ms": 180524.04,
+      "leaf_span_ms": 180524.04,
+      "category_times_ms": {
+        "MISSION": 180524.04
+      },
+      "span_count": 1
+    },
+    "spans": [
+      {
+        "span_id": "d1d2ba82",
+        "mission_id": "MISSION_8_rep2_warm",
+        "parent_id": null,
+        "name": "TOTAL_MISSION",
+        "category": "MISSION",
+        "start_ns": 809229153398100,
+        "end_ns": 809409677437200,
+        "duration_ms": 180524.0391,
+        "status": "success",
+        "metadata": {
+          "mission_id": "MISSION_8_rep2_warm"
+        },
+        "children": []
+      }
+    ]
+  },
+  {
+    "mission_id": "MISSION_8_rep3_warm",
+    "base_id": "MISSION_8",
+    "name": "Task Requiring Repair Cycle",
+    "type": "repair",
+    "cold": false,
+    "repetition": 3,
+    "wall_clock_ms": 450495.03,
+    "success": true,
+    "tool_name": "write_file",
+    "pipeline_stage_reached": 12,
+    "tier3_was_called": true,
+    "critical_path": {
+      "wall_clock_ms": 450525.77,
+      "cumulative_span_ms": 450495.0,
+      "leaf_span_ms": 450495.0,
+      "category_times_ms": {
+        "MISSION": 450495.0
+      },
+      "span_count": 1
+    },
+    "spans": [
+      {
+        "span_id": "c113825f",
+        "mission_id": "MISSION_8_rep3_warm",
+        "parent_id": null,
+        "name": "TOTAL_MISSION",
+        "category": "MISSION",
+        "start_ns": 809409711320100,
+        "end_ns": 809860206323700,
+        "duration_ms": 450495.0036,
+        "status": "success",
+        "metadata": {
+          "mission_id": "MISSION_8_rep3_warm"
+        },
+        "children": []
+      }
+    ]
+  },
+  {
+    "mission_id": "MISSION_9_rep1_warm",
+    "base_id": "MISSION_9",
+    "name": "Task Requiring Multiple Tools",
+    "type": "chained_tools",
+    "cold": false,
+    "repetition": 1,
+    "wall_clock_ms": 234623.61,
+    "success": true,
+    "tool_name": "write_file",
+    "pipeline_stage_reached": 12,
+    "tier3_was_called": false,
+    "critical_path": {
+      "wall_clock_ms": 234662.07,
+      "cumulative_span_ms": 234623.58,
+      "leaf_span_ms": 234623.58,
+      "category_times_ms": {
+        "MISSION": 234623.58
+      },
+      "span_count": 1
+    },
+    "spans": [
+      {
+        "span_id": "54590c49",
+        "mission_id": "MISSION_9_rep1_warm",
+        "parent_id": null,
+        "name": "TOTAL_MISSION",
+        "category": "MISSION",
+        "start_ns": 809860246195500,
+        "end_ns": 810094869776000,
+        "duration_ms": 234623.5805,
+        "status": "success",
+        "metadata": {
+          "mission_id": "MISSION_9_rep1_warm"
+        },
+        "children": []
+      }
+    ]
+  },
+  {
+    "mission_id": "MISSION_9_rep2_warm",
+    "base_id": "MISSION_9",
+    "name": "Task Requiring Multiple Tools",
+    "type": "chained_tools",
+    "cold": false,
+    "repetition": 2,
+    "wall_clock_ms": 424298.89,
+    "success": true,
+    "tool_name": "write_file",
+    "pipeline_stage_reached": 12,
+    "tier3_was_called": true,
+    "critical_path": {
+      "wall_clock_ms": 424339.86,
+      "cumulative_span_ms": 424298.86,
+      "leaf_span_ms": 424298.86,
+      "category_times_ms": {
+        "MISSION": 424298.86
+      },
+      "span_count": 1
+    },
+    "spans": [
+      {
+        "span_id": "48d738f0",
+        "mission_id": "MISSION_9_rep2_warm",
+        "parent_id": null,
+        "name": "TOTAL_MISSION",
+        "category": "MISSION",
+        "start_ns": 810094912354800,
+        "end_ns": 810519211210000,
+        "duration_ms": 424298.8552,
+        "status": "success",
+        "metadata": {
+          "mission_id": "MISSION_9_rep2_warm"
+        },
+        "children": []
+      }
+    ]
+  },
+  {
+    "mission_id": "MISSION_9_rep3_warm",
+    "base_id": "MISSION_9",
+    "name": "Task Requiring Multiple Tools",
+    "type": "chained_tools",
+    "cold": false,
+    "repetition": 3,
+    "wall_clock_ms": 180557.31,
+    "success": false,
+    "tool_name": null,
+    "pipeline_stage_reached": 4,
+    "tier3_was_called": false,
+    "critical_path": {
+      "wall_clock_ms": 180606.03,
+      "cumulative_span_ms": 180557.28,
+      "leaf_span_ms": 180557.28,
+      "category_times_ms": {
+        "MISSION": 180557.28
+      },
+      "span_count": 1
+    },
+    "spans": [
+      {
+        "span_id": "b8b6f560",
+        "mission_id": "MISSION_9_rep3_warm",
+        "parent_id": null,
+        "name": "TOTAL_MISSION",
+        "category": "MISSION",
+        "start_ns": 810519261481100,
+        "end_ns": 810699818765500,
+        "duration_ms": 180557.2844,
+        "status": "success",
+        "metadata": {
+          "mission_id": "MISSION_9_rep3_warm"
+        },
+        "children": []
+      }
+    ]
+  },
+  {
+    "mission_id": "MISSION_10_rep1_warm",
+    "base_id": "MISSION_10",
+    "name": "Large Workspace Task",
+    "type": "large_workspace",
+    "cold": false,
+    "repetition": 1,
+    "wall_clock_ms": 180547.17,
+    "success": false,
+    "tool_name": null,
+    "pipeline_stage_reached": 4,
+    "tier3_was_called": false,
+    "critical_path": {
+      "wall_clock_ms": 180578.36,
+      "cumulative_span_ms": 180547.14,
+      "leaf_span_ms": 180547.14,
+      "category_times_ms": {
+        "MISSION": 180547.14
+      },
+      "span_count": 1
+    },
+    "spans": [
+      {
+        "span_id": "a3c2dad4",
+        "mission_id": "MISSION_10_rep1_warm",
+        "parent_id": null,
+        "name": "TOTAL_MISSION",
+        "category": "MISSION",
+        "start_ns": 810699852214000,
+        "end_ns": 810880399354400,
+        "duration_ms": 180547.1404,
+        "status": "success",
+        "metadata": {
+          "mission_id": "MISSION_10_rep1_warm"
+        },
+        "children": []
+      }
+    ]
+  },
+  {
+    "mission_id": "MISSION_10_rep2_warm",
+    "base_id": "MISSION_10",
+    "name": "Large Workspace Task",
+    "type": "large_workspace",
+    "cold": false,
+    "repetition": 2,
+    "wall_clock_ms": 438954.2,
+    "success": true,
+    "tool_name": "list_directory",
+    "pipeline_stage_reached": 12,
+    "tier3_was_called": true,
+    "critical_path": {
+      "wall_clock_ms": 438990.16,
+      "cumulative_span_ms": 438954.18,
+      "leaf_span_ms": 438954.18,
+      "category_times_ms": {
+        "MISSION": 438954.18
+      },
+      "span_count": 1
+    },
+    "spans": [
+      {
+        "span_id": "df6f185d",
+        "mission_id": "MISSION_10_rep2_warm",
+        "parent_id": null,
+        "name": "TOTAL_MISSION",
+        "category": "MISSION",
+        "start_ns": 810880438567000,
+        "end_ns": 811319392744300,
+        "duration_ms": 438954.1773,
+        "status": "success",
+        "metadata": {
+          "mission_id": "MISSION_10_rep2_warm"
+        },
+        "children": []
+      }
+    ]
+  },
+  {
+    "mission_id": "MISSION_10_rep3_warm",
+    "base_id": "MISSION_10",
+    "name": "Large Workspace Task",
+    "type": "large_workspace",
+    "cold": false,
+    "repetition": 3,
+    "wall_clock_ms": 180562.98,
+    "success": false,
+    "tool_name": null,
+    "pipeline_stage_reached": 4,
+    "tier3_was_called": false,
+    "critical_path": {
+      "wall_clock_ms": 180603.26,
+      "cumulative_span_ms": 180562.95,
+      "leaf_span_ms": 180562.95,
+      "category_times_ms": {
+        "MISSION": 180562.95
+      },
+      "span_count": 1
+    },
+    "spans": [
+      {
+        "span_id": "5a260053",
+        "mission_id": "MISSION_10_rep3_warm",
+        "parent_id": null,
+        "name": "TOTAL_MISSION",
+        "category": "MISSION",
+        "start_ns": 811319435603000,
+        "end_ns": 811499998548300,
+        "duration_ms": 180562.9453,
+        "status": "success",
+        "metadata": {
+          "mission_id": "MISSION_10_rep3_warm"
+        },
+        "children": []
+      }
+    ]
+  }
+]

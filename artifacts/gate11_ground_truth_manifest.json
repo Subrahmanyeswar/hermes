@@ -1,0 +1,316 @@
+[
+  {
+    "task_id": "T01",
+    "category": "BUG_FIX",
+    "query": "Users are occasionally being logged out after refreshing the OAuth session. Find the relevant implementation and identify what needs to change.",
+    "required_files": [
+      "src/auth/oauth_service.py",
+      "src/auth/token_service.py",
+      "src/auth/session_manager.py",
+      "tests/auth/test_oauth_session.py"
+    ],
+    "required_symbols": [
+      "OAuthService.refresh_session",
+      "TokenService.refresh_token"
+    ],
+    "required_dependencies": [
+      "src/auth/session_policy.py"
+    ],
+    "distractor_files": [
+      "src/legacy/token_service.py",
+      "src/identity/token_service.py",
+      "src/payments/token_service.py"
+    ],
+    "memory_context": "",
+    "task_state": "",
+    "is_exploratory": false,
+    "expected_memory_fact": null,
+    "expected_task_state_active": null
+  },
+  {
+    "task_id": "T02",
+    "category": "DEPENDENCY_TRACE",
+    "query": "Where does the API authentication request eventually validate the access token?",
+    "required_files": [
+      "src/api/auth_controller.py",
+      "src/auth/service.py",
+      "src/auth/token_validator.py"
+    ],
+    "required_symbols": [
+      "TokenValidator.validate_access_token",
+      "AuthService.authenticate_request"
+    ],
+    "required_dependencies": [
+      "src/auth/service.py",
+      "src/auth/token_validator.py"
+    ],
+    "distractor_files": [],
+    "memory_context": "",
+    "task_state": "",
+    "is_exploratory": false,
+    "expected_memory_fact": null,
+    "expected_task_state_active": null
+  },
+  {
+    "task_id": "T03",
+    "category": "SIMILAR_SYMBOL_DISAMBIGUATION",
+    "query": "The TokenService used by the admin API is returning stale credentials. Find the implementation actually used by that API.",
+    "required_files": [
+      "src/admin/admin_controller.py",
+      "src/admin/admin_token_service.py"
+    ],
+    "required_symbols": [
+      "AdminTokenService.get_admin_credentials"
+    ],
+    "required_dependencies": [],
+    "distractor_files": [
+      "src/auth/token_service.py",
+      "src/identity/token_service.py",
+      "src/legacy/token_service.py"
+    ],
+    "memory_context": "",
+    "task_state": "",
+    "is_exploratory": false,
+    "expected_memory_fact": null,
+    "expected_task_state_active": null
+  },
+  {
+    "task_id": "T04",
+    "category": "TEST_DISCOVERY",
+    "query": "Find the test that should be updated when the session expiry behavior changes.",
+    "required_files": [
+      "tests/auth/test_oauth_session.py",
+      "src/auth/session_policy.py"
+    ],
+    "required_symbols": [],
+    "required_dependencies": [],
+    "distractor_files": [
+      "tests/identity/test_session.py",
+      "tests/legacy/test_session.py"
+    ],
+    "memory_context": "",
+    "task_state": "",
+    "is_exploratory": false,
+    "expected_memory_fact": null,
+    "expected_task_state_active": null
+  },
+  {
+    "task_id": "T05",
+    "category": "CROSS_LAYER_TRACE",
+    "query": "Trace the payment authorization flow from the REST endpoint to the final authorization check.",
+    "required_files": [
+      "src/api/payment_controller.py",
+      "src/payments/payment_gateway.py",
+      "src/payments/payment_authorizer.py",
+      "src/payments/security_token_component.py"
+    ],
+    "required_symbols": [
+      "PaymentGateway.charge_card",
+      "PaymentAuthorizer.authorize_transaction"
+    ],
+    "required_dependencies": [
+      "src/payments/payment_authorizer.py",
+      "src/payments/security_token_component.py"
+    ],
+    "distractor_files": [],
+    "memory_context": "",
+    "task_state": "",
+    "is_exploratory": false,
+    "expected_memory_fact": null,
+    "expected_task_state_active": null
+  },
+  {
+    "task_id": "T06",
+    "category": "CONFIGURATION_CONTEXT",
+    "query": "Why does the production authentication timeout differ from the default timeout?",
+    "required_files": [
+      "src/auth/session_policy.py",
+      "config/auth.yaml"
+    ],
+    "required_symbols": [
+      "SessionPolicy.get_timeout_seconds"
+    ],
+    "required_dependencies": [],
+    "distractor_files": [],
+    "memory_context": "",
+    "task_state": "",
+    "is_exploratory": false,
+    "expected_memory_fact": null,
+    "expected_task_state_active": null
+  },
+  {
+    "task_id": "T07",
+    "category": "LEGACY_DISTRACTOR",
+    "query": "Fix the login timeout bug in active auth login flow.",
+    "required_files": [
+      "src/auth/login_service.py",
+      "src/auth/session_policy.py"
+    ],
+    "required_symbols": [],
+    "required_dependencies": [],
+    "distractor_files": [
+      "src/legacy/login_service.py",
+      "src/identity/login_service.py"
+    ],
+    "memory_context": "",
+    "task_state": "",
+    "is_exploratory": false,
+    "expected_memory_fact": null,
+    "expected_task_state_active": null
+  },
+  {
+    "task_id": "T08",
+    "category": "RENAME_SYMBOL_EVOLUTION",
+    "query": "Update user profile manager for account modifications.",
+    "required_files": [
+      "src/accounts/user_account.py"
+    ],
+    "required_symbols": [
+      "AccountManager.update_profile"
+    ],
+    "required_dependencies": [],
+    "distractor_files": [],
+    "memory_context": "",
+    "task_state": "",
+    "is_exploratory": false,
+    "expected_memory_fact": null,
+    "expected_task_state_active": null
+  },
+  {
+    "task_id": "T09",
+    "category": "DELETED_DISTRACTOR",
+    "query": "Inspect obsolete authentication routines in legacy authentication handler.",
+    "required_files": [
+      "src/legacy/login_service.py"
+    ],
+    "required_symbols": [],
+    "required_dependencies": [],
+    "distractor_files": [
+      "src/legacy/obsolete_auth.py"
+    ],
+    "memory_context": "",
+    "task_state": "",
+    "is_exploratory": false,
+    "expected_memory_fact": null,
+    "expected_task_state_active": null
+  },
+  {
+    "task_id": "T10",
+    "category": "DEPENDENCY_ONLY_RELEVANCE",
+    "query": "Inspect the card authorization security checks in payment gateway.",
+    "required_files": [
+      "src/payments/payment_gateway.py",
+      "src/payments/payment_authorizer.py",
+      "src/payments/security_token_component.py"
+    ],
+    "required_symbols": [],
+    "required_dependencies": [
+      "src/payments/payment_authorizer.py",
+      "src/payments/security_token_component.py"
+    ],
+    "distractor_files": [],
+    "memory_context": "",
+    "task_state": "",
+    "is_exploratory": false,
+    "expected_memory_fact": null,
+    "expected_task_state_active": null
+  },
+  {
+    "task_id": "T11",
+    "category": "MEMORY_ASSISTED_TASK",
+    "query": "Investigate the session timeout issue discussed earlier in previous findings.",
+    "required_files": [
+      "src/auth/session_policy.py",
+      "src/auth/session_manager.py"
+    ],
+    "required_symbols": [],
+    "required_dependencies": [],
+    "distractor_files": [],
+    "memory_context": "Previous investigation: The OAuth session timeout originates in auth/session_policy.py. The billing session implementation is unrelated.",
+    "task_state": "",
+    "is_exploratory": false,
+    "expected_memory_fact": "auth/session_policy.py",
+    "expected_task_state_active": null
+  },
+  {
+    "task_id": "T12",
+    "category": "TASK_STATE_AWARE",
+    "query": "Apply session expiry patch in auth session policy.",
+    "required_files": [
+      "src/auth/session_policy.py"
+    ],
+    "required_symbols": [],
+    "required_dependencies": [],
+    "distractor_files": [],
+    "memory_context": "",
+    "task_state": "Active: Task 3 (Patch session policy) | Completed: [Task 1 (Audit), Task 2 (Inspect)] | Blocked: [Task 4 (Deploy)]",
+    "is_exploratory": false,
+    "expected_memory_fact": null,
+    "expected_task_state_active": "Task 3"
+  },
+  {
+    "task_id": "T13",
+    "category": "SIMILAR_TEST_FILES",
+    "query": "Run unit tests for core auth session creation.",
+    "required_files": [
+      "tests/auth/test_session.py",
+      "src/auth/session_manager.py"
+    ],
+    "required_symbols": [],
+    "required_dependencies": [],
+    "distractor_files": [
+      "tests/identity/test_session.py",
+      "tests/security/test_session.py",
+      "tests/legacy/test_session.py"
+    ],
+    "memory_context": "",
+    "task_state": "",
+    "is_exploratory": false,
+    "expected_memory_fact": null,
+    "expected_task_state_active": null
+  },
+  {
+    "task_id": "T14",
+    "category": "REALISTIC_CASUAL_REQUEST",
+    "query": "Login keeps acting weird after the session refresh. Can you check what's going on?",
+    "required_files": [
+      "src/auth/oauth_service.py",
+      "src/auth/session_manager.py",
+      "src/auth/token_service.py"
+    ],
+    "required_symbols": [],
+    "required_dependencies": [
+      "src/auth/token_service.py"
+    ],
+    "distractor_files": [
+      "src/legacy/token_service.py",
+      "src/identity/token_service.py"
+    ],
+    "memory_context": "",
+    "task_state": "",
+    "is_exploratory": false,
+    "expected_memory_fact": null,
+    "expected_task_state_active": null
+  },
+  {
+    "task_id": "T15",
+    "category": "MULTI_HOP_REASONING",
+    "query": "Inspect the end-to-end token validation chain from API auth controller.",
+    "required_files": [
+      "src/api/auth_controller.py",
+      "src/auth/service.py",
+      "src/auth/token_validator.py"
+    ],
+    "required_symbols": [],
+    "required_dependencies": [
+      "src/auth/service.py",
+      "src/auth/token_validator.py"
+    ],
+    "distractor_files": [],
+    "memory_context": "",
+    "task_state": "",
+    "is_exploratory": false,
+    "expected_memory_fact": null,
+    "expected_task_state_active": null
+  }
+]

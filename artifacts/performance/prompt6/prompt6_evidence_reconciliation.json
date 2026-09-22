@@ -1,0 +1,50 @@
+{
+  "scaffolding": {
+    "baseline_ms": 43764.0,
+    "optimized_ms": 0.08,
+    "model_calls_baseline": 1,
+    "model_calls_optimized": 0,
+    "claim_scope": "The deterministic scaffold rendered the tested boilerplate structure in 0.08 ms without invoking the LLM, compared with 43.764 s for the model-generated baseline. These measurements characterize the tested deterministic boilerplate fixture and are not a general software-generation speedup."
+  },
+  "website_classifier": {
+    "cases_tested": 5,
+    "cases_passed": 5,
+    "avg_eval_ms": 0.226,
+    "scope": "The website fast-path classifier was evaluated on five representative cases with an average classification latency of 0.226 ms. All five evaluated cases were correctly classified, including safe fallback of framework, backend, and >3-file requests."
+  },
+  "non_model_concurrency": {
+    "workers": 2,
+    "baseline_median_ms": 187.47,
+    "optimized_median_ms": 92.77,
+    "derived_speedup": "2.02x",
+    "scope": "On the controlled four-task independent CPU verification fixture, bounded execution with max_workers=2 reduced median elapsed latency from 187.47 ms to 92.77 ms, corresponding to a 2.02x derived speedup."
+  },
+  "llm_concurrency": {
+    "one_worker": {
+      "wall_time_sec": 27.371,
+      "gpu_memory_total_mb": 6144,
+      "peak_vram_model_mb": 4912,
+      "available_headroom_mb": 1232,
+      "temperature_c": 77.0,
+      "gpu_utilization_pct": 98.0,
+      "errors": 0
+    },
+    "two_workers": {
+      "wall_time_sec": 17.203,
+      "gpu_memory_total_mb": 6144,
+      "peak_vram_model_mb": 5850,
+      "available_headroom_mb": 294,
+      "temperature_c": 76.0,
+      "gpu_utilization_pct": 99.0,
+      "errors": 0
+    },
+    "production_policy": 1,
+    "decision_reason": "Although the two-worker diagnostic completed faster than the one-worker diagnostic for the tested short prompts, it reduced available VRAM headroom from 1,232 MiB to 294 MiB on the 6 GB GPU. Given the larger context and runtime allocations present in production missions, HERMES retains serialized LLM execution (llm_concurrency = 1) as the tested production policy."
+  },
+  "claims": {
+    "unsupported_claims_removed": true,
+    "headline_ratios_eliminated": true,
+    "causal_wording_audited": true,
+    "benchmark_isolation_preserved": true
+  }
+}

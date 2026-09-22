@@ -1,0 +1,83 @@
+{
+  "benchmark_name": "edupath_mini_3file_ab_evaluation",
+  "timestamp": "2026-09-17T10:46:39Z",
+  "model": "deepseek-r1:8b",
+  "think_mode": false,
+  "sequential": {
+    "turns": 3,
+    "tool_dispatches": 3,
+    "total_latency_sec": 61.684,
+    "input_tokens": 750,
+    "output_tokens": 1875,
+    "total_tokens": 2625,
+    "turn_details": [
+      {
+        "turn": 1,
+        "target_file": "index.html",
+        "latency_sec": 23.68776429999707,
+        "gen_latency_sec": 23.662616999994498,
+        "parse_latency_ms": 0.23050000163493678,
+        "exec_latency_ms": 24.916800000937656,
+        "input_tokens": 251,
+        "output_tokens": 719,
+        "tool_success": true,
+        "error": "",
+        "file_size": 2228
+      },
+      {
+        "turn": 2,
+        "target_file": "styles.css",
+        "latency_sec": 24.670516300007876,
+        "gen_latency_sec": 24.645506400003796,
+        "parse_latency_ms": 0.5028000014135614,
+        "exec_latency_ms": 24.50710000266554,
+        "input_tokens": 249,
+        "output_tokens": 753,
+        "tool_success": true,
+        "error": "",
+        "file_size": 1633
+      },
+      {
+        "turn": 3,
+        "target_file": "app.js",
+        "latency_sec": 13.325542400008999,
+        "gen_latency_sec": 13.300411500000337,
+        "parse_latency_ms": 0.17150000348920003,
+        "exec_latency_ms": 24.959400005172938,
+        "input_tokens": 250,
+        "output_tokens": 403,
+        "tool_success": true,
+        "error": "",
+        "file_size": 1305
+      }
+    ],
+    "all_files_created": true
+  },
+  "safe_batch": {
+    "turns": 1,
+    "tool_dispatches": 1,
+    "total_latency_sec": 24.133,
+    "input_tokens": 376,
+    "output_tokens": 724,
+    "total_tokens": 1100,
+    "gen_latency_sec": 24.072,
+    "parse_latency_ms": 0.12,
+    "exec_latency_ms": 60.85,
+    "tool_success": true,
+    "error": "",
+    "files_created": {
+      "index.html": 650,
+      "styles.css": 412,
+      "app.js": 1159
+    },
+    "all_files_created": true
+  },
+  "delta": {
+    "turn_reduction": "3 turns -> 1 turn (-66.7%)",
+    "tool_dispatch_reduction": "3 dispatches -> 1 dispatch (-66.7%)",
+    "latency_sec_delta": -37.552,
+    "latency_ratio": 2.56,
+    "input_token_delta": -374,
+    "input_token_pct": -49.87
+  }
+}

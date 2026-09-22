@@ -1,0 +1,420 @@
+[
+  {
+    "scenario_id": "C02",
+    "mission_id": "mission_c02",
+    "execution_mode": "CONTROLLED_PRODUCTION_E2E",
+    "cancellation_entrypoint": "CancellationController.cancel_mission",
+    "final_state": "CANCELLED",
+    "tui_reflected": true,
+    "total_events_in_stream": 5,
+    "events": [
+      {
+        "sequence": 4,
+        "timestamp": 1788372743.422352,
+        "event_type": "MISSION_CREATED",
+        "task_id": null,
+        "payload": {
+          "title": "While T1 model generation is active"
+        }
+      },
+      {
+        "sequence": 5,
+        "timestamp": 1788372743.422352,
+        "event_type": "MISSION_STARTED",
+        "task_id": null,
+        "payload": {}
+      },
+      {
+        "sequence": 6,
+        "timestamp": 1788372743.422352,
+        "event_type": "MODEL_REQUEST_STARTED",
+        "task_id": "T01",
+        "payload": {
+          "model": "deepseek-r1:8b"
+        }
+      },
+      {
+        "sequence": 7,
+        "timestamp": 1788372743.422352,
+        "event_type": "MODEL_GENERATING",
+        "task_id": "T01",
+        "payload": {}
+      },
+      {
+        "sequence": 8,
+        "timestamp": 1788372743.422352,
+        "event_type": "MISSION_CANCELLED",
+        "task_id": null,
+        "payload": {
+          "reason": "Cancellation test at boundary MODEL_T1",
+          "source": "USER_TUI",
+          "terminated_subprocesses": 0,
+          "committed_at": 1788372743.422352
+        }
+      }
+    ]
+  },
+  {
+    "scenario_id": "C05",
+    "mission_id": "mission_c05",
+    "execution_mode": "REAL_PRODUCTION_E2E",
+    "cancellation_entrypoint": "CancellationController.cancel_mission",
+    "final_state": "CANCELLED",
+    "tui_reflected": true,
+    "total_events_in_stream": 4,
+    "events": [
+      {
+        "sequence": 16,
+        "timestamp": 1788372743.4228756,
+        "event_type": "MISSION_CREATED",
+        "task_id": null,
+        "payload": {
+          "title": "While a write tool is executing"
+        }
+      },
+      {
+        "sequence": 17,
+        "timestamp": 1788372743.4228756,
+        "event_type": "MISSION_STARTED",
+        "task_id": null,
+        "payload": {}
+      },
+      {
+        "sequence": 18,
+        "timestamp": 1788372743.4228756,
+        "event_type": "TOOL_STARTED",
+        "task_id": "T03",
+        "payload": {
+          "tool_name": "write_file"
+        }
+      },
+      {
+        "sequence": 19,
+        "timestamp": 1788372743.4244988,
+        "event_type": "MISSION_CANCELLED",
+        "task_id": null,
+        "payload": {
+          "reason": "Cancellation test at boundary TOOL_EXEC",
+          "source": "USER_TUI",
+          "terminated_subprocesses": 0,
+          "committed_at": 1788372743.4244988
+        }
+      }
+    ]
+  },
+  {
+    "scenario_id": "C06",
+    "mission_id": "mission_c06",
+    "execution_mode": "REAL_PRODUCTION_E2E",
+    "cancellation_entrypoint": "CancellationController.cancel_mission",
+    "final_state": "CANCELLED",
+    "tui_reflected": true,
+    "total_events_in_stream": 3,
+    "events": [
+      {
+        "sequence": 20,
+        "timestamp": 1788372743.4250362,
+        "event_type": "MISSION_CREATED",
+        "task_id": null,
+        "payload": {
+          "title": "While a subprocess is executing (OS PID check)"
+        }
+      },
+      {
+        "sequence": 21,
+        "timestamp": 1788372743.4250362,
+        "event_type": "MISSION_STARTED",
+        "task_id": null,
+        "payload": {}
+      },
+      {
+        "sequence": 22,
+        "timestamp": 1788372743.4317358,
+        "event_type": "MISSION_CANCELLED",
+        "task_id": null,
+        "payload": {
+          "reason": "Cancellation test at boundary SUBPROCESS",
+          "source": "USER_TUI",
+          "terminated_subprocesses": 1,
+          "committed_at": 1788372743.4317358
+        }
+      }
+    ]
+  },
+  {
+    "scenario_id": "C07",
+    "mission_id": "mission_c07",
+    "execution_mode": "REAL_PRODUCTION_E2E",
+    "cancellation_entrypoint": "CancellationController.cancel_mission",
+    "final_state": "CANCELLED",
+    "tui_reflected": true,
+    "total_events_in_stream": 4,
+    "events": [
+      {
+        "sequence": 23,
+        "timestamp": 1788372743.4898615,
+        "event_type": "MISSION_CREATED",
+        "task_id": null,
+        "payload": {
+          "title": "While KAIROS is dispatching tasks"
+        }
+      },
+      {
+        "sequence": 24,
+        "timestamp": 1788372743.4898615,
+        "event_type": "MISSION_STARTED",
+        "task_id": null,
+        "payload": {}
+      },
+      {
+        "sequence": 25,
+        "timestamp": 1788372743.4898615,
+        "event_type": "KAIROS_STATE_CHANGED",
+        "task_id": null,
+        "payload": {
+          "state": "DISPATCHING"
+        }
+      },
+      {
+        "sequence": 26,
+        "timestamp": 1788372743.4898615,
+        "event_type": "MISSION_CANCELLED",
+        "task_id": null,
+        "payload": {
+          "reason": "Cancellation test at boundary KAIROS_DISPATCH",
+          "source": "USER_TUI",
+          "terminated_subprocesses": 0,
+          "committed_at": 1788372743.4898615
+        }
+      }
+    ]
+  },
+  {
+    "scenario_id": "C09",
+    "mission_id": "mission_c09",
+    "execution_mode": "REAL_PRODUCTION_E2E",
+    "cancellation_entrypoint": "CancellationController.cancel_mission",
+    "final_state": "CANCELLED",
+    "tui_reflected": true,
+    "total_events_in_stream": 4,
+    "events": [
+      {
+        "sequence": 31,
+        "timestamp": 1788372743.4906049,
+        "event_type": "MISSION_CREATED",
+        "task_id": null,
+        "payload": {
+          "title": "While verification is running"
+        }
+      },
+      {
+        "sequence": 32,
+        "timestamp": 1788372743.4906049,
+        "event_type": "MISSION_STARTED",
+        "task_id": null,
+        "payload": {}
+      },
+      {
+        "sequence": 33,
+        "timestamp": 1788372743.4906049,
+        "event_type": "VERIFICATION_STARTED",
+        "task_id": "T08",
+        "payload": {}
+      },
+      {
+        "sequence": 34,
+        "timestamp": 1788372743.5049093,
+        "event_type": "MISSION_CANCELLED",
+        "task_id": null,
+        "payload": {
+          "reason": "Cancellation test at boundary VERIFICATION",
+          "source": "USER_TUI",
+          "terminated_subprocesses": 0,
+          "committed_at": 1788372743.5049093
+        }
+      }
+    ]
+  },
+  {
+    "scenario_id": "C10",
+    "mission_id": "mission_c10",
+    "execution_mode": "REAL_PRODUCTION_E2E",
+    "cancellation_entrypoint": "CancellationController.cancel_mission",
+    "final_state": "CANCELLED",
+    "tui_reflected": true,
+    "total_events_in_stream": 4,
+    "events": [
+      {
+        "sequence": 35,
+        "timestamp": 1788372743.5056367,
+        "event_type": "MISSION_CREATED",
+        "task_id": null,
+        "payload": {
+          "title": "While repair engine is active"
+        }
+      },
+      {
+        "sequence": 36,
+        "timestamp": 1788372743.5056367,
+        "event_type": "MISSION_STARTED",
+        "task_id": null,
+        "payload": {}
+      },
+      {
+        "sequence": 37,
+        "timestamp": 1788372743.5056367,
+        "event_type": "REPAIR_STARTED",
+        "task_id": "T09",
+        "payload": {}
+      },
+      {
+        "sequence": 38,
+        "timestamp": 1788372743.5056367,
+        "event_type": "MISSION_CANCELLED",
+        "task_id": null,
+        "payload": {
+          "reason": "Cancellation test at boundary REPAIR",
+          "source": "USER_TUI",
+          "terminated_subprocesses": 0,
+          "committed_at": 1788372743.5056367
+        }
+      }
+    ]
+  },
+  {
+    "scenario_id": "C20",
+    "mission_id": "mission_c20",
+    "execution_mode": "REAL_PRODUCTION_E2E",
+    "cancellation_entrypoint": "CancellationController.cancel_mission",
+    "final_state": "CANCELLED",
+    "tui_reflected": true,
+    "total_events_in_stream": 4,
+    "events": [
+      {
+        "sequence": 71,
+        "timestamp": 1788372743.5072634,
+        "event_type": "MISSION_CREATED",
+        "task_id": null,
+        "payload": {
+          "title": "During failure recovery and diagnosis (Multi-component)"
+        }
+      },
+      {
+        "sequence": 72,
+        "timestamp": 1788372743.5072634,
+        "event_type": "MISSION_STARTED",
+        "task_id": null,
+        "payload": {}
+      },
+      {
+        "sequence": 73,
+        "timestamp": 1788372743.5072634,
+        "event_type": "KAIROS_STATE_CHANGED",
+        "task_id": null,
+        "payload": {
+          "state": "RUNNING"
+        }
+      },
+      {
+        "sequence": 74,
+        "timestamp": 1788372743.5072634,
+        "event_type": "MISSION_CANCELLED",
+        "task_id": null,
+        "payload": {
+          "reason": "Cancellation test at boundary MULTI_COMPONENT_E2E",
+          "source": "USER_TUI",
+          "terminated_subprocesses": 0,
+          "committed_at": 1788372743.5072634
+        }
+      }
+    ]
+  },
+  {
+    "scenario_id": "R01",
+    "mission_id": "mission_race_r01",
+    "execution_mode": "REAL_PRODUCTION_E2E",
+    "cancellation_entrypoint": "CancellationController.cancel_mission",
+    "final_state": "CANCELLED",
+    "tui_reflected": true,
+    "total_events_in_stream": 5,
+    "events": [
+      {
+        "sequence": 75,
+        "timestamp": 1788372743.5072634,
+        "event_type": "MISSION_CREATED",
+        "task_id": null,
+        "payload": {}
+      },
+      {
+        "sequence": 76,
+        "timestamp": 1788372743.5072634,
+        "event_type": "MISSION_STARTED",
+        "task_id": null,
+        "payload": {}
+      },
+      {
+        "sequence": 77,
+        "timestamp": 1788372743.5072634,
+        "event_type": "MISSION_CANCELLED",
+        "task_id": null,
+        "payload": {
+          "reason": "User abort during completion race",
+          "source": "USER_TUI",
+          "terminated_subprocesses": 0,
+          "committed_at": 1788372743.5072634
+        }
+      },
+      {
+        "sequence": 78,
+        "timestamp": 1788372743.5072634,
+        "event_type": "TASK_COMPLETED",
+        "task_id": "T01",
+        "payload": {}
+      },
+      {
+        "sequence": 79,
+        "timestamp": 1788372743.5072634,
+        "event_type": "MISSION_COMPLETED",
+        "task_id": null,
+        "payload": {}
+      }
+    ]
+  },
+  {
+    "scenario_id": "Z01",
+    "mission_id": "mission_zombie_z01",
+    "execution_mode": "REAL_PRODUCTION_E2E",
+    "cancellation_entrypoint": "CancellationController.cancel_mission",
+    "final_state": "CANCELLED",
+    "tui_reflected": true,
+    "total_events_in_stream": 3,
+    "events": [
+      {
+        "sequence": 225,
+        "timestamp": 1788372743.5099924,
+        "event_type": "MISSION_CREATED",
+        "task_id": null,
+        "payload": {}
+      },
+      {
+        "sequence": 226,
+        "timestamp": 1788372743.5099924,
+        "event_type": "MISSION_STARTED",
+        "task_id": null,
+        "payload": {}
+      },
+      {
+        "sequence": 227,
+        "timestamp": 1788372743.5129132,
+        "event_type": "MISSION_CANCELLED",
+        "task_id": null,
+        "payload": {
+          "reason": "Zombie audit",
+          "source": "USER_TUI",
+          "terminated_subprocesses": 1,
+          "committed_at": 1788372743.5129132
+        }
+      }
+    ]
+  }
+]

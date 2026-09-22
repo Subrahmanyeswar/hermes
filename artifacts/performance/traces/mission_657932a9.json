@@ -1,0 +1,142 @@
+{
+  "mission_id": "657932a9",
+  "execution_mode": "performance_baseline",
+  "mission": {
+    "start": "2026-09-20 00:14:25",
+    "end": "2026-09-20 00:15:13",
+    "duration_ms": 48577.03,
+    "accounted_time_ms": 48403.3,
+    "unaccounted_time_ms": 173.73
+  },
+  "stages": [
+    {
+      "name": "Input Sanitisation",
+      "stage_number": 1,
+      "start": 262021.2775,
+      "end": 262021.3131,
+      "duration_ms": 35.59,
+      "success": true
+    },
+    {
+      "name": "Planning",
+      "stage_number": 2,
+      "start": 262021.3183,
+      "end": 262021.3402,
+      "duration_ms": 21.9,
+      "success": true
+    }
+  ],
+  "model_calls": [
+    {
+      "inference_id": "294de1db",
+      "request_id": "657932a9",
+      "mission_id": "657932a9",
+      "task_id": "657932a9",
+      "stage": "",
+      "execution_mode": "performance_baseline",
+      "model": "deepseek-r1:8b",
+      "provider": "ollama",
+      "start_time_monotonic": 262021.3789166,
+      "end_time_monotonic": 262069.6627292,
+      "start_timestamp": "2026-09-19T18:45:13Z",
+      "first_token_timestamp": null,
+      "end_timestamp": "2026-09-19T18:45:13Z",
+      "total_latency_ms": 48283.812600013334,
+      "total_duration": 48010.6566,
+      "load_duration_ms": 11212.6825,
+      "load_duration": 11212.6825,
+      "prompt_eval_duration_ms": 1718.6822,
+      "prompt_eval_duration": 1718.6822,
+      "eval_duration_ms": 34840.8251,
+      "eval_duration": 34840.8251,
+      "ttft_ms": 12931.3647,
+      "prompt_eval_count": 2212,
+      "eval_count": 1024,
+      "prompt_tokens": 2212,
+      "output_tokens": 1024,
+      "total_tokens": 3236,
+      "tokens_per_second": 29.39,
+      "think_enabled": false,
+      "thinking_present": false,
+      "thinking_available": false,
+      "thinking_length": 0,
+      "final_response_length": 3889,
+      "thinking_tokens": null,
+      "tool_call_count": 1,
+      "context": {
+        "system_prompt_chars": 7293,
+        "tool_defs_chars": 0,
+        "user_prompt_chars": 2006,
+        "memory_context_chars": 0,
+        "skill_context_chars": 0,
+        "workspace_context_chars": 0,
+        "total_input_chars": 9299,
+        "estimated_input_tokens": 2324,
+        "exact_input_tokens": 2212
+      },
+      "temperature": 0.1,
+      "num_ctx": 4096,
+      "keep_alive": "300s",
+      "lifecycle_state": "COLD",
+      "warm_cold_state": "COLD",
+      "model_switch_state": "SAME",
+      "previous_model": null,
+      "requested_model": "deepseek-r1:8b",
+      "success": true,
+      "retry_count": 0,
+      "timed_out": false,
+      "error": null,
+      "error_type": null,
+      "error_message": null,
+      "cost_usd": 0.0,
+      "gpu_vram_used_mb": 5497.0,
+      "gpu_util_percent": 97.0,
+      "raw_timing_metadata": {
+        "total_duration": 48010656600,
+        "load_duration": 11212682500,
+        "prompt_eval_count": 2212,
+        "prompt_eval_duration": 1718682200,
+        "eval_count": 1024,
+        "eval_duration": 34840825100
+      }
+    }
+  ],
+  "tool_calls": [
+    {
+      "tool_name": "write_file",
+      "category": "filesystem",
+      "start_time_monotonic": 262063.25,
+      "duration_ms": 62.000000005355105,
+      "subprocess_duration_ms": 0.0,
+      "filesystem_duration_ms": 62.000000005355105,
+      "success": true,
+      "exit_code": 0,
+      "args_size_bytes": 412,
+      "output_size_bytes": 81,
+      "retry_count": 0,
+      "error": null,
+      "mission_id": "7d8844be",
+      "task_id": "7d8844be",
+      "start": 262063.25,
+      "end": 262063.312
+    }
+  ],
+  "verification_calls": [
+    {
+      "verification_id": "b5ff4407",
+      "request_id": "657932a9",
+      "mission_id": "7d8844be",
+      "task_id": "7d8844be",
+      "method": "LOCAL_STRUCTURAL",
+      "start_time_monotonic": 262063.312,
+      "end_time_monotonic": 262063.312,
+      "duration_ms": 0.0,
+      "verdict": "AGREE",
+      "escalated": false,
+      "issues_count": 0,
+      "issues": []
+    }
+  ],
+  "repair_attempts": [],
+  "model_switches": []
+}

@@ -1,10 +1,11 @@
 # core/verifier.py
 # Tier 2 Verifier for HERMES — the second member of the "Council of Two".
-# Uses Mistral 7B Instruct Q4_K_M (different family from Tier 1 Qwen).
+# Uses Qwen3 8B (TIER2_MODEL) via Ollama — different family from Tier 1 DeepSeek-R1.
 # Cross-family verification: different training distributions = different failure modes.
 # When T1 and T2 agree, we have stronger evidence the output is correct.
-# Mistral is loaded ONLY after Tier 1 has finished and unloaded (keep_alive=0).
-# Mistral is unloaded with keep_alive=0 after verification.
+# Tier 2 is loaded on-demand; keep_alive is controlled by MODEL_KEEP_ALIVE (config).
+# NOTE: Due to 6GB VRAM constraint, only ONE 8B model can reside at a time.
+#       Switching T1→T2 always triggers a full cold reload (~8.5s on RTX 3050 6GB).
 # The verifier NEVER rewrites the solution — it only evaluates correctness, safety, and quality.
 
 import json
@@ -14,10 +15,8 @@ from dataclasses import dataclass, field
 from typing import Optional, Any
 
 from loguru import logger
-
 from models.ollama_client import OllamaClient, OllamaTimeoutError, OllamaConnectionError
-
-TIER2_MODEL = "mistral:7b-instruct-q4_K_M"
+from config.model_config import TIER2_MODEL, MODEL_KEEP_ALIVE
 
 # ──────────────────────────────────────────────────────────────────────
 # Verification Result
@@ -231,14 +230,15 @@ class Tier2Verifier:
         )
 
         try:
-            raw = await self.ollama.generate(
+            resp = await self.ollama.generate(
                 model=self.model,
                 prompt=user_message,
                 system=TIER2_SYSTEM_PROMPT,
-                keep_alive=0,
+                keep_alive=MODEL_KEEP_ALIVE,
                 temperature=0.1,
                 num_ctx=4096,
             )
+            raw = getattr(resp, "text", str(resp))
             latency = time.monotonic() - start_time
 
             # Parse response

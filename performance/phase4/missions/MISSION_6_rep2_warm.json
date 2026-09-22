@@ -1,0 +1,39 @@
+{
+  "mission_id": "MISSION_6_rep2_warm",
+  "base_id": "MISSION_6",
+  "name": "Complex Implementation Task",
+  "type": "complex",
+  "cold": false,
+  "repetition": 2,
+  "wall_clock_ms": 180498.0,
+  "success": false,
+  "tool_name": null,
+  "pipeline_stage_reached": 4,
+  "tier3_was_called": false,
+  "critical_path": {
+    "wall_clock_ms": 180510.45,
+    "cumulative_span_ms": 180497.98,
+    "leaf_span_ms": 180497.98,
+    "category_times_ms": {
+      "MISSION": 180497.98
+    },
+    "span_count": 1
+  },
+  "spans": [
+    {
+      "span_id": "2f77c73f",
+      "mission_id": "MISSION_6_rep2_warm",
+      "parent_id": null,
+      "name": "TOTAL_MISSION",
+      "category": "MISSION",
+      "start_ns": 807886106218300,
+      "end_ns": 808066604193900,
+      "duration_ms": 180497.9756,
+      "status": "success",
+      "metadata": {
+        "mission_id": "MISSION_6_rep2_warm"
+      },
+      "children": []
+    }
+  ]
+}

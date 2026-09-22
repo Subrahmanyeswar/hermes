@@ -1,0 +1,50 @@
+{
+  "<0.50": {
+    "tasks": 1,
+    "t1_accepted": 0,
+    "t1_success": 0,
+    "t1_failed": 0,
+    "escalated": 1,
+    "false_accept": 0
+  },
+  "0.50-0.59": {
+    "tasks": 6,
+    "t1_accepted": 0,
+    "t1_success": 0,
+    "t1_failed": 0,
+    "escalated": 6,
+    "false_accept": 0
+  },
+  "0.60-0.69": {
+    "tasks": 2,
+    "t1_accepted": 0,
+    "t1_success": 0,
+    "t1_failed": 0,
+    "escalated": 2,
+    "false_accept": 0
+  },
+  "0.70-0.79": {
+    "tasks": 5,
+    "t1_accepted": 2,
+    "t1_success": 2,
+    "t1_failed": 0,
+    "escalated": 3,
+    "false_accept": 0
+  },
+  "0.80-0.89": {
+    "tasks": 4,
+    "t1_accepted": 2,
+    "t1_success": 2,
+    "t1_failed": 0,
+    "escalated": 2,
+    "false_accept": 0
+  },
+  ">=0.90": {
+    "tasks": 6,
+    "t1_accepted": 4,
+    "t1_success": 4,
+    "t1_failed": 0,
+    "escalated": 2,
+    "false_accept": 0
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "authoritative_measurement_sources": {
+    "e2e_mission_duration": "MissionRunner (time.perf_counter())",
+    "model_ttft_and_tokens": "OllamaClient / OpenRouterClient Streaming Telemetry",
+    "workspace_indexing_duration": "WorkspaceIndexer (time.perf_counter())",
+    "context_assembly_duration": "ContextEngine (time.perf_counter())",
+    "planning_duration": "AdaptivePlanner (time.perf_counter())",
+    "kairos_scheduling_duration": "KairosDAGScheduler (time.perf_counter())",
+    "routing_decision_duration": "IntelligentRouter (time.perf_counter())",
+    "tool_execution_duration": "BaseTool subclasses (time.perf_counter())",
+    "verification_duration": "ProgressiveVerificationEngine (time.perf_counter())",
+    "repair_duration_and_count": "RepairEngine (time.perf_counter() & attempt records)",
+    "vram_and_gpu": "torch.cuda.memory_allocated() + nvidia-smi",
+    "cpu_utilization": "psutil.Process().cpu_percent()",
+    "cloud_cost": "OpenRouter usage headers (or explicitly NOT_AVAILABLE)"
+  },
+  "core_separation_principle": "MODEL_LEVEL != COMPONENT_LEVEL != END_TO_END"
+}

@@ -523,7 +523,7 @@ class MissionRunner:
                     task_id=task.task_id,
                     task_title=task.title,
                     task_description=task.description,
-                    project_root=mission.project_root_path or "",
+                    project_root=mission.project_root_path or mission.workspace_root or "",
                     files_created=list(self._files_created[-10:]),
                     files_modified=list(self._files_modified[-5:]),
                 )
@@ -560,18 +560,34 @@ class MissionRunner:
                 from core.structured_feedback import StructuredFeedbackGenerator
                 fb_gen = StructuredFeedbackGenerator()
 
-                # Get the file(s) written in this iteration
-                recent_files = self._files_created[-3:] + self._files_modified[-2:]
+                # Get the file(s) written in this task iteration
+                recent_files = []
+                if hasattr(orch_result, 'tool_name') and orch_result.tool_name in ("write_file", "append_file"):
+                    if hasattr(orch_result, 'tool_call') and isinstance(orch_result.tool_call, dict):
+                        params = orch_result.tool_call.get("parameters") or orch_result.tool_call.get("arguments") or {}
+                        p_name = params.get("path") or params.get("TargetFile") or params.get("target_file")
+                        if p_name:
+                            recent_files.append(str(p_name))
+                if not recent_files and self._files_created:
+                    recent_files = [self._files_created[-1]]
 
                 structured_fb_failed = False
                 for file_path in recent_files:
                     from pathlib import Path
-                    if not Path(file_path).exists():
+                    p = Path(file_path)
+                    if not p.is_absolute():
+                        if self.workspace.is_locked and self.workspace.workspace_root:
+                            cand = self.workspace.workspace_root / p
+                            if cand.exists():
+                                p = cand
+                        elif mission.workspace_root and (Path(mission.workspace_root) / p).exists():
+                            p = Path(mission.workspace_root) / p
+                    if not p.exists():
                         continue
 
                     structured_fb = fb_gen.generate(
                         task_description=task.description,
-                        file_path=file_path,
+                        file_path=str(p),
                         task_requirements=task.required_content_keywords,
                         timeout_seconds=15,
                     )
@@ -969,9 +985,9 @@ SUCCESS CRITERION: {task.acceptance_criteria}
         trajectory = self._trajectory_memory.retrieve_best(override_description)
         if trajectory:
             demo_section = (
-                f"\n{'─' * 50}\n"
+                f"\n{'-' * 50}\n"
                 f"{trajectory.to_demonstration()}"
-                f"{'─' * 50}\n"
+                f"{'-' * 50}\n"
             )
             logger.debug(
                 f"MissionRunner: injecting trajectory demo "
@@ -1045,18 +1061,36 @@ SUCCESS CRITERION: {task.acceptance_criteria}
             return
 
         tool = orch_result.tool_name
+        
+        # 1. First check explicit tool_call parameters
+        if hasattr(orch_result, 'tool_call') and isinstance(orch_result.tool_call, dict):
+            params = orch_result.tool_call.get("parameters") or orch_result.tool_call.get("arguments") or {}
+            param_path = params.get("path")
+            if param_path and isinstance(param_path, str):
+                if tool in ("write_file", "create_folder") and param_path not in self._files_created:
+                    self._files_created.append(param_path)
+                elif tool in ("append_file",) and param_path not in self._files_modified:
+                    self._files_modified.append(param_path)
+
+        # 2. Extract paths from tool output (handling Windows and POSIX separators)
         if hasattr(orch_result, 'tool_result') and orch_result.tool_result:
             output = orch_result.tool_result.output or ""
-            # Heuristic: extract file paths from output
             import re
-            paths = re.findall(r'[\w\./\-]+\.\w{2,5}', output)
+            paths = re.findall(r'[\w\.\\/\-]+\.\w{2,5}', output)
             for path in paths[:5]:  # Cap to avoid noise
+                # Normalize relative path if output contains full workspace path
+                norm_path = path
+                if self.workspace.is_locked and self.workspace.root_str:
+                    try:
+                        norm_path = str(Path(path).relative_to(self.workspace.workspace_root))
+                    except Exception:
+                        norm_path = path
                 if tool in ("write_file", "create_folder"):
-                    if path not in self._files_created:
-                        self._files_created.append(path)
+                    if norm_path not in self._files_created:
+                        self._files_created.append(norm_path)
                 elif tool in ("append_file",):
-                    if path not in self._files_modified:
-                        self._files_modified.append(path)
+                    if norm_path not in self._files_modified:
+                        self._files_modified.append(norm_path)
 
     # ── Walkthrough generation ────────────────────────────────────────────────
 
@@ -1240,9 +1274,9 @@ SUCCESS CRITERION: {task.acceptance_criteria}
             commit_msg = self._generate_commit_message(mission)
 
             summary_lines.append("")
-            summary_lines.append("─" * 50)
+            summary_lines.append("-" * 50)
             summary_lines.append("  Git Status")
-            summary_lines.append("─" * 50)
+            summary_lines.append("-" * 50)
             for f in changed_files[:15]:
                 prefix = f[0:2].strip()
                 filename = f[2:].strip()
@@ -1263,7 +1297,7 @@ SUCCESS CRITERION: {task.acceptance_criteria}
             summary_lines.append("")
             summary_lines.append("  Type /commit to stage and commit all changes")
             summary_lines.append("  Type /push to commit and push to GitHub")
-            summary_lines.append("─" * 50)
+            summary_lines.append("-" * 50)
 
         except subprocess.TimeoutExpired:
             return ""

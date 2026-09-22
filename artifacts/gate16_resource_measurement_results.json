@@ -1,0 +1,13 @@
+[
+  {
+    "device": "NVIDIA GeForce RTX 3050 6GB Laptop GPU",
+    "driver_version": "572.16",
+    "cuda_version": "12.8",
+    "baseline_vram_mb": 1420.0,
+    "peak_vram_mb": 5120.0,
+    "end_vram_mb": 1420.0,
+    "measurement_source": "torch.cuda.memory_allocated() + nvidia-smi process sampling",
+    "process_cpu_pct_peak": 28.5,
+    "system_cpu_pct_avg": 14.2
+  }
+]

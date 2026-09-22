@@ -1,0 +1,142 @@
+{
+  "mission_id": "2bbc10a1",
+  "execution_mode": "performance_baseline",
+  "mission": {
+    "start": "2026-09-17 13:29:13",
+    "end": "2026-09-17 13:29:18",
+    "duration_ms": 5105.4,
+    "accounted_time_ms": 5004.91,
+    "unaccounted_time_ms": 100.49
+  },
+  "stages": [
+    {
+      "name": "Input Sanitisation",
+      "stage_number": 1,
+      "start": 50506.3287,
+      "end": 50506.3294,
+      "duration_ms": 0.64,
+      "success": true
+    },
+    {
+      "name": "Planning",
+      "stage_number": 2,
+      "start": 50506.3295,
+      "end": 50506.3371,
+      "duration_ms": 7.62,
+      "success": true
+    }
+  ],
+  "model_calls": [
+    {
+      "inference_id": "ff48775c",
+      "request_id": "2bbc10a1",
+      "mission_id": "2bbc10a1",
+      "task_id": "2bbc10a1",
+      "stage": "",
+      "execution_mode": "performance_baseline",
+      "model": "deepseek-r1:8b",
+      "provider": "ollama",
+      "start_time_monotonic": 50506.3456752,
+      "end_time_monotonic": 50511.3263191,
+      "start_timestamp": "2026-09-17T07:59:18Z",
+      "first_token_timestamp": null,
+      "end_timestamp": "2026-09-17T07:59:18Z",
+      "total_latency_ms": 4980.643900002178,
+      "total_duration": 4704.4709,
+      "load_duration_ms": 149.3526,
+      "load_duration": 149.3526,
+      "prompt_eval_duration_ms": 542.7598,
+      "prompt_eval_duration": 542.7598,
+      "eval_duration_ms": 3991.3922,
+      "eval_duration": 3991.3922,
+      "ttft_ms": 692.1124,
+      "prompt_eval_count": 1152,
+      "eval_count": 123,
+      "prompt_tokens": 1152,
+      "output_tokens": 123,
+      "total_tokens": 1275,
+      "tokens_per_second": 30.82,
+      "think_enabled": false,
+      "thinking_present": false,
+      "thinking_available": false,
+      "thinking_length": 0,
+      "final_response_length": 456,
+      "thinking_tokens": null,
+      "tool_call_count": 1,
+      "context": {
+        "system_prompt_chars": 4797,
+        "tool_defs_chars": 0,
+        "user_prompt_chars": 151,
+        "memory_context_chars": 0,
+        "skill_context_chars": 0,
+        "workspace_context_chars": 0,
+        "total_input_chars": 4948,
+        "estimated_input_tokens": 1237,
+        "exact_input_tokens": 1152
+      },
+      "temperature": 0.1,
+      "num_ctx": 4096,
+      "keep_alive": "300s",
+      "lifecycle_state": "COLD",
+      "warm_cold_state": "COLD",
+      "model_switch_state": "SAME",
+      "previous_model": null,
+      "requested_model": "deepseek-r1:8b",
+      "success": true,
+      "retry_count": 0,
+      "timed_out": false,
+      "error": null,
+      "error_type": null,
+      "error_message": null,
+      "cost_usd": 0.0,
+      "gpu_vram_used_mb": 5497.0,
+      "gpu_util_percent": 97.0,
+      "raw_timing_metadata": {
+        "total_duration": 4704470900,
+        "load_duration": 149352600,
+        "prompt_eval_count": 1152,
+        "prompt_eval_duration": 542759800,
+        "eval_count": 123,
+        "eval_duration": 3991392200
+      }
+    }
+  ],
+  "tool_calls": [
+    {
+      "tool_name": "read_file",
+      "category": "filesystem",
+      "start_time_monotonic": 50509.359,
+      "duration_ms": 16.00000000325963,
+      "subprocess_duration_ms": 0.0,
+      "filesystem_duration_ms": 16.00000000325963,
+      "success": true,
+      "exit_code": 0,
+      "args_size_bytes": 124,
+      "output_size_bytes": 39,
+      "retry_count": 0,
+      "error": null,
+      "mission_id": "05157c59",
+      "task_id": "05157c59",
+      "start": 50509.359,
+      "end": 50509.375
+    }
+  ],
+  "verification_calls": [
+    {
+      "verification_id": "279e1687",
+      "request_id": "2bbc10a1",
+      "mission_id": "05157c59",
+      "task_id": "05157c59",
+      "method": "LOCAL_DETERMINISTIC",
+      "start_time_monotonic": 50509.375,
+      "end_time_monotonic": 50509.375,
+      "duration_ms": 0.0,
+      "verdict": "AGREE",
+      "escalated": false,
+      "issues_count": 0,
+      "issues": []
+    }
+  ],
+  "repair_attempts": [],
+  "model_switches": []
+}

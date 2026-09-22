@@ -1,0 +1,36 @@
+{
+  "python": {
+    "version": "3.10.0",
+    "executable": "C:\\Users\\SUBBU\\AppData\\Local\\Programs\\Python\\Python310\\python.exe",
+    "venv": "None"
+  },
+  "git": {
+    "head_commit": "be1a563bd73830efa0dff2400788ffe89d2ebc96",
+    "branch": "main",
+    "modified_count": 91,
+    "worktree_fingerprint": "67659e5d336f79398000f8f0f958597268a439673be2263d299419398e1b9a21"
+  },
+  "smoke_tests": {
+    "t1": {
+      "tier": "T1",
+      "model": "deepseek-r1:8b",
+      "status": "SUCCESS",
+      "latency_ms": 18422.69140004646,
+      "response": "READY"
+    },
+    "t2": {
+      "tier": "T2",
+      "model": "qwen3:8b",
+      "status": "SUCCESS",
+      "latency_ms": 19217.96570008155,
+      "response": "READY"
+    },
+    "t3": {
+      "tier": "T3",
+      "model": "stealth/ox-alpha",
+      "status": "HTTP_404",
+      "latency_ms": 1020.5350000178441,
+      "response": "{\"error\":{\"message\":\"Thank you for participating in the Stealth Ox Alpha testing period. This model "
+    }
+  }
+}

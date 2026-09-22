@@ -1,0 +1,113 @@
+{
+  "experiment_name": "matched_content_batch_path_ab",
+  "timestamp": "2026-09-17T11:21:30Z",
+  "description": "Controlled write-path latency comparison isolating tool execution and filesystem staging under 100% identical artifact contents",
+  "repetitions": 3,
+  "files_evaluated": [
+    "index.html",
+    "styles.css",
+    "app.js"
+  ],
+  "artifact_hashes_match": true,
+  "verified_hashes": {
+    "index.html": "ae1bf4a2e1d27cce9f89d9f3b7781f5e09622489c604e5105a2af8186e860f92",
+    "styles.css": "c9496d3fbdea9e4813bb3b5485b2a2d4df0f02c99601310a31dede3cb904ce35",
+    "app.js": "b84853580650f0a2cbbe78dd698d7ff1246807fcf525a654528007a930d6b0e3"
+  },
+  "sequential": {
+    "tool_dispatches": 3,
+    "min_total_ms": 30.053,
+    "median_total_ms": 37.719,
+    "max_total_ms": 76.175,
+    "min_tool_ms": 30.049,
+    "median_tool_ms": 37.715,
+    "max_tool_ms": 76.172,
+    "raw_runs": [
+      {
+        "rep": 1,
+        "total_latency_ms": 76.175,
+        "tool_latency_ms": 76.172,
+        "verification_latency_ms": 0.095,
+        "hashes": {
+          "index.html": "ae1bf4a2e1d27cce9f89d9f3b7781f5e09622489c604e5105a2af8186e860f92",
+          "styles.css": "c9496d3fbdea9e4813bb3b5485b2a2d4df0f02c99601310a31dede3cb904ce35",
+          "app.js": "b84853580650f0a2cbbe78dd698d7ff1246807fcf525a654528007a930d6b0e3"
+        }
+      },
+      {
+        "rep": 2,
+        "total_latency_ms": 30.053,
+        "tool_latency_ms": 30.049,
+        "verification_latency_ms": 0.097,
+        "hashes": {
+          "index.html": "ae1bf4a2e1d27cce9f89d9f3b7781f5e09622489c604e5105a2af8186e860f92",
+          "styles.css": "c9496d3fbdea9e4813bb3b5485b2a2d4df0f02c99601310a31dede3cb904ce35",
+          "app.js": "b84853580650f0a2cbbe78dd698d7ff1246807fcf525a654528007a930d6b0e3"
+        }
+      },
+      {
+        "rep": 3,
+        "total_latency_ms": 37.719,
+        "tool_latency_ms": 37.715,
+        "verification_latency_ms": 0.149,
+        "hashes": {
+          "index.html": "ae1bf4a2e1d27cce9f89d9f3b7781f5e09622489c604e5105a2af8186e860f92",
+          "styles.css": "c9496d3fbdea9e4813bb3b5485b2a2d4df0f02c99601310a31dede3cb904ce35",
+          "app.js": "b84853580650f0a2cbbe78dd698d7ff1246807fcf525a654528007a930d6b0e3"
+        }
+      }
+    ]
+  },
+  "batch": {
+    "tool_dispatches": 1,
+    "min_total_ms": 18.195,
+    "median_total_ms": 21.362,
+    "max_total_ms": 28.47,
+    "min_tool_ms": 18.194,
+    "median_tool_ms": 21.362,
+    "max_tool_ms": 28.469,
+    "raw_runs": [
+      {
+        "rep": 1,
+        "total_latency_ms": 18.195,
+        "tool_latency_ms": 18.194,
+        "verification_latency_ms": 0.233,
+        "hashes": {
+          "index.html": "ae1bf4a2e1d27cce9f89d9f3b7781f5e09622489c604e5105a2af8186e860f92",
+          "styles.css": "c9496d3fbdea9e4813bb3b5485b2a2d4df0f02c99601310a31dede3cb904ce35",
+          "app.js": "b84853580650f0a2cbbe78dd698d7ff1246807fcf525a654528007a930d6b0e3"
+        }
+      },
+      {
+        "rep": 2,
+        "total_latency_ms": 28.47,
+        "tool_latency_ms": 28.469,
+        "verification_latency_ms": 0.215,
+        "hashes": {
+          "index.html": "ae1bf4a2e1d27cce9f89d9f3b7781f5e09622489c604e5105a2af8186e860f92",
+          "styles.css": "c9496d3fbdea9e4813bb3b5485b2a2d4df0f02c99601310a31dede3cb904ce35",
+          "app.js": "b84853580650f0a2cbbe78dd698d7ff1246807fcf525a654528007a930d6b0e3"
+        }
+      },
+      {
+        "rep": 3,
+        "total_latency_ms": 21.362,
+        "tool_latency_ms": 21.362,
+        "verification_latency_ms": 0.209,
+        "hashes": {
+          "index.html": "ae1bf4a2e1d27cce9f89d9f3b7781f5e09622489c604e5105a2af8186e860f92",
+          "styles.css": "c9496d3fbdea9e4813bb3b5485b2a2d4df0f02c99601310a31dede3cb904ce35",
+          "app.js": "b84853580650f0a2cbbe78dd698d7ff1246807fcf525a654528007a930d6b0e3"
+        }
+      }
+    ]
+  },
+  "delta": {
+    "tool_dispatch_reduction": "3 dispatches -> 1 dispatch (-66.7%)",
+    "median_total_ms_delta": -16.357,
+    "median_total_pct": -43.37,
+    "median_tool_ms_delta": -16.353,
+    "median_tool_pct": -43.36,
+    "causal_interpretation": "Under 100% identical artifact contents, write_files_batch reduces top-level tool dispatches from 3 to 1 (-66.7%). Write-path latency includes temporary staging, backup, and atomic commit semantics."
+  }
+}

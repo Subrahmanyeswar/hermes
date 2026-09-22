@@ -1,0 +1,86 @@
+[
+  {
+    "metric_name": "E2E Wall Clock Mission Latency",
+    "source": "MissionRunner / Gate 16 Harness",
+    "producer": "time.perf_counter()",
+    "start_boundary": "User request arrival / Mission execution start",
+    "end_boundary": "Mission terminal state committed in ExecutionStateStore",
+    "clock": "time.perf_counter() (Monotonic)",
+    "unit": "seconds",
+    "scope": "END_TO_END",
+    "derived": false,
+    "double_counting_risk": "None (Measured directly across global mission lifecycle)"
+  },
+  {
+    "metric_name": "Model Time to First Token (TTFT)",
+    "source": "OllamaClient / OpenRouterClient",
+    "producer": "Streaming token generator timestamp",
+    "start_boundary": "HTTP request sent to provider",
+    "end_boundary": "First token chunk yielded by stream",
+    "clock": "time.monotonic()",
+    "unit": "seconds",
+    "scope": "MODEL_LEVEL",
+    "derived": false,
+    "double_counting_risk": "None (Explicitly distinguished from generation duration)"
+  },
+  {
+    "metric_name": "Model Generation Latency",
+    "source": "OllamaClient / OpenRouterClient",
+    "producer": "Streaming token loop",
+    "start_boundary": "First token yielded",
+    "end_boundary": "Final token chunk received",
+    "clock": "time.monotonic()",
+    "unit": "seconds",
+    "scope": "MODEL_LEVEL",
+    "derived": false,
+    "double_counting_risk": "None"
+  },
+  {
+    "metric_name": "Generation Throughput (tok/s)",
+    "source": "Model Telemetry",
+    "producer": "completion_tokens / generation_duration_s",
+    "start_boundary": "First token yielded",
+    "end_boundary": "Final token yielded",
+    "clock": "time.monotonic()",
+    "unit": "tokens/second",
+    "scope": "MODEL_LEVEL",
+    "derived": true,
+    "double_counting_risk": "None (Divided strictly by generation latency, not E2E)"
+  },
+  {
+    "metric_name": "Component Latencies (Workspace, Context, Tools, Verifier, Repair)",
+    "source": "Individual Subsystems",
+    "producer": "time.perf_counter() around component entry/exit",
+    "start_boundary": "Component method start",
+    "end_boundary": "Component method return",
+    "clock": "time.perf_counter()",
+    "unit": "seconds",
+    "scope": "COMPONENT_LEVEL",
+    "derived": false,
+    "double_counting_risk": "None (Recorded independently, not summed into E2E)"
+  },
+  {
+    "metric_name": "VRAM Consumption",
+    "source": "torch.cuda + nvidia-smi",
+    "producer": "Process memory sampling",
+    "start_boundary": "Pre-generation baseline",
+    "end_boundary": "Post-generation residency",
+    "clock": "Wall Clock / Polling",
+    "unit": "Megabytes (MB)",
+    "scope": "SYSTEM_RESOURCE",
+    "derived": false,
+    "double_counting_risk": "None"
+  },
+  {
+    "metric_name": "Cloud Cost Accounting",
+    "source": "OpenRouter API Response Telemetry",
+    "producer": "Provider reported usage JSON",
+    "start_boundary": "Request initiation",
+    "end_boundary": "Response completion",
+    "clock": "Provider Clock",
+    "unit": "USD ($)",
+    "scope": "CLOUD_COST",
+    "derived": false,
+    "double_counting_risk": "None (Explicitly labeled NOT_AVAILABLE if auth-blocked)"
+  }
+]

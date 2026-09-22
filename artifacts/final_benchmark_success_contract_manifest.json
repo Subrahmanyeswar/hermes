@@ -1,0 +1,10 @@
+{
+  "dataset_version": "1.0.0",
+  "success_contract_version": "1.0.0",
+  "evaluator_version": "1.0.0",
+  "task_count": 80,
+  "sha256": "4cf78a7dce0cfedfeb81e5e6929241fb7fd69d5eba0ba2b91888f6744834fff3",
+  "dataset_sha256_reference": "f3475b6415364ccea70f4710bfe2137fe84d91cce5d1db822e8d156716cf4d72",
+  "frozen": true,
+  "benchmark_execution_allowed": false
+}

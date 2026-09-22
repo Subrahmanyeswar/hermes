@@ -1,0 +1,39 @@
+{
+  "mission_id": "MISSION_2_rep1_warm",
+  "base_id": "MISSION_2",
+  "name": "Single-File Coding Task",
+  "type": "single_file",
+  "cold": false,
+  "repetition": 1,
+  "wall_clock_ms": 180462.41,
+  "success": false,
+  "tool_name": null,
+  "pipeline_stage_reached": 4,
+  "tier3_was_called": false,
+  "critical_path": {
+    "wall_clock_ms": 180487.21,
+    "cumulative_span_ms": 180462.39,
+    "leaf_span_ms": 180462.39,
+    "category_times_ms": {
+      "MISSION": 180462.39
+    },
+    "span_count": 1
+  },
+  "spans": [
+    {
+      "span_id": "df68b1ea",
+      "mission_id": "MISSION_2_rep1_warm",
+      "parent_id": null,
+      "name": "TOTAL_MISSION",
+      "category": "MISSION",
+      "start_ns": 804083657482300,
+      "end_ns": 804264119871400,
+      "duration_ms": 180462.3891,
+      "status": "success",
+      "metadata": {
+        "mission_id": "MISSION_2_rep1_warm"
+      },
+      "children": []
+    }
+  ]
+}

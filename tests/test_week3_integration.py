@@ -197,18 +197,19 @@ async def test_6_tier1_uses_skill_context_correctly():
     )
     
     # ── Validate both are valid JSON ──────────────────────────────────
-    def try_parse(resp: str, label: str) -> dict | None:
+    def try_parse(resp, label: str) -> dict | None:
         import re
-        match = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", resp, re.DOTALL)
+        resp_str = resp.text if hasattr(resp, "text") else str(resp)
+        match = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", resp_str, re.DOTALL)
         if match:
             cleaned = match.group(1)
         else:
-            start = resp.find('{')
-            end = resp.rfind('}')
+            start = resp_str.find('{')
+            end = resp_str.rfind('}')
             if start != -1 and end != -1:
-                cleaned = resp[start:end+1]
+                cleaned = resp_str[start:end+1]
             else:
-                cleaned = resp
+                cleaned = resp_str
                 
         try:
             # First attempt: strict parse

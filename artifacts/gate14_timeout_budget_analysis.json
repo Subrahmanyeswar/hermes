@@ -1,0 +1,13 @@
+{
+  "sequential_worst_case_seconds": {
+    "L0_DIRECT": 120,
+    "L1_SIMPLE": 165,
+    "L2_NORMAL": 255,
+    "L3_COMPLEX": 420,
+    "L4_VERY_COMPLEX": 480
+  },
+  "parallel_kairos_concurrency_factor": 4,
+  "critical_path_enforcement": "MissionRunner sets global mission deadline; CancellationController terminates active graph upon expiration",
+  "overshoot_bounds_observed_max_s": 0.0309,
+  "overshoot_bounds_observed_avg_s": 0.002
+}

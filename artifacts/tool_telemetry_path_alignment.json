@@ -1,0 +1,19 @@
+{
+  "status": "PASS",
+  "root_cause": "TypeError in core/orchestrator.py: ToolTelemetry constructor parameters mismatched dataclass definition in core/telemetry.py, silently swallowed by except Exception: pass.",
+  "fix_applied": true,
+  "real_tool_execution": true,
+  "physical_filesystem_mutation": true,
+  "telemetry_recorded": true,
+  "aggregator_reconciled": true,
+  "single_tool_count": 1,
+  "multi_tool_count": 2,
+  "zero_tool_count": 0,
+  "failed_tool_attempt_recorded": true,
+  "failed_tool_success_flag": false,
+  "repair_tool_count": 1,
+  "benchmark_shaped_probe_passed": true,
+  "frozen_dataset_unchanged": true,
+  "frozen_contract_unchanged": true,
+  "frozen_protocol_unchanged": true
+}

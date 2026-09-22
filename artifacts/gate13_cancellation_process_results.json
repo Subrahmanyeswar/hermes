@@ -1,0 +1,28 @@
+[
+  {
+    "scenario_id": "C06",
+    "pid": 13024,
+    "parent_pid": 5688,
+    "process_creation_timestamp": 1788372743.4250362,
+    "hermes_cancellation_timestamp": 1788372743.4317358,
+    "process_termination_timestamp": 1788372743.4898615,
+    "termination_mechanism": "HERMES (tools.shell_tools.terminate_active_subprocesses)",
+    "final_poll_exit_code": 1,
+    "zombies": 0,
+    "subprocess_terminated": true,
+    "harness_killed_process": false
+  },
+  {
+    "scenario_id": "Z01",
+    "pid": 26740,
+    "parent_pid": 5688,
+    "process_creation_timestamp": 1788372743.5099924,
+    "hermes_cancellation_timestamp": 1788372743.5129132,
+    "process_termination_timestamp": 1788372743.5676725,
+    "termination_mechanism": "HERMES (tools.shell_tools.terminate_active_subprocesses)",
+    "final_poll_exit_code": 1,
+    "zombies": 0,
+    "subprocess_terminated": true,
+    "harness_killed_process": false
+  }
+]

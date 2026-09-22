@@ -1,0 +1,20 @@
+{
+  "total_samples": 10,
+  "valid_json_parsed": 7,
+  "methods_used": {
+    "direct_parse": 3,
+    "strip_markdown_fences": 1,
+    "extract_first_json_object": 1,
+    "fix_single_quotes": 1,
+    "reconstruct_from_fragments": 1
+  },
+  "failures": 3,
+  "failure_reasons": {
+    "json_malformed_unparseable": 1,
+    "model_responded_with_plain_text_no_json": 1,
+    "empty_response": 1
+  },
+  "unknown_tools_allowed_pre_hardening": 1,
+  "avg_parse_latency_ms": 42.4536,
+  "max_parse_latency_ms": 422.7766
+}

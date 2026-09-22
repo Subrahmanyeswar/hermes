@@ -1,0 +1,118 @@
+{
+  "gate": "15.5",
+  "gate_name": "Final Local Inference Runtime Decision",
+  "timestamp_utc": "2026-09-02T06:28:09.118112+00:00",
+  "hardware": {
+    "gpu": "NVIDIA GeForce RTX 3050 Laptop GPU (6144 MB VRAM)",
+    "compute_capability": "8.6",
+    "os": "Windows x86_64"
+  },
+  "ollama_measurements": {
+    "execution_status": "BENCHMARKED",
+    "micro_benchmarks": [
+      {
+        "test_id": "TEST_A_SHORT",
+        "execution_status": "BENCHMARKED",
+        "model": "deepseek-r1:8b",
+        "prompt": "What is 2 + 2? Answer with number only.",
+        "runs_count": 3,
+        "success_rate": "3/3",
+        "avg_latency_ms": 2157.98,
+        "avg_tokens_per_sec": 32.05,
+        "peak_vram_mb": 5497
+      },
+      {
+        "test_id": "TEST_B_MEDIUM",
+        "execution_status": "BENCHMARKED",
+        "model": "deepseek-r1:8b",
+        "prompt": "Explain what an asynchronous event bus is in 2 sentences.",
+        "runs_count": 3,
+        "success_rate": "3/3",
+        "avg_latency_ms": 2181.17,
+        "avg_tokens_per_sec": 32.04,
+        "peak_vram_mb": 5497
+      },
+      {
+        "test_id": "TEST_C_CODE",
+        "execution_status": "BENCHMARKED",
+        "model": "deepseek-r1:8b",
+        "prompt": "Write a Python function to compute the fibonacci sequence up to n.",
+        "runs_count": 3,
+        "success_rate": "3/3",
+        "avg_latency_ms": 2171.74,
+        "avg_tokens_per_sec": 32.0,
+        "peak_vram_mb": 5497
+      },
+      {
+        "test_id": "TEST_D_REASONING",
+        "execution_status": "BENCHMARKED",
+        "model": "deepseek-r1:8b",
+        "prompt": "If a train leaves Station A at 60 mph and another leaves Station B at 80 mph towards each other 280 miles apart, when do they meet?",
+        "runs_count": 3,
+        "success_rate": "3/3",
+        "avg_latency_ms": 2166.52,
+        "avg_tokens_per_sec": 32.03,
+        "peak_vram_mb": 5497
+      }
+    ]
+  },
+  "stability_measurements": {
+    "stability_test": {
+      "execution_status": "BENCHMARKED",
+      "total_runs": 5,
+      "passed_runs": 5,
+      "stability_verdict": "STABLE",
+      "runs": [
+        {
+          "iteration": 1,
+          "status": "SUCCESS",
+          "latency_ms": 470.32,
+          "vram_mb": 5497
+        },
+        {
+          "iteration": 2,
+          "status": "SUCCESS",
+          "latency_ms": 464.72,
+          "vram_mb": 5497
+        },
+        {
+          "iteration": 3,
+          "status": "SUCCESS",
+          "latency_ms": 463.39,
+          "vram_mb": 5497
+        },
+        {
+          "iteration": 4,
+          "status": "SUCCESS",
+          "latency_ms": 465.41,
+          "vram_mb": 5497
+        },
+        {
+          "iteration": 5,
+          "status": "SUCCESS",
+          "latency_ms": 504.29,
+          "vram_mb": 5497
+        }
+      ]
+    }
+  },
+  "tensorrt_audit": {
+    "execution_status": "FEASIBILITY_AUDITED",
+    "empirical_benchmark_performed": false,
+    "reason_not_benchmarked": "TensorRT-LLM is not practically viable or fairly comparable on the native Windows 6GB laptop hardware.",
+    "tensorrt_llm_installed": false,
+    "tensorrt_installed": false,
+    "windows_native_wheel_status": "UNSUPPORTED_OFFICIALLY",
+    "model_architecture_support": "DEEPSEEK_8B_INT4_ENGINE_BUILD_REQUIRES_16GB_HOST_RAM",
+    "vram_budget_feasibility": "OOM_RISK_ON_6GB_DURING_ENGINE_BUILD",
+    "compatibility_verdict": "NOT_COMPARABLE_NATIVELY"
+  },
+  "decision_evaluation": {
+    "can_tensorrt_run_model_natively": false,
+    "is_tensorrt_quantization_comparable": false,
+    "does_ollama_fit_6gb_vram": true,
+    "is_ollama_stable": true,
+    "final_runtime_decision": "OLLAMA",
+    "decision_basis": "VALIDATED_BASELINE_AND_TENSORRT_FEASIBILITY_LIMITATION"
+  }
+}

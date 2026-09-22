@@ -1,0 +1,82 @@
+{
+  "baseline_prompt_tokens": 1833,
+  "optimized_prompt_tokens": 1304,
+  "token_reduction_pct": 28.86,
+  "baseline_prompt_chars": 8112,
+  "optimized_prompt_chars": 5833,
+  "char_reduction_pct": 28.09,
+  "reconciliation_status": "PASS",
+  "accounting_reference": "artifacts/performance/prompt4/prompt4_prompt_accounting.json",
+  "components": {
+    "system_instructions_and_framing": {
+      "baseline_chars": 3659,
+      "baseline_isolated_tokens": 821,
+      "optimized_static_prefix_chars": 3141,
+      "optimized_static_prefix_tokens": 686,
+      "optimized_dynamic_framing_chars": 516,
+      "optimized_dynamic_framing_tokens": 137,
+      "prefix_suffix_separator_chars": 2,
+      "prefix_suffix_separator_tokens": 1,
+      "repeated": true,
+      "static": true,
+      "required": true,
+      "optimization": "Structured into invariant static prefix (hash f2f5a3b9...) and compact dynamic suffix framing"
+    },
+    "tool_schemas": {
+      "baseline_chars": 2909,
+      "baseline_isolated_tokens": 659,
+      "optimized_chars": 723,
+      "optimized_isolated_tokens": 156,
+      "isolated_token_savings": 503,
+      "repeated": true,
+      "static": false,
+      "required": true,
+      "optimization": "Selective tool schema injection (task-required tools + safe diagnostics; 20 tools down to 4 in production)"
+    },
+    "skills": {
+      "skill_id": "react-frontend",
+      "baseline_chars": 1192,
+      "baseline_isolated_tokens": 275,
+      "optimized_level_1_summary_chars": 208,
+      "optimized_level_1_summary_tokens": 47,
+      "optimized_level_2_procedural_chars": 1192,
+      "optimized_level_2_procedural_tokens": 275,
+      "repeated": false,
+      "static": false,
+      "required": true,
+      "optimization": "Progressive skill disclosure (Level 1 summary / Level 2 compact procedural without code bloat; Level 2 evaluated in Exp F)"
+    },
+    "memory": {
+      "baseline_chars": 51,
+      "baseline_isolated_tokens": 14,
+      "optimized_facts_injected": 0,
+      "optimized_fallback_chars": 22,
+      "optimized_fallback_tokens": 7,
+      "repeated": false,
+      "static": false,
+      "required": false,
+      "optimization": "Query-guided relevance filtering and deduplication; omits irrelevant memory facts, uses compact fallback"
+    },
+    "workspace_structure": {
+      "baseline_chars": 120,
+      "baseline_isolated_tokens": 33,
+      "optimized_chars": 56,
+      "optimized_isolated_tokens": 15,
+      "isolated_token_savings": 18,
+      "repeated": true,
+      "static": false,
+      "required": true,
+      "optimization": "Pruned empty placeholder tree headers for initial empty workspaces"
+    },
+    "user_task": {
+      "baseline_chars": 181,
+      "baseline_isolated_tokens": 35,
+      "optimized_chars": 181,
+      "optimized_isolated_tokens": 35,
+      "repeated": false,
+      "static": false,
+      "required": true,
+      "optimization": "Preserved exact user task requirements"
+    }
+  }
+}

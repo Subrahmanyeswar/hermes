@@ -1,0 +1,594 @@
+[
+  {
+    "scenario_id": "T01",
+    "mission_id": "mission_t01",
+    "final_state": "CANCELLED",
+    "events_count": 2,
+    "events": [
+      {
+        "sequence": 1,
+        "event_type": "MISSION_CREATED"
+      },
+      {
+        "sequence": 2,
+        "event_type": "MISSION_CANCELLED"
+      }
+    ]
+  },
+  {
+    "scenario_id": "T02",
+    "mission_id": "mission_t02",
+    "final_state": "CANCELLED",
+    "events_count": 4,
+    "events": [
+      {
+        "sequence": 3,
+        "event_type": "MISSION_CREATED"
+      },
+      {
+        "sequence": 4,
+        "event_type": "MISSION_STARTED"
+      },
+      {
+        "sequence": 5,
+        "event_type": "TASK_STARTED"
+      },
+      {
+        "sequence": 6,
+        "event_type": "MISSION_CANCELLED"
+      }
+    ]
+  },
+  {
+    "scenario_id": "T03",
+    "mission_id": "mission_t03",
+    "final_state": "CANCELLED",
+    "events_count": 4,
+    "events": [
+      {
+        "sequence": 7,
+        "event_type": "MISSION_STARTED"
+      },
+      {
+        "sequence": 8,
+        "event_type": "MODEL_REQUEST_STARTED"
+      },
+      {
+        "sequence": 9,
+        "event_type": "MODEL_GENERATING"
+      },
+      {
+        "sequence": 10,
+        "event_type": "MISSION_CANCELLED"
+      }
+    ]
+  },
+  {
+    "scenario_id": "T04",
+    "mission_id": "mission_t04",
+    "final_state": "CANCELLED",
+    "events_count": 3,
+    "events": [
+      {
+        "sequence": 11,
+        "event_type": "MISSION_STARTED"
+      },
+      {
+        "sequence": 12,
+        "event_type": "MODEL_REQUEST_STARTED"
+      },
+      {
+        "sequence": 13,
+        "event_type": "MISSION_CANCELLED"
+      }
+    ]
+  },
+  {
+    "scenario_id": "T05",
+    "mission_id": "mission_t05",
+    "final_state": "CANCELLED",
+    "events_count": 3,
+    "events": [
+      {
+        "sequence": 14,
+        "event_type": "MISSION_STARTED"
+      },
+      {
+        "sequence": 15,
+        "event_type": "MODEL_REQUEST_STARTED"
+      },
+      {
+        "sequence": 16,
+        "event_type": "MISSION_CANCELLED"
+      }
+    ]
+  },
+  {
+    "scenario_id": "T06",
+    "mission_id": "mission_t06",
+    "final_state": "CANCELLED",
+    "events_count": 3,
+    "events": [
+      {
+        "sequence": 17,
+        "event_type": "MISSION_STARTED"
+      },
+      {
+        "sequence": 18,
+        "event_type": "TOOL_STARTED"
+      },
+      {
+        "sequence": 19,
+        "event_type": "MISSION_CANCELLED"
+      }
+    ]
+  },
+  {
+    "scenario_id": "T07",
+    "mission_id": "mission_t07",
+    "final_state": "CANCELLED",
+    "events_count": 2,
+    "events": [
+      {
+        "sequence": 20,
+        "event_type": "MISSION_STARTED"
+      },
+      {
+        "sequence": 21,
+        "event_type": "MISSION_CANCELLED"
+      }
+    ]
+  },
+  {
+    "scenario_id": "T08",
+    "mission_id": "mission_t08",
+    "final_state": "CANCELLED",
+    "events_count": 3,
+    "events": [
+      {
+        "sequence": 22,
+        "event_type": "MISSION_STARTED"
+      },
+      {
+        "sequence": 23,
+        "event_type": "VERIFICATION_STARTED"
+      },
+      {
+        "sequence": 24,
+        "event_type": "MISSION_CANCELLED"
+      }
+    ]
+  },
+  {
+    "scenario_id": "T09",
+    "mission_id": "mission_t09",
+    "final_state": "CANCELLED",
+    "events_count": 3,
+    "events": [
+      {
+        "sequence": 25,
+        "event_type": "MISSION_STARTED"
+      },
+      {
+        "sequence": 26,
+        "event_type": "REPAIR_STARTED"
+      },
+      {
+        "sequence": 27,
+        "event_type": "MISSION_CANCELLED"
+      }
+    ]
+  },
+  {
+    "scenario_id": "T10",
+    "mission_id": "mission_t10",
+    "final_state": "CANCELLED",
+    "events_count": 3,
+    "events": [
+      {
+        "sequence": 28,
+        "event_type": "MISSION_STARTED"
+      },
+      {
+        "sequence": 29,
+        "event_type": "TASK_STARTED"
+      },
+      {
+        "sequence": 30,
+        "event_type": "MISSION_CANCELLED"
+      }
+    ]
+  },
+  {
+    "scenario_id": "T11",
+    "mission_id": "mission_t11",
+    "final_state": "CANCELLED",
+    "events_count": 3,
+    "events": [
+      {
+        "sequence": 31,
+        "event_type": "MISSION_STARTED"
+      },
+      {
+        "sequence": 32,
+        "event_type": "TASK_STARTED"
+      },
+      {
+        "sequence": 33,
+        "event_type": "MISSION_CANCELLED"
+      }
+    ]
+  },
+  {
+    "scenario_id": "T12",
+    "mission_id": "mission_t12",
+    "final_state": "CANCELLED",
+    "events_count": 3,
+    "events": [
+      {
+        "sequence": 34,
+        "event_type": "MISSION_STARTED"
+      },
+      {
+        "sequence": 35,
+        "event_type": "TASK_STARTED"
+      },
+      {
+        "sequence": 36,
+        "event_type": "MISSION_CANCELLED"
+      }
+    ]
+  },
+  {
+    "scenario_id": "T13",
+    "mission_id": "mission_t13",
+    "final_state": "CANCELLED",
+    "events_count": 3,
+    "events": [
+      {
+        "sequence": 37,
+        "event_type": "MISSION_STARTED"
+      },
+      {
+        "sequence": 38,
+        "event_type": "TASK_STARTED"
+      },
+      {
+        "sequence": 39,
+        "event_type": "MISSION_CANCELLED"
+      }
+    ]
+  },
+  {
+    "scenario_id": "T14",
+    "mission_id": "mission_t14",
+    "final_state": "CANCELLED",
+    "events_count": 3,
+    "events": [
+      {
+        "sequence": 40,
+        "event_type": "MISSION_STARTED"
+      },
+      {
+        "sequence": 41,
+        "event_type": "TASK_STARTED"
+      },
+      {
+        "sequence": 42,
+        "event_type": "MISSION_CANCELLED"
+      }
+    ]
+  },
+  {
+    "scenario_id": "T15",
+    "mission_id": "mission_t15",
+    "final_state": "TIMEOUT_ERROR_HANDLED",
+    "events_count": 0,
+    "events": []
+  },
+  {
+    "scenario_id": "T16",
+    "mission_id": "mission_t16",
+    "final_state": "TERMINATED",
+    "events_count": 0,
+    "events": []
+  },
+  {
+    "scenario_id": "T17",
+    "mission_id": "mission_t17",
+    "final_state": "CANCELLED",
+    "events_count": 3,
+    "events": [
+      {
+        "sequence": 43,
+        "event_type": "MISSION_STARTED"
+      },
+      {
+        "sequence": 44,
+        "event_type": "VERIFICATION_STARTED"
+      },
+      {
+        "sequence": 45,
+        "event_type": "MISSION_CANCELLED"
+      }
+    ]
+  },
+  {
+    "scenario_id": "T18",
+    "mission_id": "mission_t18",
+    "final_state": "CANCELLED",
+    "events_count": 2,
+    "events": [
+      {
+        "sequence": 46,
+        "event_type": "MISSION_STARTED"
+      },
+      {
+        "sequence": 47,
+        "event_type": "MISSION_CANCELLED"
+      }
+    ]
+  },
+  {
+    "scenario_id": "T19",
+    "mission_id": "mission_t19",
+    "final_state": "CANCELLED",
+    "events_count": 2,
+    "events": [
+      {
+        "sequence": 48,
+        "event_type": "MISSION_STARTED"
+      },
+      {
+        "sequence": 49,
+        "event_type": "MISSION_CANCELLED"
+      }
+    ]
+  },
+  {
+    "scenario_id": "T20",
+    "mission_id": "mission_t20",
+    "final_state": "CANCELLED",
+    "events_count": 2,
+    "events": [
+      {
+        "sequence": 50,
+        "event_type": "MISSION_STARTED"
+      },
+      {
+        "sequence": 51,
+        "event_type": "MISSION_CANCELLED"
+      }
+    ]
+  },
+  {
+    "scenario_id": "T21",
+    "mission_id": "mission_t21",
+    "final_state": "CANCELLED",
+    "events_count": 3,
+    "events": [
+      {
+        "sequence": 52,
+        "event_type": "MISSION_STARTED"
+      },
+      {
+        "sequence": 53,
+        "event_type": "KAIROS_STATE_CHANGED"
+      },
+      {
+        "sequence": 54,
+        "event_type": "MISSION_CANCELLED"
+      }
+    ]
+  },
+  {
+    "scenario_id": "T22",
+    "mission_id": "mission_t22",
+    "final_state": "CANCELLED",
+    "events_count": 3,
+    "events": [
+      {
+        "sequence": 55,
+        "event_type": "MISSION_STARTED"
+      },
+      {
+        "sequence": 56,
+        "event_type": "KAIROS_STATE_CHANGED"
+      },
+      {
+        "sequence": 57,
+        "event_type": "MISSION_CANCELLED"
+      }
+    ]
+  },
+  {
+    "scenario_id": "T23",
+    "mission_id": "mission_t23",
+    "final_state": "CANCELLED",
+    "events_count": 3,
+    "events": [
+      {
+        "sequence": 58,
+        "event_type": "MISSION_STARTED"
+      },
+      {
+        "sequence": 59,
+        "event_type": "MISSION_CANCELLED"
+      },
+      {
+        "sequence": 60,
+        "event_type": "MISSION_CANCELLED"
+      }
+    ]
+  },
+  {
+    "scenario_id": "T24",
+    "mission_id": "mission_t24",
+    "final_state": "CANCELLED",
+    "events_count": 4,
+    "events": [
+      {
+        "sequence": 61,
+        "event_type": "MISSION_STARTED"
+      },
+      {
+        "sequence": 62,
+        "event_type": "MISSION_CANCELLED"
+      },
+      {
+        "sequence": 63,
+        "event_type": "TASK_COMPLETED"
+      },
+      {
+        "sequence": 64,
+        "event_type": "MISSION_COMPLETED"
+      }
+    ]
+  },
+  {
+    "scenario_id": "T25",
+    "mission_id": "mission_t25",
+    "final_state": "CANCELLED",
+    "events_count": 3,
+    "events": [
+      {
+        "sequence": 65,
+        "event_type": "MISSION_STARTED"
+      },
+      {
+        "sequence": 66,
+        "event_type": "MISSION_CANCELLED"
+      },
+      {
+        "sequence": 67,
+        "event_type": "TASK_STARTED"
+      }
+    ]
+  },
+  {
+    "scenario_id": "T26",
+    "mission_id": "mission_t26",
+    "final_state": "CANCELLED",
+    "events_count": 3,
+    "events": [
+      {
+        "sequence": 68,
+        "event_type": "MISSION_STARTED"
+      },
+      {
+        "sequence": 69,
+        "event_type": "MISSION_CANCELLED"
+      },
+      {
+        "sequence": 70,
+        "event_type": "REPAIR_COMPLETED"
+      }
+    ]
+  },
+  {
+    "scenario_id": "T27",
+    "mission_id": "mission_t27",
+    "final_state": "CANCELLED",
+    "events_count": 3,
+    "events": [
+      {
+        "sequence": 71,
+        "event_type": "MISSION_STARTED"
+      },
+      {
+        "sequence": 72,
+        "event_type": "MISSION_CANCELLED"
+      },
+      {
+        "sequence": 73,
+        "event_type": "TASK_STARTED"
+      }
+    ]
+  },
+  {
+    "scenario_id": "T28",
+    "mission_id": "mission_t28",
+    "final_state": "CANCELLED",
+    "events_count": 0,
+    "events": []
+  },
+  {
+    "scenario_id": "T29",
+    "mission_id": "mission_t29",
+    "final_state": "CANCELLED",
+    "events_count": 6,
+    "events": [
+      {
+        "sequence": 84,
+        "event_type": "MISSION_STARTED"
+      },
+      {
+        "sequence": 85,
+        "event_type": "MISSION_CANCELLED"
+      },
+      {
+        "sequence": 86,
+        "event_type": "MISSION_CANCELLED"
+      },
+      {
+        "sequence": 87,
+        "event_type": "MISSION_CANCELLED"
+      },
+      {
+        "sequence": 88,
+        "event_type": "MISSION_CANCELLED"
+      },
+      {
+        "sequence": 89,
+        "event_type": "MISSION_CANCELLED"
+      }
+    ]
+  },
+  {
+    "scenario_id": "T30",
+    "mission_id": "mission_t30",
+    "final_state": "BOUNDED_CLEANUP",
+    "events_count": 0,
+    "events": []
+  },
+  {
+    "scenario_id": "T31",
+    "mission_id": "mission_t31",
+    "final_state": "CANCELLED",
+    "events_count": 2,
+    "events": [
+      {
+        "sequence": 90,
+        "event_type": "MISSION_STARTED"
+      },
+      {
+        "sequence": 91,
+        "event_type": "MISSION_CANCELLED"
+      }
+    ]
+  },
+  {
+    "scenario_id": "T32",
+    "mission_id": "mission_t32",
+    "final_state": "CANCELLED",
+    "events_count": 4,
+    "events": [
+      {
+        "sequence": 92,
+        "event_type": "MISSION_STARTED"
+      },
+      {
+        "sequence": 93,
+        "event_type": "TASK_STARTED"
+      },
+      {
+        "sequence": 94,
+        "event_type": "TOOL_STARTED"
+      },
+      {
+        "sequence": 95,
+        "event_type": "MISSION_CANCELLED"
+      }
+    ]
+  }
+]

@@ -1,0 +1,192 @@
+[
+  {
+    "scenario_id": "P01",
+    "boundary": "before_mission_creation_commit",
+    "crash_injected": true,
+    "restart_clean": true,
+    "inconsistency_detected": true,
+    "recovered_safely": true,
+    "false_completion": false,
+    "notes": "Process terminated at boundary 'before_mission_creation_commit'; restart recovered consistent state"
+  },
+  {
+    "scenario_id": "P02",
+    "boundary": "after_mission_creation",
+    "crash_injected": true,
+    "restart_clean": true,
+    "inconsistency_detected": true,
+    "recovered_safely": true,
+    "false_completion": false,
+    "notes": "Process terminated at boundary 'after_mission_creation'; restart recovered consistent state"
+  },
+  {
+    "scenario_id": "P03",
+    "boundary": "after_task_creation",
+    "crash_injected": true,
+    "restart_clean": true,
+    "inconsistency_detected": true,
+    "recovered_safely": true,
+    "false_completion": false,
+    "notes": "Process terminated at boundary 'after_task_creation'; restart recovered consistent state"
+  },
+  {
+    "scenario_id": "P04",
+    "boundary": "after_task_starts",
+    "crash_injected": true,
+    "restart_clean": true,
+    "inconsistency_detected": true,
+    "recovered_safely": true,
+    "false_completion": false,
+    "notes": "Process terminated at boundary 'after_task_starts'; restart recovered consistent state"
+  },
+  {
+    "scenario_id": "P05",
+    "boundary": "after_model_result",
+    "crash_injected": true,
+    "restart_clean": true,
+    "inconsistency_detected": true,
+    "recovered_safely": true,
+    "false_completion": false,
+    "notes": "Process terminated at boundary 'after_model_result'; restart recovered consistent state"
+  },
+  {
+    "scenario_id": "P06",
+    "boundary": "after_tool_result",
+    "crash_injected": true,
+    "restart_clean": true,
+    "inconsistency_detected": true,
+    "recovered_safely": true,
+    "false_completion": false,
+    "notes": "Process terminated at boundary 'after_tool_result'; restart recovered consistent state"
+  },
+  {
+    "scenario_id": "P07",
+    "boundary": "after_verification_result",
+    "crash_injected": true,
+    "restart_clean": true,
+    "inconsistency_detected": true,
+    "recovered_safely": true,
+    "false_completion": false,
+    "notes": "Process terminated at boundary 'after_verification_result'; restart recovered consistent state"
+  },
+  {
+    "scenario_id": "P08",
+    "boundary": "after_acceptance_update",
+    "crash_injected": true,
+    "restart_clean": true,
+    "inconsistency_detected": true,
+    "recovered_safely": true,
+    "false_completion": false,
+    "notes": "Process terminated at boundary 'after_acceptance_update'; restart recovered consistent state"
+  },
+  {
+    "scenario_id": "P09",
+    "boundary": "after_task_completion",
+    "crash_injected": true,
+    "restart_clean": true,
+    "inconsistency_detected": true,
+    "recovered_safely": true,
+    "false_completion": false,
+    "notes": "Process terminated at boundary 'after_task_completion'; restart recovered consistent state"
+  },
+  {
+    "scenario_id": "P10",
+    "boundary": "after_event_write",
+    "crash_injected": true,
+    "restart_clean": true,
+    "inconsistency_detected": true,
+    "recovered_safely": true,
+    "false_completion": false,
+    "notes": "Process terminated at boundary 'after_event_write'; restart recovered consistent state"
+  },
+  {
+    "scenario_id": "P11",
+    "boundary": "after_telemetry_write",
+    "crash_injected": true,
+    "restart_clean": true,
+    "inconsistency_detected": true,
+    "recovered_safely": true,
+    "false_completion": false,
+    "notes": "Process terminated at boundary 'after_telemetry_write'; restart recovered consistent state"
+  },
+  {
+    "scenario_id": "P12",
+    "boundary": "before_mission_completion",
+    "crash_injected": true,
+    "restart_clean": true,
+    "inconsistency_detected": true,
+    "recovered_safely": true,
+    "false_completion": false,
+    "notes": "Process terminated at boundary 'before_mission_completion'; restart recovered consistent state"
+  },
+  {
+    "scenario_id": "P13",
+    "boundary": "after_mission_completion",
+    "crash_injected": true,
+    "restart_clean": true,
+    "inconsistency_detected": true,
+    "recovered_safely": true,
+    "false_completion": false,
+    "notes": "Process terminated at boundary 'after_mission_completion'; restart recovered consistent state"
+  },
+  {
+    "scenario_id": "P14",
+    "boundary": "during_kairos_state_update",
+    "crash_injected": true,
+    "restart_clean": true,
+    "inconsistency_detected": true,
+    "recovered_safely": true,
+    "false_completion": false,
+    "notes": "Process terminated at boundary 'during_kairos_state_update'; restart recovered consistent state"
+  },
+  {
+    "scenario_id": "P15",
+    "boundary": "during_repair_persistence",
+    "crash_injected": true,
+    "restart_clean": true,
+    "inconsistency_detected": true,
+    "recovered_safely": true,
+    "false_completion": false,
+    "notes": "Process terminated at boundary 'during_repair_persistence'; restart recovered consistent state"
+  },
+  {
+    "scenario_id": "P16",
+    "boundary": "during_cancellation_persistence",
+    "crash_injected": true,
+    "restart_clean": true,
+    "inconsistency_detected": true,
+    "recovered_safely": true,
+    "false_completion": false,
+    "notes": "Process terminated at boundary 'during_cancellation_persistence'; restart recovered consistent state"
+  },
+  {
+    "scenario_id": "P17",
+    "boundary": "during_timeout_persistence",
+    "crash_injected": true,
+    "restart_clean": true,
+    "inconsistency_detected": true,
+    "recovered_safely": true,
+    "false_completion": false,
+    "notes": "Process terminated at boundary 'during_timeout_persistence'; restart recovered consistent state"
+  },
+  {
+    "scenario_id": "P18",
+    "boundary": "during_workspace_index_update",
+    "crash_injected": true,
+    "restart_clean": true,
+    "inconsistency_detected": true,
+    "recovered_safely": true,
+    "false_completion": false,
+    "notes": "Process terminated at boundary 'during_workspace_index_update'; restart recovered consistent state"
+  },
+  {
+    "scenario_id": "P19",
+    "boundary": "during_memory_persistence",
+    "crash_injected": true,
+    "restart_clean": true,
+    "inconsistency_detected": true,
+    "recovered_safely": true,
+    "false_completion": false,
+    "notes": "Process terminated at boundary 'during_memory_persistence'; restart recovered consistent state"
+  }
+]

@@ -12,6 +12,7 @@ import re
 from typing import Optional
 from loguru import logger
 from memory.types import MemoryFact, MemoryState, FactType
+from config.model_config import TIER1_MODEL, MODEL_KEEP_ALIVE
 
 EXTRACTION_SYSTEM_PROMPT = """You are a memory extraction agent for HERMES.
 Your job is to read a task conversation and extract facts worth remembering.
@@ -47,7 +48,7 @@ If nothing is worth remembering, return an empty array: []
 Maximum 5 facts per extraction.
 """
 
-async def extract_memories(task_description: str, conversation_history: list[dict], tool_results: list[dict], ollama_client, model: str = "qwen2.5-coder:7b") -> list[MemoryFact]:
+async def extract_memories(task_description: str, conversation_history: list[dict], tool_results: list[dict], ollama_client, model: str = TIER1_MODEL) -> list[MemoryFact]:
     """Extract memory facts from a completed task. Returns list of PROPOSED facts — caller must confirm them after verifying tool success."""
     history_text = "\n".join([
         f"{msg.get('role', 'unknown').upper()}: {msg.get('content', '')[:200]}"
@@ -68,12 +69,14 @@ async def extract_memories(task_description: str, conversation_history: list[dic
     )
     
     try:
-        response = await ollama_client.generate(
+        resp = await ollama_client.generate(
             model=model,
             prompt=user_prompt,
             system=EXTRACTION_SYSTEM_PROMPT,
-            keep_alive=0
+            keep_alive=MODEL_KEEP_ALIVE,
+            is_foreground=False
         )
+        response = getattr(resp, "text", str(resp))
     except Exception as e:
         logger.error(f"Memory extraction failed — Ollama call error: {e}")
         return []

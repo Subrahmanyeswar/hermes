@@ -1,0 +1,18 @@
+[
+  {
+    "name": "Test A (Real newline)",
+    "status": "PASS",
+    "byte_length": 32,
+    "bytes_hex": "6465662068656c6c6f28293a0a2020202072657475726e2022776f726c64220a",
+    "source_repr": "'def hello():\\n    return \"world\"\\n'",
+    "readback_repr": "'def hello():\\n    return \"world\"\\n'"
+  },
+  {
+    "name": "Test B (Literal backslash-n and dict literal)",
+    "status": "PASS",
+    "byte_length": 104,
+    "bytes_hex": "646566206275696c64286e616d65293a0a2020202064617461203d207b226e616d65223a206e616d657d0a20202020737566666978203d20225c6e220a2020202072657475726e20662248656c6c6f207b646174615b276e616d65275d7d7b7375666669787d220a",
+    "source_repr": "'def build(name):\\n    data = {\"name\": name}\\n    suffix = \"\\\\n\"\\n    return f\"Hello {data[\\'name\\']}{suffix}\"\\n'",
+    "readback_repr": "'def build(name):\\n    data = {\"name\": name}\\n    suffix = \"\\\\n\"\\n    return f\"Hello {data[\\'name\\']}{suffix}\"\\n'"
+  }
+]

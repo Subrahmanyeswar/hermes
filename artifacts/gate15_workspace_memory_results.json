@@ -1,0 +1,66 @@
+[
+  {
+    "scenario_id": "W01",
+    "case": "file_deleted_offline",
+    "authoritative_source": "PHYSICAL_FILESYSTEM",
+    "outcome": "Filesystem absence overrides index; file removed from index",
+    "stale_record_overrode_truth": false,
+    "status": "PASS"
+  },
+  {
+    "scenario_id": "W02",
+    "case": "file_modified_offline",
+    "authoritative_source": "PHYSICAL_FILESYSTEM",
+    "outcome": "New file hash overrides stale SQLite hash",
+    "stale_record_overrode_truth": false,
+    "status": "PASS"
+  },
+  {
+    "scenario_id": "W03",
+    "case": "file_renamed_offline",
+    "authoritative_source": "PHYSICAL_FILESYSTEM",
+    "outcome": "Old path removed; new path indexed",
+    "stale_record_overrode_truth": false,
+    "status": "PASS"
+  },
+  {
+    "scenario_id": "W04",
+    "case": "file_recreated_offline",
+    "authoritative_source": "PHYSICAL_FILESYSTEM",
+    "outcome": "Re-indexed with new mtime and hash",
+    "stale_record_overrode_truth": false,
+    "status": "PASS"
+  },
+  {
+    "scenario_id": "W05",
+    "case": "directory_deleted_offline",
+    "authoritative_source": "PHYSICAL_FILESYSTEM",
+    "outcome": "All child symbols purged from index",
+    "stale_record_overrode_truth": false,
+    "status": "PASS"
+  },
+  {
+    "scenario_id": "W06",
+    "case": "new_dependency_added",
+    "authoritative_source": "PHYSICAL_FILESYSTEM",
+    "outcome": "AST re-parsed; imports updated",
+    "stale_record_overrode_truth": false,
+    "status": "PASS"
+  },
+  {
+    "scenario_id": "W07",
+    "case": "symbol_signature_changed",
+    "authoritative_source": "PHYSICAL_FILESYSTEM",
+    "outcome": "Symbol table refreshed with new AST",
+    "stale_record_overrode_truth": false,
+    "status": "PASS"
+  },
+  {
+    "scenario_id": "W08",
+    "case": "stale_memory_references_deleted_file",
+    "authoritative_source": "PHYSICAL_FILESYSTEM",
+    "outcome": "Memory fact invalidated by live filesystem check",
+    "stale_record_overrode_truth": false,
+    "status": "PASS"
+  }
+]

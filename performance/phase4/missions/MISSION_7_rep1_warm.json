@@ -1,0 +1,39 @@
+{
+  "mission_id": "MISSION_7_rep1_warm",
+  "base_id": "MISSION_7",
+  "name": "Task Requiring Tier 2 Verification",
+  "type": "verification",
+  "cold": false,
+  "repetition": 1,
+  "wall_clock_ms": 180477.0,
+  "success": false,
+  "tool_name": null,
+  "pipeline_stage_reached": 4,
+  "tier3_was_called": false,
+  "critical_path": {
+    "wall_clock_ms": 180491.57,
+    "cumulative_span_ms": 180476.98,
+    "leaf_span_ms": 180476.98,
+    "category_times_ms": {
+      "MISSION": 180476.98
+    },
+    "span_count": 1
+  },
+  "spans": [
+    {
+      "span_id": "d5800698",
+      "mission_id": "MISSION_7_rep1_warm",
+      "parent_id": null,
+      "name": "TOTAL_MISSION",
+      "category": "MISSION",
+      "start_ns": 808247126680700,
+      "end_ns": 808427603662000,
+      "duration_ms": 180476.9813,
+      "status": "success",
+      "metadata": {
+        "mission_id": "MISSION_7_rep1_warm"
+      },
+      "children": []
+    }
+  ]
+}

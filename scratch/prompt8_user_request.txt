@@ -1,0 +1,2153 @@
+<USER_REQUEST>
+Bro, this is the final and most important prompt of the entire HERMES performance program.
+
+Prompt 8 must be different from Prompt 1–7: we are no longer looking for another random optimization. We are establishing the final reproducible performance configuration, comparing the current Ollama runtime against a controlled llama.cpp implementation, measuring the same workload on larger GPUs where available, and then executing the frozen benchmark exactly as specified before permanently locking the system.
+
+For the cloud portion, the current IndiaAI official price list exposes L40S and L4 configurations, but provisioning/pricing should be treated as time-sensitive and recorded from the portal at the time of execution.
+For llama.cpp, the current project documentation exposes CUDA tuning controls including GPU-layer offload, Flash Attention, KV-cache types, context sizing, device selection, and server parallelism; Prompt 8 below deliberately keeps those experiments bounded rather than turning them into uncontrolled tuning.
+
+HERMES PERFORMANCE OPTIMIZATION PROGRAM — PROMPT 8
+FINAL PHASE
+Ollama Tuning → llama.cpp A/B → L4/L40S Evaluation → Final Performance Validation + Permanent Lock
+
+You are working on the HERMES local-first AI Software Engineering Runtime.
+
+This is:
+
+PROMPT 8 OF 8
+FINAL PERFORMANCE VALIDATION PHASE
+
+This is the final optimization and validation phase of the HERMES Performance Optimization Program.
+
+The objective is now:
+
+ESTABLISH FINAL PRODUCTION CONFIGURATION
+        ↓
+MEASURE CURRENT LOCKED BASELINE
+        ↓
+CONTROLLED OLLAMA TUNING
+        ↓
+CONTROLLED LLAMA.CPP A/B
+        ↓
+OPTIONAL / AUTHORIZED INDIAAI L4 EVALUATION
+        ↓
+OPTIONAL / AUTHORIZED INDIAAI L40S EVALUATION
+        ↓
+FINAL FROZEN 80-TASK VALIDATION
+        ↓
+REPRODUCIBILITY + CORRECTNESS AUDIT
+        ↓
+PAPER-READY EVIDENCE
+        ↓
+PERMANENT PROGRAM LOCK
+
+This is NOT an invitation to keep optimizing indefinitely.
+
+Prompt 8 must end with a final, reproducible, documented configuration.
+
+1. ABSOLUTE FINAL-PHASE RULE
+
+The final goal is NOT:
+
+get the smallest possible latency at any cost
+
+The final goal is:
+
+best evidence-backed configuration
+subject to correctness + safety + reproducibility + hardware constraints
+
+Priority order:
+
+CORRECTNESS
+>
+SAFETY
+>
+REPRODUCIBILITY
+>
+BENCHMARK INTEGRITY
+>
+STABLE PERFORMANCE
+>
+LATENCY
+>
+THROUGHPUT
+>
+MICRO-OPTIMIZATION
+
+Never sacrifice correctness for a faster number.
+
+2. CURRENT LOCKED HERMES STATE
+
+Prompt 1–7 are already closed.
+
+Do NOT reopen them unless Prompt 8 discovers an actual regression.
+
+Prompt 6 locked constraints
+
+Prompt 6 established:
+
+Non-model concurrency:
+max_workers = 2
+
+LLM inference:
+llm_concurrency = 1
+
+The RTX 3050 6 GB diagnostic showed:
+
+1 worker:
+27.371 s
+Peak VRAM = 4,912 MiB
+Headroom = 1,232 MiB
+
+2 workers:
+17.203 s
+Peak VRAM = 5,850 MiB
+Headroom = 294 MiB
+
+The production decision therefore remains serialized LLM inference on the 6 GB host.
+
+DO NOT change:
+
+llm_concurrency = 1
+
+during production tuning unless an explicitly tested configuration proves it safe and the final report makes the new policy evidence-based.
+
+Do NOT casually enable multi-model concurrent residency.
+
+3. PROMPT 7 LOCKED FEATURES
+
+Prompt 8 MUST preserve all Prompt 7 functionality.
+
+Targeted Repair
+
+Current architecture:
+
+Scope 0 → no repair
+Scope 1 → local file repair
+Scope 2 → dependency subset
+Scope 3 → task-level repair
+Scope 4 → mission-level recovery
+
+Repair attempts:
+
+max_repair_attempts = 3
+
+Valid artifacts must remain protected by SHA-256 snapshot verification.
+
+Progressive Verification
+
+Current hierarchy:
+
+Level 0 → structural
+Level 1 → syntax
+Level 2 → semantic
+Level 3 → full task / unit test
+
+Failure must short-circuit unnecessary higher levels.
+
+The final acceptance process must still perform whatever verification the mission contract requires.
+
+Do NOT interpret progressive verification as permission to remove mandatory verification.
+
+Prewarming
+
+Prompt 7 established single-model residency on the 6 GB host.
+
+Relevant evidence:
+
+Cold model load:
+11.781 s
+
+Warm resident request:
+2.202 s
+
+Resident reload:
+<0.001 s
+
+These measurements have distinct timer boundaries and must remain correctly described.
+
+Current production policy:
+
+single-model residency
+llm_concurrency = 1
+
+Do not turn this into concurrent multi-model residency.
+
+TUI
+
+Prompt 7 established event-driven lifecycle acknowledgement:
+
+time_first_event = 0.052 ms
+
+This is:
+
+event-driven TUI acknowledgement latency
+
+NOT:
+
+physical terminal rendering latency
+
+and NOT:
+
+total execution latency
+
+Preserve this distinction.
+
+4. PROMPT 7 REGRESSION BASELINE
+
+Prompt 7 closed with:
+
+Prompt 7 focused:
+13/13
+
+Cumulative prompt-specific:
+106/106
+
+Canonical offline:
+228/228
+
+Benchmark hashes remained exact.
+
+The Prompt 8 process MUST begin by reproducing the clean baseline.
+
+If baseline regression fails:
+
+STOP
+
+Do not optimize on top of a failing state.
+
+5. FIRST ACTION — BASELINE FREEZE
+
+Before touching any implementation:
+
+Run:
+
+git status --short
+git rev-parse HEAD
+git log --oneline --decorate -10
+
+Record:
+
+Prompt 7 final commit:
+778afed3b0e274bd6be7f9f733745b059eec0b16
+
+Then independently verify that this commit/state is actually present in the repository.
+
+Do not trust the report blindly.
+
+6. BASELINE REGRESSION
+
+Run the full established regression topology.
+
+At minimum:
+
+pytest tests/test_prompt7_optimizations.py
+pytest tests/test_prompt6_scaffolding.py
+pytest tests/test_prompt6_website_fast_path.py
+pytest tests/test_prompt6_bounded_concurrency.py
+pytest tests/test_prompt5_parser_hardening.py
+pytest tests/test_write_files_batch.py
+pytest tests/test_prompt5_batch_routing.py
+pytest tests/test_prompt4_context_optimization.py
+pytest tests/test_prompt3_benchmark_isolation.py
+pytest tests/test_benchmark_dataset_integrity.py
+
+Then run the canonical offline suite using the repository's actual canonical command.
+
+Expected current baseline:
+
+106/106 prompt-specific
+228/228 canonical
+
+Record actual results.
+
+Do not manufacture expected counts if repository topology has changed.
+
+7. VERIFY BENCHMARK ARTIFACT INTEGRITY BEFORE OPTIMIZATION
+
+Run:
+
+python scripts/verify_benchmark_hashes.py
+
+Expected frozen hashes:
+
+Dataset:
+f3475b6415364ccea70f4710bfe2137fe84d91cce5d1db822e8d156716cf4d72
+
+Success Contract:
+4cf78a7dce0cfedfeb81e5e6929241fb7fd69d5eba0ba2b91888f6744834fff3
+
+Execution Protocol:
+8740e0a6face5b1b4ce1b23839a97605cffb63045e289bda7b297fb83d8bfe15
+
+All must be:
+
+EXACT MATCH
+
+If any differs:
+
+STOP
+8. DEFINE A CLEAN PROMPT 8 BASELINE
+
+Do not use the old forensic 1/80 result as the Prompt 8 performance baseline.
+
+That run occurred before the DeepSeek reasoning/parser/tool-path defect was repaired.
+
+Create a new controlled baseline under the current locked Prompt 7 production state.
+
+Call it something like:
+
+P8-BASELINE
+9. P8 BASELINE WORKLOAD
+
+Use a deterministic controlled workload.
+
+Do NOT immediately run all 80 tasks.
+
+For optimization experiments first use a representative subset covering:
+
+A
+B
+C
+D
+E
+F
+G
+H
+
+Prefer:
+
+2 tasks/category = 16 tasks
+
+from the frozen dataset without modifying the dataset.
+
+The 16 tasks must be selected deterministically and recorded by task ID.
+
+Do not create a separate modified benchmark dataset.
+
+10. REPEAT POLICY
+
+For latency-sensitive microbenchmarks:
+
+minimum repetitions = 3
+
+Prefer:
+
+5 repetitions
+
+where execution time is sufficiently short.
+
+For expensive full missions:
+
+minimum repetitions = 2
+
+unless cost/time constraints make repetition impractical.
+
+Report:
+
+N
+median
+P95 where meaningful
+min
+max
+
+Do not use a single lucky run as the primary performance result.
+
+11. REQUIRED PERFORMANCE TELEMETRY
+
+For every LLM performance experiment collect where available:
+
+mission_id
+task_id
+runtime
+model
+model version / digest
+quantization
+prompt tokens
+output tokens
+total tokens
+think configuration
+num_ctx
+num_predict
+TTFT
+prompt evaluation duration
+generation duration
+generation tokens/sec
+model load duration
+total wall latency
+tool dispatch duration
+verification duration
+repair duration
+peak VRAM
+minimum VRAM headroom
+GPU utilization
+GPU temperature
+timestamp
+
+Use monotonic high-resolution timing such as:
+
+perf_counter()
+
+for elapsed measurements.
+
+Do not derive E2E latency from wall-clock timestamps.
+
+12. OBJECTIVE A — OLLAMA TUNING
+
+The first tuning stage is:
+
+CURRENT OLLAMA
+        ↓
+CONTROLLED PARAMETER A/B
+        ↓
+SELECT ONLY MEASURED WINNERS
+
+Do not immediately modify code architecture.
+
+13. IDENTIFY CURRENT OLLAMA CONFIGURATION
+
+Inspect the exact current production configuration.
+
+Record:
+
+Ollama version
+model name
+model digest
+quantization
+context length
+num_predict
+temperature
+top_p
+top_k
+seed if configured
+keep_alive
+think configuration
+streaming configuration
+tool configuration
+timeout
+retry policy
+
+Do not infer values from old reports.
+
+Read the actual repository/runtime configuration.
+
+14. CRITICAL CHECK — THINKING CONFIGURATION
+
+Prompt 2/3 already established that unconstrained DeepSeek-R1 reasoning can dominate latency.
+
+Prompt 2 observed a dramatic difference between constrained production behavior and unconstrained reasoning in the controlled probe.
+
+Therefore audit:
+
+think
+reasoning budget
+num_predict
+termination
+
+Determine exactly what production uses now.
+
+Do not simply assume.
+
+15. OLLAMA TUNING RULE
+
+Use one-variable-at-a-time first.
+
+Do not change:
+
+think
+num_predict
+num_ctx
+keep_alive
+sampling
+
+all simultaneously.
+
+That destroys causal attribution.
+
+16. OLLAMA EXPERIMENT O-1 — THINKING POLICY
+
+If production supports a configurable reasoning/think mode:
+
+Compare the currently locked production configuration against the controlled alternative.
+
+Possible configurations:
+
+current production think setting
+vs
+think disabled / explicitly constrained
+
+Only test if supported by the current runtime/model/API.
+
+Use identical:
+
+prompt
+tools
+temperature
+context
+output constraints
+task
+verification
+
+Measure:
+
+TTFT
+output tokens
+generation time
+tool correctness
+verification result
+total latency
+
+DO NOT remove reasoning merely because it is faster if the resulting artifact/tool behavior is incorrect.
+
+17. OLLAMA EXPERIMENT O-2 — OUTPUT BUDGET
+
+Test a bounded generation configuration.
+
+Use controlled candidates such as:
+
+current
+512
+1024
+1536
+
+ONLY where compatible with the actual task.
+
+Do not blindly apply 512 to complex missions.
+
+The objective is:
+
+enough output budget to complete the task
+without allowing runaway generation
+18. OLLAMA EXPERIMENT O-3 — CONTEXT SIZE
+
+Test a limited context matrix around the production configuration.
+
+Example:
+
+2048
+4096
+
+and a larger value only if actual mission requirements demand it.
+
+Do not increase context merely because more memory exists.
+
+Record:
+
+prompt_eval
+TTFT
+generation
+VRAM
+completion correctness
+
+The 6 GB RTX 3050 is memory constrained.
+
+Do not choose a larger context if it materially increases OOM risk or destabilizes latency.
+
+19. OLLAMA EXPERIMENT O-4 — KEEP_ALIVE / RESIDENCY
+
+Prompt 7 already demonstrated the value of model residency.
+
+Test the actual production residency configuration.
+
+Compare:
+
+cold request
+warm request
+immediate sequential reuse
+idle-expired request
+
+The objective is to determine the best stable residency policy.
+
+Do not keep a model resident indefinitely if this creates unacceptable VRAM or system-memory pressure.
+
+20. OLLAMA EXPERIMENT O-5 — STREAMING / FIRST TOKEN
+
+Measure:
+
+TTFT
+vs
+final completion time
+
+Do not mistake streaming for reduced generation time.
+
+Streaming is primarily a responsiveness/TTFT improvement.
+
+The final performance report must maintain this distinction.
+
+21. OLLAMA TUNING SELECTION RULE
+
+A configuration may become the candidate production configuration only if:
+
+correctness does not regress
+AND
+safety does not regress
+AND
+latency improves or becomes more stable
+
+Do not select a configuration purely because it has the fastest single run.
+
+Prefer:
+
+lower median
+lower variance
+stable VRAM
+stable temperature
+no timeout increase
+no parser degradation
+22. OLLAMA CONFIGURATION LOCK
+
+Once the best evidence-backed Ollama configuration is identified:
+
+Create:
+
+P8-OLLAMA-CANDIDATE
+
+Run the 16-task representative validation again.
+
+Confirm:
+
+tool-call correctness
+artifact correctness
+verification
+latency
+VRAM
+
+Only then lock the Ollama candidate.
+
+23. OBJECTIVE B — LLAMA.CPP A/B
+
+Now perform a controlled runtime comparison:
+
+OLLAMA
+vs
+LLAMA.CPP
+
+This is an A/B test.
+
+It is NOT a request to rewrite HERMES around llama.cpp immediately.
+
+24. LLAMA.CPP INTEGRATION RULE
+
+Create a minimal adapter or sidecar integration.
+
+Do not rewrite the entire Model Router.
+
+The desired architecture is:
+
+HERMES
+  ↓
+Model Runtime Adapter
+  ├── Ollama
+  └── llama.cpp
+
+The existing planner, context builder, tools, verification, repair, persistence, and Event Bus must remain unchanged.
+
+25. MODEL EQUIVALENCE REQUIREMENT
+
+For the A/B comparison, use the same model weights whenever technically possible.
+
+Verify:
+
+model identity
+model architecture
+quantization
+tokenizer
+chat template
+special tokens
+stop conditions
+system prompt
+generation parameters
+
+The llama.cpp model must not be casually substituted with a different model or quantization and then presented as a pure runtime comparison.
+
+If exact equivalence is impossible:
+
+document the difference explicitly
+
+and classify the experiment as:
+
+runtime + model configuration comparison
+
+rather than a pure runtime A/B.
+
+26. LLAMA.CPP BUILD REPRODUCIBILITY
+
+Record:
+
+llama.cpp Git commit/tag
+OS
+compiler
+CUDA version
+NVIDIA driver
+CUDA architecture target
+CMake configuration
+build flags
+binary hash
+model file hash
+
+Do not simply write:
+
+latest llama.cpp
+
+That is not reproducible.
+
+27. WINDOWS CUDA BUILD
+
+Inspect the current host first.
+
+Determine:
+
+CUDA toolkit
+driver
+Visual Studio build tools
+CMake
+NVIDIA GPU compute capability
+
+If llama.cpp can be built successfully, prefer a CUDA-enabled build.
+
+Do not modify the NVIDIA driver unless absolutely necessary.
+
+Do not destabilize the existing Ollama installation.
+
+28. LLAMA.CPP CONTROLLED RUNTIME
+
+Prefer a reproducible server-style interface if it integrates cleanly with HERMES.
+
+Possible form:
+
+HERMES
+↓
+llama.cpp server
+↓
+local HTTP API
+
+The exact API adapter is implementation-dependent.
+
+Do not create a second independent orchestration system.
+
+29. LLAMA.CPP BASELINE CONFIGURATION
+
+First run llama.cpp in a conservative baseline configuration.
+
+Record:
+
+model
+GPU layers
+context
+batch size
+ubatch if applicable
+flash attention
+KV cache types
+memory mapping
+threads
+parallel slots
+continuous batching state
+
+Do not tune everything immediately.
+
+First establish:
+
+P8-LLAMA-BASE
+30. LLAMA.CPP A/B FAIRNESS
+
+Use the exact same:
+
+16-task subset
+prompts
+tool definitions
+system instructions
+generation limit
+temperature
+verification
+repair
+workspace
+
+Run:
+
+Ollama candidate
+vs
+llama.cpp baseline
+
+Measure:
+
+TTFT
+prompt eval
+generation tok/s
+total model time
+total mission time
+VRAM
+temperature
+tool correctness
+verification success
+artifact correctness
+31. LLAMA.CPP TUNING MATRIX
+
+Only after the llama.cpp baseline is working, perform bounded tuning.
+
+Candidate dimensions:
+
+GPU layer offload
+context size
+batch size
+micro-batch / ubatch
+Flash Attention
+KV cache configuration
+CPU thread count
+server slot count
+mmap / memory options
+
+Do NOT test every combinatorial combination.
+
+Use:
+
+one-variable-at-a-time
+
+first.
+
+Only run a small combined configuration after the individual winning settings are known.
+
+32. IMPORTANT LLAMA.CPP MEMORY RULE
+
+On the RTX 3050 6 GB host:
+
+Do not optimize for maximum VRAM occupancy.
+
+A configuration that uses:
+
+5,950 MiB
+
+while appearing faster is not automatically better than:
+
+5,400 MiB
+
+with stable headroom.
+
+Record:
+
+peak VRAM
+minimum headroom
+OOM events
+latency variance
+temperature
+
+A configuration that becomes unstable must be rejected.
+
+33. LLAMA.CPP CONCURRENCY RULE
+
+Do NOT use the Prompt 6 two-worker diagnostic as permission to enable production LLM concurrency.
+
+Keep:
+
+HERMES llm_concurrency = 1
+
+unless a separate controlled experiment conclusively demonstrates safe production behavior.
+
+Do not conflate llama.cpp server slots with HERMES mission-level concurrency.
+
+Treat them as separate architectural layers.
+
+34. LLAMA.CPP A/B DECISION
+
+At the end of A/B evaluation, classify:
+
+OLLAMA BETTER
+LLAMA.CPP BETTER
+NO MEANINGFUL DIFFERENCE
+INCONCLUSIVE
+
+This is an engineering comparison, not a requirement that llama.cpp must win.
+
+If llama.cpp does not produce a meaningful advantage after controlled tuning:
+
+KEEP OLLAMA
+
+Do not adopt additional infrastructure merely because it is technically interesting.
+
+35. RUNTIME SELECTION CRITERIA
+
+Select the final runtime based on:
+
+correctness
+latency
+stability
+VRAM behavior
+startup behavior
+integration complexity
+observability
+reproducibility
+operational simplicity
+
+Do NOT select based on one metric alone.
+
+36. OBJECTIVE C — INDIAAI L4 EVALUATION
+
+This is the cloud hardware scaling experiment.
+
+The purpose is:
+
+RTX 3050 6GB
+        vs
+larger cloud GPU
+
+The purpose is NOT to claim that cloud hardware is universally faster.
+
+The purpose is to measure how HERMES behaves when the VRAM constraint is relaxed.
+
+37. INDIAAI ACCESS SAFETY
+
+Before provisioning:
+
+Inspect the current IndiaAI portal and record:
+
+instance type
+GPU model
+GPU count
+VRAM
+price/hour
+billing model
+region
+availability
+
+Use the exact current portal values at experiment time.
+
+Do not rely on old reports or remembered prices.
+
+Do not silently incur cloud cost.
+
+If the environment lacks authorized billing/access:
+
+mark CLOUD_EVALUATION = BLOCKED
+
+and document why.
+
+Do not fabricate cloud measurements.
+
+38. L4 EVALUATION CONFIGURATION
+
+Use the smallest practical L4 configuration that provides a meaningful evaluation.
+
+If the current portal only exposes multi-card L4 instances, document:
+
+GPU count
+total VRAM
+per-GPU VRAM
+
+Do not describe an aggregate multi-GPU configuration as a single GPU.
+
+Run the same representative workload used for the local runtime comparison.
+
+39. L4 METRICS
+
+Measure:
+
+cold model load
+warm model load
+TTFT
+prompt eval
+generation tokens/sec
+total model latency
+total mission latency
+peak VRAM
+VRAM headroom
+GPU utilization
+GPU temperature
+
+Also record:
+
+cloud instance type
+GPU count
+software versions
+model hash
+llama.cpp/Ollama version
+40. L4 CONCURRENCY EXPERIMENT
+
+Only after the single-worker baseline:
+
+Test a bounded concurrency diagnostic.
+
+For example:
+
+1 worker
+2 workers
+
+ONLY if the GPU has sufficient memory.
+
+Then measure:
+
+latency
+throughput
+VRAM
+headroom
+temperature
+stability
+
+Do not automatically promote higher concurrency to production HERMES policy.
+
+The HERMES runtime must remain architecture-safe.
+
+41. OBJECTIVE D — INDIAAI L40S EVALUATION
+
+Repeat the equivalent experiment on the L40S.
+
+Use:
+
+same model
+same model hash
+same prompt
+same generation configuration
+same representative task subset
+same measurement boundaries
+
+as closely as possible.
+
+42. L40S METRICS
+
+Collect the same metrics:
+
+cold load
+warm load
+TTFT
+prompt evaluation
+generation tok/s
+total model latency
+mission latency
+peak VRAM
+headroom
+GPU utilization
+temperature
+
+Do not change the metric definitions between L4 and L40S.
+
+43. L4 VS L40S FAIRNESS
+
+The comparison table must distinguish:
+
+hardware speed
+runtime overhead
+model load overhead
+network overhead
+mission orchestration overhead
+
+If the cloud result includes network latency, explicitly separate:
+
+network/API latency
+
+from:
+
+LLM inference latency
+
+Do not present cloud end-to-end latency as pure GPU inference speed.
+
+44. CLOUD COST MEASUREMENT
+
+Record actual cost where the portal provides it.
+
+At minimum:
+
+instance
+GPU count
+runtime duration
+rate
+estimated experiment cost
+
+Use the actual current portal rate.
+
+Do not extrapolate monthly cost from a tiny benchmark unless clearly labeled as derived.
+
+45. COST/PERFORMANCE METRIC
+
+Where enough data exists, calculate:
+
+cost per successful mission
+
+and:
+
+cost per 1,000 generated tokens
+
+Only if:
+
+token counts are available
+
+and the comparison uses consistent accounting.
+
+Classify these:
+
+[DERIVED]
+
+not [MEASURED].
+
+46. CLOUD RESULT DECISION
+
+Do not ask:
+
+Which GPU is universally best?
+
+Instead answer:
+
+What performance characteristics did HERMES exhibit on each tested configuration?
+
+Report:
+
+RTX 3050
+L4
+L40S
+
+as measured configurations.
+
+Do not produce unsupported generalized hardware rankings.
+
+47. OBJECTIVE E — FINAL LOCAL PRODUCTION CONFIGURATION
+
+After Ollama and llama.cpp A/B plus cloud evaluation:
+
+Select ONE final local production configuration.
+
+Possible outcome:
+
+Ollama remains production runtime
+
+or:
+
+llama.cpp becomes production runtime
+
+The decision must be evidence-backed.
+
+Do not switch runtimes just because llama.cpp has more knobs.
+
+48. FINAL CONFIGURATION FREEZE
+
+Once selected, freeze:
+
+runtime
+model
+model hash
+quantization
+thinking configuration
+context
+generation budget
+keep_alive
+GPU configuration
+concurrency
+prewarming policy
+verification configuration
+repair policy
+TUI policy
+
+Create a machine-readable configuration artifact.
+
+For example:
+
+artifacts/performance/prompt8/final_runtime_configuration.json
+
+The exact filename may match repository conventions.
+
+49. FINAL REPRESENTATIVE VALIDATION
+
+Using the final locked configuration, rerun the deterministic 16-task representative set.
+
+Record:
+
+N = 16
+successful missions
+failed missions
+median latency
+P95 latency
+TTFT
+generation tok/s
+peak VRAM
+temperature
+token totals
+
+Compare against:
+
+P8-BASELINE
+P8-OLLAMA-CANDIDATE
+P8-LLAMA-BASE
+P8-LLAMA-CANDIDATE
+
+where applicable.
+
+50. CORRECTNESS GATE BEFORE FINAL BENCHMARK
+
+Do not run the final 80-task benchmark until:
+
+16/16 representative tasks satisfy their task contracts
+
+and:
+
+all required tools execute correctly
+artifacts validate
+verification succeeds
+repair remains bounded
+persistence remains correct
+cancellation remains correct
+timeouts remain correct
+
+If this gate fails:
+
+STOP
+
+Repair the final configuration before benchmark execution.
+
+51. FINAL FROZEN 80-TASK BENCHMARK
+
+THIS is the point at which the frozen benchmark may finally be executed.
+
+Do not execute it earlier.
+
+Use:
+
+artifacts/final_benchmark_dataset.json
+artifacts/final_benchmark_success_contract.json
+artifacts/FINAL_BENCHMARK_EXECUTION_PROTOCOL.md
+
+exactly as frozen.
+
+Do not modify:
+
+task ordering
+task wording
+task contracts
+dataset
+success evaluator
+retry rules
+benchmark semantics
+52. BENCHMARK MODE MUST REMAIN ISOLATED
+
+During the frozen benchmark:
+
+deterministic scaffolding = disabled
+website fast path = disabled
+production bounded concurrency = disabled
+production-only Prompt 7 optimizations = disabled
+production-only Prompt 8 runtime shortcuts = disabled
+
+Benchmark semantics must remain exactly what the frozen protocol defines.
+
+Do not “help” the benchmark by routing tasks through production fast paths.
+
+53. BENCHMARK RUNTIME SELECTION
+
+This needs to be handled very carefully.
+
+The final benchmark must use a clearly documented runtime configuration.
+
+If the frozen protocol expects the baseline production runtime, preserve it.
+
+If the final benchmark protocol permits a selected runtime variant, execute only according to the protocol.
+
+Do NOT silently alter benchmark methodology merely because a new runtime performs better.
+
+If there is ambiguity:
+
+inspect FINAL_BENCHMARK_EXECUTION_PROTOCOL.md
+
+and follow it.
+
+Do not invent new benchmark semantics.
+
+54. FINAL 80-TASK TELEMETRY
+
+Capture:
+
+task_id
+category
+attempt
+runtime
+model
+success/failure
+failure class
+wall latency
+TTFT if applicable
+tool count
+verification count
+repair count
+retry count
+input tokens
+output tokens
+total tokens
+peak VRAM
+GPU temperature
+
+Where benchmark protocol already defines exact telemetry, preserve its schema.
+
+Do not modify the immutable evaluator to accommodate new fields.
+
+55. FINAL BENCHMARK FAILURE ANALYSIS
+
+For every failure classify:
+
+model reasoning
+parser
+tool dispatch
+planner
+context
+workspace
+verification
+repair
+timeout
+cancellation
+infrastructure
+configuration
+unknown
+
+Never summarize:
+
+79 failures
+
+without explaining the dominant failure mechanism.
+
+56. CRITICAL FINAL BENCHMARK RULE
+
+Do NOT hide failures.
+
+Do NOT retry until success purely to inflate the pass rate.
+
+Respect the frozen maximum retry policy.
+
+Every attempt must be recorded.
+
+57. FINAL BENCHMARK SUCCESS METRICS
+
+Calculate:
+
+success rate
+category success rates
+median latency
+P75
+P90
+P95
+P99
+T1 usage
+T2 usage
+T3 usage
+tool success
+verification success
+repair rate
+timeout rate
+
+Only include metrics that are actually supported by the frozen telemetry.
+
+58. COMPARE AGAINST PREVIOUS FORENSIC RUN CORRECTLY
+
+The old:
+
+1/80
+
+run must NOT be presented as a clean baseline because the later forensic work established a DeepSeek reasoning/output-path defect.
+
+If the final benchmark is substantially different from that old result:
+
+State that the old execution was:
+
+forensic / pre-repair
+
+and that the final benchmark was performed after the relevant defects were repaired.
+
+Do not call it a conventional apples-to-apples before/after benchmark unless the methodology permits that comparison.
+
+59. FINAL PERFORMANCE TABLE
+
+Produce a compact research-ready table containing at minimum:
+
+Configuration
+Model
+Runtime
+Hardware
+Context
+Think mode
+Median latency
+P95 latency
+TTFT
+Generation tok/s
+Peak VRAM
+Success rate
+
+Potential rows:
+
+Prompt 8 baseline / RTX3050 / Ollama
+Final Ollama / RTX3050
+Final llama.cpp / RTX3050
+L4 / selected runtime
+L40S / selected runtime
+Final benchmark configuration
+
+Do not include rows for experiments that were not actually executed.
+
+60. FINAL HARDWARE TABLE
+
+Create a separate table:
+
+Hardware
+GPU memory
+Runtime
+Cold load
+Warm latency
+Generation throughput
+Peak VRAM
+VRAM headroom
+Temperature
+Notes
+
+Keep GPU-specific observations clearly scoped.
+
+61. FINAL COST TABLE
+
+If cloud experiments were executed:
+
+GPU
+Instance
+GPU count
+Price/hour
+Experiment duration
+Estimated cost
+Successful missions
+Cost/successful mission
+
+All derived metrics must be marked [DERIVED].
+
+62. FINAL LATENCY BREAKDOWN
+
+Build a final causal latency breakdown:
+
+model load
+prompt evaluation
+generation
+tool execution
+verification
+repair
+orchestration
+
+Where possible.
+
+Do not force every mission into the same components if telemetry says N/A.
+
+63. FINAL THERMAL/MEMORY ANALYSIS
+
+Document:
+
+RTX 3050:
+VRAM
+temperature
+utilization
+
+and corresponding cloud measurements.
+
+Explicitly note:
+
+RTX 3050 6GB is memory constrained
+
+and explain how that influenced the production concurrency/residency decision.
+
+Do not generalize 6 GB findings directly to L4/L40S.
+
+64. FINAL TUI MEASUREMENT
+
+The final report must preserve the Prompt 7 TUI distinction.
+
+Record:
+
+time_submit
+time_first_event
+time_first_real_status
+time_first_tool
+time_first_verification
+time_completion
+
+But explicitly classify:
+
+event acknowledgement latency
+
+separately from:
+
+actual mission execution latency
+
+Do not claim that TUI improvements made the model generate faster.
+
+65. FINAL CORRECTNESS AUDIT
+
+Before locking Prompt 8, test:
+
+file correctness
+AST correctness
+HTML correctness
+tool schema correctness
+batch write correctness
+workspace containment
+index consistency
+repair correctness
+verification correctness
+persistence
+cancellation
+timeout
+TUI event ordering
+
+No performance configuration is acceptable if it breaks one of these.
+
+66. FINAL SAFETY AUDIT
+
+Verify:
+
+no uncontrolled retries
+no infinite repair loops
+no filesystem corruption
+no workspace escape
+no DB lock regression
+no unsafe GPU concurrency
+no model-residency race
+no stale mission state
+no duplicate completion events
+no orphaned workers
+67. FINAL REGRESSION MATRIX
+
+Run:
+
+Prompt 8 focused tests
+Prompt 7 tests
+Prompt 6 tests
+Prompt 5 tests
+Prompt 4 tests
+Prompt 3 benchmark-isolation tests
+benchmark integrity tests
+canonical offline suite
+
+The existing baseline is:
+
+106/106 prompt-specific
+228/228 canonical
+
+The final report must contain actual results.
+
+68. FINAL BENCHMARK HASH VERIFICATION
+
+After ALL performance work and after the 80-task benchmark:
+
+Run:
+
+python scripts/verify_benchmark_hashes.py
+
+All three frozen hashes MUST still match.
+
+If they do not:
+
+STOP
+
+The benchmark artifacts must not be silently repaired.
+
+69. CLAIM CLASSIFICATION
+
+Every number in the final report must be labeled:
+
+[MEASURED]
+[DERIVED]
+[INTERPRETED]
+
+Examples:
+
+11.781 s
+[MEASURED]
+
+9.579 s difference
+[DERIVED]
+
+Keep single-model residency
+[INTERPRETED]
+
+Do not use:
+
+[MEASURED]
+
+for ratios or calculated savings.
+
+70. NO UNIVERSAL PERFORMANCE CLAIMS
+
+Never write:
+
+HERMES is universally faster
+llama.cpp is always faster
+L40S is the best GPU
+L4 is the best cloud GPU
+prewarming always improves performance
+2x concurrency is safe
+TUI optimization makes HERMES faster
+
+Use:
+
+On the tested workload...
+On the RTX 3050 host...
+On the evaluated L4 configuration...
+On the evaluated L40S configuration...
+71. NO CROSS-HARDWARE RANKING
+
+Do not assign:
+
+1st
+2nd
+3rd
+best
+worst
+winner
+
+to hardware or runtime unless this is merely a descriptive table and not an evaluative ranking.
+
+Present measured differences factually.
+
+72. RESEARCH-PAPER EVIDENCE RULE
+
+The final report must distinguish:
+
+system validation
+
+from:
+
+performance evaluation
+
+and:
+
+hardware scaling evaluation
+
+Do not combine correctness percentages with latency measurements in a misleading way.
+
+73. RESEARCH-PAPER TABLES
+
+Generate paper-ready evidence suitable for the HERMES IEEE-style paper.
+
+At minimum:
+
+Table A — Final System Validation
+Validation component
+Tests
+Passed
+Status
+Table B — Final Performance
+Runtime
+Hardware
+P50
+P95
+TTFT
+Throughput
+Peak VRAM
+Success
+Table C — Hardware Evaluation
+RTX3050
+L4
+L40S
+
+with explicitly defined metrics.
+
+Do not create unnecessary tables.
+
+74. FINAL FIGURES
+
+Generate only useful figures.
+
+At minimum, where data exists:
+
+Figure 1
+
+Latency comparison:
+
+Ollama baseline
+Ollama tuned
+llama.cpp
+L4
+L40S
+Figure 2
+
+VRAM utilization:
+
+hardware
+peak VRAM
+headroom
+Figure 3
+
+Latency breakdown:
+
+load
+prompt eval
+generation
+tool
+verification
+repair
+
+Do not generate decorative graphs.
+
+75. PERFORMANCE INTERPRETATION
+
+The final discussion must answer:
+
+What actually improved?
+Why?
+What did not improve?
+Why?
+Which optimizations mattered?
+Which were neutral?
+What remains hardware-bound?
+
+Distinguish:
+
+generation-bound
+load-bound
+context-bound
+verification-bound
+repair-bound
+orchestration-bound
+
+based only on telemetry.
+
+76. FINAL OLLAMA VS LLAMA.CPP DECISION RECORD
+
+Create an artifact:
+
+artifacts/performance/prompt8/runtime_decision.json
+
+containing something similar to:
+
+{
+  "selected_runtime": "...",
+  "selection_basis": [
+    "..."
+  ],
+  "alternatives_evaluated": [
+    "..."
+  ],
+  "correctness_preserved": true,
+  "benchmark_isolation_preserved": true
+}
+
+Use actual measured evidence.
+
+77. FINAL PRODUCTION CONFIGURATION RECORD
+
+Create:
+
+artifacts/performance/prompt8/final_runtime_configuration.json
+
+Containing:
+
+runtime
+version
+model
+model hash
+quantization
+think
+context
+generation limit
+keep_alive
+GPU policy
+LLM concurrency
+non-model concurrency
+prewarm policy
+verification policy
+repair limit
+
+This becomes the canonical performance configuration.
+
+78. REPRODUCIBILITY RECORD
+
+Create:
+
+artifacts/performance/prompt8/reproduction_manifest.json
+
+Include:
+
+OS
+CPU
+RAM
+GPU
+VRAM
+driver
+CUDA
+Ollama version
+llama.cpp version
+compiler
+model hash
+configuration hash
+benchmark dataset hash
+benchmark contract hash
+benchmark protocol hash
+Git commit
+
+Do not include secrets.
+
+Do not include API keys.
+
+79. FINAL HASHES
+
+Hash:
+
+final_runtime_configuration.json
+reproduction_manifest.json
+
+and record their SHA-256 values.
+
+This makes the final configuration auditable.
+
+80. FINAL GIT COMMIT
+
+Prompt 8 must create a new final commit.
+
+Do NOT amend Prompt 7.
+
+Do NOT rewrite previous history.
+
+Use an explicit commit such as:
+
+git add <Prompt 8 implementation/evidence files>
+git commit -m "perf: finalize HERMES runtime validation"
+
+Then record:
+
+git rev-parse HEAD
+git status --short
+
+The final working tree must be clean with respect to repository work.
+
+81. PROMPT 8 FINAL REPORT
+
+Generate:
+
+PROMPT_8_IMPLEMENTATION_REPORT.md
+
+Use this structure:
+
+1. Executive Summary
+2. Prompt 7 Baseline & Invariants
+3. Experimental Methodology
+4. Ollama Baseline
+5. Ollama Tuning
+6. Ollama Final Configuration
+7. llama.cpp Build & Integration
+8. llama.cpp A/B
+9. IndiaAI L4 Evaluation
+10. IndiaAI L40S Evaluation
+11. Final Runtime Selection
+12. Final RTX 3050 Performance
+13. Final Cloud Hardware Performance
+14. Final Frozen 80-Task Benchmark
+15. Failure Analysis
+16. Correctness / Safety Validation
+17. Regression Test Results
+18. Benchmark Integrity
+19. Performance Interpretation
+20. Limitations
+21. Reproducibility Manifest
+22. Final Configuration
+23. Final Closure Gate
+24. Final Verdict
+82. LIMITATIONS SECTION
+
+The final report MUST acknowledge where evidence is limited.
+
+Examples:
+
+RTX 3050 measurements are hardware-specific.
+
+Cloud measurements depend on the selected instance configuration.
+
+Network latency may affect cloud end-to-end measurements.
+
+llama.cpp and Ollama are only a pure runtime comparison when model weights/configuration are equivalent.
+
+TUI acknowledgement latency does not equal physical terminal rendering latency.
+
+Targeted repair remains dependent on accurate failure classification.
+
+Progressive verification does not remove required acceptance checks.
+
+A limited representative subset is not equivalent to the full benchmark.
+
+Unexecuted cloud configurations must be marked BLOCKED/NOT EXECUTED rather than inferred.
+83. FINAL BENCHMARK INTERPRETATION
+
+If the final benchmark passes substantially more tasks than the old forensic run:
+
+Do NOT automatically attribute the improvement to Prompt 8.
+
+Instead partition causality:
+
+pre-existing forensic defect repair
+Prompt 3 reasoning/planning optimization
+Prompt 4 context optimization
+Prompt 5 parser/batching
+Prompt 6 scaffolding/concurrency
+Prompt 7 repair/verification/prewarming/TUI
+Prompt 8 runtime tuning
+
+Only claim a Prompt 8-specific improvement where the controlled A/B evidence supports it.
+
+This is extremely important for the paper.
+
+84. OLD FORENSIC BENCHMARK
+
+The historical:
+
+1/80
+
+result may remain in the research record as forensic evidence of an earlier runtime defect.
+
+Do not erase it.
+
+Do not use it as the final clean baseline.
+
+Explain its status correctly.
+
+85. FINAL SUCCESS CRITERIA
+
+Prompt 8 can reach:
+
+PASS_AND_LOCKED
+
+only when:
+
+[ ] Prompt 7 baseline reproduced cleanly
+[ ] 106/106 prior prompt-specific tests pass or actual topology is reconciled
+[ ] 228/228 canonical tests pass or actual topology is reconciled
+[ ] Benchmark hashes verified
+[ ] Ollama current configuration measured
+[ ] Controlled Ollama tuning completed
+[ ] Best Ollama configuration identified
+[ ] llama.cpp built reproducibly or explicitly documented as blocked
+[ ] llama.cpp A/B completed where feasible
+[ ] Model equivalence documented
+[ ] L4 evaluation completed or explicitly blocked
+[ ] L40S evaluation completed or explicitly blocked
+[ ] Cloud costs recorded if executed
+[ ] Final runtime selected by evidence
+[ ] Final configuration frozen
+[ ] 16-task representative validation passes
+[ ] Final frozen 80-task benchmark executed according to protocol
+[ ] Final benchmark telemetry preserved
+[ ] Final benchmark failures analyzed
+[ ] Correctness preserved
+[ ] Repair bounded
+[ ] Verification preserved
+[ ] Cancellation preserved
+[ ] Timeout preserved
+[ ] TUI responsiveness preserved
+[ ] GPU safety preserved
+[ ] Benchmark isolation preserved
+[ ] Final configuration hashed
+[ ] Reproduction manifest created
+[ ] Final report generated
+[ ] Final Git commit created
+[ ] Working tree clean
+86. HARD STOP CONDITIONS
+
+Immediately STOP and report if:
+
+canonical regression fails
+Prompt 7 regression appears
+benchmark hash changes
+benchmark protocol changes
+success contract changes
+dataset changes
+correctness degrades
+artifact corruption occurs
+LLM concurrency bypasses safety
+VRAM OOM occurs
+prewarming becomes unsafe
+llama.cpp integration changes HERMES architecture unnecessarily
+cloud billing/access is unavailable
+model equivalence cannot be established and the result is being misrepresented as a pure runtime A/B
+
+Do not work around failures by weakening tests.
+
+87. NO INFINITE TUNING
+
+This is especially important.
+
+After:
+
+Ollama tuning
++
+llama.cpp A/B
++
+L4/L40S evaluation
+
+do NOT invent:
+
+Prompt 8.1
+Prompt 8.2
+Prompt 8.3
+Prompt 9
+
+because a configuration appears potentially 2–5% faster.
+
+Once the evidence-backed final configuration is stable:
+
+LOCK IT.
+
+The HERMES performance optimization program ends here.
+
+88. FINAL PERFORMANCE DECISION FRAMEWORK
+
+The final decision must answer these five questions:
+
+1. What is the final production runtime?
+
+2. What exact model/configuration is used?
+
+3. What is the measured performance on RTX 3050 6GB?
+
+4. What did L4/L40S demonstrate under the tested workload?
+
+5. What evidence supports the final configuration?
+
+Do not turn these into a ranking.
+
+89. FINAL RESEARCH CONCLUSION
+
+The final conclusion should be written conservatively.
+
+It should state:
+
+what was implemented
+what was measured
+what was validated
+what hardware was evaluated
+what runtime configuration was selected
+what limitations remain
+
+Do not state more than the evidence supports.
+
+90. FINAL CLOSURE DOCUMENT
+
+The final report must end with:
+
+============================================================
+HERMES PERFORMANCE OPTIMIZATION PROGRAM
+============================================================
+
+Prompt 1  = PASS_AND_LOCKED
+Prompt 2  = PASS_AND_LOCKED
+Prompt 3  = PASS_AND_LOCKED
+Prompt 4  = PASS_AND_LOCKED
+Prompt 5  = PASS_AND_LOCKED
+Prompt 6  = PASS_AND_LOCKED
+Prompt 7  = PASS_AND_LOCKED
+Prompt 8  = PASS_AND_LOCKED
+
+============================================================
+PROGRAM STATUS = COMPLETE
+============================================================
+
+Then record:
+
+Final Git Commit:
+<actual hash>
+
+Final Runtime:
+<actual runtime>
+
+Final Model:
+<actual model + hash>
+
+Final RTX3050 Performance:
+<actual measured result>
+
+Final L4 Result:
+<actual measured result OR BLOCKED>
+
+Final L40S Result:
+<actual measured result OR BLOCKED>
+
+Final 80-task Benchmark:
+<actual result>
+
+Prompt-specific Tests:
+<actual result>
+
+Canonical Tests:
+<actual result>
+
+Benchmark Hashes:
+EXACT MATCH
+91. FINAL INSTRUCTION
+
+This is the last prompt.
+
+Do not optimize for impressive numbers.
+
+Do not optimize for benchmark theater.
+
+Do not modify the frozen benchmark.
+
+Do not hide failures.
+
+Do not mix measured and derived quantities.
+
+Do not claim causality where only correlation exists.
+
+Do not select llama.cpp merely because it is more configurable.
+
+Do not select cloud GPUs merely because they have more VRAM.
+
+Do not treat TUI responsiveness as actual inference acceleration.
+
+Do not treat prewarming as universal speedup.
+
+Do not generalize RTX 3050 measurements to all GPUs.
+
+Do not manufacture cloud results if access is unavailable.
+
+Do not modify Prompt 1–7 architecture unnecessarily.
+
+Do not sacrifice correctness for latency.
+
+Do not leave the final configuration ambiguous.
+
+The final objective is:
+
+REPRODUCIBLE
+CORRECT
+SAFE
+MEASURED
+AUDITABLE
+PAPER-READY
+
+The complete final lifecycle is:
+
+BASELINE
+    ↓
+OLLAMA TUNING
+    ↓
+OLLAMA LOCK
+    ↓
+LLAMA.CPP BUILD
+    ↓
+FAIR A/B
+    ↓
+RUNTIME SELECTION
+    ↓
+L4 EVALUATION
+    ↓
+L40S EVALUATION
+    ↓
+FINAL CONFIGURATION FREEZE
+    ↓
+16-TASK CORRECTNESS GATE
+    ↓
+FROZEN 80-TASK BENCHMARK
+    ↓
+FAILURE FORENSICS
+    ↓
+REGRESSION
+    ↓
+BENCHMARK HASH VERIFICATION
+    ↓
+REPRODUCTION MANIFEST
+    ↓
+FINAL GIT COMMIT
+    ↓
+FINAL REPORT
+    ↓
+PERMANENT LOCK
+
+BEGIN PROMPT 8 NOW.
+
+Bro, one important strategic point: do not let Antigravity turn Prompt 8 into another endless optimization loop. The moment it has a reproducible Ollama candidate, a fair llama.cpp comparison, whatever authorized L4/L40S evidence is actually obtainable, and the frozen benchmark plus regression evidence, the program should stop. That is what makes the final result defensible rather than just “we kept tuning until the number looked good.”
+</USER_REQUEST>
+<ADDITIONAL_METADATA>
+The current local time is: 2026-09-19T20:38:27+05:30.
+</ADDITIONAL_METADATA>

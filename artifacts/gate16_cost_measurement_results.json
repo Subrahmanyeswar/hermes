@@ -1,0 +1,9 @@
+[
+  {
+    "mission_id": "mission_c",
+    "model": "stealth/ox-alpha",
+    "status": "NOT_AVAILABLE",
+    "reported_cost_usd": null,
+    "notes": "T3 remote provider auth-blocked; recorded honestly as NOT_AVAILABLE"
+  }
+]

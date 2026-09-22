@@ -18,4 +18,17 @@ python main.py ui
 
 
 https://github.com/Subrahmanyeswar/hermes.git
-dont leave anything push each and everything to github
+dont leave anything push each and everything to GitHub
+
+
+
+
+
+okay bro then give me the very detailed prompt from the issues we found after prompt 8  
+
+lets also clear these issues and lets pass and lock this prompt 8
+
+
+
+exit code 0 or keep alive 0
+go back too lower models 

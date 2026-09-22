@@ -1,0 +1,17 @@
+{
+  "thermal_test_version": "1.0.0",
+  "target_missions": 30,
+  "minimum_missions": 20,
+  "sampling_interval_s": 1,
+  "power_state": "AC_CONNECTED",
+  "model_residency_policy": "warm_residency_maintained",
+  "background_load_policy": "controlled_low_background_load",
+  "cooldown_policy": "idle_to_baseline_temp",
+  "telemetry_sources": {
+    "gpu": "nvidia-smi/pynvml",
+    "cpu": "psutil",
+    "vram": "nvidia-smi"
+  },
+  "frozen": true,
+  "benchmark_execution_allowed": false
+}

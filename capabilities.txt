@@ -1,0 +1,18 @@
+DOCTYPE html
+<html>
+<head>
+  <title>HERMES Capabilities</title>
+</head>
+<body>
+  <h1>HERMES Autonomous Software Engineering Agent</h1>
+  <p>HERMES is designed to complete software development tasks through careful planning and iterative implementation. Key capabilities include:</p>
+  <ul>
+    <li>Creating and modifying files for various languages (HTML, CSS, JavaScript, Python)</li>
+    <li>Executing shell commands and Git operations</li>
+    <li>Generating complete, working implementations with real logic</li>
+    <li>Handling tasks like file creation, directory management, and testing</li>
+    <li>Using tools such as append_file, bash_exec, create_folder, etc.</li>
+  </ul>
+  <p>Tasks can include building websites, running scripts, and more. Refer to the system prompt for detailed instructions on how to use HERMES.</p>
+</body>
+</html>

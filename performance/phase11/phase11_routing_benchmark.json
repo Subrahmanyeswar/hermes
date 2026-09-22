@@ -1,0 +1,8 @@
+{
+  "avg_decision_latency_ms": 0.0028,
+  "t1_direct_accept_pct": 52.9,
+  "t2_escalate_pct": 29.4,
+  "t3_escalate_pct": 5.9,
+  "t2_call_reduction_pct": 64.7,
+  "t3_call_reduction_pct": 66.7
+}

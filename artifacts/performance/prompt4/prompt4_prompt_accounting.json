@@ -1,0 +1,142 @@
+{
+  "schema_version": "hermes-perf-prompt4-prompt-accounting-v1",
+  "status": "PASS",
+  "measurement_engine": "deepseek-r1:8b (Ollama local inference, prompt_eval_count) & exact UTF-8 character length",
+  "task_description": "Create index.html for EduPath Mini: an interactive educational portal with course catalog, progress tracker, responsive layout, modern CSS styling, and client-side JavaScript.",
+  "baseline": {
+    "total_measured_tokens": 1833,
+    "total_measured_chars": 8112,
+    "components": [
+      {
+        "component_id": "base_framing_and_core_instructions",
+        "description": "Base template framing, core role, execution philosophy, file requirements, response format, and section headers",
+        "chars": 3659,
+        "isolated_tokens": 821,
+        "pct_chars": 45.11
+      },
+      {
+        "component_id": "all_tool_schemas",
+        "description": "All 20 registered tool schemas with descriptions",
+        "chars": 2909,
+        "isolated_tokens": 659,
+        "pct_chars": 35.86
+      },
+      {
+        "component_id": "active_skill_full",
+        "description": "react-frontend skill full content (Level 3)",
+        "chars": 1192,
+        "isolated_tokens": 275,
+        "pct_chars": 14.69
+      },
+      {
+        "component_id": "raw_workspace_structure",
+        "description": "Workspace description and directory tree structure",
+        "chars": 120,
+        "isolated_tokens": 33,
+        "pct_chars": 1.48
+      },
+      {
+        "component_id": "project_memory_raw",
+        "description": "Unfiltered project memory fact",
+        "chars": 51,
+        "isolated_tokens": 14,
+        "pct_chars": 0.63
+      },
+      {
+        "component_id": "user_task_message",
+        "description": "User task wrapper: Task: Create index.html for EduPath Mini...",
+        "chars": 181,
+        "isolated_tokens": 35,
+        "pct_chars": 2.23
+      }
+    ],
+    "sum_component_chars": 8112,
+    "sum_isolated_tokens": 1837,
+    "concatenation_subword_merge_delta_tokens": -4,
+    "exact_char_sum_reconciled": true,
+    "exact_token_reconciled": true
+  },
+  "optimized_experiment_f": {
+    "total_measured_tokens": 1304,
+    "total_measured_chars": 5833,
+    "components": [
+      {
+        "component_id": "static_prompt_prefix",
+        "description": "Invariant static prefix (Role, philosophy, file requirements, response format constraints)",
+        "chars": 3141,
+        "isolated_tokens": 686,
+        "pct_chars": 53.85
+      },
+      {
+        "component_id": "prefix_suffix_separator",
+        "description": "Double newline separator between static prefix and dynamic suffix",
+        "chars": 2,
+        "isolated_tokens": 1,
+        "pct_chars": 0.03
+      },
+      {
+        "component_id": "dynamic_suffix_framing",
+        "description": "Section headers, tool selection rules 1-5, and permission mode header",
+        "chars": 516,
+        "isolated_tokens": 137,
+        "pct_chars": 8.85
+      },
+      {
+        "component_id": "selective_tool_schemas",
+        "description": "Selective 4 tool schemas (write_file, read_file, list_directory, create_folder)",
+        "chars": 723,
+        "isolated_tokens": 156,
+        "pct_chars": 12.39
+      },
+      {
+        "component_id": "active_skill_level_2",
+        "description": "react-frontend skill Level 2 compact procedural content",
+        "chars": 1192,
+        "isolated_tokens": 275,
+        "pct_chars": 20.44
+      },
+      {
+        "component_id": "project_memory_fallback",
+        "description": "Filtered memory fallback placeholder ('No memory context yet.')",
+        "chars": 22,
+        "isolated_tokens": 7,
+        "pct_chars": 0.38
+      },
+      {
+        "component_id": "compact_workspace",
+        "description": "Compact 1-line workspace descriptor",
+        "chars": 56,
+        "isolated_tokens": 15,
+        "pct_chars": 0.96
+      },
+      {
+        "component_id": "user_task_message",
+        "description": "User task wrapper: Task: Create index.html for EduPath Mini...",
+        "chars": 181,
+        "isolated_tokens": 35,
+        "pct_chars": 3.1
+      }
+    ],
+    "sum_component_chars": 5833,
+    "sum_isolated_tokens": 1312,
+    "concatenation_subword_merge_delta_tokens": -8,
+    "exact_char_sum_reconciled": true,
+    "exact_token_reconciled": true
+  },
+  "preliminary_draft_discrepancy_explanation": {
+    "observed_draft_row_sum_chars": 4309,
+    "observed_draft_row_sum_tokens": 1082,
+    "actual_experiment_f_chars": 5833,
+    "actual_experiment_f_tokens": 1304,
+    "root_cause": "The preliminary report table inadvertently inserted Skill Level 1 values (47 tokens, 208 chars) instead of the actual Level 2 skill passed in Experiment F (275 tokens, 1192 chars), and omitted the dynamic suffix framing text (137 tokens, 516 chars) and memory fallback text (7 tokens, 22 chars).",
+    "char_difference_breakdown": {
+      "skill_l2_minus_l1_chars": 984,
+      "dynamic_framing_chars": 516,
+      "memory_fallback_chars": 22,
+      "separator_chars": 2,
+      "total_unaccounted_chars": 1524
+    },
+    "reconciled_sum_check": "4309 + 1524 = 5833 chars (exact match)",
+    "resolution": "All components are now explicitly enumerated in the accounting ledger; sum of parts strictly equals 5,833 characters and 1,304 concatenated prompt tokens."
+  }
+}

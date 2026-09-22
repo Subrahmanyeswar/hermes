@@ -30,6 +30,15 @@ def test_parse_json_embedded_in_prose():
     assert isinstance(result, ParseSuccess)
     assert result.tool == "write_file"
 
+def test_parse_reasoning_think_tags():
+    p = parser()
+    response = '<think>\nThe user wants to list files in the current folder.\nI should use list_directory or list_files.\n</think>\n```json\n{"tool": "list_files", "parameters": {"path": "."}, "explanation": "Listing directory contents"}\n```'
+    result = p.parse(response)
+    assert isinstance(result, ParseSuccess)
+    assert result.tool == "list_files"
+    assert "user wants to list files" in result.reasoning
+    assert result.parameters == {"path": "."}
+
 def test_parse_json_with_extra_keys():
     """Extra keys in JSON should still parse successfully."""
     p = parser()

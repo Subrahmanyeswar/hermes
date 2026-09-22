@@ -1,0 +1,122 @@
+{
+  "evaluation_name": "response_parser_hardening_verification",
+  "timestamp": "2026-09-17T10:46:26Z",
+  "total_samples": 10,
+  "success_count": 6,
+  "failure_count": 4,
+  "unknown_tools_rejected": 1,
+  "unknown_tools_allowed": 0,
+  "json_injection_defense": "VERIFIED_ACTIVE",
+  "placeholder_rejection": "VERIFIED_ACTIVE",
+  "duplicate_path_rejection": "VERIFIED_ACTIVE",
+  "max_files_bound_enforced": "VERIFIED_ACTIVE (1 <= files <= 3)",
+  "avg_parse_latency_ms": 59.922,
+  "samples_evaluated": [
+    {
+      "id": 1,
+      "label": "clean_json",
+      "raw_response_snippet": "{\"tool\": \"write_file\", \"parameters\": {\"path\": \"ind...",
+      "outcome": "SUCCESS",
+      "method_used": "direct_parse",
+      "tool_extracted": "write_file",
+      "failure_reason": null,
+      "parse_latency_ms": 592.908
+    },
+    {
+      "id": 2,
+      "label": "fenced_json",
+      "raw_response_snippet": "```json\n{\"tool\": \"write_file\", \"parameters\": {\"pat...",
+      "outcome": "SUCCESS",
+      "method_used": "strip_markdown_fences",
+      "tool_extracted": "write_file",
+      "failure_reason": null,
+      "parse_latency_ms": 0.498
+    },
+    {
+      "id": 3,
+      "label": "prose_embedded_json",
+      "raw_response_snippet": "Here is the code to create the app:\n{\"tool\": \"writ...",
+      "outcome": "SUCCESS",
+      "method_used": "extract_first_json_object",
+      "tool_extracted": "write_file",
+      "failure_reason": null,
+      "parse_latency_ms": 0.206
+    },
+    {
+      "id": 4,
+      "label": "single_quoted_json",
+      "raw_response_snippet": "{'tool': 'write_file', 'parameters': {'path': 'tes...",
+      "outcome": "SUCCESS",
+      "method_used": "fix_single_quotes",
+      "tool_extracted": "write_file",
+      "failure_reason": null,
+      "parse_latency_ms": 0.473
+    },
+    {
+      "id": 5,
+      "label": "missing_braces",
+      "raw_response_snippet": "\"tool\": \"write_file\", \"parameters\": {\"path\": \"main...",
+      "outcome": "SUCCESS",
+      "method_used": "reconstruct_from_fragments",
+      "tool_extracted": "write_file",
+      "failure_reason": null,
+      "parse_latency_ms": 0.893
+    },
+    {
+      "id": 6,
+      "label": "truncated_json",
+      "raw_response_snippet": "{\"tool\": \"write_file\", \"parameters\": {\"path\": \"bro...",
+      "outcome": "FAILURE",
+      "method_used": null,
+      "tool_extracted": null,
+      "failure_reason": "json_malformed_unparseable",
+      "parse_latency_ms": 2.778
+    },
+    {
+      "id": 7,
+      "label": "plain_text_conversational",
+      "raw_response_snippet": "I have inspected the workspace and everything look...",
+      "outcome": "FAILURE",
+      "method_used": null,
+      "tool_extracted": null,
+      "failure_reason": "model_responded_with_plain_text_no_json",
+      "parse_latency_ms": 1.025
+    },
+    {
+      "id": 8,
+      "label": "empty_response",
+      "raw_response_snippet": "",
+      "outcome": "FAILURE",
+      "method_used": null,
+      "tool_extracted": null,
+      "failure_reason": "empty_response",
+      "parse_latency_ms": 0.003
+    },
+    {
+      "id": 9,
+      "label": "json_code_content",
+      "raw_response_snippet": "{\"tool\": \"write_file\", \"parameters\": {\"path\": \"dat...",
+      "outcome": "SUCCESS",
+      "method_used": "direct_parse",
+      "tool_extracted": "write_file",
+      "failure_reason": null,
+      "parse_latency_ms": 0.109
+    },
+    {
+      "id": 10,
+      "label": "unknown_tool",
+      "raw_response_snippet": "{\"tool\": \"teleport_to_mars\", \"parameters\": {\"speed...",
+      "outcome": "FAILURE",
+      "method_used": null,
+      "tool_extracted": null,
+      "failure_reason": "unknown_tool_rejected:teleport_to_mars",
+      "parse_latency_ms": 0.325
+    }
+  ],
+  "baseline_comparison": {
+    "baseline_unknown_tools_allowed": 1,
+    "hardened_unknown_tools_allowed": 0,
+    "baseline_unknown_tool_rejection": "VULNERABLE (pre-hardening parser accepted hallucinated tool 'teleport_to_mars')",
+    "hardened_unknown_tool_rejection": "HARDENED (post-hardening parser strictly rejects unknown tool with unknown_tool_rejected:teleport_to_mars)"
+  }
+}

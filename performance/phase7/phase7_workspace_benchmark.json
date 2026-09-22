@@ -1,0 +1,11 @@
+{
+  "initial_full_indexing_ms": 759.3,
+  "incremental_unchanged_check_ms": 8.66,
+  "incremental_1_file_update_ms": 28.13,
+  "retrieval_latency_ms": 4.67,
+  "incremental_speedup": "87.7x",
+  "retrieved_files": [
+    "module_0/auth.py",
+    "module_3/test_auth.py"
+  ]
+}

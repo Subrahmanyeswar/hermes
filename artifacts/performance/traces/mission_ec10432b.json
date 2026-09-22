@@ -1,0 +1,142 @@
+{
+  "mission_id": "ec10432b",
+  "execution_mode": "performance_baseline",
+  "mission": {
+    "start": "2026-09-13 21:43:07",
+    "end": "2026-09-13 21:43:20",
+    "duration_ms": 13090.48,
+    "accounted_time_ms": 12954.64,
+    "unaccounted_time_ms": 135.84
+  },
+  "stages": [
+    {
+      "name": "Input Sanitisation",
+      "stage_number": 1,
+      "start": 11711.6494,
+      "end": 11711.65,
+      "duration_ms": 0.66,
+      "success": true
+    },
+    {
+      "name": "Planning",
+      "stage_number": 2,
+      "start": 11711.6502,
+      "end": 11711.6588,
+      "duration_ms": 8.62,
+      "success": true
+    }
+  ],
+  "model_calls": [
+    {
+      "inference_id": "da6b04f6",
+      "request_id": "ec10432b",
+      "mission_id": "ec10432b",
+      "task_id": "ec10432b",
+      "stage": "",
+      "execution_mode": "performance_baseline",
+      "model": "deepseek-r1:8b",
+      "provider": "ollama",
+      "start_time_monotonic": 11711.6805217,
+      "end_time_monotonic": 11724.609888,
+      "start_timestamp": "2026-09-13T16:13:20Z",
+      "first_token_timestamp": null,
+      "end_timestamp": "2026-09-13T16:13:20Z",
+      "total_latency_ms": 12929.366300000765,
+      "total_duration": 12651.162,
+      "load_duration_ms": 8462.1516,
+      "load_duration": 8462.1516,
+      "prompt_eval_duration_ms": 1441.7864,
+      "prompt_eval_duration": 1441.7864,
+      "eval_duration_ms": 2685.3882,
+      "eval_duration": 2685.3882,
+      "ttft_ms": 9903.937999999998,
+      "prompt_eval_count": 1558,
+      "eval_count": 82,
+      "prompt_tokens": 1558,
+      "output_tokens": 82,
+      "total_tokens": 1640,
+      "tokens_per_second": 30.54,
+      "think_enabled": false,
+      "thinking_present": false,
+      "thinking_available": false,
+      "thinking_length": 0,
+      "final_response_length": 350,
+      "thinking_tokens": null,
+      "tool_call_count": 1,
+      "context": {
+        "system_prompt_chars": 6836,
+        "tool_defs_chars": 0,
+        "user_prompt_chars": 45,
+        "memory_context_chars": 0,
+        "skill_context_chars": 0,
+        "workspace_context_chars": 0,
+        "total_input_chars": 6881,
+        "estimated_input_tokens": 1720,
+        "exact_input_tokens": 1558
+      },
+      "temperature": 0.1,
+      "num_ctx": 4096,
+      "keep_alive": "300s",
+      "lifecycle_state": "COLD",
+      "warm_cold_state": "COLD",
+      "model_switch_state": "SAME",
+      "previous_model": null,
+      "requested_model": "deepseek-r1:8b",
+      "success": true,
+      "retry_count": 0,
+      "timed_out": false,
+      "error": null,
+      "error_type": null,
+      "error_message": null,
+      "cost_usd": 0.0,
+      "gpu_vram_used_mb": 5495.0,
+      "gpu_util_percent": 97.0,
+      "raw_timing_metadata": {
+        "total_duration": 12651162000,
+        "load_duration": 8462151600,
+        "prompt_eval_count": 1558,
+        "prompt_eval_duration": 1441786400,
+        "eval_count": 82,
+        "eval_duration": 2685388200
+      }
+    }
+  ],
+  "tool_calls": [
+    {
+      "tool_name": "list_directory",
+      "category": "other",
+      "start_time_monotonic": 11724.671,
+      "duration_ms": 15.99999999962165,
+      "subprocess_duration_ms": 0.0,
+      "filesystem_duration_ms": 0.0,
+      "success": true,
+      "exit_code": 0,
+      "args_size_bytes": 13,
+      "output_size_bytes": 2524,
+      "retry_count": 0,
+      "error": null,
+      "mission_id": "6efcbebf",
+      "task_id": "6efcbebf",
+      "start": 11724.671,
+      "end": 11724.687
+    }
+  ],
+  "verification_calls": [
+    {
+      "verification_id": "e4be8a1d",
+      "request_id": "ec10432b",
+      "mission_id": "6efcbebf",
+      "task_id": "6efcbebf",
+      "method": "LOCAL_DETERMINISTIC",
+      "start_time_monotonic": 11724.687,
+      "end_time_monotonic": 11724.687,
+      "duration_ms": 0.0,
+      "verdict": "AGREE",
+      "escalated": false,
+      "issues_count": 0,
+      "issues": []
+    }
+  ],
+  "repair_attempts": [],
+  "model_switches": []
+}

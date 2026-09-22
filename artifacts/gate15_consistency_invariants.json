@@ -1,0 +1,20 @@
+{
+  "INVARIANT_1_MISSION_COMPLETION": "MISSION_COMPLETED requires all acceptance criteria SATISFIED",
+  "INVARIANT_2_REQUIRED_TASKS": "MISSION_COMPLETED requires all required DAG tasks COMPLETED",
+  "INVARIANT_3_TASK_COMPLETION_EVIDENCE": "TASK_COMPLETED requires non-empty verified completion evidence",
+  "INVARIANT_4_ACCEPTANCE_CRITERIA": "Acceptance SATISFIED requires verification_result == 'PASSED'",
+  "INVARIANT_5_VERIFICATION_FRESHNESS": "Verification evidence must match current attempt and workspace state",
+  "INVARIANT_6_VERIFICATION_FAILURE": "Failed required verification prevents task and mission completion",
+  "INVARIANT_7_REPAIR_INTEGRITY": "Repaired tasks require passing re-verification evidence",
+  "INVARIANT_8_ATTEMPT_CONSISTENCY": "Evidence must match exact attempt number",
+  "INVARIANT_9_EVENT_MONOTONICITY": "Monotonic sequence; terminal states drop late mutations",
+  "INVARIANT_10_TERMINAL_IMMUTABILITY": "Terminal states (CANCELLED, FAILED, TIMED_OUT) never regress to RUNNING",
+  "INVARIANT_11_TASK_MISSION_SCOPING": "All persisted tasks strictly scoped to parent mission",
+  "INVARIANT_12_ACCEPTANCE_SCOPING": "All acceptance criteria strictly scoped to parent mission",
+  "INVARIANT_13_VERIFICATION_SCOPING": "Verification evidence strictly scoped to parent mission/task",
+  "INVARIANT_14_TELEMETRY_CONSISTENCY": "Telemetry never manufactures successful mission state",
+  "INVARIANT_15_WORKSPACE_INDEX_TRUTH": "Physical filesystem truth strictly overrides stale SQLite index",
+  "INVARIANT_16_MEMORY_TRUTH": "Physical filesystem truth strictly overrides historical memory",
+  "INVARIANT_17_KAIROS_TASK_ALIGNMENT": "KAIROS DAG node states strictly match persisted task states",
+  "INVARIANT_18_CANCELLATION_IMMUTABILITY": "Cancelled missions never resume or resurrect upon restart"
+}

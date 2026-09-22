@@ -622,15 +622,21 @@ class ChatPanel(Widget):
     }
 
     #chat-input-container {
-        height: 4;
+        height: auto;
         width: 100%;
         layout: horizontal;
-        align-vertical: middle;
+    }
+
+    #input-buttons {
+        width: auto;
+        height: auto;
     }
 
     #chat-input {
         width: 1fr;
-        height: 1;
+        height: auto;
+        min-height: 4;
+        max-height: 10;
     }
     """
 

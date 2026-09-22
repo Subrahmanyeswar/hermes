@@ -1,0 +1,27 @@
+{
+  "command": "pytest -k 'gate' -v",
+  "total": 179,
+  "passed": 179,
+  "failed": 0,
+  "deselected": 686,
+  "duration_seconds": 13.18,
+  "exit_code": 0,
+  "status": "PASS",
+  "timestamp": "2026-09-02T17:01:28Z",
+  "gate_suites_tested": [
+    "tests/test_gate12_routing_calibration.py (8 passed)",
+    "tests/test_gate11_context_correctness.py (10 passed)",
+    "tests/test_gate10_workspace_correctness.py (16 passed)",
+    "tests/test_gate15_1_integration.py (15 passed)",
+    "tests/test_gate15_2_chaos.py (12 passed)",
+    "tests/test_gate15_3_crash_resume.py (12 passed)",
+    "tests/test_gate15_4_freeze.py (18 passed)",
+    "tests/test_gate15_5_runtime.py (16 passed)",
+    "tests/test_gate15_6_vram.py (14 passed)",
+    "tests/test_gate15_7_security.py (14 passed)",
+    "tests/test_gate15_8_hostile_repo.py (10 passed)",
+    "tests/test_gate15_9_mission_boundary_e2e.py (9 passed)",
+    "tests/test_gate15_9_tool_reliability.py (6 passed)",
+    "tests/test_security.py & security gates (19 passed)"
+  ]
+}
