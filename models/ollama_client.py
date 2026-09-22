@@ -443,3 +443,89 @@ class OllamaClient(ModelProvider):
             return [m["name"] for m in data.get("models", [])]
         except Exception:  # noqa: BLE001 — intentionally broad: method must never raise
             return []
+
+    def get_cost_summary(self) -> dict[str, Any]:
+        """Return summary of spending and caps (Ollama incurs no external API charges)."""
+        return {
+            "total_spent": 0.0,
+            "cap": 25.0,
+            "remaining": 25.0,
+            "alert_threshold": 15.0,
+        }
+
+    async def arbitrate(
+        self,
+        task: str = "",
+        tier1_output: str = "",
+        tier2_issues: Optional[list[str]] = None,
+        tool_result: str = "",
+        escalation_reason: str = "",
+        model: Optional[str] = None,
+        **kwargs: Any,
+    ) -> Any:
+        """
+        Arbitrate between Tier 1 proposal and Tier 2 concerns using Tier 3 model.
+        Returns Tier3Response for full drop-in compatibility.
+        """
+        from config.model_config import TIER3_MODEL
+        from models.openrouter_client import Tier3Response
+
+        if not task and "task_description" in kwargs:
+            task = str(kwargs["task_description"])
+        if tier2_issues is None:
+            tier2_issues = []
+        if "tier1_tool_call" in kwargs and not tier1_output:
+            tier1_output = str(kwargs["tier1_tool_call"])
+
+        target_model = model or TIER3_MODEL
+
+        system_prompt = (
+            "You are an expert code reviewer arbitrating between two AI agents in HERMES. "
+            "Agent 1 proposed a tool call. Agent 2 raised verification concerns. "
+            "Your job is to make the authoritative final decision. "
+            "Respond with your decision in 2-3 sentences. "
+            "Be direct and specific about what action should proceed or be modified."
+        )
+
+        user_prompt = (
+            f"TASK: {task}\n\n"
+            f"AGENT 1 OUTPUT:\n{tier1_output[:600]}\n\n"
+            f"AGENT 2 CONCERNS:\n" +
+            "\n".join(f"- {issue}" for issue in tier2_issues) + "\n\n"
+            f"TOOL RESULT:\n{tool_result[:400]}\n\n"
+            f"ESCALATION REASON: {escalation_reason}\n\n"
+            f"What is your final decision? Should the action proceed, be modified, or be rejected?"
+        )
+
+        start_time = time.monotonic()
+        res = await self.generate(
+            model=target_model,
+            prompt=user_prompt,
+            system=system_prompt,
+            temperature=0.0,
+            num_predict=512,
+        )
+        latency = time.monotonic() - start_time
+
+        if not res.success:
+            logger.warning(f"Ollama arbitration failed, falling back to T1 output: {res.error}")
+            return Tier3Response(
+                content=tier1_output,
+                input_tokens=res.input_tokens,
+                output_tokens=res.output_tokens,
+                cost_usd=0.0,
+                model=target_model,
+                latency_seconds=latency,
+                success=False,
+                error=res.error,
+            )
+
+        return Tier3Response(
+            content=res.text,
+            input_tokens=res.input_tokens,
+            output_tokens=res.output_tokens,
+            cost_usd=0.0,
+            model=target_model,
+            latency_seconds=latency,
+            success=True,
+        )

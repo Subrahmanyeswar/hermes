@@ -1,0 +1,156 @@
+{
+  "mission_id": "3a3db47c",
+  "execution_mode": "performance_baseline",
+  "mission": {
+    "start": "2026-09-22 21:00:04",
+    "end": "2026-09-22 21:00:04",
+    "duration_ms": 55.49,
+    "accounted_time_ms": 8.64,
+    "unaccounted_time_ms": 46.85
+  },
+  "stages": [
+    {
+      "name": "Input Sanitisation",
+      "stage_number": 1,
+      "start": 509572.1693,
+      "end": 509572.1701,
+      "duration_ms": 0.78,
+      "success": true
+    },
+    {
+      "name": "Planning",
+      "stage_number": 2,
+      "start": 509572.1702,
+      "end": 509572.1781,
+      "duration_ms": 7.86,
+      "success": true
+    }
+  ],
+  "model_calls": [],
+  "tool_calls": [
+    {
+      "tool_name": "list_dir",
+      "category": "other",
+      "start_time_monotonic": 509552.0,
+      "duration_ms": 0.0,
+      "subprocess_duration_ms": 0.0,
+      "filesystem_duration_ms": 0.0,
+      "success": false,
+      "exit_code": 2,
+      "args_size_bytes": 35,
+      "output_size_bytes": 11,
+      "retry_count": 0,
+      "error": "fatal error",
+      "mission_id": "d0261dbf",
+      "task_id": "d0261dbf",
+      "start": 509552.0,
+      "end": 509552.0
+    },
+    {
+      "tool_name": "list_dir",
+      "category": "other",
+      "start_time_monotonic": 509552.015,
+      "duration_ms": 0.0,
+      "subprocess_duration_ms": 0.0,
+      "filesystem_duration_ms": 0.0,
+      "success": false,
+      "exit_code": 2,
+      "args_size_bytes": 35,
+      "output_size_bytes": 11,
+      "retry_count": 1,
+      "error": "fatal error",
+      "mission_id": "d0261dbf",
+      "task_id": "d0261dbf",
+      "start": 509552.015,
+      "end": 509552.015
+    },
+    {
+      "tool_name": "list_dir",
+      "category": "other",
+      "start_time_monotonic": 509552.015,
+      "duration_ms": 0.0,
+      "subprocess_duration_ms": 0.0,
+      "filesystem_duration_ms": 0.0,
+      "success": false,
+      "exit_code": 2,
+      "args_size_bytes": 35,
+      "output_size_bytes": 11,
+      "retry_count": 2,
+      "error": "fatal error",
+      "mission_id": "d0261dbf",
+      "task_id": "d0261dbf",
+      "start": 509552.015,
+      "end": 509552.015
+    },
+    {
+      "tool_name": "list_dir",
+      "category": "other",
+      "start_time_monotonic": 509552.015,
+      "duration_ms": 0.0,
+      "subprocess_duration_ms": 0.0,
+      "filesystem_duration_ms": 0.0,
+      "success": false,
+      "exit_code": 2,
+      "args_size_bytes": 35,
+      "output_size_bytes": 11,
+      "retry_count": 3,
+      "error": "fatal error",
+      "mission_id": "d0261dbf",
+      "task_id": "d0261dbf",
+      "start": 509552.015,
+      "end": 509552.015
+    }
+  ],
+  "verification_calls": [],
+  "repair_attempts": [
+    {
+      "repair_id": "d5ca397f",
+      "request_id": "3a3db47c",
+      "mission_id": "d0261dbf",
+      "task_id": "d0261dbf",
+      "attempt_number": 1,
+      "trigger": "Tool 'list_dir' failed with exit_code=2. Retry 1/3. Error: fatal error",
+      "affected_files": [
+        "."
+      ],
+      "start_time_monotonic": 509552.0,
+      "end_time_monotonic": 509552.0,
+      "duration_ms": 0.0,
+      "model": "z-ai/glm-5.3",
+      "success": false
+    },
+    {
+      "repair_id": "11632f59",
+      "request_id": "3a3db47c",
+      "mission_id": "d0261dbf",
+      "task_id": "d0261dbf",
+      "attempt_number": 2,
+      "trigger": "Tool 'list_dir' failed with exit_code=2. Retry 2/3. Error: fatal error",
+      "affected_files": [
+        "."
+      ],
+      "start_time_monotonic": 509552.015,
+      "end_time_monotonic": 509552.015,
+      "duration_ms": 0.0,
+      "model": "z-ai/glm-5.3",
+      "success": false
+    },
+    {
+      "repair_id": "b558ae2c",
+      "request_id": "3a3db47c",
+      "mission_id": "d0261dbf",
+      "task_id": "d0261dbf",
+      "attempt_number": 3,
+      "trigger": "Tool 'list_dir' failed with exit_code=2. Retry 3/3. Error: fatal error",
+      "affected_files": [
+        "."
+      ],
+      "start_time_monotonic": 509552.015,
+      "end_time_monotonic": 509552.015,
+      "duration_ms": 0.0,
+      "model": "z-ai/glm-5.3",
+      "success": false
+    }
+  ],
+  "model_switches": []
+}

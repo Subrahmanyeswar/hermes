@@ -46,9 +46,9 @@ def test_normalized_model_response():
 
 
 def test_model_config_defaults():
-    assert TIER1_MODEL == "deepseek-r1:8b"
-    assert TIER2_MODEL == "qwen3:8b"
-    assert TIER3_MODEL == "stealth/ox-alpha"
+    assert TIER1_MODEL == "z-ai/glm-5.3"
+    assert TIER2_MODEL == "gpt-oss:120b-cloud"
+    assert TIER3_MODEL == "nemotron-3-ultra:cloud"
     assert MODEL_KEEP_ALIVE == "300s"
     assert MODEL_TIMEOUT_SECONDS > 0
 
@@ -185,6 +185,7 @@ async def test_orchestrator_recovers_from_empty_tool_parameters():
         call_count += 1
         return resp
         
+    orch.tier1.generate = mock_generate
     orch.ollama.generate = mock_generate
     
     from core.verifier import VerificationResult
@@ -202,3 +203,78 @@ async def test_orchestrator_recovers_from_empty_tool_parameters():
             assert call_count >= 2
             assert res.tool_name == "read_file"
             assert res.success is True
+
+
+# ──────────────────────────────────────────────────────────────────────
+# 5. NVIDIA Provider Unit Tests
+# ──────────────────────────────────────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_nvidia_client_response_normalization():
+    from models.nvidia_client import NvidiaClient
+    client = NvidiaClient(api_key="test-mock-key")
+    assert await client.is_available() is True
+
+    mock_response_json = {
+        "choices": [
+            {
+                "message": {
+                    "content": "{\"tool\": \"read_file\", \"parameters\": {\"path\": \"README.md\"}}",
+                    "reasoning_content": "The user wants to read README.md"
+                }
+            }
+        ],
+        "usage": {"prompt_tokens": 50, "completion_tokens": 25, "total_tokens": 75}
+    }
+
+    mock_http_resp = MagicMock()
+    mock_http_resp.status_code = 200
+    mock_http_resp.json.return_value = mock_response_json
+
+    with patch("httpx.AsyncClient.post", new=AsyncMock(return_value=mock_http_resp)):
+        res = await client.generate(
+            model=TIER1_MODEL,
+            prompt="read the readme",
+            system="system instructions"
+        )
+        assert isinstance(res, NormalizedModelResponse)
+        assert "read_file" in res.text
+        assert "<think>" in res.text
+        assert "The user wants to read README.md" in res.text
+        assert res.model == TIER1_MODEL
+        assert res.provider == "nvidia_nim"
+        assert res.input_tokens == 50
+        assert res.output_tokens == 25
+        assert res.total_tokens == 75
+        assert res.success is True
+
+
+@pytest.mark.asyncio
+async def test_ollama_client_arbitrate_contract():
+    client = OllamaClient()
+    mock_norm = NormalizedModelResponse(
+        text="Arbitration decision: Proceed with tool.",
+        model=TIER3_MODEL,
+        provider="ollama",
+        input_tokens=80,
+        output_tokens=20,
+        success=True
+    )
+    with patch.object(client, "generate", new=AsyncMock(return_value=mock_norm)):
+        arb = await client.arbitrate(
+            task="Arbitration task",
+            tier1_output="{\"tool\": \"read_file\"}",
+            tier2_issues=["Issue 1"],
+            tool_result="File read",
+            escalation_reason="Disagreement"
+        )
+        assert isinstance(arb, Tier3Response)
+        assert arb.success is True
+        assert "Proceed with tool" in arb.content
+        assert arb.model == TIER3_MODEL
+        assert arb.cost_usd == 0.0
+    
+    cost_sum = client.get_cost_summary()
+    assert "total_spent" in cost_sum
+    assert cost_sum["total_spent"] == 0.0
+

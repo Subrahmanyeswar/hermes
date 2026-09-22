@@ -3,14 +3,16 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-TIER1_PROVIDER = os.getenv("TIER1_PROVIDER", "ollama")
-TIER1_MODEL = os.getenv("TIER1_MODEL", "deepseek-r1:8b")
+TIER1_PROVIDER = os.getenv("TIER1_PROVIDER", "nvidia_nim")
+TIER1_MODEL = os.getenv("TIER1_MODEL", "z-ai/glm-5.3")
+TIER1_BASE_URL = os.getenv("TIER1_BASE_URL", "https://integrate.api.nvidia.com/v1")
+NVIDIA_API_KEY = os.getenv("NVIDIA_API_KEY", "")
 
 TIER2_PROVIDER = os.getenv("TIER2_PROVIDER", "ollama")
-TIER2_MODEL = os.getenv("TIER2_MODEL", "qwen3:8b")
+TIER2_MODEL = os.getenv("TIER2_MODEL", "gpt-oss:120b-cloud")
 
-TIER3_PROVIDER = os.getenv("TIER3_PROVIDER", "openrouter")
-TIER3_MODEL = os.getenv("TIER3_MODEL", "stealth/ox-alpha")
+TIER3_PROVIDER = os.getenv("TIER3_PROVIDER", "ollama")
+TIER3_MODEL = os.getenv("TIER3_MODEL", "nemotron-3-ultra:cloud")
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "")
 
 MODEL_STREAMING = os.getenv("MODEL_STREAMING", "true").lower() == "true"

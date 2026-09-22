@@ -10,7 +10,7 @@
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Optional
+from typing import Optional, Any
 
 from loguru import logger
 
@@ -241,6 +241,7 @@ class DisagreementRouter:
         verification_result: "VerificationResult",
         ollama_client: "OllamaClient",
         system_prompt: str,
+        tier1_client: Optional[Any] = None,
     ) -> Optional[dict]:
         """
         ToT/LATS insight (controlled): Before escalating to T3,
@@ -253,13 +254,16 @@ class DisagreementRouter:
             original_task:         The user's task description
             original_tool_call:    T1's first tool call attempt
             verification_result:   T2's assessment (which said DISAGREE)
-            ollama_client:         Ollama client for T1 re-generation
+            ollama_client:         Ollama client for T2 scoring
             system_prompt:         The existing system prompt for T1
+            tier1_client:          Client for T1 re-generation (defaults to ollama_client)
 
         Returns:
             Alternative tool call dict if one scores higher, else None
         """
         from core.response_parser import ResponseParser, ParseSuccess
+
+        t1_gen_client = tier1_client or ollama_client
 
         logger.info(
             "DisagreementRouter: T2 disagrees — trying alternative "
@@ -283,7 +287,7 @@ class DisagreementRouter:
 
         try:
             # Generate alternative with T1
-            alt_resp = await ollama_client.generate(
+            alt_resp = await t1_gen_client.generate(
                 model=TIER1_MODEL,
                 prompt=alt_prompt,
                 system=system_prompt,

@@ -25,7 +25,7 @@ def _get_known_tools() -> Set[str]:
         registered = set(list_tools())
     except Exception:
         registered = set()
-    registered.update({"write_files_batch", "list_files", "create_directory"})
+    registered.update({"write_files_batch", "list_files", "create_directory", "list_dir"})
     return registered
 
 
