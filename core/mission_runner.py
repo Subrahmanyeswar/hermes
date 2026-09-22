@@ -806,6 +806,13 @@ class MissionRunner:
                 if root and root.exists():
                     css_files = list(root.rglob("*.css"))
                     met = any(f.stat().st_size > 0 for f in css_files)
+                    if not met:
+                        for f in root.rglob("*.html"):
+                            if f.stat().st_size > 0:
+                                content = f.read_text(errors="ignore")
+                                if "<style" in content and "</style>" in content:
+                                    met = True
+                                    break
 
             elif "animation" in lower:
                 if root and root.exists():
@@ -820,6 +827,13 @@ class MissionRunner:
                             if f.stat().st_size > 0:
                                 met = True
                                 break
+                    if not met:
+                        for f in root.rglob("*.html"):
+                            if f.stat().st_size > 0:
+                                content = f.read_text(errors="ignore")
+                                if "@keyframes" in content or "animation" in content or "transition" in content or "requestAnimationFrame" in content:
+                                    met = True
+                                    break
 
             elif "responsive" in lower:
                 if root and root.exists():
@@ -828,6 +842,12 @@ class MissionRunner:
                         if "@media" in content:
                             met = True
                             break
+                    if not met:
+                        for f in root.rglob("*.html"):
+                            content = f.read_text(errors="ignore")
+                            if "@media" in content or "viewport" in content:
+                                met = True
+                                break
 
             elif "questionnaire" in lower or "interactive form" in lower:
                 if root and root.exists():

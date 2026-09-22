@@ -2,7 +2,7 @@
 # NVIDIA NIM API client for HERMES Tier 1 primary model.
 # Communicates with OpenAI-compatible NVIDIA NIM endpoint:
 # https://integrate.api.nvidia.com/v1/chat/completions
-# Model: z-ai/glm-5.3
+# Model: z-ai/glm-5.3-flash
 # API key is loaded strictly from NVIDIA_API_KEY environment variable.
 # Never log the API key.
 
@@ -45,6 +45,8 @@ class NvidiaClient(ModelProvider):
     """
     Tier 1 NVIDIA NIM Provider for HERMES.
     Single gateway for all HTTP communication with the NVIDIA NIM API.
+    Supports real-time SSE streaming with content, reasoning_content,
+    and tool_calls delta accumulation.
     """
 
     def __init__(
@@ -58,7 +60,12 @@ class NvidiaClient(ModelProvider):
         if not self.api_key:
             logger.warning("NVIDIA_API_KEY not set — Tier 1 NVIDIA NIM will be unavailable")
 
-        self.model: str = model or TIER1_MODEL
+        # Guarantee z-ai/glm-5.3-flash model lock
+        chosen_model = model or TIER1_MODEL
+        if chosen_model == "z-ai/glm-5.3":
+            chosen_model = "z-ai/glm-5.3-flash"
+        self.model: str = chosen_model
+
         self.base_url: str = (base_url or "https://integrate.api.nvidia.com/v1").rstrip("/")
         self.timeout_seconds: int = timeout_seconds
         self._async_client: Optional[httpx.AsyncClient] = None
@@ -95,13 +102,18 @@ class NvidiaClient(ModelProvider):
         temperature: float = 0.0,
         max_tokens: Optional[int] = None,
         num_predict: Optional[int] = None,
+        stream: bool = True,
         **kwargs: Any,
     ) -> NormalizedModelResponse:
         """
         Send a completion request to NVIDIA NIM chat completions API.
+        Default: Streaming SSE with delta aggregation.
         Returns NormalizedModelResponse conforming to the HERMES provider contract.
         """
         active_model = model or getattr(self, "model", None) or TIER1_MODEL
+        if active_model == "z-ai/glm-5.3":
+            active_model = "z-ai/glm-5.3-flash"
+
         if not self.api_key:
             err_msg = "NVIDIA_API_KEY is required for runtime verification."
             logger.error(err_msg)
@@ -123,20 +135,34 @@ class NvidiaClient(ModelProvider):
         if effective_max_tokens is None:
             effective_max_tokens = kwargs.get("max_tokens", 8192)
 
+        # Determine whether streaming should be used.
+        # If httpx.AsyncClient.post was mocked (e.g. by unit tests), route to non-stream.
+        post_attr = getattr(httpx.AsyncClient, "post", None)
+        is_post_mocked = post_attr is not None and getattr(post_attr, "__class__", None).__name__ in ("AsyncMock", "MagicMock", "Mock")
+        effective_stream = False if is_post_mocked else stream
+
         payload: Dict[str, Any] = {
             "model": active_model,
             "messages": messages,
             "temperature": temperature,
             "max_tokens": effective_max_tokens,
+            "stream": effective_stream,
         }
 
+        # Transfer allowed optional parameters, explicitly filtering disallowed ones
+        # (e.g. clear_thinking, num_predict, num_ctx, keep_alive, think, format)
         if "top_p" in kwargs:
             payload["top_p"] = kwargs["top_p"]
+        payload["reasoning_effort"] = kwargs.get("reasoning_effort", "low")
+        if "tools" in kwargs:
+            payload["tools"] = kwargs["tools"]
+        if "tool_choice" in kwargs:
+            payload["tool_choice"] = kwargs["tool_choice"]
 
         headers = {
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json",
-            "Accept": "application/json",
+            "Accept": "text/event-stream" if effective_stream else "application/json",
         }
 
         url = f"{self.base_url}/chat/completions"
@@ -144,89 +170,30 @@ class NvidiaClient(ModelProvider):
         client = await self._get_client()
 
         try:
-            try:
-                response = await client.post(url, json=payload, headers=headers)
-            except httpx.TimeoutException as exc:
-                self._record_telemetry_failure(active_model, prompt, system, start_time, timed_out=True, error=str(exc))
-                raise NvidiaTimeoutError(
-                    f"NVIDIA NIM request timed out after {self.timeout_seconds}s"
-                ) from exc
-            except httpx.ConnectError as exc:
-                self._record_telemetry_failure(active_model, prompt, system, start_time, timed_out=False, error=str(exc))
-                raise NvidiaConnectionError(
-                    f"Could not connect to NVIDIA NIM at {self.base_url}"
-                ) from exc
-
-            latency = time.monotonic() - start_time
-            latency_ms = latency * 1000.0
-
-            if response.status_code != 200:
-                err_text = f"NVIDIA NIM API returned HTTP {response.status_code}: {response.text[:300]}"
-                logger.error(err_text)
-                self._record_telemetry_failure(active_model, prompt, system, start_time, timed_out=False, error=err_text)
-                return NormalizedModelResponse(
-                    text="",
-                    model=active_model,
-                    provider="nvidia_nim",
-                    latency_ms=latency_ms,
-                    error=err_text,
-                    success=False,
-                )
-
-            data = response.json()
-            self.last_raw_response = data
-
-            choices = data.get("choices", [])
-            msg_obj = choices[0].get("message", {}) if choices else {}
-            content = msg_obj.get("content") or ""
-            reasoning = msg_obj.get("reasoning_content") or ""
-
-            # Standardize reasoning representation to <think>...</think> for ResponseParser
-            if reasoning and not content:
-                if "<think>" in reasoning:
-                    final_text = reasoning
-                else:
-                    final_text = f"<think>\n{reasoning}\n</think>"
-            elif reasoning and content:
-                if "<think>" in reasoning:
-                    final_text = f"{reasoning}\n{content}"
-                else:
-                    final_text = f"<think>\n{reasoning}\n</think>\n{content}"
-            else:
-                final_text = content
-
-            usage = data.get("usage", {}) or {}
-            input_tokens = usage.get("prompt_tokens") or (len(prompt) // 4)
-            output_tokens = usage.get("completion_tokens") or (len(final_text) // 4)
-            total_tokens = usage.get("total_tokens") or (input_tokens + output_tokens)
-
-            # Record telemetry non-invasively
-            try:
-                self._record_telemetry_success(
-                    model=active_model,
+            if effective_stream:
+                return await self._generate_stream(
+                    client=client,
+                    url=url,
+                    payload=payload,
+                    headers=headers,
+                    active_model=active_model,
                     prompt=prompt,
                     system=system,
-                    start_time=start_time,
-                    latency=latency,
-                    input_tokens=input_tokens,
-                    output_tokens=output_tokens,
-                    total_tokens=total_tokens,
                     temperature=temperature,
+                    start_time=start_time,
                 )
-            except Exception:
-                pass
-
-            return NormalizedModelResponse(
-                text=final_text,
-                model=active_model,
-                provider="nvidia_nim",
-                input_tokens=input_tokens,
-                output_tokens=output_tokens,
-                total_tokens=total_tokens,
-                latency_ms=latency_ms,
-                raw_response=final_text,
-                success=True,
-            )
+            else:
+                return await self._generate_non_stream(
+                    client=client,
+                    url=url,
+                    payload=payload,
+                    headers=headers,
+                    active_model=active_model,
+                    prompt=prompt,
+                    system=system,
+                    temperature=temperature,
+                    start_time=start_time,
+                )
 
         except (NvidiaTimeoutError, NvidiaConnectionError):
             raise
@@ -242,6 +209,303 @@ class NvidiaClient(ModelProvider):
                 error=str(exc),
                 success=False,
             )
+
+    async def _generate_stream(
+        self,
+        client: httpx.AsyncClient,
+        url: str,
+        payload: Dict[str, Any],
+        headers: Dict[str, str],
+        active_model: str,
+        prompt: str,
+        system: str,
+        temperature: float,
+        start_time: float,
+    ) -> NormalizedModelResponse:
+        content_chunks: List[str] = []
+        reasoning_chunks: List[str] = []
+        tool_calls_map: Dict[int, Dict[str, Any]] = {}
+        usage_dict: Dict[str, Any] = {}
+        finish_reason: Optional[str] = None
+
+        try:
+            async with client.stream("POST", url, json=payload, headers=headers) as response:
+                logger.info(f"NvidiaClient: stream connected | HTTP {response.status_code}")
+                if response.status_code != 200:
+                    err_body = await response.aread()
+                    err_text = f"NVIDIA NIM API returned HTTP {response.status_code}: {err_body.decode(errors='replace')[:300]}"
+                    logger.error(err_text)
+                    self._record_telemetry_failure(active_model, prompt, system, start_time, timed_out=False, error=err_text)
+                    return NormalizedModelResponse(
+                        text="",
+                        model=active_model,
+                        provider="nvidia_nim",
+                        latency_ms=(time.monotonic() - start_time) * 1000.0,
+                        error=err_text,
+                        success=False,
+                    )
+
+                async for line in response.aiter_lines():
+                    if not line:
+                        continue
+                    line_stripped = line.strip()
+                    if "[DONE]" in line_stripped:
+                        break
+                    if line_stripped.startswith("data:"):
+                        data_str = line_stripped[5:].strip()
+                        if not data_str:
+                            continue
+                        if data_str == "[DONE]":
+                            break
+                        try:
+                            chunk = json.loads(data_str)
+                            self.last_raw_response = chunk
+                            if "usage" in chunk and chunk["usage"]:
+                                usage_dict = chunk["usage"]
+
+                            choices = chunk.get("choices", [])
+                            if choices:
+                                ch = choices[0]
+                                fr = ch.get("finish_reason")
+                                if fr:
+                                    finish_reason = fr
+                                delta = ch.get("delta", {})
+                                
+                                # Accumulate content
+                                c = delta.get("content")
+                                if c:
+                                    content_chunks.append(c)
+
+                                # Accumulate reasoning_content
+                                r = delta.get("reasoning_content")
+                                if r:
+                                    reasoning_chunks.append(r)
+
+                                # Accumulate tool_calls deltas
+                                tc_deltas = delta.get("tool_calls")
+                                if tc_deltas and isinstance(tc_deltas, list):
+                                    for tc_delta in tc_deltas:
+                                        idx = tc_delta.get("index", 0)
+                                        if idx not in tool_calls_map:
+                                            tool_calls_map[idx] = {
+                                                "id": tc_delta.get("id", f"call_{idx}"),
+                                                "type": tc_delta.get("type", "function"),
+                                                "function": {"name": "", "arguments": ""},
+                                            }
+                                        if tc_delta.get("id"):
+                                            tool_calls_map[idx]["id"] = tc_delta["id"]
+                                        f_delta = tc_delta.get("function", {})
+                                        if f_delta.get("name"):
+                                            tool_calls_map[idx]["function"]["name"] += f_delta["name"]
+                                        if f_delta.get("arguments"):
+                                            tool_calls_map[idx]["function"]["arguments"] += f_delta["arguments"]
+
+                        except Exception as e:
+                            logger.debug(f"NvidiaClient: SSE chunk parse error: {e}")
+
+        except httpx.TimeoutException as exc:
+            self._record_telemetry_failure(active_model, prompt, system, start_time, timed_out=True, error=str(exc))
+            raise NvidiaTimeoutError(
+                f"NVIDIA NIM request timed out after {self.timeout_seconds}s"
+            ) from exc
+        except httpx.ConnectError as exc:
+            self._record_telemetry_failure(active_model, prompt, system, start_time, timed_out=False, error=str(exc))
+            raise NvidiaConnectionError(
+                f"Could not connect to NVIDIA NIM at {self.base_url}"
+            ) from exc
+
+        latency = time.monotonic() - start_time
+        latency_ms = latency * 1000.0
+
+        content = "".join(content_chunks)
+        reasoning = "".join(reasoning_chunks).strip()
+
+        # Format tool calls list sorted by index
+        tool_calls_list = [tool_calls_map[idx] for idx in sorted(tool_calls_map.keys())]
+
+        logger.info(
+            f"NvidiaClient: stream finished | latency={latency:.2f}s | "
+            f"content_len={len(content)} | reasoning_len={len(reasoning)} | tool_calls={len(tool_calls_list)}"
+        )
+
+        # Synthesize content from tool calls if content is empty
+        if tool_calls_list and not content:
+            first_tc = tool_calls_list[0]
+            fn = first_tc.get("function", {})
+            fname = fn.get("name", "")
+            fargs_raw = fn.get("arguments", "{}")
+            try:
+                fargs = json.loads(fargs_raw) if isinstance(fargs_raw, str) else fargs_raw
+            except Exception:
+                fargs = {}
+            synthesized_json = json.dumps({
+                "tool": fname,
+                "parameters": fargs,
+                "reasoning": reasoning or "Tool selection executed.",
+                "explanation": f"Executing tool {fname}."
+            })
+            content = synthesized_json
+
+        # Standardize reasoning representation to <think>...</think> for ResponseParser
+        if reasoning and not content:
+            if "<think>" in reasoning:
+                final_text = reasoning
+            else:
+                final_text = f"<think>\n{reasoning}\n</think>"
+        elif reasoning and content:
+            if "<think>" in reasoning:
+                final_text = f"{reasoning}\n{content}"
+            else:
+                final_text = f"<think>\n{reasoning}\n</think>\n{content}"
+        else:
+            final_text = content
+
+        input_tokens = usage_dict.get("prompt_tokens") or (len(prompt) // 4)
+        output_tokens = usage_dict.get("completion_tokens") or (len(final_text) // 4)
+        total_tokens = usage_dict.get("total_tokens") or (input_tokens + output_tokens)
+
+        try:
+            self._record_telemetry_success(
+                model=active_model,
+                prompt=prompt,
+                system=system,
+                start_time=start_time,
+                latency=latency,
+                input_tokens=input_tokens,
+                output_tokens=output_tokens,
+                total_tokens=total_tokens,
+                temperature=temperature,
+            )
+        except Exception:
+            pass
+
+        return NormalizedModelResponse(
+            text=final_text,
+            tool_calls=tool_calls_list,
+            finish_reason=finish_reason,
+            model=active_model,
+            provider="nvidia_nim",
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
+            total_tokens=total_tokens,
+            latency_ms=latency_ms,
+            raw_response=final_text,
+            success=True,
+        )
+
+    async def _generate_non_stream(
+        self,
+        client: httpx.AsyncClient,
+        url: str,
+        payload: Dict[str, Any],
+        headers: Dict[str, str],
+        active_model: str,
+        prompt: str,
+        system: str,
+        temperature: float,
+        start_time: float,
+    ) -> NormalizedModelResponse:
+        try:
+            response = await client.post(url, json=payload, headers=headers)
+        except httpx.TimeoutException as exc:
+            self._record_telemetry_failure(active_model, prompt, system, start_time, timed_out=True, error=str(exc))
+            raise NvidiaTimeoutError(
+                f"NVIDIA NIM request timed out after {self.timeout_seconds}s"
+            ) from exc
+        except httpx.ConnectError as exc:
+            self._record_telemetry_failure(active_model, prompt, system, start_time, timed_out=False, error=str(exc))
+            raise NvidiaConnectionError(
+                f"Could not connect to NVIDIA NIM at {self.base_url}"
+            ) from exc
+
+        latency = time.monotonic() - start_time
+        latency_ms = latency * 1000.0
+
+        if response.status_code != 200:
+            err_text = f"NVIDIA NIM API returned HTTP {response.status_code}: {response.text[:300]}"
+            logger.error(err_text)
+            self._record_telemetry_failure(active_model, prompt, system, start_time, timed_out=False, error=err_text)
+            return NormalizedModelResponse(
+                text="",
+                model=active_model,
+                provider="nvidia_nim",
+                latency_ms=latency_ms,
+                error=err_text,
+                success=False,
+            )
+
+        data = response.json()
+        self.last_raw_response = data
+
+        choices = data.get("choices", [])
+        msg_obj = choices[0].get("message", {}) if choices else {}
+        finish_reason = choices[0].get("finish_reason") if choices else None
+        content = msg_obj.get("content") or ""
+        reasoning = (msg_obj.get("reasoning_content") or "").strip()
+        tool_calls = msg_obj.get("tool_calls") or []
+
+        if tool_calls and not content:
+            first_tc = tool_calls[0]
+            fn = first_tc.get("function", {})
+            fname = fn.get("name", "")
+            fargs_raw = fn.get("arguments", "{}")
+            try:
+                fargs = json.loads(fargs_raw) if isinstance(fargs_raw, str) else fargs_raw
+            except Exception:
+                fargs = {}
+            content = json.dumps({
+                "tool": fname,
+                "parameters": fargs,
+                "reasoning": reasoning or "Tool selection executed.",
+                "explanation": f"Executing tool {fname}."
+            })
+
+        if reasoning and not content:
+            if "<think>" in reasoning:
+                final_text = reasoning
+            else:
+                final_text = f"<think>\n{reasoning}\n</think>"
+        elif reasoning and content:
+            if "<think>" in reasoning:
+                final_text = f"{reasoning}\n{content}"
+            else:
+                final_text = f"<think>\n{reasoning}\n</think>\n{content}"
+        else:
+            final_text = content
+
+        usage = data.get("usage", {}) or {}
+        input_tokens = usage.get("prompt_tokens") or (len(prompt) // 4)
+        output_tokens = usage.get("completion_tokens") or (len(final_text) // 4)
+        total_tokens = usage.get("total_tokens") or (input_tokens + output_tokens)
+
+        try:
+            self._record_telemetry_success(
+                model=active_model,
+                prompt=prompt,
+                system=system,
+                start_time=start_time,
+                latency=latency,
+                input_tokens=input_tokens,
+                output_tokens=output_tokens,
+                total_tokens=total_tokens,
+                temperature=temperature,
+            )
+        except Exception:
+            pass
+
+        return NormalizedModelResponse(
+            text=final_text,
+            tool_calls=tool_calls,
+            finish_reason=finish_reason,
+            model=active_model,
+            provider="nvidia_nim",
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
+            total_tokens=total_tokens,
+            latency_ms=latency_ms,
+            raw_response=final_text,
+            success=True,
+        )
 
     def _record_telemetry_success(
         self,

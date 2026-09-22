@@ -438,8 +438,8 @@ class MissionPlanner:
                 if not fast_path_decision.model_required:
                     # Category A: Fully deterministic (0 model calls)
                     return [f"Execute deterministic website scaffolding for {fast_path_decision.target_files}"]
-                # Category B: 1-task coordinated batch generation with scaffolding
-                return [f"Create website {', '.join(fast_path_decision.target_files)} using deterministic scaffold and batch generation"]
+                # Category B: 1-task coordinated generation preserving user's specific creative requirements
+                return [prompt.strip()]
 
             file_matches = re.findall(r'\b([\w\-]+\.(?:html|css|js|py|json|md|txt|ts|tsx|jsx|sql|sh))\b', prompt, re.IGNORECASE)
             unique_files = list(dict.fromkeys(file_matches))
@@ -691,7 +691,8 @@ Return a JSON array of task description strings only."""
         # Website criteria
         if any(w in lower for w in ["website", "web app", "webpage", "html"]):
             criteria.append("index.html must exist and be non-empty")
-            criteria.append("CSS styling file must exist and be non-empty")
+            if not any(w in lower for w in ["single html", "single html page", "single-page", "single page"]):
+                criteria.append("CSS styling file must exist and be non-empty")
             if "animat" in lower:
                 criteria.append("CSS or JS animation implementation must be present")
             if "responsive" in lower or "mobile" in lower:

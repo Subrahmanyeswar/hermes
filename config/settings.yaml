@@ -1,12 +1,25 @@
+tier1:
+  provider: "nvidia_nim"
+  model: "z-ai/glm-5.3-flash"
+  base_url: "https://integrate.api.nvidia.com/v1"
+
+tier2:
+  provider: "ollama"
+  model: "gpt-oss:120b-cloud"
+
+tier3:
+  provider: "ollama"
+  model: "nemotron-3-ultra:cloud"
+
 ollama:
   base_url: "http://localhost:11434"
-  tier1_model: "qwen2.5-coder:7b"
-  tier2_model: "mistral:7b-instruct-q4_K_M"
-  timeout_seconds: 120
+  tier2_model: "gpt-oss:120b-cloud"
+  tier3_model: "nemotron-3-ultra:cloud"
+  timeout_seconds: 180
   num_ctx: 4096
 
 claude:
-  model: "claude-sonnet-4-6"
+  model: "nemotron-3-ultra:cloud"
   hard_cap_usd: 25.0
   alert_threshold_usd: 15.0
 

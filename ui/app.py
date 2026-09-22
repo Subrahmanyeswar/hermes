@@ -346,11 +346,6 @@ class HermesApp(App):
         try:
             await self._orchestrator.start_kairos()
             logger.info("HermesApp: KAIROS daemon started")
-            # Initialise workspace on startup
-            if self._mission_driver:
-                summary = await self._mission_driver.initialise_workspace()
-                self.workspace_root = summary.get("root", "")
-                logger.info(f"Workspace ready: {self.workspace_root}")
         except Exception as e:
             logger.error(f"HermesApp startup error: {e}")
 

@@ -103,7 +103,13 @@ class MissionDriver:
 
         # Create fresh abort event for this mission
         self._abort_event = asyncio.Event()
-        self._event_queue = asyncio.Queue(maxsize=500)
+        # Drain event queue in place — NEVER replace the queue instance so subscribers don't get detached
+        while not self._event_queue.empty():
+            try:
+                self._event_queue.get_nowait()
+                self._event_queue.task_done()
+            except (asyncio.QueueEmpty, ValueError):
+                break
 
         # Plan the mission
         exec_mode = getattr(self.orchestrator, "execution_mode", "production")

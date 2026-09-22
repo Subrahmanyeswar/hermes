@@ -200,7 +200,7 @@ class WebsiteFastPathClassifier:
             target_files = unique_files
         else:
             # Infer standard 3-file or 1-file website based on prompt phrasing
-            if any(k in lower_prompt for k in ["blank", "single page", "just html", "only html", "html file"]):
+            if any(k in lower_prompt for k in ["blank", "single page", "single html page", "single html", "just html", "only html", "html file"]):
                 target_files = ["index.html"]
             else:
                 target_files = ["index.html", "styles.css", "app.js"]
@@ -217,7 +217,9 @@ class WebsiteFastPathClassifier:
             # If user asks for custom copy or specific functional logic, model is required for content
             custom_indicators = [
                 "course", "calculator", "quiz", "game", "tracker", "dashboard",
-                "custom", "specific", "interactive", "edupath", "feature"
+                "custom", "specific", "interactive", "edupath", "feature",
+                "love", "anime", "genz", "animation", "animations", "aesthetic",
+                "theme", "portfolio", "creative"
             ]
             model_required = any(k in lower_prompt for k in custom_indicators)
 

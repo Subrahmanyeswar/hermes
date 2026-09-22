@@ -58,7 +58,8 @@ L0_KEYWORDS = frozenset({
 
 L3_KEYWORDS = frozenset({
     "refactor", "multi-file", "multiple files", "algorithm", "optimize",
-    "cross-module", "integration", "debug across", "full pipeline"
+    "cross-module", "integration", "debug across", "full pipeline",
+    "website", "webpage", "super website", "anime", "animation", "animations", "aesthetic", "genz"
 })
 
 L4_KEYWORDS = frozenset({
@@ -136,7 +137,7 @@ class ReasoningBudgetManager:
 
         # L1 check: Simple file creation / small script / single file
         if any(kw in text for kw in ("create file", "write file", "simple file", "index.html", "styles.css", "app.js", "create simple", "write simple", "helper function")):
-            if not any(kw in text for kw in L4_KEYWORDS):
+            if not any(kw in text for kw in L4_KEYWORDS) and not any(kw in text for kw in L3_KEYWORDS):
                 return ComplexityLevel.L1_SIMPLE
 
         # L4 check: Architecture / security / concurrency (requires real L4 domain keywords)

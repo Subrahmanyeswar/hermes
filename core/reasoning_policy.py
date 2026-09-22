@@ -51,7 +51,8 @@ COMPLEX_INDICATORS = frozenset({
     "architecture", "redesign", "security audit", "concurrency",
     "race condition", "cryptography", "distributed", "memory leak",
     "deadlock", "vulnerability", "exploit", "auth bypass",
-    "complex algorithm", "dynamic programming", "graph theory"
+    "complex algorithm", "dynamic programming", "graph theory",
+    "anime", "animation", "animations", "aesthetic", "genz", "super website"
 })
 
 # Keywords that signal simple, mechanical, or single-file operations
@@ -176,12 +177,11 @@ class ReasoningPolicy:
             )
 
         else:
-            # COMPLEX: think=True preserved, with hard 120s timeout and 2048 budget
-            # (No unbounded 8192 token runaway!)
+            # COMPLEX: think=True preserved, with 180s timeout and 4096 budget
             return ResolvedReasoningPolicy(
                 think=True if is_deepseek_r1 else None,
-                num_predict=2048,
-                timeout_seconds=120,
+                num_predict=4096,
+                timeout_seconds=180,
                 temperature=0.15,
                 complexity=TaskComplexity.COMPLEX,
                 execution_mode=execution_mode

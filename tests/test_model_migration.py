@@ -46,7 +46,7 @@ def test_normalized_model_response():
 
 
 def test_model_config_defaults():
-    assert TIER1_MODEL == "z-ai/glm-5.3"
+    assert TIER1_MODEL == "z-ai/glm-5.3-flash"
     assert TIER2_MODEL == "gpt-oss:120b-cloud"
     assert TIER3_MODEL == "nemotron-3-ultra:cloud"
     assert MODEL_KEEP_ALIVE == "300s"
@@ -313,5 +313,122 @@ async def test_orchestrator_tier1_binding_and_memory_client():
         assert isinstance(orch.tier1, NvidiaClient)
         assert orch.tier1.model == TIER1_MODEL
         assert orch.memory_manager._ollama_client == orch.tier1
+
+
+@pytest.mark.asyncio
+async def test_mission_driver_event_queue_identity_preserved():
+    """Verify that MissionDriver drains event queue in place and never replaces the instance."""
+    from kairos.mission_driver import MissionDriver
+    mock_orch = MagicMock()
+    mock_orch.execution_mode = "production"
+    driver = MissionDriver(orchestrator=mock_orch)
+    initial_queue = driver.get_event_queue()
+    assert initial_queue is driver._event_queue
+
+    # Put a dummy event into queue
+    await initial_queue.put("dummy_event")
+    assert not initial_queue.empty()
+
+    # Mock planner and runner
+    mock_mission = MagicMock()
+    mock_mission.mission_id = "test_m"
+    mock_mission.tasks = []
+    driver._planner.plan = MagicMock(return_value=mock_mission)
+
+    mock_runner = MagicMock()
+    mock_result = MagicMock()
+    mock_result.tasks = []
+    mock_result.overall_status = "success"
+    mock_runner.run = AsyncMock(return_value=mock_result)
+
+    with patch("kairos.mission_driver.MissionRunner", return_value=mock_runner):
+        with patch.object(driver, "initialise_workspace", new=AsyncMock(return_value={})):
+            await driver.run_mission("test prompt")
+
+    # The queue instance MUST be identical
+    assert driver.get_event_queue() is initial_queue
+    assert driver._event_queue is initial_queue
+
+
+@pytest.mark.asyncio
+async def test_nvidia_client_streaming_sse_parser():
+    """Verify NvidiaClient SSE stream parsing accumulates content and reasoning."""
+    from models.nvidia_client import NvidiaClient
+    client = NvidiaClient(api_key="test-mock-key")
+
+    sse_lines = [
+        b"data: {\"choices\": [{\"delta\": {\"reasoning_content\": \"Thinking step 1... \"}}]}\n",
+        b"data: {\"choices\": [{\"delta\": {\"reasoning_content\": \"Thinking step 2.\"}}]}\n",
+        b"data: {\"choices\": [{\"delta\": {\"content\": \"{\\\"tool\\\": \\\"write_file\\\", \"}}]}\n",
+        b"data: {\"choices\": [{\"delta\": {\"content\": \"\\\"parameters\\\": {\\\"path\\\": \\\"index.html\\\"}}\"}}]}\n",
+        b"data: [DONE]\n"
+    ]
+
+    async def mock_aiter_lines():
+        for line in sse_lines:
+            yield line.decode("utf-8")
+
+    mock_stream_resp = MagicMock()
+    mock_stream_resp.status_code = 200
+    mock_stream_resp.aiter_lines = mock_aiter_lines
+
+    from contextlib import asynccontextmanager
+
+    @asynccontextmanager
+    async def mock_stream(*args, **kwargs):
+        yield mock_stream_resp
+
+    mock_http_client = MagicMock()
+    mock_http_client.stream = mock_stream
+
+    with patch.object(client, "_get_client", new=AsyncMock(return_value=mock_http_client)):
+        res = await client.generate(prompt="create file", stream=True)
+        assert res.success is True
+        assert "<think>" in res.text
+        assert "Thinking step 1... Thinking step 2." in res.text
+        assert "\"tool\": \"write_file\"" in res.text
+        assert res.provider == "nvidia_nim"
+        assert res.model == "z-ai/glm-5.3-flash"
+
+
+@pytest.mark.asyncio
+async def test_nvidia_client_tool_call_delta_accumulation():
+    """Verify NvidiaClient properly accumulates streaming tool_calls deltas."""
+    from models.nvidia_client import NvidiaClient
+    client = NvidiaClient(api_key="test-mock-key")
+
+    sse_lines = [
+        b"data: {\"choices\": [{\"delta\": {\"tool_calls\": [{\"index\": 0, \"id\": \"call_abc\", \"type\": \"function\", \"function\": {\"name\": \"write_file\", \"arguments\": \"{\\\"path\\\": \"}}]}}]}\n",
+        b"data: {\"choices\": [{\"delta\": {\"tool_calls\": [{\"index\": 0, \"function\": {\"arguments\": \"\\\"index.html\\\", \\\"content\\\": \\\"<h1>Hi</h1>\\\"}\"}}]}}]}\n",
+        b"data: [DONE]\n"
+    ]
+
+    async def mock_aiter_lines():
+        for line in sse_lines:
+            yield line.decode("utf-8")
+
+    mock_stream_resp = MagicMock()
+    mock_stream_resp.status_code = 200
+    mock_stream_resp.aiter_lines = mock_aiter_lines
+
+    from contextlib import asynccontextmanager
+
+    @asynccontextmanager
+    async def mock_stream(*args, **kwargs):
+        yield mock_stream_resp
+
+    mock_http_client = MagicMock()
+    mock_http_client.stream = mock_stream
+
+    with patch.object(client, "_get_client", new=AsyncMock(return_value=mock_http_client)):
+        res = await client.generate(prompt="create index", stream=True)
+        assert res.success is True
+        assert len(res.tool_calls) == 1
+        assert res.tool_calls[0]["id"] == "call_abc"
+        assert res.tool_calls[0]["function"]["name"] == "write_file"
+        assert "\"path\": \"index.html\"" in res.tool_calls[0]["function"]["arguments"]
+        # Also verify synthesized text contains the tool call
+        assert "write_file" in res.text
+
 
 

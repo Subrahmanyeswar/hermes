@@ -4,7 +4,10 @@ from dotenv import load_dotenv
 load_dotenv()
 
 TIER1_PROVIDER = os.getenv("TIER1_PROVIDER", "nvidia_nim")
-TIER1_MODEL = os.getenv("TIER1_MODEL", "z-ai/glm-5.3")
+_t1_m = os.getenv("TIER1_MODEL", "z-ai/glm-5.3-flash")
+if _t1_m == "z-ai/glm-5.3":
+    _t1_m = "z-ai/glm-5.3-flash"
+TIER1_MODEL = _t1_m
 TIER1_BASE_URL = os.getenv("TIER1_BASE_URL", "https://integrate.api.nvidia.com/v1")
 NVIDIA_API_KEY = os.getenv("NVIDIA_API_KEY", "")
 
