@@ -672,6 +672,29 @@ class HermesApp(App):
                             except Exception:
                                 pass
 
+                elif event_type == "model_start":
+                    tier = payload.get("tier", 1)
+                    model = payload.get("model", "")
+                    provider = payload.get("provider", "")
+                    try:
+                        from ui.panels.status_bar import StatusBar
+                        sb = self.query_one("#status-bar", StatusBar)
+                        sb.spinner_verb = "Generating"
+                        sb.update_log_line(f"T{tier}: {model} ({provider}) generating...")
+                    except Exception:
+                        pass
+
+                elif event_type == "model_complete":
+                    tier = payload.get("tier", 1)
+                    model = payload.get("model", "")
+                    latency = payload.get("latency", 0.0)
+                    try:
+                        from ui.panels.status_bar import StatusBar
+                        sb = self.query_one("#status-bar", StatusBar)
+                        sb.update_log_line(f"T{tier}: {model} complete ({latency:.2f}s)")
+                    except Exception:
+                        pass
+
                 elif event_type == "tool_executing":
                     tool = payload.get("tool", "")
                     try:

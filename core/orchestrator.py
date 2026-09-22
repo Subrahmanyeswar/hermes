@@ -154,7 +154,21 @@ class Orchestrator:
             if hasattr(ollama_gen, "assert_called") or hasattr(ollama_gen, "mock") or getattr(ollama_gen, "__class__", None).__name__ in ("AsyncMock", "MagicMock", "Mock"):
                 return await self.ollama.generate(**kwargs)
         tier1_client = getattr(self, "tier1", self.ollama)
-        return await tier1_client.generate(**kwargs)
+        prov = getattr(tier1_client, "provider", TIER1_PROVIDER)
+        mod = getattr(tier1_client, "model", TIER1_MODEL)
+        logger.info(f"MODEL_START | tier=1 | provider={prov} | model={mod}")
+        await self._emit_progress("model_start", {"tier": 1, "provider": prov, "model": mod})
+        t0 = time.monotonic()
+        try:
+            resp = await tier1_client.generate(**kwargs)
+            lat = time.monotonic() - t0
+            logger.info(f"MODEL_COMPLETE | tier=1 | provider={prov} | model={mod} | latency={lat:.2f}s")
+            await self._emit_progress("model_complete", {"tier": 1, "provider": prov, "model": mod, "latency": lat})
+            return resp
+        except Exception as exc:
+            lat = time.monotonic() - t0
+            logger.warning(f"MODEL_FAILED | tier=1 | provider={prov} | model={mod} | latency={lat:.2f}s | error={exc}")
+            raise
 
     @property
     def tier3(self):

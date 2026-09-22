@@ -67,6 +67,7 @@ class NvidiaClient(ModelProvider):
         self.model: str = chosen_model
 
         self.base_url: str = (base_url or "https://integrate.api.nvidia.com/v1").rstrip("/")
+        self.provider: str = "nvidia_nim"
         self.timeout_seconds: int = timeout_seconds
         self._async_client: Optional[httpx.AsyncClient] = None
         self.last_raw_response: Optional[dict[str, Any]] = None

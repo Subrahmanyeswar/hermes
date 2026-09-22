@@ -399,6 +399,17 @@ class MissionRunner:
                             "status": "start" if event_type == "stage_start" else "complete",
                         },
                     ))
+                elif event_type in ("model_start", "model_complete"):
+                    await self._emit(MissionEvent(
+                        event_type=event_type,
+                        payload={
+                            "task_id": task.task_id,
+                            "tier": payload.get("tier", 1),
+                            "provider": payload.get("provider", "nvidia_nim"),
+                            "model": payload.get("model", ""),
+                            "latency": payload.get("latency", 0.0),
+                        },
+                    ))
                 elif event_type == "tool_executing":
                     await self._emit(MissionEvent(
                         event_type="tool_executing",
