@@ -149,6 +149,11 @@ class ModelCallTelemetry:
     eval_duration_ms: float = 0.0                # Time to generate output tokens
     eval_duration: Optional[float] = None        # Alias in ms
     ttft_ms: float = 0.0                         # Time to first token
+    ttfb_ms: float = 0.0                         # Time to first byte (headers received)
+    ttft_reasoning_ms: float = 0.0               # Time to first reasoning_content token
+    ttft_content_ms: float = 0.0                 # Time to first content token
+    ttft_tool_ms: float = 0.0                    # Time to first tool_call delta
+    ttfu_ms: float = 0.0                         # Time to first useful action (tool call or actionable completion)
     
     # Token counts
     prompt_eval_count: Optional[int] = None
@@ -363,11 +368,11 @@ class RequestTelemetry:
             self.total_input_tokens += mc.prompt_tokens
             self.total_output_tokens += mc.output_tokens
             self.total_model_latency_ms += mc.total_latency_ms
-            if mc.stage == "Tier 1":
+            if mc.stage in ("Tier 1", "Tier 1 Generation"):
                 self.tier1_calls += 1
-            elif mc.stage == "Tier 2":
+            elif mc.stage in ("Tier 2", "Tier 2 Verification"):
                 self.tier2_calls += 1
-            elif mc.stage == "Tier 3":
+            elif mc.stage in ("Tier 3", "Tier 3 Arbitration"):
                 self.tier3_calls += 1
             elif "Memory" in mc.stage:
                 self.memory_llm_calls += 1
@@ -497,6 +502,24 @@ class TelemetryManager:
             except Exception:
                 pass
 
+    def start_span(self, name: str, request_id: str = "", stage_number: Optional[int] = None, task_id: str = "", parent_id: Optional[str] = None, **meta) -> StageSpan:
+        """Start a new StageSpan."""
+        return StageSpan(
+            name=name,
+            stage_number=stage_number,
+            start_time_monotonic=time.perf_counter(),
+            request_id=request_id,
+            task_id=task_id,
+            parent_id=parent_id,
+            metadata=meta or {},
+        )
+
+    def end_span(self, s: Optional[StageSpan], success: bool = True, **meta) -> None:
+        """End and record a StageSpan."""
+        if s is not None:
+            s.finish(success=success, **meta)
+            self.record_span(s, request_id=s.request_id)
+
     def record_span(self, s: StageSpan, request_id: str = ""):
         """Record a completed StageSpan."""
         if not self.enabled or not s:
@@ -508,6 +531,12 @@ class TelemetryManager:
                     req = self._active_requests.get(req_id)
                     if req:
                         req.spans.append(s)
+            else:
+                with self._global_lock:
+                    for req in self._active_requests.values():
+                        s.request_id = req.request_id
+                        req.spans.append(s)
+                        break
         except Exception as e:
             logger.debug(f"Telemetry record_span error: {e}")
 
@@ -669,9 +698,17 @@ class TelemetryManager:
             total_tool_ms = sum(tc.get("duration_ms", 0.0) for tc in tool_calls_list)
             total_ver_ms = sum(vc.get("duration_ms", 0.0) for vc in verification_calls_list)
             
-            # Account for model calls, tool executions, verifications, and standalone stage spans
-            accounted_time_ms = round(total_model_ms + total_tool_ms + total_ver_ms + total_stage_ms, 2)
-            unaccounted_time_ms = max(0.0, round(req.total_duration_ms - accounted_time_ms, 2))
+            # Clean latency waterfall accounting:
+            # 1. External Model Latency (sum of model calls)
+            # 2. Tool Execution Latency (sum of tool executions)
+            # 3. Verification Latency (sum of verification calls)
+            # 4. HERMES Internal Overhead (planning + context construction + security validation + routing + final response)
+            local_hermes_overhead_ms = round(
+                req.planning_ms + req.context_build_ms + req.disagreement_routing_ms + req.final_response_ms + req.memory_update_ms,
+                2
+            )
+            accounted_time_ms = round(total_model_ms + total_tool_ms + total_ver_ms + local_hermes_overhead_ms, 2)
+            unaccounted_time_ms = max(0.0, round(req.total_duration_ms - (total_model_ms + total_tool_ms), 2))
 
             trace = {
                 "mission_id": mission_id,
@@ -680,6 +717,10 @@ class TelemetryManager:
                     "start": req.start_time_wall,
                     "end": time.strftime("%Y-%m-%d %H:%M:%S"),
                     "duration_ms": round(req.total_duration_ms, 2),
+                    "total_model_latency_ms": round(total_model_ms, 2),
+                    "total_tool_latency_ms": round(total_tool_ms, 2),
+                    "total_verification_latency_ms": round(total_ver_ms, 2),
+                    "local_hermes_overhead_ms": local_hermes_overhead_ms,
                     "accounted_time_ms": accounted_time_ms,
                     "unaccounted_time_ms": unaccounted_time_ms,
                 },

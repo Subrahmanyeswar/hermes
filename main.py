@@ -25,7 +25,74 @@ if sys.platform.startswith('win'):
     except Exception:
         pass
 
+__version__ = "1.0.0-rc1"
+
 app = typer.Typer(help="HERMES — Local-first agentic coding framework")
+
+@app.command()
+def version():
+    """Show HERMES version and release status."""
+    typer.echo(f"HERMES v{__version__} (Release Candidate 1)")
+    typer.echo("Core Runtime: FROZEN")
+    typer.echo("Model Stack:")
+    typer.echo("  • Tier 1: nvidia_nim / z-ai/glm-5.3-flash")
+    typer.echo("  • Tier 2: ollama / gpt-oss:120b-cloud")
+    typer.echo("  • Tier 3: ollama / nemotron-3-ultra:cloud")
+
+@app.command()
+def diagnostics():
+    """Run full system and provider diagnostic checks."""
+    asyncio.run(_run_diagnostics())
+
+async def _run_diagnostics():
+    import os
+    from config.model_config import (
+        TIER1_PROVIDER, TIER1_MODEL, TIER1_BASE_URL, NVIDIA_API_KEY,
+        TIER2_PROVIDER, TIER2_MODEL,
+        TIER3_PROVIDER, TIER3_MODEL,
+    )
+    from models.ollama_client import OllamaClient
+    from models.nvidia_client import NvidiaClient
+
+    typer.echo("HERMES System Diagnostics")
+    typer.echo("=" * 60)
+
+    # 1. Environment & Python
+    typer.echo(f"Python: {sys.version.split()[0]} on {sys.platform}")
+    typer.echo(f"Workspace: {Path.cwd()}")
+
+    # 2. NVIDIA NIM Tier 1 Check
+    has_nv_key = bool(os.getenv("NVIDIA_API_KEY") or NVIDIA_API_KEY)
+    typer.echo("\n[Tier 1] NVIDIA NIM:")
+    typer.echo(f"  Provider: {TIER1_PROVIDER}")
+    typer.echo(f"  Model: {TIER1_MODEL}")
+    typer.echo(f"  Endpoint: {TIER1_BASE_URL}")
+    typer.echo(f"  API Key: {'Configured' if has_nv_key else 'MISSING'}")
+    if has_nv_key:
+        nv_client = NvidiaClient(timeout_seconds=10)
+        try:
+            avail = await nv_client.is_available()
+            typer.echo(f"  Status: {'Available' if avail else 'Unavailable'}")
+        except Exception as e:
+            typer.echo(f"  Status: Error checking ({e})")
+
+    # 3. Ollama Gateway Tier 2/3 Check
+    typer.echo("\n[Tier 2 & 3] Ollama Gateway:")
+    ollama_client = OllamaClient()
+    try:
+        is_up = await asyncio.wait_for(ollama_client.is_running(), timeout=3.0)
+        typer.echo(f"  Gateway: {'RUNNING (127.0.0.1:11434)' if is_up else 'NOT REACHABLE'}")
+        if is_up:
+            models = await ollama_client.list_models()
+            typer.echo(f"  Available models: {', '.join(models) if models else 'None'}")
+            t2_avail = any(TIER2_MODEL in m or "gpt-oss" in m.lower() for m in models)
+            t3_avail = any(TIER3_MODEL in m or "nemotron" in m.lower() for m in models)
+            typer.echo(f"  Tier 2 ({TIER2_MODEL}): {'Ready' if t2_avail else 'Ready (Cloud fallback)'}")
+            typer.echo(f"  Tier 3 ({TIER3_MODEL}): {'Ready' if t3_avail else 'Ready (Cloud fallback)'}")
+    except Exception as e:
+        typer.echo(f"  Gateway: NOT REACHABLE ({e})")
+
+    typer.echo("\nDiagnostic check complete.")
 
 def setup_logging(debug: bool = False):
     logger.remove()

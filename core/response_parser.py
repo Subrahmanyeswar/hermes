@@ -73,6 +73,61 @@ class ResponseParser:
     """Parse a Tier 1 response into a structured result. Never raises. Tries 6 strategies in order."""
 
     def parse(self, response: Any) -> Union[ParseSuccess, ParseFailure]:
+        # ── Strategy 0: Native provider tool_calls ─────────────────────────
+        tool_calls = getattr(response, "tool_calls", None)
+        if tool_calls is None and isinstance(response, dict):
+            tool_calls = response.get("tool_calls")
+        if tool_calls:
+            try:
+                # If provider returned multiple write_file calls, convert to write_files_batch
+                write_file_calls = [
+                    tc for tc in tool_calls
+                    if tc.get("function", {}).get("name") in ("write_file", "create_file")
+                ]
+                if len(write_file_calls) >= 2 and len(write_file_calls) <= 3:
+                    batch_items = []
+                    for tc in write_file_calls:
+                        fn = tc.get("function", {})
+                        args = self._parse_tool_arguments("write_file", fn.get("arguments", {}))
+                        p = args.get("path") or args.get("file_path")
+                        c = args.get("content", "")
+                        if p and c is not None:
+                            batch_items.append({
+                                "path": p,
+                                "content": c,
+                                "mode": args.get("mode", "overwrite"),
+                            })
+                    if len(batch_items) >= 2:
+                        logger.info(f"ResponseParser: synthesized write_files_batch from {len(batch_items)} native write_file calls")
+                        return ParseSuccess(
+                            tool="write_files_batch",
+                            parameters={"files": batch_items},
+                            reasoning="Native tool calls emitted multiple file writes; batched atomically.",
+                            explanation=f"Executed batch write for {len(batch_items)} files.",
+                            method_used="native_tool_call_batch",
+                            raw_response=getattr(response, "text", str(response)),
+                        )
+
+                # If mixed calls and one is write_file, prefer the write_file call
+                active_tc = write_file_calls[0] if (len(write_file_calls) == 1 and len(tool_calls) > 1) else tool_calls[0]
+                fn = active_tc.get("function", {})
+                tname = fn.get("name", "")
+                args_raw = fn.get("arguments", {})
+                params = self._parse_tool_arguments(tname, args_raw)
+
+                if tname and (params or tname not in ("write_file", "append_file", "read_file", "bash_exec")):
+                    logger.debug(f"ResponseParser: success via native_tool_call | tool={tname}")
+                    return ParseSuccess(
+                        tool=tname,
+                        parameters=params,
+                        reasoning="Native tool call emitted by provider.",
+                        explanation=f"Executed native tool call {tname}.",
+                        method_used="native_tool_call",
+                        raw_response=getattr(response, "text", str(response)),
+                    )
+            except Exception as e:
+                logger.debug(f"ResponseParser: native_tool_call extraction exception: {e}")
+
         raw_str = response.text if hasattr(response, "text") else str(response or "")
         if not raw_str or not raw_str.strip():
             return ParseFailure(
@@ -380,6 +435,11 @@ class ResponseParser:
             explanation_match = re.search(r"'explanation'\s*:\s*'([^']*)'", response)
         explanation = explanation_match.group(1) if explanation_match else "Action proceeding."
 
+        if tool_name in ("write_file", "append_file") and (not params or not params.get("content")):
+            extracted = self._extract_write_file_params(response)
+            if extracted:
+                params = extracted
+
         data = {
             "tool": tool_name,
             "parameters": params,
@@ -388,10 +448,124 @@ class ResponseParser:
         }
         return self._validate_and_build(data, "reconstruct_from_fragments", response)
 
+    def _parse_tool_arguments(self, tname: str, args_raw: Any) -> dict:
+        """Parse tool call arguments string robustly, handling unescaped control chars, multiline strings, and HTML/CSS."""
+        if isinstance(args_raw, dict):
+            return args_raw
+        if not isinstance(args_raw, str) or not args_raw.strip():
+            return {}
+
+        # 1. Standard json.loads with strict=False (allows literal newlines/tabs inside strings)
+        try:
+            data = json.loads(args_raw, strict=False)
+            if isinstance(data, dict):
+                return data
+        except Exception:
+            pass
+
+        # 2. Clean control characters and try again
+        cleaned = _clean_json_string(args_raw)
+        try:
+            data = json.loads(cleaned, strict=False)
+            if isinstance(data, dict):
+                return data
+        except Exception:
+            pass
+
+        # 3. Repair broken JSON
+        repaired = _repair_broken_json(args_raw)
+        try:
+            data = json.loads(repaired, strict=False)
+            if isinstance(data, dict):
+                return data
+        except Exception:
+            pass
+
+        # 4. Regex extraction for write_file / append_file
+        if tname in ("write_file", "append_file"):
+            extracted = self._extract_write_file_params(args_raw)
+            if extracted:
+                return extracted
+
+        return {}
+
+    def _extract_write_file_params(self, raw: str) -> Optional[dict]:
+        """Extract path and content parameters when json.loads fails on complex multiline payloads."""
+        path_match = re.search(r'["\'](?:path|file_path)["\']\s*:\s*["\']([^"\']+)["\']', raw)
+        if not path_match:
+            return None
+        path = path_match.group(1).strip()
+
+        # Find start of "content": "
+        m_content = re.search(r'["\']content["\']\s*:\s*["\']', raw)
+        if not m_content:
+            return None
+        start_pos = m_content.end()
+        sub = raw[start_pos:]
+
+        # Case 1: HTML document inside content string
+        if "<!DOCTYPE" in sub or "<html" in sub:
+            end_html = sub.rfind("</html>")
+            if end_html != -1:
+                content_str = sub[:end_html + len("</html>")]
+                content_str = content_str.replace('\\"', '"').replace('\\n', '\n').replace('\\t', '\t')
+                return {"path": path, "content": content_str}
+
+        # Case 2: Content preceded by closing quote before explanation/reasoning
+        expl_idx = sub.rfind('"explanation"')
+        if expl_idx == -1:
+            expl_idx = sub.rfind('"reasoning"')
+
+        if expl_idx != -1:
+            prefix = sub[:expl_idx].rstrip()
+            if prefix.endswith(","):
+                prefix = prefix[:-1].rstrip()
+            if prefix.endswith("}"):
+                prefix = prefix[:-1].rstrip()
+            if prefix.endswith('"'):
+                content_str = prefix[:-1]
+                content_str = content_str.replace('\\"', '"').replace('\\n', '\n').replace('\\t', '\t')
+                return {"path": path, "content": content_str}
+
+        # Case 3: Fallback from the end of the string
+        last_brace = sub.rfind("}")
+        if last_brace != -1:
+            prefix = sub[:last_brace].rstrip()
+            if prefix.endswith("}"):
+                prefix = prefix[:-1].rstrip()
+            if prefix.endswith('"'):
+                content_str = prefix[:-1]
+                content_str = content_str.replace('\\"', '"').replace('\\n', '\n').replace('\\t', '\t')
+                return {"path": path, "content": content_str}
+
+        val_end = sub.rfind('"')
+        if val_end > 0:
+            content_str = sub[:val_end]
+            content_str = content_str.replace('\\"', '"').replace('\\n', '\n').replace('\\t', '\t')
+            return {"path": path, "content": content_str}
+
+        return None
+
     def _try_extract_code_block(self, response: str) -> Optional[ParseSuccess]:
-        """Extract markdown code block and target path if present."""
-        code_match = re.search(r'```(?:python|py)?\s*\n(.*?)\n```', response, re.DOTALL)
+        """Extract markdown code block or raw HTML and target path if present."""
+        code_match = re.search(r'```(?:python|py|html|css|js|javascript|json|sh|bash)?\s*\n(.*?)\n```', response, re.DOTALL)
         if not code_match:
+            # Also check for raw HTML documents without code fences
+            stripped = response.strip()
+            if stripped.startswith("<!DOCTYPE") or stripped.startswith("<html"):
+                path_match = re.search(r'["\']?path["\']?\s*:\s*["\']([^"\']+\.[a-zA-Z0-9_]+)["\']', response)
+                path = path_match.group(1) if path_match else ""
+                if not path:
+                    file_match = re.search(r'(?:file|path|module|in|called|named|create)\s+[`"\']?([a-zA-Z0-9_\-\.\/]+\.(?:html|htm))[`"\']?', response, re.IGNORECASE)
+                    path = file_match.group(1) if file_match else "index.html"
+                return ParseSuccess(
+                    tool="write_file",
+                    parameters={"path": path, "content": stripped},
+                    reasoning="Extracted raw HTML document from model response.",
+                    explanation=f"Creating HTML file {path}.",
+                    method_used="extract_code_block",
+                    raw_response=response,
+                )
             return None
         code_content = code_match.group(1).strip()
         if not code_content or len(code_content) < 10:

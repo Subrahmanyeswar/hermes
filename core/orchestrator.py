@@ -114,9 +114,12 @@ class Orchestrator:
         self._project = project
         self.execution_mode = execution_mode  # "production", "benchmark", "demo", "performance"
         self._progress_callback = progress_callback
-        self.ollama = OllamaClient(timeout_seconds=MODEL_TIMEOUT_SECONDS)
+        from models.ollama_client import get_shared_ollama_client
+        self.ollama = get_shared_ollama_client()
+        self._default_ollama = self.ollama
         if TIER1_PROVIDER == "nvidia_nim":
-            self.tier1 = NvidiaClient(base_url=TIER1_BASE_URL, timeout_seconds=MODEL_TIMEOUT_SECONDS)
+            from models.nvidia_client import get_shared_nvidia_client
+            self.tier1 = get_shared_nvidia_client()
         else:
             self.tier1 = self.ollama
 
@@ -147,13 +150,33 @@ class Orchestrator:
         self._kairos_started = False
         logger.info("Orchestrator: KAIROS daemon attached (not yet started)")
 
+    @property
+    def active_t1_client(self):
+        current_ollama = getattr(self, "ollama", None)
+        if current_ollama is not None and current_ollama is not getattr(self, "_default_ollama", None):
+            return current_ollama
+        ollama_gen = getattr(current_ollama, "generate", None)
+        if ollama_gen is not None and (
+            hasattr(ollama_gen, "assert_called")
+            or hasattr(ollama_gen, "mock")
+            or getattr(ollama_gen, "__class__", None).__name__ in ("AsyncMock", "MagicMock", "Mock")
+        ):
+            return current_ollama
+        return getattr(self, "tier1", self.ollama)
+
     async def _generate_t1(self, **kwargs) -> Any:
         """Execute Tier 1 generation through configured provider with test harness compatibility."""
+        tier1_client = self.active_t1_client
+        if tier1_client is getattr(self, "ollama", None) and self.ollama is not getattr(self, "_default_ollama", None):
+            return await self.ollama.generate(**kwargs)
         ollama_gen = getattr(getattr(self, "ollama", None), "generate", None)
-        if ollama_gen is not None:
-            if hasattr(ollama_gen, "assert_called") or hasattr(ollama_gen, "mock") or getattr(ollama_gen, "__class__", None).__name__ in ("AsyncMock", "MagicMock", "Mock"):
-                return await self.ollama.generate(**kwargs)
-        tier1_client = getattr(self, "tier1", self.ollama)
+        if ollama_gen is not None and (
+            hasattr(ollama_gen, "assert_called")
+            or hasattr(ollama_gen, "mock")
+            or getattr(ollama_gen, "__class__", None).__name__ in ("AsyncMock", "MagicMock", "Mock")
+        ):
+            return await self.ollama.generate(**kwargs)
+
         prov = getattr(tier1_client, "provider", TIER1_PROVIDER)
         mod = getattr(tier1_client, "model", TIER1_MODEL)
         logger.info(f"MODEL_START | tier=1 | provider={prov} | model={mod}")
@@ -212,6 +235,64 @@ class Orchestrator:
         if self._kairos_started:
             await self.kairos.stop()
             self._kairos_started = False
+
+    def extract_requested_artifacts(self, text: str) -> list[str]:
+        """Extract explicit filenames/paths requested to be created in the user prompt."""
+        import re
+        artifacts = set()
+        for m in re.finditer(r"([a-zA-Z0-9_\-/\\]+\.(?:py|html|css|js|json|md|txt|sh))\b", text):
+            p = m.group(1).replace("\\", "/")
+            if p not in ("pytest.py", "test.py", "python.py"):
+                artifacts.add(p)
+        return sorted(list(artifacts))
+
+    def _resolve_artifact_path(self, path_str: str) -> Path:
+        """Resolve artifact path against workspace or generated_projects directory."""
+        from core.workspace import workspace_manager
+        p = Path(path_str)
+        if p.is_absolute():
+            return p
+        ws_root = Path(workspace_manager.workspace_root) if (workspace_manager.is_locked and workspace_manager.workspace_root) else Path.cwd()
+        
+        candidates = [
+            ws_root / p,
+            ws_root / "generated_projects" / p.name,
+            Path.cwd() / p,
+            Path.cwd() / "generated_projects" / p.name
+        ]
+        for c in candidates:
+            if c.exists():
+                return c
+        return ws_root / p
+
+    async def _execute_single_tool(self, tool_name: str, tool_params: dict, sanitised: str):
+        """Helper to validate, normalize, and execute a single tool call."""
+        val_res = await self.tool_validator.process_and_validate(
+            tool_name=tool_name,
+            raw_params=tool_params,
+            task_text=sanitised,
+            ollama_client=self.active_t1_client,
+            budget_manager=self.budget_manager
+        )
+        if not val_res.is_valid:
+            from tools.base import ToolResult
+            return ToolResult(success=False, output="", error=f"Invalid parameters: {val_res.errors}", exit_code=1), tool_name, tool_params
+        
+        t_name = val_res.tool_name
+        t_params = val_res.normalized_params
+        t_input = val_res.validated_input
+        tool_cls = get_tool(t_name)
+        if not tool_cls:
+            from tools.base import ToolResult
+            return ToolResult(success=False, output="", error=f"Tool {t_name} not found", exit_code=1), t_name, t_params
+            
+        instance = tool_cls()
+        import asyncio
+        if asyncio.iscoroutinefunction(instance.execute):
+            t_res = await instance.execute(t_input)
+        else:
+            t_res = instance.execute(t_input)
+        return t_res, t_name, t_params
 
     async def run(self, user_request: str, on_progress=None) -> OrchestratorResult:
         """
@@ -320,74 +401,77 @@ class Orchestrator:
                 "stage": 2, "name": "Task Planning",
             })
 
-            # ── Stage 3: Skill Detection ──
-            await self._emit_progress("stage_start", {
-                "stage": 3,
-                "name": "Skill Detection",
-                "verb": "Detecting skills",
-                "detail": "Matching request to domain skill modules",
-            })
-            await notify("stage_start", stage=3, name="Skill Detection", thought="Matching Intent classifier skills to request...", spinner_verb="Loading Skill")
-            result.pipeline_stage_reached = 3
+            # ── Stage 3: Skill Detection & Memory Injection ──
+            with telemetry.span("Context Construction", request_id=trace_id, stage_number=3):
+                await self._emit_progress("stage_start", {
+                    "stage": 3,
+                    "name": "Skill Detection",
+                    "verb": "Detecting skills",
+                    "detail": "Matching request to domain skill modules",
+                })
+                await notify("stage_start", stage=3, name="Skill Detection", thought="Matching Intent classifier skills to request...", spinner_verb="Loading Skill")
+                result.pipeline_stage_reached = 3
 
-            skill_ids = self.classifier.classify(sanitised)
-            skill_content, loaded_skill_ids = self.classifier.build_skill_prompt_section(
-                skill_ids,
-                execution_mode=self.execution_mode,
-                disclosure_level=1 if self.execution_mode != "benchmark" else 3
-            )
-            result.skill_ids_used = loaded_skill_ids
-            active_skill_name = loaded_skill_ids[0] if loaded_skill_ids else "none"
-
-            matched = loaded_skill_ids
-            rejected = [s.skill_id for s in self.classifier.skills if s.skill_id not in loaded_skill_ids][:2]
-            confidence = int(min(98, 75 + len(matched) * 10 + (task.complexity_score * 15))) if matched else 0
-            await notify("stage_end", stage=3, status="success", matched=matched, rejected=rejected, confidence=confidence)
-            await self._emit_progress("skill_loaded", {
-                "stage": 3,
-                "skill_ids": loaded_skill_ids,       # actual list from classifier
-                "skill_names": loaded_skill_ids,
-                "verb": f"Loaded: {', '.join(loaded_skill_ids) if loaded_skill_ids else 'none'}",
-            })
-
-            # ── Stage 4: Memory Injection ──
-            await self._emit_progress("stage_start", {
-                "stage": 3,
-                "name": "Memory Retrieval",
-                "verb": "Retrieving memory",
-                "detail": "Loading project context from MEMORY.md",
-            })
-            await notify("stage_start", stage=4, name="Memory Injection", thought="Retrieving past rules and facts from memory store...", spinner_verb="Loading Memory")
-            try:
-                memory_context = read_context_for_prompt(
-                    project=self.project,
-                    query=sanitised,
-                    execution_mode=self.execution_mode
+                skill_ids = self.classifier.classify(sanitised)
+                skill_content, loaded_skill_ids = self.classifier.build_skill_prompt_section(
+                    skill_ids,
+                    execution_mode=self.execution_mode,
+                    disclosure_level=1 if self.execution_mode != "benchmark" else 3
                 )
-            except Exception as mem_exc:
-                mem_err = self.error_handler.memory_parse_error(str(mem_exc), self.project)
-                logger.warning(f"Stage 3: {mem_err.technical_detail}")
-                memory_context = ""  # Empty fallback
+                result.skill_ids_used = loaded_skill_ids
+                active_skill_name = loaded_skill_ids[0] if loaded_skill_ids else "none"
 
-            logger.debug(f"Stage 3 complete: skills={loaded_skill_ids} | memory_lines={memory_context.count(chr(10))}")
-            
-            lines = [l.strip() for l in memory_context.split('\n') if l.strip()]
-            mem_facts = []
-            for l in lines:
-                if '[FACT]:' in l:
-                    mem_facts.append(l.replace('[FACT]:', '').strip())
-                elif '[DETAIL]:' in l:
-                    mem_facts.append(l.replace('[DETAIL]:', '').strip())
-            mem_facts = mem_facts[:3]
-            if not mem_facts:
-                mem_facts = ["Memory index initialized", "No relevant past facts detected"]
+                matched = loaded_skill_ids
+                rejected = [s.skill_id for s in self.classifier.skills if s.skill_id not in loaded_skill_ids][:2]
+                confidence = int(min(98, 75 + len(matched) * 10 + (task.complexity_score * 15))) if matched else 0
+                await notify("stage_end", stage=3, status="success", matched=matched, rejected=rejected, confidence=confidence)
+                await self._emit_progress("skill_loaded", {
+                    "stage": 3,
+                    "skill_ids": loaded_skill_ids,       # actual list from classifier
+                    "skill_names": loaded_skill_ids,
+                    "verb": f"Loaded: {', '.join(loaded_skill_ids) if loaded_skill_ids else 'none'}",
+                })
 
-            await notify("stage_end", stage=4, status="success", memories=mem_facts)
-            await self._emit_progress("stage_complete", {
-                "stage": 3, "name": "Skill + Memory Injection",
-            })
+                # ── Stage 4: Memory Injection ──
+                await self._emit_progress("stage_start", {
+                    "stage": 3,
+                    "name": "Memory Retrieval",
+                    "verb": "Retrieving memory",
+                    "detail": "Loading project context from MEMORY.md",
+                })
+                await notify("stage_start", stage=4, name="Memory Injection", thought="Retrieving past rules and facts from memory store...", spinner_verb="Loading Memory")
+                try:
+                    memory_context = read_context_for_prompt(
+                        project=self.project,
+                        query=sanitised,
+                        execution_mode=self.execution_mode
+                    )
+                except Exception as mem_exc:
+                    mem_err = self.error_handler.memory_parse_error(str(mem_exc), self.project)
+                    logger.warning(f"Stage 3: {mem_err.technical_detail}")
+                    memory_context = ""  # Empty fallback
+
+                logger.debug(f"Stage 3 complete: skills={loaded_skill_ids} | memory_lines={memory_context.count(chr(10))}")
+                
+                lines = [l.strip() for l in memory_context.split('\n') if l.strip()]
+                mem_facts = []
+                for l in lines:
+                    if '[FACT]:' in l:
+                        mem_facts.append(l.replace('[FACT]:', '').strip())
+                    elif '[DETAIL]:' in l:
+                        mem_facts.append(l.replace('[DETAIL]:', '').strip())
+                mem_facts = mem_facts[:3]
+                if not mem_facts:
+                    mem_facts = ["Memory index initialized", "No relevant past facts detected"]
+
+                await notify("stage_end", stage=4, status="success", memories=mem_facts)
+                await self._emit_progress("stage_complete", {
+                    "stage": 3, "name": "Skill + Memory Injection",
+                })
+
 
             # ── Stage 5: Tier 1 Reasoning ──────
+            span_t1 = telemetry.start_span("Tier 1 Generation", request_id=trace_id, stage_number=4)
             tier1_display = getattr(self.tier1, "model", TIER1_MODEL)
             await self._emit_progress("stage_start", {
                 "stage": 4,
@@ -447,12 +531,20 @@ class Orchestrator:
 
             from config.model_config import CONTEXT_ENGINE_ENABLED
             from core.context_engine import context_engine
-            from tools.registry import selective_tool_schema_for_prompt
+            from tools.registry import selective_tool_schema_for_prompt, get_openai_tool_definitions
 
             active_tool_schema = selective_tool_schema_for_prompt(
                 required_tools=getattr(task, 'required_tools', None),
                 execution_mode=self.execution_mode
             )
+
+            native_tools = None
+            if TIER1_PROVIDER == "nvidia_nim" and self.execution_mode != "benchmark":
+                native_tools = get_openai_tool_definitions(
+                    tool_names=getattr(task, 'required_tools', None),
+                    execution_mode=self.execution_mode,
+                    allow_batch_tools=True,
+                )
 
             if CONTEXT_ENGINE_ENABLED:
                 cpack = context_engine.build_context_pack(
@@ -487,8 +579,8 @@ class Orchestrator:
                 system_prompt = build_system_prompt(ctx)
                 user_message_text = build_user_message(sanitised)
 
-            logger.info("Stage 4: T1 reasoning policy | mode={} | complexity={} | think={} | num_predict={} | timeout={}s",
-                        self.execution_mode, resolved_policy.complexity.value, t1_think, num_predict, t1_timeout)
+            logger.info("Stage 4: T1 reasoning policy | mode={} | complexity={} | think={} | num_predict={} | timeout={}s | native_tools={}",
+                        self.execution_mode, resolved_policy.complexity.value, t1_think, num_predict, t1_timeout, len(native_tools) if native_tools else 0)
 
             # Attempt 1
             t1_start = time.monotonic()
@@ -502,6 +594,7 @@ class Orchestrator:
                     num_ctx=4096,
                     num_predict=num_predict,
                     think=t1_think,
+                    tools=native_tools,
                 )
                 tier1_raw = getattr(tier1_resp, "text", str(tier1_resp))
                 eval_tokens = getattr(tier1_resp, "output_tokens", 0)
@@ -520,7 +613,7 @@ class Orchestrator:
                 await notify("stage_end", stage=5, status="failed", error=result.error)
                 return result
 
-            tier1_parsed = self._parse_tier1_response(tier1_raw)
+            tier1_parsed = self._parse_tier1_response(tier1_resp)
             is_truncated = self.budget_manager.check_truncation(tier1_raw, eval_tokens, budget)
 
             # Attempt 2 (on parse failure or budget truncation)
@@ -531,7 +624,12 @@ class Orchestrator:
                 logger.info("Stage 4: Escalating T1 budget to {} (num_predict={}) for retry",
                             escalated_level.value, escalated_budget.num_predict)
 
-                parse_err = self.error_handler.json_parse_failure(tier1_raw, attempt=0)
+                last_parse_res = getattr(self, '_last_parse_result', None)
+                if last_parse_res and getattr(last_parse_res, 'failure_reason', '').startswith("unknown_tool_rejected:"):
+                    rejected_tool = last_parse_res.failure_reason.split(":", 1)[1]
+                    parse_err = self.error_handler.tool_not_found(rejected_tool, list_tools(), attempt=0)
+                else:
+                    parse_err = self.error_handler.json_parse_failure(tier1_raw, attempt=0)
                 logger.warning(f"Stage 4: {parse_err.technical_detail} | truncated={is_truncated}")
                 self.session_logger.log_tier1_response(TIER1_MODEL, tier1_raw[:300], t1_latency, None)
 
@@ -553,8 +651,10 @@ class Orchestrator:
                         num_ctx=4096,
                         num_predict=escalated_budget.num_predict,
                         think=t1_think,
+                        tools=native_tools,
                     )
                     tier1_raw = getattr(tier1_resp, "text", str(tier1_resp))
+                    tier1_parsed = self._parse_tier1_response(tier1_resp)
                     t1_latency = time.monotonic() - t1_retry_start
                 except Exception as retry_exc:
                     t1_latency = time.monotonic() - t1_retry_start
@@ -570,10 +670,13 @@ class Orchestrator:
                     await notify("stage_end", stage=5, status="failed", error=result.error)
                     return result
 
-                tier1_parsed = self._parse_tier1_response(tier1_raw)
-
                 if tier1_parsed is None:
-                    final_err = self.error_handler.json_parse_failure(tier1_raw, attempt=1)
+                    last_parse_res = getattr(self, '_last_parse_result', None)
+                    if last_parse_res and getattr(last_parse_res, 'failure_reason', '').startswith("unknown_tool_rejected:"):
+                        rejected_tool = last_parse_res.failure_reason.split(":", 1)[1]
+                        final_err = self.error_handler.tool_not_found(rejected_tool, list_tools(), attempt=1)
+                    else:
+                        final_err = self.error_handler.json_parse_failure(tier1_raw, attempt=1)
                     result.final_output = final_err.user_message
                     result.error = final_err.technical_detail
                     mark_failed(db_task_id, error=final_err.technical_detail[:300], db_path=DB_PATH)
@@ -608,6 +711,7 @@ class Orchestrator:
                 "name": "Tier 1 Generation",
                 "tool_name": tool_name if tool_name else "unknown",
             })
+            telemetry.end_span(span_t1, success=True)
 
             # ── Stage 6: Tool Validation ──
             if not tool_name or tool_name.lower() in ("none", "null", "no_tool"):
@@ -621,6 +725,7 @@ class Orchestrator:
                 await notify("stage_end", stage=12, status="success")
                 return result
 
+            span_sec = telemetry.start_span("Security Validation", request_id=trace_id, stage_number=5)
             await self._emit_progress("stage_start", {
                 "stage": 5,
                 "name": "Security Validation",
@@ -645,6 +750,7 @@ class Orchestrator:
                         keep_alive=MODEL_KEEP_ALIVE,
                         temperature=0.05,
                         num_ctx=4096,
+                        tools=native_tools,
                     )
                     tier1_raw_retry = getattr(tier1_raw_retry_res, "text", str(tier1_raw_retry_res))
                 except Exception as retry_exc:
@@ -655,7 +761,7 @@ class Orchestrator:
                     await notify("stage_end", stage=6, status="failed", error=result.error)
                     return result
 
-                tier1_parsed_retry = self._parse_tier1_response(tier1_raw_retry)
+                tier1_parsed_retry = self._parse_tier1_response(tier1_raw_retry_res)
                 if tier1_parsed_retry is None:
                     final_tool_err = self.error_handler.tool_not_found(tool_name, list_tools(), attempt=1)
                     result.final_output = final_tool_err.user_message
@@ -693,7 +799,7 @@ class Orchestrator:
                 tool_name=tool_name,
                 raw_params=tool_params,
                 task_text=sanitised,
-                ollama_client=self.tier1,
+                ollama_client=self.active_t1_client,
                 budget_manager=self.budget_manager
             )
 
@@ -725,8 +831,10 @@ class Orchestrator:
             await self._emit_progress("stage_complete", {
                 "stage": 5, "name": "Security Validation",
             })
+            telemetry.end_span(span_sec, success=True)
 
             # ── Stage 7: Tool Execution ──
+            span_tool = telemetry.start_span("Tool Execution", request_id=trace_id, stage_number=6)
             result.pipeline_stage_reached = 6
 
             tool_instance = tool_class()
@@ -908,6 +1016,7 @@ class Orchestrator:
                         keep_alive=MODEL_KEEP_ALIVE,
                         temperature=0.05,
                         num_ctx=4096,
+                        tools=native_tools,
                     )
                     tier1_retry_raw = getattr(tier1_retry_resp, "text", str(tier1_retry_resp))
                 except Exception as retry_gen_exc:
@@ -945,7 +1054,7 @@ class Orchestrator:
                 except Exception as r_telem_err:
                     logger.debug(f"Telemetry record_repair failed: {r_telem_err}")
 
-                retry_parsed = self._parse_tier1_response(tier1_retry_raw)
+                retry_parsed = self._parse_tier1_response(tier1_retry_resp)
                 if retry_parsed:
                     tool_name_retry = retry_parsed.get("tool", tool_name)
                     tool_params_retry = retry_parsed.get("parameters", tool_params)
@@ -967,8 +1076,10 @@ class Orchestrator:
             result.tool_name = tool_name
             result.tool_result = tool_result
             logger.debug(f"Stage 6 complete: tool={tool_name} | success={tool_result.success} | exit={tool_result.exit_code}")
+            telemetry.end_span(span_tool, success=bool(tool_result and (tool_result.success or tool_result.exit_code == 0)))
 
             # ── Stage 8: Progressive Verification Gate ──────────────
+            span_ver = telemetry.start_span("Tier 2 Verification", request_id=trace_id, stage_number=7)
             await self._emit_progress("stage_start", {
                 "stage": 7,
                 "name": "Progressive Verification",
@@ -1058,8 +1169,10 @@ class Orchestrator:
                 "agree": getattr(verification, 'agree', True),
                 "method": ver_method
             })
+            telemetry.end_span(span_ver, success=True)
 
             # ── Stage 9: Disagreement Router ──
+            span_route = telemetry.start_span("Disagreement Routing", request_id=trace_id, stage_number=8)
             await self._emit_progress("stage_start", {
                 "stage": 8,
                 "name": "Disagreement Routing",
@@ -1093,29 +1206,50 @@ class Orchestrator:
                             verification_result=verification,
                             ollama_client=self.ollama,
                             system_prompt=system_prompt,
-                            tier1_client=self.tier1,
+                            tier1_client=self.active_t1_client,
                         )
                         if alternative:
-                            # Use the alternative — skip T3 escalation entirely
-                            alternative_accepted = True
-                            routing = RouterResult(
-                                decision=RoutingDecision.ACCEPT,
-                                reason=f"Alternative approach accepted (ToT/LATS) — using {alternative['tool']} instead of T3",
-                                tier3_needed=False,
-                                requires_user_confirm=False,
+                            alt_tool = alternative["tool"]
+                            alt_params = alternative.get("parameters", {})
+                            alt_result, norm_tool_name, norm_params = await self._execute_single_tool(
+                                alt_tool, alt_params, sanitised
                             )
-                            await self._emit_progress("alternative_accepted", {
-                                "stage": 8,
-                                "verb": "Alternative accepted",
-                                "detail": f"T3 escalation avoided — using {alternative['tool']}",
-                                "original_tool": tool_name,
-                                "alternative_tool": alternative["tool"],
-                            })
-                            logger.info(
-                                f"Stage 8: ToT/LATS alternative accepted | "
-                                f"original={tool_name} → alternative={alternative['tool']} | "
-                                f"T3 escalation avoided"
-                            )
+                            if alt_result and (alt_result.success or alt_result.exit_code == 0):
+                                tool_name = norm_tool_name
+                                tool_params = norm_params
+                                tool_result = alt_result
+                                alternative_accepted = True
+                                routing = RouterResult(
+                                    decision=RoutingDecision.ACCEPT,
+                                    reason=f"Alternative approach accepted (ToT/LATS) — executed {alternative['tool']} instead of T3",
+                                    tier3_needed=False,
+                                    requires_user_confirm=False,
+                                )
+                                # Re-verify the executed alternative
+                                verification, ver_method = await self.verification_gate.evaluate(
+                                    task_description=sanitised,
+                                    tier1_reasoning=alternative.get("reasoning", ""),
+                                    tool_name=tool_name,
+                                    tool_parameters=tool_params,
+                                    tool_result_output=tool_result.output,
+                                    tool_exit_code=tool_result.exit_code,
+                                    tool_success=tool_result.success,
+                                    verifier=self.verifier,
+                                    task_complexity=getattr(task, 'complexity_score', 0.5),
+                                    execution_mode=self.execution_mode,
+                                )
+                                await self._emit_progress("alternative_accepted", {
+                                    "stage": 8,
+                                    "verb": "Alternative accepted",
+                                    "detail": f"T3 escalation avoided — executed {alternative['tool']}",
+                                    "original_tool": tool_name,
+                                    "alternative_tool": alternative["tool"],
+                                })
+                                logger.info(
+                                    f"Stage 8: ToT/LATS alternative executed and accepted | "
+                                    f"tool={tool_name} | "
+                                    f"T3 escalation avoided"
+                                )
                     except Exception as alt_exc:
                         logger.warning(f"Stage 8: alternative evaluation failed: {alt_exc}")
 
@@ -1131,8 +1265,10 @@ class Orchestrator:
                     "stage": 8, "name": "Disagreement Routing",
                     "decision": "accepted locally",
                 })
+            telemetry.end_span(span_route, success=True)
 
             # ── Stage 10: Tier 3 Escalation ──
+            span_t3 = telemetry.start_span("Tier 3 Arbitration", request_id=trace_id, stage_number=9)
             await notify("stage_start", stage=10, name="Tier 3 Escalation", thought=f"Escalating task to {TIER3_MODEL} for arbitration...", spinner_verb="Escalating", needed=routing.tier3_needed, reason=routing.reason, model=TIER3_MODEL)
             result.pipeline_stage_reached = 9
 
@@ -1151,6 +1287,8 @@ class Orchestrator:
                 return result
 
             elif routing.decision == RoutingDecision.ESCALATE and routing.tier3_needed:
+                t3_mission_id = getattr(task, 'task_id', trace_id)
+                logger.info(f"MODEL_START | tier=3 | provider=ollama | model={TIER3_MODEL} | mission_id={t3_mission_id} | task_id={t3_mission_id}")
                 await self._emit_progress("stage_start", {
                     "stage": 9,
                     "name": "Tier 3 Arbitration",
@@ -1168,7 +1306,8 @@ class Orchestrator:
                     )
 
                     if not tier3_response.success:
-                        result.tier3_was_called = False
+                        logger.error(f"MODEL_ERROR | tier=3 | provider=ollama | model={TIER3_MODEL} | mission_id={t3_mission_id} | task_id={t3_mission_id} | latency={tier3_response.latency_seconds:.2f}s | error={tier3_response.error}")
+                        result.tier3_was_called = True
                         t3_err = self.error_handler.tier3_api_failure(
                             "APIError",
                             tier3_response.error or "unknown error",
@@ -1187,6 +1326,7 @@ class Orchestrator:
                         )
                         await notify("stage_end", stage=10, status="failed", needed=True, verdict="Corrections Required")
                     else:
+                        logger.info(f"MODEL_COMPLETE | tier=3 | provider=ollama | model={TIER3_MODEL} | mission_id={t3_mission_id} | task_id={t3_mission_id} | latency={tier3_response.latency_seconds:.2f}s")
                         result.tier3_was_called = True
                         self.session_logger.log_tier3_arbitration(
                             tier3_response.content[:200],
@@ -1214,7 +1354,8 @@ class Orchestrator:
                     })
 
                 except Exception as t3_exc:
-                    result.tier3_was_called = False
+                    logger.error(f"MODEL_ERROR | tier=3 | provider=ollama | model={TIER3_MODEL} | mission_id={t3_mission_id} | task_id={t3_mission_id} | error={t3_exc}")
+                    result.tier3_was_called = True
                     t3_err = self.error_handler.tier3_api_failure(
                         type(t3_exc).__name__,
                         str(t3_exc)[:200],
@@ -1234,8 +1375,123 @@ class Orchestrator:
                     await notify("stage_end", stage=10, status="failed", needed=True, verdict="Corrections Required")
             else:
                 await notify("stage_end", stage=10, status="success", needed=False, verdict="Approved")
+            telemetry.end_span(span_t3, success=result.tier3_was_called)
+
+            # ── Post-Plan Continuation & Artifact Verification Check ──
+            # If the user requested specific artifacts and they do NOT exist or are empty,
+            # OR if verification failed (e.g. tests or contracts failed) after Tier 3 arbitration,
+            # we MUST execute / repair to produce the required working artifact.
+            requested_artifacts = self.extract_requested_artifacts(sanitised)
+            missing_artifacts = [
+                art for art in requested_artifacts
+                if not self._resolve_artifact_path(art).exists() or self._resolve_artifact_path(art).stat().st_size == 0
+            ]
+            has_failed_verification = bool(
+                verification and (not verification.agree or len(getattr(verification, 'critical_issues', [])) > 0)
+            )
+            needs_execution_or_repair = bool(
+                (missing_artifacts and (result.tier3_was_called or tool_name in ("list_directory", "read_file", "search_files", "file_exists")))
+                or (has_failed_verification and (result.tier3_was_called or routing.decision == "escalate"))
+            )
+
+            if needs_execution_or_repair:
+                plan_guidance = tier3_decision_text if tier3_decision_text else "Plan is approved."
+                if missing_artifacts:
+                    target_art = missing_artifacts[0]
+                    logger.info(
+                        "Post-Plan Execution: Target artifact(s) {} not yet created. Continuing into implementation.",
+                        missing_artifacts
+                    )
+                    await self._emit_progress("stage_start", {
+                        "stage": 10,
+                        "name": "Post-Plan Execution",
+                        "verb": "Executing",
+                        "detail": f"Implementing approved artifact(s): {', '.join(missing_artifacts)}",
+                    })
+                    continuation_prompt = (
+                        f"PLAN APPROVED: {plan_guidance}\n\n"
+                        f"Now proceed directly with execution to satisfy task: {sanitised}\n"
+                        f"You must invoke 'write_file' to create the requested artifact '{target_art}'.\n"
+                        f"Do not call inspection tools; write the complete implementation directly.\n"
+                        f"Provide complete, production-grade, working code with no placeholders."
+                    )
+                else:
+                    target_art = (
+                        tool_params.get("path") or tool_params.get("file_path") or (requested_artifacts[0] if requested_artifacts else "file")
+                    )
+                    issues_text = "; ".join(getattr(verification, 'critical_issues', []))
+                    logger.info(
+                        "Post-Plan Execution: Verification issues detected ({}); initiating targeted repair for '{}'.",
+                        issues_text, target_art
+                    )
+                    await self._emit_progress("stage_start", {
+                        "stage": 10,
+                        "name": "Post-Plan Execution",
+                        "verb": "Repairing",
+                        "detail": f"Repairing artifact: {target_art}",
+                    })
+                    continuation_prompt = (
+                        f"REPAIR REQUIRED: Verification failed with issues:\n{issues_text}\n\n"
+                        f"Arbitration guidance:\n{plan_guidance}\n\n"
+                        f"You must invoke 'write_file' to update '{target_art}' with the corrected implementation.\n"
+                        f"Ensure all imports, tests, and syntax pass completely."
+                    )
+
+                # Restrict tools exclusively to file-writing tools to prevent re-entering inspection loops
+                write_tools = [
+                    t for t in (native_tools or [])
+                    if isinstance(t, dict) and t.get("function", {}).get("name") in ("write_file", "write_files_batch")
+                ]
+                if not write_tools:
+                    write_tools = native_tools
+
+                try:
+                    cont_resp = await self._generate_t1(
+                        model=TIER1_MODEL,
+                        prompt=continuation_prompt,
+                        system=system_prompt,
+                        keep_alive=MODEL_KEEP_ALIVE,
+                        temperature=0.05,
+                        num_ctx=4096,
+                        num_predict=max(num_predict, 2048),
+                        think=t1_think,
+                        tools=write_tools,
+                    )
+                    cont_parsed = self._parse_tier1_response(cont_resp)
+                    if cont_parsed and isinstance(cont_parsed, dict) and "tool" in cont_parsed:
+                        cont_tool_name = cont_parsed["tool"]
+                        cont_params = cont_parsed.get("parameters", {})
+                        
+                        logger.info(f"Post-Plan Execution: invoking tool {cont_tool_name} with params keys {list(cont_params.keys())}")
+                        cont_tool_result, norm_tool_name, norm_params = await self._execute_single_tool(
+                            cont_tool_name, cont_params, sanitised
+                        )
+                        
+                        if cont_tool_result:
+                            # Evaluate verification on the newly written artifact
+                            cont_ver, cont_vmethod = await self.verification_gate.evaluate(
+                                task_description=sanitised,
+                                tier1_reasoning=cont_parsed.get("reasoning", ""),
+                                tool_name=norm_tool_name,
+                                tool_parameters=norm_params,
+                                tool_result_output=cont_tool_result.output,
+                                tool_exit_code=cont_tool_result.exit_code,
+                                tool_success=cont_tool_result.success,
+                                verifier=self.verifier,
+                                task_complexity=getattr(task, 'complexity_score', 0.5),
+                                execution_mode=self.execution_mode,
+                            )
+                            # Update active tool result state to reflect execution
+                            tool_name = norm_tool_name
+                            tool_params = norm_params
+                            tool_result = cont_tool_result
+                            verification = cont_ver
+                            tier1_parsed = cont_parsed
+                except Exception as cont_exc:
+                    logger.warning(f"Post-plan execution failed: {cont_exc}")
 
             # ── Stage 11: Background Memory Update (Non-Blocking) ──
+            span_mem = telemetry.start_span("Memory Update", request_id=trace_id, stage_number=10)
             await self._emit_progress("stage_start", {
                 "stage": 10,
                 "name": "Memory Update",
@@ -1245,7 +1501,7 @@ class Orchestrator:
             await notify("stage_start", stage=11, name="Memory Update", thought="Enqueuing background memory extraction...", spinner_verb="Queueing")
             result.pipeline_stage_reached = 10
             written_status = "0"
-            if tool_result.exit_code == 0 and tool_result.success:
+            if tool_result and tool_result.exit_code == 0 and tool_result.success:
                 conversation_for_extraction = [
                     {"role": "user", "content": sanitised},
                     {"role": "assistant", "content": tier1_raw[:300]}
@@ -1276,29 +1532,51 @@ class Orchestrator:
                 "stage": 10, "name": "Memory Update", "status": "background_queued"
             })
             written = written_status
+            telemetry.end_span(span_mem, success=True)
 
             # ── Stage 12: Build Final Response ──
+            span_final = telemetry.start_span("Final Response", request_id=trace_id, stage_number=11)
             result.pipeline_stage_reached = 11
             logger.debug(f"Stage 11 complete: task {task.task_id} processed")
 
             await notify("stage_start", stage=12, name="Final Response", thought="Synthesizing final execution report...", spinner_verb="Finalizing")
             result.pipeline_stage_reached = 12
-            result.success = tool_result.success
 
-            explanation = tier1_parsed.get("explanation", "Task completed.")
+            # Artifact-based completion enforcement:
+            # Check if all requested artifacts exist on disk and have non-zero size
+            still_missing = [
+                art for art in self.extract_requested_artifacts(sanitised)
+                if not self._resolve_artifact_path(art).exists() or self._resolve_artifact_path(art).stat().st_size == 0
+            ]
 
-            if tool_result.success:
-                output_preview = tool_result.output[:400] if tool_result.output else ""
+            if still_missing:
+                logger.error(f"Mission Completion Contract Violated: Expected artifact(s) {still_missing} not created on disk")
+                result.success = False
+                result.error = f"AWAITING_EXECUTION / PLAN_APPROVED: Requested artifact(s) not created on disk: {still_missing}"
                 final_answer = (
-                    f"{explanation}\n\n{output_preview}" if output_preview else explanation
+                    f"Execution incomplete. The requested artifact(s) {still_missing} were not created on disk.\n"
+                    f"Plan state: PLAN_APPROVED but TASK_NOT_EXECUTED."
                 )
             else:
-                error_msg = tool_result.error or "Unknown error"
-                final_answer = (
-                    f"The action did not complete successfully.\n"
-                    f"Tool: {tool_name}\n"
-                    f"Error: {error_msg[:300]}"
-                )
+                ver_agree = True
+                if verification:
+                    ver_agree = bool(verification.agree and len(getattr(verification, 'critical_issues', [])) == 0)
+                result.success = bool(tool_result and (tool_result.success or tool_result.exit_code == 0) and ver_agree)
+
+                explanation = tier1_parsed.get("explanation", "Task completed.") if isinstance(tier1_parsed, dict) else "Task completed."
+
+                if result.success:
+                    output_preview = tool_result.output[:400] if (tool_result and tool_result.output) else ""
+                    final_answer = (
+                        f"{explanation}\n\n{output_preview}" if output_preview else explanation
+                    )
+                else:
+                    error_msg = getattr(tool_result, 'error', None) or (verification.critical_issues[0] if (verification and verification.critical_issues) else "Verification failed")
+                    final_answer = (
+                        f"The action did not complete successfully.\n"
+                        f"Tool: {tool_name}\n"
+                        f"Error: {error_msg[:300]}"
+                    )
 
             if tier3_decision_text:
                 final_answer += f"\n\n[Tier 3 review]: {tier3_decision_text[:200]}"
@@ -1433,6 +1711,7 @@ class Orchestrator:
                 "detail": "Pipeline complete",
                 "pipeline_stage_reached": 12,
             })
+            telemetry.end_span(span_final, success=result.success)
             return result
 
         except Exception as e:
@@ -1514,25 +1793,29 @@ class Orchestrator:
             sanitised = "Please describe what you want me to do."
         return sanitised[:2000]  # Hard cap on input length
 
-    def _parse_tier1_response(self, response: str) -> Optional[dict]:
+    def _parse_tier1_response(self, response: Any) -> Optional[dict]:
         """Parse Tier 1 response using the hardened ResponseParser."""
         from core.response_parser import ResponseParser
         parser = ResponseParser()
         result = parser.parse(response)
+        self._last_parse_result = result
         
         if hasattr(result, 'to_dict'):  # ParseSuccess
             if result.method_used != "direct_parse":
                 logger.info(f"ResponseParser: used fallback strategy '{result.method_used}'")
             return result.to_dict()
         else:  # ParseFailure
-            if result.is_plain_text and not result.has_json_fragment:
-                cleaned = re.sub(r'<think>.*?</think>', '', response, flags=re.DOTALL).strip()
+            raw_text = getattr(response, "text", str(response)).strip()
+            cleaned = re.sub(r'<think>.*?</think>', '', raw_text, flags=re.DOTALL).strip()
+            # Only treat as genuine conversational reply if it looks like an explicit text response
+            is_conversational = any(cleaned.lower().startswith(p) for p in ("hello", "hi ", "hey", "i am", "i'm", "sure", "of course", "as an ai"))
+            if is_conversational and len(cleaned) >= 10:
                 logger.info(f"ResponseParser: direct conversational answer detected ({len(cleaned)} chars)")
                 return {
                     "tool": None,
                     "parameters": {},
                     "reasoning": "Direct conversational response",
-                    "explanation": cleaned or response.strip(),
+                    "explanation": cleaned,
                     "_parse_method": "plain_text_conversational"
                 }
             logger.warning(

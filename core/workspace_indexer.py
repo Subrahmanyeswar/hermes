@@ -395,7 +395,8 @@ class WorkspaceIndexer:
             "workspace_id": ws_id,
             "files_indexed": len(files_to_index),
             "total_size_bytes": total_size,
-            "duration_ms": dur
+            "duration_ms": dur,
+            "records": files_to_index,
         }
 
     def update_workspace(self, root_path: Path | str) -> IncrementalUpdateReport:

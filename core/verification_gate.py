@@ -18,6 +18,8 @@ import ast
 import json
 import os
 import re
+import subprocess
+import sys
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
@@ -224,6 +226,162 @@ class VerificationGate:
         passed = len(issues) == 0
         return passed, checks_run, issues
 
+    def _validate_python_contracts(
+        self,
+        path_str: str,
+        content: str,
+        checks_run: List[str],
+        issues: List[str]
+    ) -> None:
+        """
+        Validate Python module import contracts and test suite execution.
+        Detects API mismatches (e.g. importing class methods as standalone functions)
+        and runs pytest on test suites if present.
+        """
+        from core.workspace import workspace_manager
+        ws_root = Path(workspace_manager.workspace_root) if (workspace_manager.is_locked and workspace_manager.workspace_root) else Path.cwd()
+
+        code_to_parse = content
+        if "\\n" in code_to_parse and "\n" not in code_to_parse:
+            try:
+                code_to_parse = code_to_parse.encode("utf-8").decode("unicode_escape")
+            except Exception:
+                pass
+
+        try:
+            tree = ast.parse(code_to_parse, filename=path_str)
+        except Exception:
+            return
+
+        # 1. Check imports against workspace modules
+        for node in ast.walk(tree):
+            if isinstance(node, ast.ImportFrom) and node.module:
+                mod_name = node.module
+                mod_candidates = [
+                    ws_root / f"{mod_name}.py",
+                    ws_root / mod_name / "__init__.py",
+                    ws_root / "generated_projects" / f"{mod_name}.py",
+                    Path(path_str).parent / f"{mod_name}.py",
+                    Path(path_str).parent / "generated_projects" / f"{mod_name}.py"
+                ]
+                target_file = None
+                for cand in mod_candidates:
+                    if cand.exists() and cand.is_file():
+                        target_file = cand
+                        break
+
+                if target_file:
+                    checks_run.append(f"import_contract_check:{mod_name}")
+                    try:
+                        target_ast = ast.parse(target_file.read_text(encoding="utf-8"), filename=str(target_file))
+                        top_level_defs = set()
+                        class_methods: Dict[str, str] = {}
+
+                        for stmt in target_ast.body:
+                            if isinstance(stmt, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                                top_level_defs.add(stmt.name)
+                            elif isinstance(stmt, ast.ClassDef):
+                                top_level_defs.add(stmt.name)
+                                for sub in stmt.body:
+                                    if isinstance(sub, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                                        class_methods[sub.name] = stmt.name
+                            elif isinstance(stmt, ast.Assign):
+                                for target in stmt.targets:
+                                    if isinstance(target, ast.Name):
+                                        top_level_defs.add(target.id)
+                            elif isinstance(stmt, ast.AnnAssign):
+                                if isinstance(stmt.target, ast.Name):
+                                    top_level_defs.add(stmt.target.id)
+
+                        for alias in node.names:
+                            if alias.name == "*":
+                                continue
+                            if alias.name not in top_level_defs:
+                                if alias.name in class_methods:
+                                    cls_name = class_methods[alias.name]
+                                    issues.append(
+                                        f"API contract mismatch in {path_str}: '{alias.name}' is imported as a standalone function from '{mod_name}', but it is defined as a method inside class '{cls_name}'. Use 'from {mod_name} import {cls_name}' and instantiate '{cls_name}()'."
+                                    )
+                                else:
+                                    issues.append(
+                                        f"API contract mismatch in {path_str}: '{alias.name}' is not exported by module '{mod_name}'."
+                                    )
+                    except Exception as e:
+                        logger.debug("Failed parsing target module {}: {}", target_file, e)
+                else:
+                    # Target file not found locally. Check if it is a standard library or installed third-party package
+                    import importlib.util
+                    is_known = mod_name in sys.builtin_module_names
+                    if not is_known:
+                        try:
+                            is_known = importlib.util.find_spec(mod_name) is not None
+                        except Exception:
+                            is_known = False
+                    if not is_known:
+                        checks_run.append(f"import_contract_check:{mod_name}")
+                        suggestion = ""
+                        gen_dir = ws_root / "generated_projects"
+                        if gen_dir.exists():
+                            for p in gen_dir.glob("*.py"):
+                                if mod_name in p.stem or p.stem in mod_name:
+                                    suggestion = f" Did you mean '{p.stem}' from '{p.relative_to(ws_root)}'?"
+                                    break
+                        issues.append(
+                            f"Import error in {path_str}: No module named '{mod_name}' found in workspace or python environment.{suggestion}"
+                        )
+
+        # 2. Test execution verification
+        file_p = Path(path_str)
+        if not file_p.is_absolute() and ws_root:
+            file_p = ws_root / path_str
+
+        # If this is a test file, execute it using pytest in the workspace environment
+        if file_p.name.startswith("test_") or file_p.name.endswith("_test.py"):
+            checks_run.append(f"test_execution_check:{file_p.name}")
+            import tempfile
+            temp_file = None
+            try:
+                # Write candidate code_to_parse to a temporary test file in target directory so relative imports work
+                file_p.parent.mkdir(parents=True, exist_ok=True)
+                with tempfile.NamedTemporaryFile(
+                    mode="w",
+                    suffix=f"_{file_p.name}",
+                    prefix="tmp_verify_",
+                    dir=str(file_p.parent),
+                    delete=False,
+                    encoding="utf-8"
+                ) as tf:
+                    tf.write(code_to_parse)
+                    temp_file = Path(tf.name)
+
+                env = os.environ.copy()
+                pp = os.pathsep.join(filter(None, [str(ws_root), str(file_p.parent), env.get("PYTHONPATH", "")]))
+                env["PYTHONPATH"] = pp
+
+                proc = subprocess.run(
+                    [sys.executable, "-m", "pytest", str(temp_file), "-q", "--tb=short"],
+                    cwd=str(ws_root),
+                    env=env,
+                    capture_output=True,
+                    text=True,
+                    timeout=15
+                )
+                if proc.returncode != 0:
+                    raw_out = (proc.stdout or "") + "\n" + (proc.stderr or "")
+                    lines = [line.strip() for line in raw_out.splitlines() if line.strip() and not line.startswith("=")]
+                    summary = " | ".join(lines[-3:]) if lines else "pytest returned non-zero exit code"
+                    issues.append(f"Test suite execution failed ({file_p.name}): {summary}")
+            except subprocess.TimeoutExpired:
+                issues.append(f"Test suite execution timed out (>15s) for {file_p.name}")
+            except Exception as e:
+                logger.debug("Test execution check encountered error: {}", e)
+            finally:
+                if temp_file and temp_file.exists():
+                    try:
+                        temp_file.unlink()
+                    except Exception:
+                        pass
+
     def run_structural_checks(
         self,
         tool_name: str,
@@ -252,6 +410,7 @@ class VerificationGate:
                         pass
                 try:
                     ast.parse(code_to_parse, filename=path)
+                    self._validate_python_contracts(path, code_to_parse, checks_run, issues)
                 except SyntaxError as e:
                     # Also try reading directly from disk if file was already written
                     disk_parsed = False
@@ -262,6 +421,7 @@ class VerificationGate:
                             disk_content = p_file.read_text(encoding="utf-8")
                             ast.parse(disk_content, filename=path)
                             disk_parsed = True
+                            self._validate_python_contracts(path, disk_content, checks_run, issues)
                     except Exception:
                         pass
                     if not disk_parsed:
@@ -311,6 +471,7 @@ class VerificationGate:
                                 pass
                         try:
                             ast.parse(code_to_parse, filename=path)
+                            self._validate_python_contracts(path, code_to_parse, checks_run, issues)
                         except SyntaxError as e:
                             issues.append(f"Python syntax error in batch file {path} at line {e.lineno}: {e.msg}")
                         except Exception as e:
@@ -471,6 +632,13 @@ class VerificationGate:
         all_issues = det_issues + struct_issues
         all_checks = det_checks + struct_checks
 
+        import inspect
+        async def _call_verifier_safe(**kwargs):
+            val = verifier.verify(**kwargs)
+            if inspect.isawaitable(val):
+                return await val
+            return val
+
         # Gating Decision Logic:
         # Case A: Deterministic/Structural Failure -> If local checks failed, immediately trigger Level 2 or fail
         if not det_passed or not struct_passed:
@@ -479,7 +647,7 @@ class VerificationGate:
                 tool_name, all_issues
             )
             fail_msg = f"LOCAL CHECKS FAILED: {all_issues}\n\n{tool_result_output[:500]}"
-            res = await verifier.verify(
+            res = await _call_verifier_safe(
                 task=task_description,
                 tier1_reasoning=tier1_reasoning,
                 tool_name=tool_name,
@@ -487,7 +655,8 @@ class VerificationGate:
                 tool_result_output=fail_msg,
                 tool_exit_code=tool_exit_code
             )
-            # Ensure issues from local checks are preserved in result
+            # Ensure issues from local checks are preserved in result and agree is False
+            res.agree = False
             res.critical_issues.extend(all_issues)
             return res, "T2_DIAGNOSTIC_FAILURE"
 
@@ -497,7 +666,7 @@ class VerificationGate:
                 "VerificationGate: Security/Destructive/Unknown operation (tool={}, category={}). Invoking Tier 2.",
                 tool_name, tool_category.value
             )
-            res = await verifier.verify(
+            res = await _call_verifier_safe(
                 task=task_description,
                 tier1_reasoning=tier1_reasoning,
                 tool_name=tool_name,
@@ -513,7 +682,7 @@ class VerificationGate:
                 "VerificationGate: Semantic reasoning required for task '{}'. Invoking Tier 2.",
                 task_description[:50]
             )
-            res = await verifier.verify(
+            res = await _call_verifier_safe(
                 task=task_description,
                 tier1_reasoning=tier1_reasoning,
                 tool_name=tool_name,

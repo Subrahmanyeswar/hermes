@@ -3,6 +3,8 @@
 # All calls use keep_alive=0 to release VRAM immediately after generation.
 # This is the ONLY file that makes HTTP calls to Ollama.
 
+from __future__ import annotations
+
 import time
 from typing import Any, Optional, Union
 
@@ -57,6 +59,26 @@ def normalize_ollama_payload(data: Any) -> str:
 # ---------------------------------------------------------------------------
 # Client
 # ---------------------------------------------------------------------------
+
+_SHARED_OLLAMA_CLIENT: Optional[OllamaClient] = None
+
+
+def get_shared_ollama_client() -> OllamaClient:
+    """Return a process-wide persistent OllamaClient singleton."""
+    global _SHARED_OLLAMA_CLIENT
+    if _SHARED_OLLAMA_CLIENT is None:
+        _SHARED_OLLAMA_CLIENT = OllamaClient(
+            timeout_seconds=MODEL_TIMEOUT_SECONDS,
+        )
+    return _SHARED_OLLAMA_CLIENT
+
+
+async def close_shared_ollama_client() -> None:
+    """Gracefully close the process-wide persistent OllamaClient."""
+    global _SHARED_OLLAMA_CLIENT
+    if _SHARED_OLLAMA_CLIENT is not None:
+        await _SHARED_OLLAMA_CLIENT.aclose()
+        _SHARED_OLLAMA_CLIENT = None
 
 
 class OllamaClient(ModelProvider):

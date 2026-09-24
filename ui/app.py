@@ -368,6 +368,13 @@ class HermesApp(App):
                 await self._orchestrator.stop_kairos()
             except Exception:
                 pass
+        try:
+            from models.nvidia_client import close_shared_nvidia_client
+            from models.ollama_client import close_shared_ollama_client
+            await close_shared_nvidia_client()
+            await close_shared_ollama_client()
+        except Exception:
+            pass
 
     # ── Layout ─────────────────────────────────────────────────────
 
@@ -436,26 +443,19 @@ class HermesApp(App):
             # Get the event queue from MissionDriver
             self._event_queue = self._mission_driver.get_event_queue()
 
-            # Post the mission plan as soon as it's ready
-            plan_task = asyncio.create_task(
-                self._wait_for_plan_and_post(user_request),
-                name="plan-poster"
-            )
-
-            # Start event consumer for live TUI updates
+            # Start single dedicated event consumer for live TUI updates
             consumer_task = asyncio.create_task(
-                self._consume_mission_events(None),
+                self._consume_mission_events(user_request),
                 name="event-consumer"
             )
 
             # Run the mission
             mission_result = await self._mission_driver.run_mission(user_request)
 
-            # Clean up background tasks
-            plan_task.cancel()
+            # Clean up background consumer
             consumer_task.cancel()
             try:
-                await asyncio.gather(plan_task, consumer_task, return_exceptions=True)
+                await consumer_task
             except Exception:
                 pass
 
@@ -518,33 +518,7 @@ class HermesApp(App):
             except Exception:
                 pass
 
-    async def _wait_for_plan_and_post(self, user_request: str) -> None:
-        """Wait for mission_planned event and post the plan to the chat panel."""
-        try:
-            while True:
-                event = await asyncio.wait_for(self._event_queue.get(), timeout=30.0)
-                if event.event_type == "mission_planned":
-                    mission_tasks = event.payload.get("tasks", [])
-                    plan_lines = [
-                        f"  {i+1:2d}. {t.get('title',''):<45} ○ Pending"
-                        for i, t in enumerate(mission_tasks)
-                    ]
-                    plan_text = "\n".join(plan_lines)
-                    self.post_message(OrchestratorResponse(
-                        user_request=user_request,
-                        final_output=f"Mission: {len(mission_tasks)} tasks\n{plan_text}",
-                        tool_name=None, success=True, stage_reached=2,
-                        tier3_called=False, latency_seconds=0.0,
-                        trace_id=event.payload.get("mission_id", ""),
-                        skill_ids=[], is_plan_update=True,
-                    ))
-                    return
-        except asyncio.TimeoutError:
-            pass
-        except asyncio.CancelledError:
-            pass
-
-    async def _consume_mission_events(self, mission) -> None:
+    async def _consume_mission_events(self, user_request: Optional[str] = None) -> None:
         """Consume MissionRunner events and update TUI in real-time."""
         try:
             while True:
@@ -559,7 +533,23 @@ class HermesApp(App):
                 event_type = event.event_type
                 payload = event.payload
 
-                if event_type == "thought":
+                if event_type == "mission_planned":
+                    mission_tasks = payload.get("tasks", [])
+                    plan_lines = [
+                        f"  {i+1:2d}. {t.get('title',''):<45} ○ Pending"
+                        for i, t in enumerate(mission_tasks)
+                    ]
+                    plan_text = "\n".join(plan_lines)
+                    self.post_message(OrchestratorResponse(
+                        user_request=user_request or "",
+                        final_output=f"Mission: {len(mission_tasks)} tasks\n{plan_text}",
+                        tool_name=None, success=True, stage_reached=2,
+                        tier3_called=False, latency_seconds=0.0,
+                        trace_id=payload.get("mission_id", ""),
+                        skill_ids=[], is_plan_update=True,
+                    ))
+
+                elif event_type == "thought":
                     try:
                         from ui.panels.status_bar import StatusBar
                         sb = self.query_one("#status-bar", StatusBar)

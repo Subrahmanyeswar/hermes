@@ -66,6 +66,7 @@ class MissionTask:
     acceptance_criteria: str = ""  # How to know this task succeeded
     error_message: str = ""
     required_files: list[str] = field(default_factory=list)
+    required_tools: list[str] = field(default_factory=list)
     required_content_keywords: list[str] = field(default_factory=list)
     is_verified: bool = False
     verification_evidence: str = ""
@@ -150,6 +151,12 @@ class Mission:
         """Returns (completed_count, total_count)."""
         completed = sum(1 for t in self.tasks if t.state == TaskState.COMPLETED)
         return completed, len(self.tasks)
+
+    def add_task(self, task: MissionTask) -> None:
+        """Add a task to the mission and update execution order."""
+        self.tasks.append(task)
+        if task.task_id not in self.execution_order:
+            self.execution_order.append(task.task_id)
 
     def _get_task(self, task_id: str) -> Optional[MissionTask]:
         return next((t for t in self.tasks if t.task_id == task_id), None)
@@ -537,11 +544,11 @@ Return a JSON array of task description strings only."""
 
         try:
             if TIER1_PROVIDER == "nvidia_nim":
-                from models.nvidia_client import NvidiaClient
-                client = NvidiaClient(model=TIER1_MODEL, base_url=TIER1_BASE_URL)
+                from models.nvidia_client import get_shared_nvidia_client
+                client = get_shared_nvidia_client()
             else:
-                from models.ollama_client import OllamaClient
-                client = OllamaClient()
+                from models.ollama_client import get_shared_ollama_client
+                client = get_shared_ollama_client()
 
             async def _call():
                 call_kwargs = {
@@ -597,6 +604,222 @@ Return a JSON array of task description strings only."""
         except Exception as e:
             logger.warning(f"MissionPlanner LLM decompose failed: {e}")
             return []
+
+    async def _llm_decompose_async(self, prompt: str, execution_mode: str = "production") -> list[str]:
+        """Asynchronous non-blocking decomposition using shared persistent client."""
+        import json as _json
+        from config.model_config import TIER1_PROVIDER, TIER1_MODEL, MODEL_KEEP_ALIVE
+
+        rule_9 = "9. Minimum 8 tasks. Maximum 25 tasks." if execution_mode == "benchmark" else "9. Output ONLY the necessary tasks (typically 1 to 5 tasks). Do not create artificial micro-tasks."
+
+        decomposition_system = f"""You are a senior software engineering project manager.
+Your job is to decompose a user's software development request into
+an ordered list of atomic implementation tasks.
+
+Rules:
+1. Each task must be ONE concrete, executable action.
+2. Tasks must be in the correct implementation order (dependencies first).
+3. Tasks must cover the COMPLETE implementation — not just setup.
+4. Include: project structure, all source files, styling, logic,
+   data/content, testing, validation, and final verification.
+5. For a website: include HTML structure, CSS/animations, JavaScript
+   logic, content, responsive design, and browser validation.
+6. Never stop at folder creation — always include file creation and
+   content writing tasks.
+7. Return a JSON array of strings — nothing else.
+8. Do NOT include markdown fences, explanations, or preamble.
+{rule_9}
+
+Example output format:
+["Create project folder structure at generated_projects/myapp/",
+ "Create index.html with full semantic HTML5 structure",
+ "Create styles.css with styling and layout",
+ "Create app.js with logic and event listeners"]"""
+
+        user_message = f"""Decompose this software development request into atomic implementation tasks:
+
+{prompt}
+
+Return a JSON array of task description strings only."""
+
+        try:
+            if TIER1_PROVIDER == "nvidia_nim":
+                from models.nvidia_client import get_shared_nvidia_client
+                client = get_shared_nvidia_client()
+            else:
+                from models.ollama_client import get_shared_ollama_client
+                client = get_shared_ollama_client()
+
+            call_kwargs = {
+                "model": TIER1_MODEL,
+                "prompt": user_message,
+                "system": decomposition_system,
+                "keep_alive": MODEL_KEEP_ALIVE,
+                "temperature": 0.2,
+                "num_ctx": 4096,
+            }
+            if execution_mode != "benchmark":
+                call_kwargs["think"] = False
+                call_kwargs["num_predict"] = 512
+
+            response = await client.generate(**call_kwargs)
+            raw = response.text.strip()
+
+            import re as _re
+            try:
+                tasks = _json.loads(raw)
+                if isinstance(tasks, list) and len(tasks) >= 2:
+                    return [str(t).strip() for t in tasks if str(t).strip()]
+            except _json.JSONDecodeError:
+                pass
+
+            match = _re.search(r'\[.*?\]', raw, _re.DOTALL)
+            if match:
+                try:
+                    tasks = _json.loads(match.group())
+                    if isinstance(tasks, list) and len(tasks) >= 2:
+                        return [str(t).strip() for t in tasks if str(t).strip()]
+                except _json.JSONDecodeError:
+                    pass
+
+            return []
+        except Exception as e:
+            logger.warning(f"MissionPlanner async decompose failed: {e}")
+            return []
+
+    async def _parse_intent_async(self, prompt: str, execution_mode: str = "production") -> list[str]:
+        """Asynchronous non-blocking intent parsing."""
+        import re
+        lines = [line.strip() for line in prompt.strip().split('\n') if line.strip()]
+
+        numbered = [re.sub(r'^\d+[\.\)]\s*', '', t) for t in lines if re.match(r'^\d+[\.\)]\s+', t)]
+        numbered = [t for t in numbered if t and len(t) > 3]
+        if len(numbered) >= 2:
+            return numbered
+
+        bulleted = [re.sub(r'^[-•*]\s*', '', t.strip()) for t in re.split(r'\n\s*[-•*]\s+', prompt)]
+        bulleted = [t for t in bulleted if t and len(t) > 3]
+        if len(bulleted) >= 2:
+            return bulleted
+
+        lower = prompt.lower().strip()
+
+        if execution_mode != "benchmark":
+            from core.website_fast_path import WebsiteFastPathClassifier
+            fast_path_decision = WebsiteFastPathClassifier.evaluate(prompt, execution_mode=execution_mode)
+            if fast_path_decision.fast_path_candidate:
+                logger.info(f"MissionPlanner: Website fast path activated: {fast_path_decision.reason}")
+                if not fast_path_decision.model_required:
+                    return [f"Execute deterministic website scaffolding for {fast_path_decision.target_files}"]
+                return [prompt.strip()]
+
+            file_matches = re.findall(r'\b([\w\-]+\.(?:html|css|js|py|json|md|txt|ts|tsx|jsx|sql|sh))\b', prompt, re.IGNORECASE)
+            unique_files = list(dict.fromkeys(file_matches))
+            if len(unique_files) >= 2 and any(kw in lower for kw in ["create", "write", "build", "generate", "make"]):
+                tasks = []
+                for fn in unique_files:
+                    tasks.append(f"Write {fn} for EduPath Mini website with necessary code.")
+                return tasks
+
+        is_complex_mission = any(w in lower for w in [
+            "website", "web app", "webpage", "landing page", "portfolio",
+            "animated", "career", "full stack", "frontend and backend",
+            "complete app"
+        ])
+
+        has_multi_task_separator = any(re.search(p, prompt, re.IGNORECASE) for p in [
+            r"\band\s+(?:write|create|add|implement|test|push|commit|run|build|generate|make|deploy|set up|init)\b",
+            r"\bthen\s+(?:write|create|add|implement|test|push|commit|run|build|generate|make|deploy|set up|init)\b",
+            r"\balso\s+(?:write|create|add|implement|test)\b",
+            r"\bafter\b", r"\bnext\b", r"\bfinally\b"
+        ])
+
+        if not is_complex_mission and not has_multi_task_separator:
+            return [prompt.strip()]
+
+        if has_multi_task_separator and not is_complex_mission:
+            normalized = prompt
+            for pattern in [
+                r"\s*\band\s+(?=(?:write|create|add|implement|test|push|commit|run|build|generate|make|deploy|set up|init)\b)",
+                r"\s*\bthen\s+(?=(?:write|create|add|implement|test|push|commit|run|build|generate|make|deploy|set up|init)\b)",
+                r"\s*\balso\s+(?=(?:write|create|add|implement|test)\b)",
+                r"\s*\bafter\b\s*", r"\s*\bnext\b\s*", r"\s*\bfinally\b\s*",
+            ]:
+                normalized = re.sub(pattern, " |TASK_SPLIT| ", normalized, flags=re.IGNORECASE)
+            parts = [p.strip() for p in normalized.split("|TASK_SPLIT|") if p.strip() and len(p.strip()) > 3]
+            if len(parts) >= 2:
+                return parts
+            return [prompt.strip()]
+
+        tasks = await self._llm_decompose_async(prompt, execution_mode=execution_mode)
+        if tasks and len(tasks) >= 2:
+            return tasks
+
+        return self._heuristic_decompose(prompt)
+
+    async def plan_async(self, user_prompt: str, workspace_root: str = "", execution_mode: str = "production") -> Mission:
+        """Asynchronous non-blocking planning method."""
+        mission = Mission(
+            user_prompt=user_prompt,
+            workspace_root=workspace_root,
+        )
+
+        raw_tasks = await self._parse_intent_async(user_prompt, execution_mode=execution_mode)
+        logger.info(f"MissionPlanner: parsed {len(raw_tasks)} tasks from prompt | mode={execution_mode}")
+
+        if not raw_tasks:
+            raw_tasks = [user_prompt.strip()]
+
+        tasks: list[MissionTask] = []
+        for i, raw in enumerate(raw_tasks):
+            task = MissionTask(
+                title=self._generate_title(raw),
+                description=raw.strip(),
+                priority=self._assign_priority(raw, i),
+                skill_hint=self._detect_skill(raw),
+                acceptance_criteria=self._generate_acceptance_criteria(raw),
+            )
+            tasks.append(task)
+
+        inspection_task = MissionTask(
+            title="Inspect workspace and existing files",
+            description=(
+                f"Before implementing anything, inspect the workspace at "
+                f"{workspace_root or 'generated_projects/'} to understand "
+                f"what already exists. Use list_directory and read_file to "
+                f"read the most relevant existing files. Identify: "
+                f"(1) what files already exist, "
+                f"(2) what framework/technology is in use, "
+                f"(3) what code can be reused, "
+                f"(4) what needs to be created from scratch. "
+                f"Report findings clearly."
+            ),
+            priority=TaskPriority.CRITICAL,
+            skill_hint="",
+            acceptance_criteria="Workspace structure and existing files inspected",
+            required_tools=["list_directory", "read_file"],
+        )
+
+        needs_inspection = not any(
+            t.description.lower().startswith("inspect")
+            for t in tasks
+        )
+        if needs_inspection:
+            tasks.insert(0, inspection_task)
+
+        self._assign_dependencies(tasks)
+        sorted_ids = self._topological_sort(tasks)
+
+        mission.tasks = tasks
+        mission.execution_order = sorted_ids
+        mission.acceptance_criteria = self._derive_acceptance_criteria(
+            user_prompt, tasks
+        )
+        mission.project_root_path = self._detect_project_root(
+            user_prompt, workspace_root=workspace_root
+        )
+
+        return mission
 
     def _heuristic_decompose(self, prompt: str) -> list[str]:
         """
@@ -878,7 +1101,7 @@ Return a JSON array of task description strings only."""
         task_map = {t.task_id: t for t in tasks}
         queue: list[str] = sorted(
             [tid for tid, degree in in_degree.items() if degree == 0],
-            key=lambda tid: task_map[tid].priority.value
+            key=lambda tid: task_map[tid].priority.value if hasattr(task_map[tid].priority, 'value') else int(task_map[tid].priority)
         )
 
         result: list[str] = []

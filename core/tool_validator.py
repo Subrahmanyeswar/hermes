@@ -63,6 +63,8 @@ PARAM_ALIASES = {
     "body": "content",
     "CodeContent": "content",
     "code_content": "content",
+    "fact": "content",
+    "note": "content",
     "TargetFile": "path",
     "target_file": "path",
 }

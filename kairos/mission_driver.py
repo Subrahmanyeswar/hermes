@@ -113,11 +113,18 @@ class MissionDriver:
 
         # Plan the mission
         exec_mode = getattr(self.orchestrator, "execution_mode", "production")
-        mission = self._planner.plan(
-            user_prompt,
-            workspace_root=global_workspace.root_str,
-            execution_mode=exec_mode,
-        )
+        if hasattr(self._planner, "plan_async"):
+            mission = await self._planner.plan_async(
+                user_prompt,
+                workspace_root=global_workspace.root_str,
+                execution_mode=exec_mode,
+            )
+        else:
+            mission = self._planner.plan(
+                user_prompt,
+                workspace_root=global_workspace.root_str,
+                execution_mode=exec_mode,
+            )
         self._current_mission = mission
 
         # Emit plan event

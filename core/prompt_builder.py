@@ -110,8 +110,8 @@ Mode: {mode}
 {workspace_context}
 
 ═══ RESPONSE FORMAT ═══
-If you generate reasoning inside <think>...</think> tags, keep your thinking concise (under 5 sentences).
-Immediately after </think> (or directly in your response), output ONLY a single valid JSON object matching:
+When native function/tool calling is available, ALWAYS invoke the appropriate tool natively (e.g. `write_file(path=..., content=...)`). Never emit raw file implementations or large code blocks as plain chat messages when a tool action is needed.
+If native tool calling is unavailable in your environment, output ONLY a single valid JSON tool call object:
 ```json
 {{
   "reasoning": "Brief explanation of your thinking",
@@ -126,7 +126,7 @@ Immediately after </think> (or directly in your response), output ONLY a single 
 
 ═══ FINAL REMINDER ═══
 If the task does not require modifying or reading files, running shell commands, or other tools (such as answering a direct informational question or conversational query), you may respond directly with your answer.
-Otherwise, respond ONLY with a single valid JSON tool call object. No explanation text outside the JSON.
+Otherwise, use the native tool calling interface (or respond ONLY with a single valid JSON tool call object). No explanation text outside the JSON.
 Remember: The mission continues until all requirements are satisfied.
 One successful file write does not mean the task is complete.
 Implement the complete requested functionality."""
@@ -193,6 +193,8 @@ Python files (minimum 20 lines):
   - Not just pass statements
 
 ═══ RESPONSE FORMAT ═══
+When native function/tool calling is available, ALWAYS invoke the appropriate tool natively (e.g. write_file(path=..., content=...)). Never emit raw file implementations or large code blocks as plain chat messages when a tool action is needed.
+If native tool calling is unavailable in your environment:
 If you generate reasoning inside <think>...</think> tags, keep your thinking concise (under 5 sentences).
 Immediately after </think> (or directly in your response), output ONLY a single valid JSON object matching:
 ```json
@@ -209,7 +211,7 @@ Immediately after </think> (or directly in your response), output ONLY a single 
 
 ═══ FINAL REMINDER ═══
 If the task does not require modifying or reading files, running shell commands, or other tools (such as answering a direct informational question or conversational query), you may respond directly with your answer.
-Otherwise, respond ONLY with a single valid JSON tool call object. No explanation text outside the JSON.
+Otherwise, use the native tool calling interface (or respond ONLY with a single valid JSON tool call object). No explanation text outside the JSON.
 Remember: The mission continues until all requirements are satisfied.
 One successful file write does not mean the task is complete.
 Implement the complete requested functionality."""

@@ -59,7 +59,8 @@ L0_KEYWORDS = frozenset({
 L3_KEYWORDS = frozenset({
     "refactor", "multi-file", "multiple files", "algorithm", "optimize",
     "cross-module", "integration", "debug across", "full pipeline",
-    "website", "webpage", "super website", "anime", "animation", "animations", "aesthetic", "genz"
+    "website", "webpage", "super website", "anime", "animation", "animations", "aesthetic", "genz",
+    "dashboard", "landing page", "index.html", "frontend"
 })
 
 L4_KEYWORDS = frozenset({
@@ -101,14 +102,14 @@ class ReasoningBudgetManager:
             ComplexityLevel.L3_COMPLEX: BudgetProfile(
                 level=ComplexityLevel.L3_COMPLEX,
                 num_predict=T1_BUDGET_L3,
-                timeout_seconds=180,
+                timeout_seconds=300,
                 temperature=0.10,
                 description="Multi-file implementation, refactoring, or algorithms"
             ),
             ComplexityLevel.L4_VERY_COMPLEX: BudgetProfile(
                 level=ComplexityLevel.L4_VERY_COMPLEX,
                 num_predict=T1_BUDGET_L4,
-                timeout_seconds=240,
+                timeout_seconds=360,
                 temperature=0.15,
                 description="System architecture, security, or complex concurrency"
             ),
@@ -136,7 +137,7 @@ class ReasoningBudgetManager:
             return ComplexityLevel.L0_DIRECT
 
         # L1 check: Simple file creation / small script / single file
-        if any(kw in text for kw in ("create file", "write file", "simple file", "index.html", "styles.css", "app.js", "create simple", "write simple", "helper function")):
+        if any(kw in text for kw in ("simple file", "create simple", "write simple", "helper function")):
             if not any(kw in text for kw in L4_KEYWORDS) and not any(kw in text for kw in L3_KEYWORDS):
                 return ComplexityLevel.L1_SIMPLE
 

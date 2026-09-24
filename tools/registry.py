@@ -187,6 +187,90 @@ def selective_tool_schema_for_prompt(
 
 
 # ---------------------------------------------------------------------------
+# OpenAI Function Tool Schemas
+# ---------------------------------------------------------------------------
+
+_OPENAI_TOOLS_CACHE: dict[str, dict] = {}
+
+
+def get_openai_tool_definition(name: str) -> dict | None:
+    """Return the cached OpenAI function tool definition for a single registered tool."""
+    _ensure_tools_loaded()
+    canonical_name = TOOL_ALIASES.get(name, name)
+    if canonical_name in _OPENAI_TOOLS_CACHE:
+        return _OPENAI_TOOLS_CACHE[canonical_name]
+
+    cls = _REGISTRY.get(canonical_name)
+    if cls is None:
+        return None
+
+    inp_cls = getattr(cls, "Input", None)
+    if inp_cls is not None:
+        schema_fn = getattr(inp_cls, "model_json_schema", getattr(inp_cls, "schema", None))
+        if schema_fn is not None:
+            raw_schema = schema_fn()
+            # Clean up Pydantic schema titles to reduce token overhead
+            cleaned_params = {
+                "type": "object",
+                "properties": raw_schema.get("properties", {}),
+                "required": raw_schema.get("required", []),
+            }
+        else:
+            cleaned_params = {"type": "object", "properties": {}}
+    else:
+        cleaned_params = {"type": "object", "properties": {}}
+
+    tool_def = {
+        "type": "function",
+        "function": {
+            "name": canonical_name,
+            "description": getattr(cls, "description", "")[:250],
+            "parameters": cleaned_params,
+        },
+    }
+    _OPENAI_TOOLS_CACHE[canonical_name] = tool_def
+    return tool_def
+
+
+def get_openai_tool_definitions(
+    tool_names: list[str] | None = None,
+    execution_mode: str = "production",
+    allow_batch_tools: bool = False,
+) -> list[dict]:
+    """Return list of OpenAI function tool definitions for the requested tools.
+
+    If tool_names is None, returns all canonical tools.
+    Benchmark isolation: write_files_batch is excluded in benchmark mode.
+    """
+    _ensure_tools_loaded()
+    if tool_names is None:
+        names = sorted([k for k in _REGISTRY.keys() if k != "write_files_batch"])
+    else:
+        selected = set(tool_names)
+        if any(t in selected for t in ("write_file", "append_file", "write_files_batch")):
+            selected.update(["read_file", "list_directory", "create_folder"])
+            if allow_batch_tools:
+                selected.add("write_files_batch")
+        elif any(t in selected for t in ("run_tests", "run_python")):
+            selected.update(["read_file", "bash_exec"])
+        elif not selected:
+            selected = {"read_file", "write_file", "list_directory", "create_folder", "bash_exec"}
+
+        if not allow_batch_tools and "write_files_batch" in selected and "write_files_batch" not in tool_names:
+            selected.discard("write_files_batch")
+
+        names = sorted([k for k in selected if k in _REGISTRY])
+
+    definitions = []
+    for n in names:
+        d = get_openai_tool_definition(n)
+        if d is not None:
+            definitions.append(d)
+    return definitions
+
+
+
+# ---------------------------------------------------------------------------
 # Permission gate
 # ---------------------------------------------------------------------------
 

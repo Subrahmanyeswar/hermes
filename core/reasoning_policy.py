@@ -52,13 +52,14 @@ COMPLEX_INDICATORS = frozenset({
     "race condition", "cryptography", "distributed", "memory leak",
     "deadlock", "vulnerability", "exploit", "auth bypass",
     "complex algorithm", "dynamic programming", "graph theory",
-    "anime", "animation", "animations", "aesthetic", "genz", "super website"
+    "anime", "animation", "animations", "aesthetic", "genz", "super website",
+    "dashboard", "interactive", "landing page", "frontend", "ui", "single-page", "website", "webpage"
 })
 
 # Keywords that signal simple, mechanical, or single-file operations
 SIMPLE_INDICATORS = frozenset({
     "create file", "write file", "make file", "new file", "simple file",
-    "index.html", "styles.css", "app.js", "readme", "config",
+    "styles.css", "app.js", "readme", "config",
     "mkdir", "directory", "list", "read", "view", "rename", "check",
     "single function", "helper function", "basic styling", "heading"
 })
@@ -98,7 +99,9 @@ class ReasoningPolicy:
 
         # Simple file writes or standard web starter files are SIMPLE
         if tool_name in ("write_file", "create_file"):
-            if any(kw in text for kw in SIMPLE_INDICATORS) or not any(kw in text for kw in COMPLEX_INDICATORS):
+            if any(kw in text for kw in COMPLEX_INDICATORS):
+                return TaskComplexity.COMPLEX
+            if any(kw in text for kw in SIMPLE_INDICATORS):
                 return TaskComplexity.SIMPLE
 
         # General text checks: only classify as SIMPLE if explicit simple markers match
@@ -177,11 +180,11 @@ class ReasoningPolicy:
             )
 
         else:
-            # COMPLEX: think=True preserved, with 180s timeout and 4096 budget
+            # COMPLEX: think=True preserved, with 360s timeout and 2560 budget
             return ResolvedReasoningPolicy(
                 think=True if is_deepseek_r1 else None,
-                num_predict=4096,
-                timeout_seconds=180,
+                num_predict=2560,
+                timeout_seconds=360,
                 temperature=0.15,
                 complexity=TaskComplexity.COMPLEX,
                 execution_mode=execution_mode

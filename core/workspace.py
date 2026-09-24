@@ -209,14 +209,40 @@ class WorkspaceManager:
         if self.workspace_root is None:
             return
 
+        start = time.monotonic()
+        idx = WorkspaceIndex(workspace_root=str(self.workspace_root))
+
         from config.model_config import WORKSPACE_INTELLIGENCE_ENABLED
         from core.workspace_indexer import workspace_indexer
 
         if WORKSPACE_INTELLIGENCE_ENABLED:
-            workspace_indexer.index_workspace(self.workspace_root)
+            index_res = workspace_indexer.index_workspace(self.workspace_root)
+            records = index_res.get("records")
+            if records is not None:
+                for f in records:
+                    entry = FileEntry(
+                        relative_path=f.rel_path,
+                        absolute_path=f.abs_path,
+                        size_bytes=f.size_bytes,
+                        extension=f.extension,
+                        last_modified=f.mtime,
+                    )
+                    idx.files[f.rel_path] = entry
+                    idx.total_files += 1
+                    idx.total_size_bytes += f.size_bytes
 
-        start = time.monotonic()
-        idx = WorkspaceIndex(workspace_root=str(self.workspace_root))
+                idx.indexed_at = time.monotonic()
+                idx.framework_detected = self._detect_framework(idx)
+                idx.language_detected = self._detect_language(idx)
+                self.index = idx
+
+                elapsed = time.monotonic() - start
+                logger.info(
+                    f"WorkspaceManager: indexed {idx.total_files} files (single-pass) "
+                    f"in {elapsed:.2f}s | framework={idx.framework_detected}"
+                )
+                return
+
         dirs_disc = 0
         files_disc = 0
         files_ign = 0

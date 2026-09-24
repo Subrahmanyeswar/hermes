@@ -16,6 +16,12 @@ class NormalizedModelResponse(BaseModel):
     output_tokens: int = 0
     total_tokens: int = 0
     latency_ms: float = 0.0
+    ttfb_ms: float = 0.0
+    ttft_reasoning_ms: float = 0.0
+    ttft_content_ms: float = 0.0
+    ttft_tool_ms: float = 0.0
+    ttfu_ms: float = 0.0
+    raw_timing_metadata: Dict[str, Any] = Field(default_factory=dict)
     error: Optional[str] = None
     raw_response: str = ""
     cost_usd: float = 0.0

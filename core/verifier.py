@@ -229,6 +229,10 @@ class Tier2Verifier:
             tool_result=result_str,
         )
 
+        mission_id = kwargs.get("mission_id") or getattr(self, "mission_id", "")
+        task_id = kwargs.get("task_id") or getattr(self, "task_id", "")
+        logger.info(f"MODEL_START | tier=2 | provider=ollama | model={self.model} | mission_id={mission_id} | task_id={task_id}")
+
         try:
             resp = await self.ollama.generate(
                 model=self.model,
@@ -240,6 +244,7 @@ class Tier2Verifier:
             )
             raw = getattr(resp, "text", str(resp))
             latency = time.monotonic() - start_time
+            logger.info(f"MODEL_COMPLETE | tier=2 | provider=ollama | model={self.model} | mission_id={mission_id} | task_id={task_id} | latency={latency:.2f}s")
 
             # Parse response
             data = None
@@ -290,6 +295,7 @@ class Tier2Verifier:
 
         except OllamaTimeoutError:
             latency = time.monotonic() - start_time
+            logger.error(f"MODEL_ERROR | tier=2 | provider=ollama | model={self.model} | mission_id={mission_id} | task_id={task_id} | latency={latency:.2f}s | error=OllamaTimeoutError")
             logger.warning(f"Tier 2 verification timed out after {latency:.1f}s — defaulting to escalate")
             return VerificationResult(
                 agree=False,
@@ -304,6 +310,7 @@ class Tier2Verifier:
 
         except OllamaConnectionError:
             latency = time.monotonic() - start_time
+            logger.error(f"MODEL_ERROR | tier=2 | provider=ollama | model={self.model} | mission_id={mission_id} | task_id={task_id} | latency={latency:.2f}s | error=OllamaConnectionError")
             logger.error("Tier 2 verification failed — Ollama not reachable")
             return VerificationResult(
                 agree=True,
@@ -318,6 +325,7 @@ class Tier2Verifier:
 
         except Exception as e:
             latency = time.monotonic() - start_time
+            logger.error(f"MODEL_ERROR | tier=2 | provider=ollama | model={self.model} | mission_id={mission_id} | task_id={task_id} | latency={latency:.2f}s | error={e}")
             logger.warning(f"Tier2Verifier.verify error: {e}")
             return VerificationResult(
                 agree=True,

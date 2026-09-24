@@ -1,7 +1,28 @@
+# Environments
 venv/
 bench_venv/
 .venv/
+
+# Local database & credentials
 data/
+*.db
 .env
+*.env
+
+# Python compilation & cache
 __pycache__/
-*.pyc
+*.pyc
+*.pyo
+.pytest_cache/
+
+# Runtime and telemetry logs
+*.log
+logs/
+.system_generated/
+
+# Historical benchmark trace telemetry (preserved locally on disk)
+artifacts/performance/traces/
+
+# Temporary runtime artifacts & scratch exploration
+scratch/
+generated_projects/

@@ -152,7 +152,7 @@ class ContextEngine:
         items.append(ContextItem(
             id="user:task_instruction",
             source=ContextSource.USER_TASK,
-            content=f"TASK: {task_text}\n\nCRITICAL: If you use <think>...</think>, keep your thinking concise. Respond ONLY with a single valid JSON tool call object.",
+            content=f"TASK: {task_text}\n\nCRITICAL: If you use <think>...</think>, keep your thinking concise. Use native tool calling (e.g. write_file) when tools are available.",
             relevance_score=100.0,
             is_hard_required=True
         ))
@@ -182,10 +182,20 @@ class ContextEngine:
             for rf in retrieved_files:
                 sym_info = f" (Symbols: {', '.join(rf.symbols)})" if rf.symbols else ""
                 flag = " [TEST]" if rf.is_test_file else (" [DEP]" if rf.is_dependency else "")
+                file_text_summary = f"Relevant File: {rf.rel_path}{flag}{sym_info}"
+                try:
+                    full_p = Path(workspace_manager.workspace_root) / rf.rel_path
+                    if full_p.exists() and full_p.suffix == ".py":
+                        code = full_p.read_text(encoding="utf-8")
+                        lines = code.splitlines()
+                        if len(lines) <= 80:
+                            file_text_summary += f"\n```{rf.rel_path}\n{code}\n```"
+                except Exception:
+                    pass
                 items.append(ContextItem(
                     id=f"workspace:file:{rf.rel_path}",
                     source=ContextSource.WORKSPACE_FILE,
-                    content=f"Relevant File: {rf.rel_path}{flag}{sym_info}",
+                    content=file_text_summary,
                     relevance_score=rf.score,
                     metadata={
                         "rel_path": rf.rel_path,

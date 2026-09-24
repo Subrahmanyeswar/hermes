@@ -294,6 +294,7 @@ class DisagreementRouter:
                 keep_alive=MODEL_KEEP_ALIVE,
                 temperature=0.25,   # Slightly higher for exploration
                 num_ctx=4096,
+                num_predict=2048,
             )
             alt_response = getattr(alt_resp, "text", str(alt_resp))
 
