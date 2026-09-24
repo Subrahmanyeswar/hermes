@@ -26,3 +26,11 @@ artifacts/performance/traces/
 # Temporary runtime artifacts & scratch exploration
 scratch/
 generated_projects/
+
+# Historical benchmark artifacts and optimization probes (preserved locally, excluded from release)
+artifacts/performance/
+artifacts/production_hardening_results.json
+benchmarks/performance_gate_suite.py
+benchmarks/production_hardening/
+benchmarks/t1_ttft_experiments.py
+benchmarks/ttfu_optimization_matrix.py
