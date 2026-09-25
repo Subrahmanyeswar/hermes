@@ -1,8 +1,8 @@
 # HERMES — Hierarchical Execution and Reasoning with Memory-Evolving Supervision
 
-**Release: `v1.0.0-rc1`**
+**Release: `v1.0.0-rc2`**
 
-[![Version](https://img.shields.io/badge/version-v1.0.0--rc1-blue.svg)](https://github.com/Subrahmanyeswar/hermes)
+[![Version](https://img.shields.io/badge/version-v1.0.0--rc2-blue.svg)](https://github.com/Subrahmanyeswar/hermes)
 [![Status](https://img.shields.io/badge/status-frozen-success.svg)](https://github.com/Subrahmanyeswar/hermes)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
