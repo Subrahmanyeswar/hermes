@@ -281,17 +281,17 @@ async def test_ollama_client_arbitrate_contract():
 
 def test_status_bar_model_indicators():
     from ui.panels.status_bar import StatusBar, _format_model_badge
-    assert _format_model_badge("z-ai/glm-5.3") == "GLM-5.3"
+    assert _format_model_badge("z-ai/glm-5.3-flash") == "GLM-5.3-Flash"
     assert _format_model_badge("gpt-oss:120b-cloud") == "GPT-OSS"
     assert _format_model_badge("nemotron-3-ultra:cloud") == "Nemotron"
 
     bar = StatusBar()
-    assert bar.tier1_model == "GLM-5.3"
+    assert bar.tier1_model == "GLM-5.3-Flash"
     assert bar.tier2_model == "GPT-OSS"
     assert bar.tier3_model == "Nemotron"
 
     rendered = bar._render_status_text()
-    assert "T1:GLM-5.3+T2:GPT-OSS" in rendered.plain
+    assert "T1:GLM-5.3-Flash+T2:GPT-OSS" in rendered.plain
 
 
 @pytest.mark.asyncio

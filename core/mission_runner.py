@@ -80,6 +80,7 @@ class MissionResult:
     files_modified: list[str] = field(default_factory=list)
     walkthrough_text: str = ""
     error: Optional[str] = None
+    status: str = "COMPLETE"
 
 
 class MissionRunner:
@@ -355,6 +356,7 @@ class MissionRunner:
         inner_iteration = 0
         last_orch_result = None
         quality_result = None
+        task_tool_history: list[dict] = []
 
         while inner_iteration < MAX_INNER_ITERATIONS:
             inner_iteration += 1
@@ -431,8 +433,14 @@ class MissionRunner:
 
             self.orchestrator._progress_callback = _pipeline_progress
 
+            ws_snapshot_before = self._get_workspace_snapshot(mission)
+
             try:
-                orch_result = await self.orchestrator.run(enriched_prompt)
+                orch_result = await self.orchestrator.run(
+                    enriched_prompt,
+                    mission_id=mission.mission_id,
+                    task_id=task.task_id,
+                )
             except Exception as exc:
                 logger.error(
                     f"MissionRunner: unexpected error during task '{task.title}' "
@@ -457,6 +465,9 @@ class MissionRunner:
             finally:
                 self.orchestrator._progress_callback = None
 
+            ws_snapshot_after = self._get_workspace_snapshot(mission)
+            workspace_changed = (ws_snapshot_before != ws_snapshot_after)
+
             last_orch_result = orch_result
 
             # Track costs
@@ -475,6 +486,102 @@ class MissionRunner:
                     self._recent_outputs = self._recent_outputs[-12:]
 
             self._track_file_changes(orch_result)
+
+            # No-progress inspection stall detection
+            tool_name = getattr(orch_result, "tool_name", "") or ""
+            tool_call = getattr(orch_result, "tool_call", {}) or {}
+            raw_params = {}
+            if isinstance(tool_call, dict):
+                raw_params = tool_call.get("parameters") or tool_call.get("arguments") or {}
+            norm_params = json.dumps(raw_params, sort_keys=True) if isinstance(raw_params, dict) else str(raw_params)
+            tool_fingerprint = f"{tool_name}:{norm_params}"
+
+            record = {
+                "iteration": inner_iteration,
+                "tool_name": tool_name,
+                "fingerprint": tool_fingerprint,
+                "output": (orch_result.final_output or "")[:200],
+                "workspace_changed": workspace_changed,
+            }
+            task_tool_history.append(record)
+
+            is_read_only = tool_name in (
+                "list_directory", "read_file", "search_files", "file_exists", "view_file"
+            )
+            consecutive_stalls = 0
+            if is_read_only and len(task_tool_history) >= 2:
+                prev = task_tool_history[-2]
+                curr = task_tool_history[-1]
+                if (
+                    curr["tool_name"] == prev["tool_name"]
+                    and curr["fingerprint"] == prev["fingerprint"]
+                    and not curr["workspace_changed"]
+                    and not prev["workspace_changed"]
+                ):
+                    consecutive_stalls = 2
+
+            if consecutive_stalls >= 2:
+                await self._emit(MissionEvent(
+                    event_type="agent_stall_detected",
+                    payload={
+                        "task_id": task.task_id,
+                        "tool_name": tool_name,
+                        "fingerprint": tool_fingerprint,
+                        "consecutive_count": consecutive_stalls,
+                        "workspace_changed": False,
+                    }
+                ))
+                logger.warning(
+                    f"TASK_PROGRESS | task_id={task.task_id} | iteration={inner_iteration} | "
+                    f"tool={tool_name} | status=STALL_DETECTED | repeated_execution={tool_fingerprint} | "
+                    f"workspace_changed=False"
+                )
+                try:
+                    from core.event_bus import event_bus, EventType
+                    event_bus.publish(EventType.TASK_PROGRESS, {
+                        "task_id": task.task_id,
+                        "inner_iteration": inner_iteration,
+                        "tool_name": tool_name,
+                        "tool_fingerprint": tool_fingerprint,
+                        "workspace_changed": False,
+                        "status": "STALL_DETECTED",
+                    })
+                except Exception:
+                    pass
+
+                corrective_msg = (
+                    "NO PROGRESS DETECTED: You already inspected the workspace with this action "
+                    "and no state changed. Do not repeat the same inspection. "
+                    "Proceed to the next required implementation action."
+                )
+                if self._task_needs_implementation(task):
+                    corrective_msg += (
+                        "\nCRITICAL REQUIREMENT: This task requires file creation. "
+                        "You MUST invoke write_file now to create the required file(s). "
+                        "Do not run any more inspection or listing tools."
+                    )
+                current_description = f"{corrective_msg}\n\nTask: {task.description}"
+                if inner_iteration < MAX_INNER_ITERATIONS:
+                    await asyncio.sleep(0.5)
+                    continue
+            else:
+                logger.info(
+                    f"TASK_PROGRESS | task_id={task.task_id} | iteration={inner_iteration} | "
+                    f"tool={tool_name} | status={'SUCCESS' if orch_result.success else 'FAILED'} | "
+                    f"workspace_changed={workspace_changed}"
+                )
+                try:
+                    from core.event_bus import event_bus, EventType
+                    event_bus.publish(EventType.TASK_PROGRESS, {
+                        "task_id": task.task_id,
+                        "inner_iteration": inner_iteration,
+                        "tool_name": tool_name,
+                        "tool_fingerprint": tool_fingerprint,
+                        "workspace_changed": workspace_changed,
+                        "status": "PROGRESS" if orch_result.success else "FAILED",
+                    })
+                except Exception:
+                    pass
 
             # Emit tool result
             await self._emit(MissionEvent(
@@ -1070,6 +1177,7 @@ RULES:
 2. Use read_file to inspect existing files before modifying them
 3. For multi-file tasks: retrieve and understand dependencies first
 4. After writing: the implementation will be verified by structured feedback
+5. For file creation tasks, invoke write_file directly to produce the files. Do not repeat workspace listing or inspection if the target file is specified.
 
 TASK:
 {override_description}
@@ -1077,6 +1185,36 @@ TASK:
 SUCCESS CRITERION: {task.acceptance_criteria}
 """
         return base + enforcement
+
+    def _get_workspace_snapshot(self, mission: Mission) -> tuple[int, int]:
+        """Compute a fast snapshot (file_count, total_size) of the workspace."""
+        try:
+            from pathlib import Path
+            root = None
+            if self.workspace and self.workspace.is_locked and self.workspace.workspace_root:
+                root = Path(self.workspace.workspace_root)
+            elif mission and mission.project_root_path:
+                root = Path(mission.project_root_path)
+            elif mission and mission.workspace_root:
+                root = Path(mission.workspace_root)
+            else:
+                root = Path.cwd()
+
+            if not root or not root.exists():
+                return (0, 0)
+
+            count = 0
+            size = 0
+            for p in root.rglob("*"):
+                if p.is_file() and not any(part.startswith(".") for part in p.parts):
+                    count += 1
+                    try:
+                        size += p.stat().st_size
+                    except OSError:
+                        pass
+            return (count, size)
+        except Exception:
+            return (0, 0)
 
     def _get_memory_context(self) -> str:
         """Read current memory context for injection."""
@@ -1239,11 +1377,27 @@ SUCCESS CRITERION: {task.acceptance_criteria}
     ) -> MissionResult:
         elapsed = time.monotonic() - self._start_time
         completed, total = mission.progress
+        failed_count = sum(1 for t in mission.tasks if t.state == TaskState.FAILED)
+
+        status = "COMPLETE" if success else "FAILED"
+        if not success and self._files_created:
+            has_network_err = any(
+                any(kw in (t.error_message or "").lower() for kw in [
+                    "nvidiaconnectionerror", "connectionerror", "timeout", "timed out", 
+                    "could not connect", "all connection attempts failed", "network"
+                ])
+                for t in mission.tasks if t.state == TaskState.FAILED
+            ) or (error and any(kw in error.lower() for kw in ["connection", "timeout", "network"]))
+            if has_network_err:
+                status = "VERIFICATION_INTERRUPTED"
+                if not error:
+                    error = "Artifact created; later verification interrupted by provider/network failure"
+
         return MissionResult(
             mission_id=mission.mission_id,
             success=success,
             tasks_completed=completed,
-            tasks_failed=sum(1 for t in mission.tasks if t.state == TaskState.FAILED),
+            tasks_failed=failed_count,
             tasks_total=total,
             total_latency_seconds=elapsed,
             total_cost_usd=self._total_cost,
@@ -1251,6 +1405,7 @@ SUCCESS CRITERION: {task.acceptance_criteria}
             files_created=self._files_created.copy(),
             files_modified=self._files_modified.copy(),
             error=error,
+            status=status,
         )
 
     def abort(self) -> None:

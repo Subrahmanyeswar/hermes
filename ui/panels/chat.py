@@ -1066,6 +1066,15 @@ class ChatPanel(Widget):
             # Widget not mounted yet
             pass
 
+    def update_progress(self, event_type: str, data: dict) -> None:
+        """Forward stage progress events to the active ProcessingIndicator if present."""
+        try:
+            indicator = self.query_one("#processing-indicator", ProcessingIndicator)
+            indicator.update_progress(event_type, data)
+            indicator.refresh()
+        except Exception:
+            pass
+
     # ── App message handlers ──────────────────────────────────────────
 
     @on(OrchestratorResponse)

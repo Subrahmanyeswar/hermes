@@ -167,6 +167,13 @@ class Orchestrator:
     async def _generate_t1(self, **kwargs) -> Any:
         """Execute Tier 1 generation through configured provider with test harness compatibility."""
         tier1_client = self.active_t1_client
+        if "request_id" not in kwargs:
+            curr_trace = getattr(self, "_current_trace_id", None)
+            if curr_trace:
+                kwargs["request_id"] = curr_trace
+                kwargs.setdefault("mission_id", curr_trace)
+                kwargs.setdefault("task_id", curr_trace)
+        kwargs.setdefault("stage", "Tier 1 Generation")
         if tier1_client is getattr(self, "ollama", None) and self.ollama is not getattr(self, "_default_ollama", None):
             return await self.ollama.generate(**kwargs)
         ollama_gen = getattr(getattr(self, "ollama", None), "generate", None)
@@ -240,9 +247,14 @@ class Orchestrator:
         """Extract explicit filenames/paths requested to be created in the user prompt."""
         import re
         artifacts = set()
+        IGNORED_NAMES = {
+            "pytest.py", "test.py", "python.py",
+            "next.js", "node.js", "vue.js", "react.js", "express.js",
+            "chart.js", "three.js", "d3.js", "tailwind.css", "bootstrap.css",
+        }
         for m in re.finditer(r"([a-zA-Z0-9_\-/\\]+\.(?:py|html|css|js|json|md|txt|sh))\b", text):
             p = m.group(1).replace("\\", "/")
-            if p not in ("pytest.py", "test.py", "python.py"):
+            if p.lower() not in IGNORED_NAMES:
                 artifacts.add(p)
         return sorted(list(artifacts))
 
@@ -263,6 +275,18 @@ class Orchestrator:
         for c in candidates:
             if c.exists():
                 return c
+        
+        # Check subdirectories of workspace root for p.name
+        try:
+            matches = [
+                m for m in ws_root.glob(f"**/{p.name}")
+                if ".git" not in m.parts and ".venv" not in m.parts and "artifacts" not in m.parts
+            ]
+            if matches:
+                return matches[0]
+        except Exception:
+            pass
+
         return ws_root / p
 
     async def _execute_single_tool(self, tool_name: str, tool_params: dict, sanitised: str):
@@ -294,15 +318,22 @@ class Orchestrator:
             t_res = instance.execute(t_input)
         return t_res, t_name, t_params
 
-    async def run(self, user_request: str, on_progress=None) -> OrchestratorResult:
+    async def run(self, user_request: str, on_progress=None, **kwargs) -> OrchestratorResult:
         """
         Run the full 12-stage pipeline for one user request.
         Never raises — always returns OrchestratorResult.
         """
         start_time = time.monotonic()
         # Generate unique trace ID for this pipeline run and initialize telemetry
-        telem_req = telemetry.start_request(user_request, mode=self.mode, project=self.project)
+        telem_req = telemetry.start_request(
+            user_request,
+            mode=self.mode,
+            project=self.project,
+            execution_mode=self.execution_mode,
+            mission_id=kwargs.get("mission_id"),
+        )
         trace_id = telem_req.request_id if telem_req.request_id else generate_trace_id()
+        self._current_trace_id = trace_id
         tlog = get_trace_logger(trace_id)
         result = OrchestratorResult(success=False, final_output="", trace_id=trace_id)
 
@@ -1104,6 +1135,9 @@ class Orchestrator:
                     verifier=self.verifier,
                     task_complexity=getattr(task, 'complexity_score', 0.5),
                     execution_mode=self.execution_mode,
+                    request_id=trace_id,
+                    mission_id=trace_id,
+                    task_id=getattr(task, 'task_id', trace_id),
                 )
             except Exception as t2_exc:
                 from models.ollama_client import OllamaTimeoutError
@@ -1302,7 +1336,10 @@ class Orchestrator:
                         tier1_output=str(tier1_parsed),
                         tier2_issues=verification.critical_issues,
                         tool_result=tool_result.output[:400],
-                        escalation_reason=routing.reason
+                        escalation_reason=routing.reason,
+                        request_id=trace_id,
+                        mission_id=t3_mission_id,
+                        task_id=t3_mission_id,
                     )
 
                     if not tier3_response.success:

@@ -48,7 +48,7 @@ def _format_model_badge(model_name: str) -> str:
         return ""
     m_lower = model_name.lower()
     if "glm-5.3" in m_lower:
-        return "GLM-5.3"
+        return "GLM-5.3-Flash"
     if "gpt-oss" in m_lower:
         return "GPT-OSS"
     if "nemotron" in m_lower:
@@ -70,14 +70,14 @@ class StatusBar(Widget):
     """
 
     # ── Reactive state ────────────────────────────────────────────────
-    mode: reactive[str]          = reactive("auto",     layout=False)
-    skill: reactive[str]         = reactive("none",     layout=False)
-    cost: reactive[float]        = reactive(0.0,        layout=False)
-    kairos_status: reactive[str] = reactive("idle",     layout=False)
-    processing: reactive[bool]   = reactive(False,      layout=False)
-    spinner_verb: reactive[str]  = reactive("Ready",    layout=False)
-    tier1_model: reactive[str]   = reactive("GLM-5.3",  layout=False)
-    tier2_model: reactive[str]   = reactive("GPT-OSS",  layout=False)
+    mode: reactive[str]          = reactive("auto",          layout=False)
+    skill: reactive[str]         = reactive("none",          layout=False)
+    cost: reactive[float]        = reactive(0.0,             layout=False)
+    kairos_status: reactive[str] = reactive("idle",          layout=False)
+    processing: reactive[bool]   = reactive(False,           layout=False)
+    spinner_verb: reactive[str]  = reactive("Ready",         layout=False)
+    tier1_model: reactive[str]   = reactive("GLM-5.3-Flash", layout=False)
+    tier2_model: reactive[str]   = reactive("GPT-OSS",       layout=False)
     tier3_model: reactive[str]   = reactive("Nemotron", layout=False)
     workspace_name: reactive[str]= reactive("",         layout=False)
     framework: reactive[str]     = reactive("",         layout=False)

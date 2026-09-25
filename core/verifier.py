@@ -241,6 +241,10 @@ class Tier2Verifier:
                 keep_alive=MODEL_KEEP_ALIVE,
                 temperature=0.1,
                 num_ctx=4096,
+                request_id=kwargs.get("request_id") or mission_id,
+                mission_id=mission_id,
+                task_id=task_id,
+                stage="Tier 2 Verification",
             )
             raw = getattr(resp, "text", str(resp))
             latency = time.monotonic() - start_time

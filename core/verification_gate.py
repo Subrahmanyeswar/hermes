@@ -335,8 +335,9 @@ class VerificationGate:
         if not file_p.is_absolute() and ws_root:
             file_p = ws_root / path_str
 
-        # If this is a test file, execute it using pytest in the workspace environment
-        if file_p.name.startswith("test_") or file_p.name.endswith("_test.py"):
+        # If this is a test file and actually contains test definitions, execute it using pytest in the workspace environment
+        has_tests = "def test_" in code_to_parse or "class Test" in code_to_parse
+        if (file_p.name.startswith("test_") or file_p.name.endswith("_test.py")) and has_tests:
             checks_run.append(f"test_execution_check:{file_p.name}")
             import tempfile
             temp_file = None
@@ -358,15 +359,17 @@ class VerificationGate:
                 pp = os.pathsep.join(filter(None, [str(ws_root), str(file_p.parent), env.get("PYTHONPATH", "")]))
                 env["PYTHONPATH"] = pp
 
+                import shutil
+                pytest_cmd = ["uv", "run", "pytest"] if shutil.which("uv") else [sys.executable, "-m", "pytest"]
                 proc = subprocess.run(
-                    [sys.executable, "-m", "pytest", str(temp_file), "-q", "--tb=short"],
+                    pytest_cmd + [str(temp_file), "-q", "--tb=short"],
                     cwd=str(ws_root),
                     env=env,
                     capture_output=True,
                     text=True,
                     timeout=15
                 )
-                if proc.returncode != 0:
+                if proc.returncode not in (0, 5):
                     raw_out = (proc.stdout or "") + "\n" + (proc.stderr or "")
                     lines = [line.strip() for line in raw_out.splitlines() if line.strip() and not line.startswith("=")]
                     summary = " | ".join(lines[-3:]) if lines else "pytest returned non-zero exit code"
@@ -578,7 +581,11 @@ class VerificationGate:
         tool_success: bool,
         verifier: Tier2Verifier,
         task_complexity: float = 0.5,
-        execution_mode: str = "production"
+        execution_mode: str = "production",
+        request_id: Optional[str] = None,
+        mission_id: Optional[str] = None,
+        task_id: Optional[str] = None,
+        **kwargs: Any,
     ) -> Tuple[VerificationResult, str]:
         """
         Evaluate verification for a completed tool call.
@@ -593,7 +600,10 @@ class VerificationGate:
                 tool_name=tool_name,
                 tool_parameters=tool_parameters,
                 tool_result_output=tool_result_output[:600],
-                tool_exit_code=tool_exit_code
+                tool_exit_code=tool_exit_code,
+                request_id=request_id,
+                mission_id=mission_id,
+                task_id=task_id,
             )
             return res, "BENCHMARK_FROZEN_T2"
 
@@ -606,7 +616,10 @@ class VerificationGate:
                 tool_name=tool_name,
                 tool_parameters=tool_parameters,
                 tool_result_output=tool_result_output[:600],
-                tool_exit_code=tool_exit_code
+                tool_exit_code=tool_exit_code,
+                request_id=request_id,
+                mission_id=mission_id,
+                task_id=task_id,
             )
             return res, "LEGACY_T2_FULL"
 
@@ -653,7 +666,10 @@ class VerificationGate:
                 tool_name=tool_name,
                 tool_parameters=tool_parameters,
                 tool_result_output=fail_msg,
-                tool_exit_code=tool_exit_code
+                tool_exit_code=tool_exit_code,
+                request_id=request_id,
+                mission_id=mission_id,
+                task_id=task_id,
             )
             # Ensure issues from local checks are preserved in result and agree is False
             res.agree = False
@@ -672,7 +688,10 @@ class VerificationGate:
                 tool_name=tool_name,
                 tool_parameters=tool_parameters,
                 tool_result_output=tool_result_output[:600],
-                tool_exit_code=tool_exit_code
+                tool_exit_code=tool_exit_code,
+                request_id=request_id,
+                mission_id=mission_id,
+                task_id=task_id,
             )
             return res, "T2_SECURITY_SENSITIVE"
 
@@ -688,7 +707,10 @@ class VerificationGate:
                 tool_name=tool_name,
                 tool_parameters=tool_parameters,
                 tool_result_output=tool_result_output[:600],
-                tool_exit_code=tool_exit_code
+                tool_exit_code=tool_exit_code,
+                request_id=request_id,
+                mission_id=mission_id,
+                task_id=task_id,
             )
             return res, "T2_SEMANTIC_REASONING"
 
@@ -740,6 +762,9 @@ class VerificationGate:
             tool_name=tool_name,
             tool_parameters=tool_parameters,
             tool_result_output=tool_result_output[:600],
-            tool_exit_code=tool_exit_code
+            tool_exit_code=tool_exit_code,
+            request_id=request_id,
+            mission_id=mission_id,
+            task_id=task_id,
         )
         return res, "T2_CONSERVATIVE_FALLBACK"

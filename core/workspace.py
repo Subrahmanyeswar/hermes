@@ -36,6 +36,7 @@ IGNORE_PATTERNS: list[str] = [
     "*.pyc", "*.pyo", "*.pyd", ".DS_Store", "*.egg-info", "dist",
     "build", ".pytest_cache", ".mypy_cache", "*.min.js", "*.min.css",
     ".next", ".nuxt", "target", "*.lock", "package-lock.json",
+    "artifacts",
 ]
 
 # ── Hard limits to protect the context window ────────────────────────────────

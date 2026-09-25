@@ -633,6 +633,7 @@ class HermesApp(App):
                     verb = payload.get("verb", "Working")
                     status = payload.get("status", "start")
                     model = payload.get("model", "")
+                    stage_num = payload.get("stage", 0)
 
                     if status == "start":
                         # Update spinner verb with actual stage verb
@@ -642,12 +643,12 @@ class HermesApp(App):
                             sb.spinner_verb = verb
                             if model:
                                 sb.update_log_line(
-                                    f"Stage {payload.get('stage', '?')}: {stage_name} "
+                                    f"Stage {stage_num}: {stage_name} "
                                     f"({model})"
                                 )
                             else:
                                 sb.update_log_line(
-                                    f"Stage {payload.get('stage', '?')}: {stage_name}"
+                                    f"Stage {stage_num}: {stage_name}"
                                 )
                         except Exception:
                             pass
@@ -661,6 +662,23 @@ class HermesApp(App):
                                 await panel._update_thought(f"◌ {detail}")
                             except Exception:
                                 pass
+
+                    # Forward stage progression to ChatPanel progress indicator
+                    try:
+                        from ui.panels.chat import ChatPanel
+                        panel = self.query_one(ChatPanel)
+                        panel.update_progress(
+                            "stage_start" if status == "start" else "stage_end",
+                            {
+                                "stage": stage_num,
+                                "stage_name": stage_name,
+                                "spinner_verb": verb,
+                                "thought": payload.get("detail", ""),
+                                "status": "running" if status == "start" else "success",
+                            }
+                        )
+                    except Exception:
+                        pass
 
                 elif event_type == "model_start":
                     tier = payload.get("tier", 1)

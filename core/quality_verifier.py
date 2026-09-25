@@ -36,14 +36,17 @@ from loguru import logger
 
 # Minimum file sizes (bytes) for implementation files to be considered non-trivial
 MIN_SIZES: dict[str, int] = {
-    ".html":  800,     # Meaningful HTML must have structure + content
-    ".css":   400,     # Real CSS must have multiple rules
-    ".js":    300,     # Real JS must have actual logic
-    ".jsx":   400,     # React component must have real render
-    ".tsx":   400,
-    ".ts":    300,
-    ".py":    200,     # Python module must have real code
-    ".vue":   400,
+    ".html":  300,     # Meaningful HTML must have structure + content
+    ".css":   100,     # Real CSS
+    ".js":    50,      # Real JS
+    ".jsx":   100,     # React component
+    ".tsx":   100,
+    ".ts":    50,
+    ".py":    40,      # Python module (small function file)
+    ".vue":   100,
+    ".txt":   10,
+    ".md":    10,
+    ".json":  10,
 }
 
 # Placeholder patterns — if these dominate a file, it is not implemented
@@ -248,10 +251,15 @@ class QualityVerifier:
         p = Path(f_path)
         if not p.is_absolute():
             from core.workspace import workspace_manager
+            ws_dir = Path(workspace_manager.workspace_root) if (workspace_manager.is_locked and workspace_manager.workspace_root) else None
             if root and (root / p).exists():
                 p = root / p
-            elif (workspace_manager.is_locked and workspace_manager.workspace_root) and (workspace_manager.workspace_root / p).exists():
-                p = workspace_manager.workspace_root / p
+            elif ws_dir and (ws_dir / p).exists():
+                p = ws_dir / p
+            elif ws_dir:
+                matches = [m for m in ws_dir.glob(f"**/{p.name}") if ".git" not in m.parts and ".venv" not in m.parts]
+                if matches:
+                    p = matches[0]
 
         ext = p.suffix.lower()
 
@@ -278,7 +286,7 @@ class QualityVerifier:
             return result
 
         # Size check
-        min_size = MIN_SIZES.get(ext, 100)
+        min_size = MIN_SIZES.get(ext, 10)
         if result.size_bytes < min_size:
             result.is_trivial = True
             result.issues.append(

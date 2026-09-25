@@ -11,6 +11,7 @@ import os
 import asyncio
 import time
 import json
+import uuid
 from typing import Optional, Any, Dict, List
 
 import httpx
@@ -188,6 +189,11 @@ class NvidiaClient(ModelProvider):
             "Accept": "text/event-stream" if effective_stream else "application/json",
         }
 
+        request_id = kwargs.get("request_id")
+        mission_id = kwargs.get("mission_id")
+        task_id = kwargs.get("task_id")
+        stage = kwargs.get("stage", "Tier 1 Generation")
+
         url = f"{self.base_url}/chat/completions"
         start_time = time.monotonic()
         for attempt in range(3):
@@ -204,6 +210,10 @@ class NvidiaClient(ModelProvider):
                         system=system,
                         temperature=temperature,
                         start_time=start_time,
+                        request_id=request_id,
+                        mission_id=mission_id,
+                        task_id=task_id,
+                        stage=stage,
                     )
                 else:
                     return await self._generate_non_stream(
@@ -216,6 +226,10 @@ class NvidiaClient(ModelProvider):
                         system=system,
                         temperature=temperature,
                         start_time=start_time,
+                        request_id=request_id,
+                        mission_id=mission_id,
+                        task_id=task_id,
+                        stage=stage,
                     )
             except NvidiaConnectionError as conn_exc:
                 await self.aclose()
@@ -231,7 +245,10 @@ class NvidiaClient(ModelProvider):
             except Exception as exc:
                 latency = time.monotonic() - start_time
                 logger.error(f"NVIDIA NIM generation exception: {exc}")
-                self._record_telemetry_failure(active_model, prompt, system, start_time, timed_out=False, error=str(exc))
+                self._record_telemetry_failure(
+                    active_model, prompt, system, start_time, timed_out=False, error=str(exc),
+                    request_id=request_id, mission_id=mission_id, task_id=task_id, stage=stage
+                )
                 return NormalizedModelResponse(
                     text="",
                     model=active_model,
@@ -252,6 +269,10 @@ class NvidiaClient(ModelProvider):
         system: str,
         temperature: float,
         start_time: float,
+        request_id: Optional[str] = None,
+        mission_id: Optional[str] = None,
+        task_id: Optional[str] = None,
+        stage: str = "Tier 1 Generation",
     ) -> NormalizedModelResponse:
         connect_time: Optional[float] = None
         first_token_time: Optional[float] = None
@@ -471,6 +492,10 @@ class NvidiaClient(ModelProvider):
                 thinking_present=bool(reasoning),
                 thinking_length=len(reasoning),
                 tool_defs_chars=tools_char_len,
+                request_id=request_id,
+                mission_id=mission_id,
+                task_id=task_id,
+                stage=stage,
             )
         except Exception:
             pass
@@ -506,16 +531,26 @@ class NvidiaClient(ModelProvider):
         system: str,
         temperature: float,
         start_time: float,
+        request_id: Optional[str] = None,
+        mission_id: Optional[str] = None,
+        task_id: Optional[str] = None,
+        stage: str = "Tier 1 Generation",
     ) -> NormalizedModelResponse:
         try:
             response = await client.post(url, json=payload, headers=headers)
         except httpx.TimeoutException as exc:
-            self._record_telemetry_failure(active_model, prompt, system, start_time, timed_out=True, error=str(exc))
+            self._record_telemetry_failure(
+                active_model, prompt, system, start_time, timed_out=True, error=str(exc),
+                request_id=request_id, mission_id=mission_id, task_id=task_id, stage=stage
+            )
             raise NvidiaTimeoutError(
                 f"NVIDIA NIM request timed out after {self.timeout_seconds}s"
             ) from exc
         except httpx.ConnectError as exc:
-            self._record_telemetry_failure(active_model, prompt, system, start_time, timed_out=False, error=str(exc))
+            self._record_telemetry_failure(
+                active_model, prompt, system, start_time, timed_out=False, error=str(exc),
+                request_id=request_id, mission_id=mission_id, task_id=task_id, stage=stage
+            )
             raise NvidiaConnectionError(
                 f"Could not connect to NVIDIA NIM at {self.base_url}"
             ) from exc
@@ -526,7 +561,10 @@ class NvidiaClient(ModelProvider):
         if response.status_code != 200:
             err_text = f"NVIDIA NIM API returned HTTP {response.status_code}: {response.text[:300]}"
             logger.error(err_text)
-            self._record_telemetry_failure(active_model, prompt, system, start_time, timed_out=False, error=err_text)
+            self._record_telemetry_failure(
+                active_model, prompt, system, start_time, timed_out=False, error=err_text,
+                request_id=request_id, mission_id=mission_id, task_id=task_id, stage=stage
+            )
             return NormalizedModelResponse(
                 text="",
                 model=active_model,
@@ -591,6 +629,10 @@ class NvidiaClient(ModelProvider):
                 output_tokens=output_tokens,
                 total_tokens=total_tokens,
                 temperature=temperature,
+                request_id=request_id,
+                mission_id=mission_id,
+                task_id=task_id,
+                stage=stage,
             )
         except Exception:
             pass
@@ -631,6 +673,10 @@ class NvidiaClient(ModelProvider):
         thinking_present: bool = False,
         thinking_length: int = 0,
         tool_defs_chars: int = 0,
+        request_id: Optional[str] = None,
+        mission_id: Optional[str] = None,
+        task_id: Optional[str] = None,
+        stage: str = "Tier 1 Generation",
     ) -> None:
         try:
             from core.telemetry import telemetry, ModelCallTelemetry, ContextBreakdown
@@ -642,9 +688,13 @@ class NvidiaClient(ModelProvider):
                 exact_input_tokens=input_tokens,
             )
             mc = ModelCallTelemetry(
+                inference_id=uuid.uuid4().hex[:8],
+                request_id=request_id or "",
+                mission_id=mission_id or "",
+                task_id=task_id or "",
+                stage=stage,
                 model=model,
                 provider="nvidia_nim",
-                stage="Tier 1",
                 start_time_monotonic=start_time,
                 end_time_monotonic=start_time + latency,
                 total_latency_ms=latency * 1000.0,
@@ -675,12 +725,20 @@ class NvidiaClient(ModelProvider):
                 success=True,
             )
             with telemetry._global_lock:
-                for req in telemetry._active_requests.values():
-                    mc.request_id = req.request_id
-                    mc.task_id = req.request_id
-                    mc.mission_id = req.mission_id or req.request_id
-                    req.model_calls.append(mc)
-                    break
+                target_req = None
+                if request_id and request_id in telemetry._active_requests:
+                    target_req = telemetry._active_requests[request_id]
+                elif mission_id:
+                    for req in telemetry._active_requests.values():
+                        if req.mission_id == mission_id or req.request_id == mission_id:
+                            target_req = req
+                            break
+                if target_req:
+                    mc.request_id = target_req.request_id
+                    mc.task_id = task_id or target_req.request_id
+                    mc.mission_id = target_req.mission_id or target_req.request_id
+                    mc.execution_mode = target_req.execution_mode
+                    target_req.model_calls.append(mc)
         except Exception:
             pass
 
@@ -692,11 +750,20 @@ class NvidiaClient(ModelProvider):
         start_time: float,
         timed_out: bool,
         error: str,
+        request_id: Optional[str] = None,
+        mission_id: Optional[str] = None,
+        task_id: Optional[str] = None,
+        stage: str = "Tier 1 Generation",
     ) -> None:
         try:
             from core.telemetry import telemetry, ModelCallTelemetry
             elapsed = time.monotonic() - start_time
             mc = ModelCallTelemetry(
+                inference_id=uuid.uuid4().hex[:8],
+                request_id=request_id or "",
+                mission_id=mission_id or "",
+                task_id=task_id or "",
+                stage=stage,
                 model=model,
                 provider="nvidia_nim",
                 start_time_monotonic=start_time,
@@ -709,9 +776,20 @@ class NvidiaClient(ModelProvider):
                 error_message=str(error),
             )
             with telemetry._global_lock:
-                for req in telemetry._active_requests.values():
-                    mc.request_id = req.request_id
-                    req.model_calls.append(mc)
-                    break
+                target_req = None
+                if request_id and request_id in telemetry._active_requests:
+                    target_req = telemetry._active_requests[request_id]
+                elif mission_id:
+                    for req in telemetry._active_requests.values():
+                        if req.mission_id == mission_id or req.request_id == mission_id:
+                            target_req = req
+                            break
+
+                if target_req:
+                    mc.request_id = target_req.request_id
+                    mc.task_id = task_id or target_req.request_id
+                    mc.mission_id = target_req.mission_id or target_req.request_id
+                    mc.execution_mode = target_req.execution_mode
+                    target_req.model_calls.append(mc)
         except Exception:
             pass

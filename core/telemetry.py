@@ -130,7 +130,7 @@ class ModelCallTelemetry:
     mission_id: str = ""
     task_id: str = ""
     stage: str = ""                         # e.g., "Tier 1", "Tier 2", "Tier 3", "Memory Extraction", "Alternative"
-    execution_mode: str = "performance_baseline"
+    execution_mode: str = "production"
     model: str = ""
     provider: str = "ollama"                # "ollama", "anthropic", "openrouter"
     start_time_monotonic: float = 0.0
@@ -292,7 +292,7 @@ class RequestTelemetry:
     request_id: str = field(default_factory=lambda: uuid.uuid4().hex[:8])
     benchmark_id: Optional[str] = None
     mission_id: str = ""
-    execution_mode: str = "performance_baseline"
+    execution_mode: str = "production"
     task_type: str = "general"              # simple, single_file, multi_file, complex, mission
     prompt: str = ""
     mode: str = "auto"
@@ -438,7 +438,7 @@ class TelemetryManager:
         task_type: str = "general",
         benchmark_id: Optional[str] = None,
         mission_id: Optional[str] = None,
-        execution_mode: str = "performance_baseline",
+        execution_mode: str = "production",
     ) -> RequestTelemetry:
         """Initialize a new request telemetry record."""
         if not self.enabled:
@@ -531,12 +531,6 @@ class TelemetryManager:
                     req = self._active_requests.get(req_id)
                     if req:
                         req.spans.append(s)
-            else:
-                with self._global_lock:
-                    for req in self._active_requests.values():
-                        s.request_id = req.request_id
-                        req.spans.append(s)
-                        break
         except Exception as e:
             logger.debug(f"Telemetry record_span error: {e}")
 
@@ -606,13 +600,6 @@ class TelemetryManager:
                     req = self._active_requests.get(req_id)
                     if req:
                         req.model_switches.append(switch_telemetry)
-            else:
-                with self._global_lock:
-                    for req in self._active_requests.values():
-                        switch_telemetry.request_id = req.request_id
-                        switch_telemetry.mission_id = req.mission_id or req.request_id
-                        req.model_switches.append(switch_telemetry)
-                        break
         except Exception as e:
             logger.debug(f"Telemetry record_model_switch error: {e}")
 

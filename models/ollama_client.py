@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import time
+import uuid
 from typing import Any, Optional, Union
 
 import httpx
@@ -222,6 +223,11 @@ class OllamaClient(ModelProvider):
             keep_alive,
         )
 
+        request_id = kwargs.get("request_id")
+        mission_id = kwargs.get("mission_id")
+        task_id = kwargs.get("task_id")
+        stage = kwargs.get("stage", "Tier 2 Verification")
+
         start: float = time.perf_counter()
         client = await self._get_client()
 
@@ -229,12 +235,18 @@ class OllamaClient(ModelProvider):
             try:
                 response: httpx.Response = await client.post(url, json=body)
             except httpx.TimeoutException as exc:
-                self._record_telemetry_failure(model, prompt, system, keep_alive, temperature, num_ctx, start, timed_out=True, error=str(exc))
+                self._record_telemetry_failure(
+                    model, prompt, system, keep_alive, temperature, num_ctx, start, timed_out=True, error=str(exc),
+                    request_id=request_id, mission_id=mission_id, task_id=task_id, stage=stage
+                )
                 raise OllamaTimeoutError(
                     f"Ollama request timed out after {self.timeout_seconds}s"
                 ) from exc
             except httpx.ConnectError as exc:
-                self._record_telemetry_failure(model, prompt, system, keep_alive, temperature, num_ctx, start, timed_out=False, error=str(exc))
+                self._record_telemetry_failure(
+                    model, prompt, system, keep_alive, temperature, num_ctx, start, timed_out=False, error=str(exc),
+                    request_id=request_id, mission_id=mission_id, task_id=task_id, stage=stage
+                )
                 raise OllamaConnectionError(
                     f"Could not connect to Ollama at {self.base_url}. "
                     "Is the Ollama server running?"
@@ -245,7 +257,10 @@ class OllamaClient(ModelProvider):
             self.last_raw_response = data
 
             if "error" in data:
-                self._record_telemetry_failure(model, prompt, system, keep_alive, temperature, num_ctx, start, timed_out=False, error=data["error"])
+                self._record_telemetry_failure(
+                    model, prompt, system, keep_alive, temperature, num_ctx, start, timed_out=False, error=data["error"],
+                    request_id=request_id, mission_id=mission_id, task_id=task_id, stage=stage
+                )
                 raise RuntimeError(data["error"])
 
             result: str = normalize_ollama_payload(data)
@@ -285,7 +300,8 @@ class OllamaClient(ModelProvider):
             # Record telemetry metrics non-invasively
             try:
                 self._record_telemetry_success(
-                    model, prompt, system, keep_alive, temperature, num_ctx, start, elapsed, data, lifecycle_state, prev_model=prev_model
+                    model, prompt, system, keep_alive, temperature, num_ctx, start, elapsed, data, lifecycle_state,
+                    prev_model=prev_model, request_id=request_id, mission_id=mission_id, task_id=task_id, stage=stage
                 )
             except Exception:
                 pass
@@ -313,7 +329,24 @@ class OllamaClient(ModelProvider):
         finally:
             model_residency_manager.release_model(model, is_foreground=is_foreground)
 
-    def _record_telemetry_success(self, model: str, prompt: str, system: str, keep_alive: Any, temperature: float, num_ctx: int, start_perf: float, elapsed_sec: float, data: dict, lifecycle_state: str = "UNKNOWN", prev_model: Optional[str] = None):
+    def _record_telemetry_success(
+        self,
+        model: str,
+        prompt: str,
+        system: str,
+        keep_alive: Any,
+        temperature: float,
+        num_ctx: int,
+        start_perf: float,
+        elapsed_sec: float,
+        data: dict,
+        lifecycle_state: str = "UNKNOWN",
+        prev_model: Optional[str] = None,
+        request_id: Optional[str] = None,
+        mission_id: Optional[str] = None,
+        task_id: Optional[str] = None,
+        stage: str = "Tier 2 Verification",
+    ):
         from core.telemetry import telemetry, ModelCallTelemetry, ContextBreakdown, sample_system_resources
         
         # Ollama reports durations in nanoseconds (1e-9 s -> 1e-6 ms)
@@ -350,6 +383,11 @@ class OllamaClient(ModelProvider):
         now_iso = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
 
         mc = ModelCallTelemetry(
+            inference_id=uuid.uuid4().hex[:8],
+            request_id=request_id or "",
+            mission_id=mission_id or "",
+            task_id=task_id or "",
+            stage=stage,
             model=model,
             provider="ollama",
             start_time_monotonic=start_perf,
@@ -394,22 +432,49 @@ class OllamaClient(ModelProvider):
             raw_timing_metadata={k: data[k] for k in ("total_duration", "load_duration", "prompt_eval_count", "prompt_eval_duration", "eval_count", "eval_duration") if k in data},
         )
         
-        # Attach to currently active request if any
+        # Attach to exact matching active request if any
         with telemetry._global_lock:
-            for req in telemetry._active_requests.values():
-                if not mc.request_id:
-                    mc.request_id = req.request_id
-                    mc.task_id = req.request_id
-                    mc.mission_id = req.mission_id or req.request_id
-                    mc.execution_mode = req.execution_mode
-                req.model_calls.append(mc)
-                break
+            target_req = None
+            if request_id and request_id in telemetry._active_requests:
+                target_req = telemetry._active_requests[request_id]
+            elif mission_id:
+                for req in telemetry._active_requests.values():
+                    if req.mission_id == mission_id or req.request_id == mission_id:
+                        target_req = req
+                        break
 
-    def _record_telemetry_failure(self, model: str, prompt: str, system: str, keep_alive: Any, temperature: float, num_ctx: int, start_perf: float, timed_out: bool, error: str):
+            if target_req:
+                mc.request_id = target_req.request_id
+                mc.task_id = task_id or target_req.request_id
+                mc.mission_id = target_req.mission_id or target_req.request_id
+                mc.execution_mode = target_req.execution_mode
+                target_req.model_calls.append(mc)
+
+    def _record_telemetry_failure(
+        self,
+        model: str,
+        prompt: str,
+        system: str,
+        keep_alive: Any,
+        temperature: float,
+        num_ctx: int,
+        start_perf: float,
+        timed_out: bool,
+        error: str,
+        request_id: Optional[str] = None,
+        mission_id: Optional[str] = None,
+        task_id: Optional[str] = None,
+        stage: str = "Tier 2 Verification",
+    ):
         from core.telemetry import telemetry, ModelCallTelemetry
         elapsed_sec = time.perf_counter() - start_perf
         now_iso = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
         mc = ModelCallTelemetry(
+            inference_id=uuid.uuid4().hex[:8],
+            request_id=request_id or "",
+            mission_id=mission_id or "",
+            task_id=task_id or "",
+            stage=stage,
             model=model,
             provider="ollama",
             start_time_monotonic=start_perf,
@@ -427,13 +492,21 @@ class OllamaClient(ModelProvider):
             error_message=str(error),
         )
         with telemetry._global_lock:
-            for req in telemetry._active_requests.values():
-                mc.request_id = req.request_id
-                mc.task_id = req.request_id
-                mc.mission_id = req.mission_id or req.request_id
-                mc.execution_mode = req.execution_mode
-                req.model_calls.append(mc)
-                break
+            target_req = None
+            if request_id and request_id in telemetry._active_requests:
+                target_req = telemetry._active_requests[request_id]
+            elif mission_id:
+                for req in telemetry._active_requests.values():
+                    if req.mission_id == mission_id or req.request_id == mission_id:
+                        target_req = req
+                        break
+
+            if target_req:
+                mc.request_id = target_req.request_id
+                mc.task_id = task_id or target_req.request_id
+                mc.mission_id = target_req.mission_id or target_req.request_id
+                mc.execution_mode = target_req.execution_mode
+                target_req.model_calls.append(mc)
 
     async def is_running(self) -> bool:
         """Return True if Ollama responds with HTTP 200, False for any error.
@@ -526,6 +599,10 @@ class OllamaClient(ModelProvider):
             system=system_prompt,
             temperature=0.0,
             num_predict=512,
+            request_id=kwargs.get("request_id"),
+            mission_id=kwargs.get("mission_id"),
+            task_id=kwargs.get("task_id"),
+            stage=kwargs.get("stage", "Tier 3 Arbitration"),
         )
         latency = time.monotonic() - start_time
 

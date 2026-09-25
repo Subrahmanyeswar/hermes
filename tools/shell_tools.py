@@ -349,7 +349,9 @@ class RunTestsTool(BaseTool):
 
         start_time = time.monotonic()
         try:
-            cmd_list = [sys.executable, "-m", "pytest", inp.test_path] + (
+            import shutil
+            base_cmd = ["uv", "run", "pytest"] if shutil.which("uv") else [sys.executable, "-m", "pytest"]
+            cmd_list = base_cmd + [inp.test_path] + (
                 ["-v"] if inp.verbose else []
             )
             result = subprocess.run(

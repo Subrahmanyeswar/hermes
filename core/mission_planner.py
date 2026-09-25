@@ -800,12 +800,27 @@ Return a JSON array of task description strings only."""
             required_tools=["list_directory", "read_file"],
         )
 
-        needs_inspection = not any(
-            t.description.lower().startswith("inspect")
-            for t in tasks
-        )
-        if needs_inspection:
-            tasks.insert(0, inspection_task)
+        # Only prepend inspection task if we have a complex multi-page website/app mission
+        lower_prompt = user_prompt.lower()
+        is_complex_mission = any(w in lower_prompt for w in [
+            "website", "web app", "webpage", "landing page", "portfolio",
+            "animated", "career", "full stack", "frontend and backend", "complete app"
+        ])
+        
+        should_inspect = is_complex_mission
+        if execution_mode != "benchmark":
+            from pathlib import Path
+            target_check = Path(workspace_root) if workspace_root else Path("generated_projects")
+            try:
+                existing_count = len(list(target_check.glob("*"))) if target_check.exists() else 0
+            except Exception:
+                existing_count = 0
+            if existing_count == 0:
+                should_inspect = False
+
+        if len(tasks) > 1 and should_inspect:
+            if not any(t.description.lower().startswith("inspect") for t in tasks):
+                tasks.insert(0, inspection_task)
 
         self._assign_dependencies(tasks)
         sorted_ids = self._topological_sort(tasks)

@@ -28,6 +28,7 @@ IGNORE_PATTERNS = [
     "*.pyc", "*.pyo", "*.pyd", ".DS_Store", "*.egg-info", "dist",
     "build", ".pytest_cache", ".mypy_cache", "*.min.js", "*.min.css",
     ".next", ".nuxt", "target", "*.lock", "package-lock.json",
+    "artifacts",
 ]
 
 MAX_PARSE_FILE_SIZE = 500_000  # 500 KB limit for AST parsing
