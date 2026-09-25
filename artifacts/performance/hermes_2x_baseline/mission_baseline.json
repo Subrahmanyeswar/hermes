@@ -1,0 +1,59 @@
+{
+  "captured_at": "2026-09-25T23:05:00+05:30",
+  "forensic_case_study": {
+    "mission_name": "Expense Tracker Mission (Prompt 1 Forensic Case)",
+    "prompt_text": "Build a professional expense tracker web app with a dashboard, add/edit/delete transactions, category filters, monthly spending summary, charts, responsive UI, local data persistence, and proper validation. Build it completely and verify everything works.",
+    "observed_symptoms": {
+      "tui_display": "Frozen at [1/7] Task 1",
+      "loop_pattern": "write_files_batch -> read_file -> write_file -> read_file -> repeated evaluation",
+      "quality_check_verdict": "NEEDS_IMPROVEMENT — 'Card components implemented'"
+    }
+  },
+  "verified_baseline_defects": [
+    {
+      "defect_id": "QV-01-KEYWORD-LENGTH-DROP",
+      "component": "agents/quality_verifier.py",
+      "severity": "CRITICAL",
+      "status": "EMPIRICALLY_VERIFIED",
+      "description": "QualityVerifier.verify() filters target keywords with 'if len(kw) > 4'. As a result, critical UI domain keywords of 4 characters or fewer (such as 'card', 'form', 'grid', 'nav', 'tab', 'btn') are discarded.",
+      "evidence": "In the Expense Tracker mission, task requirement 'Card components implemented' resulted in keyword set [] after filter. Even though HTML contained <article class='card card-balance'> and .card CSS, the verifier returned False and verdict NEEDS_IMPROVEMENT.",
+      "reproduction": "Simulated in scratch/reproduce_quality_verifier.py. Returned False against exact prompt 1 HTML."
+    },
+    {
+      "defect_id": "TUI-01-CONSUMER-CRASH",
+      "component": "ui/app.py",
+      "severity": "CRITICAL",
+      "status": "EMPIRICALLY_VERIFIED",
+      "description": "Background event loop consumer crashes with UnboundLocalError due to missing top-level import of Path when handling structured_feedback events.",
+      "evidence": "Causes the Textual UI to permanently freeze at stage [1/7] while backend continues executing or stalls."
+    },
+    {
+      "defect_id": "TUI-02-TOOL-NAME-DROP",
+      "component": "ui/app.py",
+      "severity": "MEDIUM",
+      "status": "EMPIRICALLY_VERIFIED",
+      "description": "ui/app.py:_consume_mission_events drops tool identity during pipeline stage forwarding, leaving user with 'Tool: None'."
+    },
+    {
+      "defect_id": "NET-01-NIM-SSE-TIMEOUT",
+      "component": "adapters/model_adapter.py & providers",
+      "severity": "HIGH",
+      "status": "RECORDED_FROM_RUNTIME_TRACES",
+      "description": "NVIDIA NIM remote cloud endpoint (integrate.api.nvidia.com) experiences connection drops, reset by peer, and timeouts under prolonged repeated evaluation retries."
+    },
+    {
+      "defect_id": "ARCH-01-WORKSPACE-DIVERGENCE",
+      "component": "tools/workspace_tools.py & core/orchestrator.py",
+      "severity": "HIGH",
+      "status": "VERIFIED_FROM_CODE",
+      "description": "No strict path normalization prevents the agent from creating files in the workspace root vs. generated_projects/ subdirectories. Different components read and write to divergent paths during iteration."
+    },
+    {
+      "defect_id": "ARCH-02-DUAL-EVENT-BUS",
+      "component": "core/event_bus.py vs core/mission_runner.py",
+      "severity": "MEDIUM",
+      "status": "VERIFIED_FROM_CODE",
+      "description": "Two disjoint event systems exist in parallel: core/event_bus.py (HermesEvent) and core/mission_runner.py (_event_queue / MissionEvent). TUI consumes only the latter, leading to fragmented telemetry."
+    }
+  ]
+}

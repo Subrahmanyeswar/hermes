@@ -1,0 +1,36 @@
+{
+  "captured_at": "2026-09-25T23:05:00+05:30",
+  "framework": "textual",
+  "ui_components": [
+    "ui/app.py::HermesApp",
+    "ui/widgets/chat_panel.py::ChatPanel",
+    "ui/widgets/tool_matrix.py::ToolMatrix",
+    "ui/widgets/status_bar.py::StatusBar",
+    "ui/widgets/budget_bar.py::BudgetBar"
+  ],
+  "metrics": {
+    "startup_rss_mb": 16.81,
+    "event_queue_type": "asyncio.Queue / threading.Queue (mission_runner._event_queue)",
+    "status": "OPERATIONAL_WITH_KNOWN_CONSUMER_DEFECTS"
+  },
+  "empirical_defects": [
+    {
+      "defect_id": "TUI-01-UNBOUND-LOCAL-ERROR",
+      "severity": "CRITICAL",
+      "status": "EMPIRICALLY_VERIFIED",
+      "location": "ui/app.py:165",
+      "description": "UnboundLocalError: local variable 'Path' referenced before assignment during structured_feedback event consumption",
+      "impact": "Terminates the UI background consumer thread permanently. All subsequent mission events are left unconsumed in the queue, freezing visual progress display (e.g., stuck at [1/7]).",
+      "reproduction": "Simulated in scratch/reproduce_tui_crash.py by feeding a structured_feedback event into _consume_mission_events without prior workspace_ready event."
+    },
+    {
+      "defect_id": "TUI-02-TOOL-NAME-DROPPED",
+      "severity": "MEDIUM",
+      "status": "EMPIRICALLY_VERIFIED",
+      "location": "ui/app.py:183",
+      "description": "ui/app.py does not propagate tool_name from pipeline_stage or tool execution events into ChatPanel.update_progress()",
+      "impact": "UI visual widget shows 'Tool: None' or 'unknown_tool' even while tools like write_files_batch and read_file are executing.",
+      "reproduction": "Confirmed via code inspection of ui/app.py:_consume_mission_events and mission event dispatching."
+    }
+  ]
+}

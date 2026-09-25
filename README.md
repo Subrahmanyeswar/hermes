@@ -1,9 +1,11 @@
 # HERMES — Hierarchical Execution and Reasoning with Memory-Evolving Supervision
 
-**Release: `v1.0.0-rc2`**
+**Reference Release: `v1.0.0-rc3` (Frozen Reference)**  
+**Active Development Line: `hermes-2.x`**
 
-[![Version](https://img.shields.io/badge/version-v1.0.0--rc2-blue.svg)](https://github.com/Subrahmanyeswar/hermes)
-[![Status](https://img.shields.io/badge/status-frozen-success.svg)](https://github.com/Subrahmanyeswar/hermes)
+[![Version](https://img.shields.io/badge/reference%20tag-v1.0.0--rc3-blue.svg)](https://github.com/Subrahmanyeswar/hermes)
+[![Branch](https://img.shields.io/badge/development%20branch-hermes--2.x-orange.svg)](https://github.com/Subrahmanyeswar/hermes)
+[![Status](https://img.shields.io/badge/status-baseline%20frozen-success.svg)](https://github.com/Subrahmanyeswar/hermes)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
 **HERMES** is a production-grade, local-first autonomous software engineering runtime. It features a tri-tier model architecture, progressive multi-level verification, deterministic AST and runtime contract checking, background asynchronous memory synthesis, and workspace sandbox isolation.
@@ -174,6 +176,14 @@ HERMES internal local orchestration overhead (AST parsing, intent classification
 ---
 
 ## 8. Verification & Qualification Evidence
+
+### Canonical Test Suite Baseline (HERMES 2.x / RC3 Freeze)
+- **Total Tests Collected**: 1,144
+- **Passed**: 1,116 (97.55%)
+- **Failed**: 28 (2.45%)
+- **Status**: `BASELINE_HAS_FAILURES`
+- **Execution Duration**: 2,331.33s (38m 51s)
+- **Baseline Report & Failure Catalog**: See [`artifacts/performance/hermes_2x_baseline/baseline_report.md`](artifacts/performance/hermes_2x_baseline/baseline_report.md) and [`test_results.json`](artifacts/performance/hermes_2x_baseline/test_results.json).
 
 ### Qualification Matrix (100% Live Inference)
 - **10/10 Missions Passed (100%)**

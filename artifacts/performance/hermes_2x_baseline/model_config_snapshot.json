@@ -1,0 +1,44 @@
+{
+  "captured_at": "2026-09-25T23:05:00+05:30",
+  "active_model_tiers": {
+    "tier1_fast": {
+      "model_name": "z-ai/glm-5.3-flash",
+      "provider": "nvidia_nim",
+      "endpoint": "https://integrate.api.nvidia.com/v1",
+      "streaming": true,
+      "latency_budget_seconds": 300,
+      "keep_alive_seconds": 300,
+      "primary_role": "Fast code generation and tool execution"
+    },
+    "tier2_heavy": {
+      "model_name": "gpt-oss:120b-cloud",
+      "provider": "ollama",
+      "endpoint": "http://localhost:11434",
+      "streaming": true,
+      "latency_budget_seconds": 360,
+      "keep_alive_seconds": 60,
+      "primary_role": "Heavy reasoning and architectural decisions"
+    },
+    "tier3_fallback": {
+      "model_name": "nemotron-3-ultra:cloud",
+      "provider": "ollama",
+      "endpoint": "http://localhost:11434",
+      "streaming": true,
+      "latency_budget_seconds": 360,
+      "keep_alive_seconds": 300,
+      "primary_role": "Fallback verification and emergency reasoning"
+    }
+  },
+  "global_parameters": {
+    "MODEL_TIMEOUT_SECONDS": 360,
+    "MODEL_KEEP_ALIVE": 300,
+    "T1_KEEP_ALIVE": 300,
+    "T2_KEEP_ALIVE": 60,
+    "STREAMING": true,
+    "VRAM_CAP_GB": 12
+  },
+  "config_sources": [
+    "config/model_config.py",
+    ".env"
+  ]
+}

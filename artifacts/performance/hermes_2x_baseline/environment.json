@@ -1,0 +1,46 @@
+{
+  "captured_at": "2026-09-25T23:05:00+05:30",
+  "operating_system": {
+    "system": "Windows",
+    "release": "11",
+    "version": "10.0.26200",
+    "platform": "Windows-10-10.0.26200-SP0",
+    "architecture": "AMD64"
+  },
+  "python": {
+    "version": "3.10.0",
+    "implementation": "CPython",
+    "executable": "C:\\Users\\SUBBU\\AppData\\Local\\Programs\\Python\\Python310\\python.exe",
+    "architecture": "64bit"
+  },
+  "cpu": {
+    "model": "12th Gen Intel(R) Core(TM) i5-12450HX",
+    "family": 25,
+    "physical_cores": 8,
+    "logical_processors": 12
+  },
+  "memory": {
+    "total_bytes": 16870281216,
+    "total_gb": 15.71,
+    "free_bytes": 3554168832,
+    "free_gb": 3.31
+  },
+  "gpu": {
+    "name": "NVIDIA GeForce RTX 3050 6GB Laptop GPU",
+    "pci_id": "01:00.0",
+    "driver_version": "591.44",
+    "cuda_version": "13.1",
+    "vram_total_mb": 6144,
+    "vram_used_mb_idle": 4229,
+    "vram_free_mb_idle": 1774
+  },
+  "disk": {
+    "drive": "C:",
+    "used_bytes": 478317260800,
+    "free_bytes": 31403917312
+  },
+  "process_footprint": {
+    "startup_rss_mb": 16.81,
+    "measurement_type": "MEASURED"
+  }
+}
