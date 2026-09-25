@@ -131,6 +131,7 @@ class MissionRunner:
         Returns MissionResult with full execution summary.
         """
         self._start_time = time.monotonic()
+        self._current_mission_id = mission.mission_id
         logger.info(
             f"MissionRunner: starting mission {mission.mission_id} "
             f"with {len(mission.tasks)} tasks"
@@ -1360,7 +1361,7 @@ SUCCESS CRITERION: {task.acceptance_criteria}
     # ── Utilities ─────────────────────────────────────────────────────────────
 
     async def _emit(self, event: MissionEvent) -> None:
-        """Put an event into the queue for the TUI to consume."""
+        """Put an event into the queue for the TUI to consume and publish to canonical EventBus."""
         try:
             await asyncio.wait_for(
                 self.event_queue.put(event),
@@ -1368,6 +1369,48 @@ SUCCESS CRITERION: {task.acceptance_criteria}
             )
         except asyncio.TimeoutError:
             logger.debug("MissionRunner: event queue full — dropping event")
+
+        # Canonical EventBus bridge
+        try:
+            from core.event_bus import event_bus, HermesEvent, EventType
+            type_mapping = {
+                "mission_start": EventType.MISSION_STARTED,
+                "mission_planned": EventType.PLAN_CREATED,
+                "phase_change": EventType.MISSION_STATUS_CHANGED,
+                "task_start": EventType.TASK_STARTED,
+                "task_complete": EventType.TASK_COMPLETED,
+                "task_failed": EventType.TASK_FAILED,
+                "tool_executing": EventType.TOOL_STARTED,
+                "tool_complete": EventType.TOOL_COMPLETED,
+                "model_start": EventType.MODEL_REQUEST_STARTED,
+                "model_complete": EventType.MODEL_COMPLETED,
+                "quality_check": EventType.VERIFICATION_COMPLETED,
+                "repair_attempt": EventType.REPAIR_STARTED,
+                "structured_feedback": EventType.EVIDENCE_CREATED,
+                "mission_complete": EventType.MISSION_COMPLETED,
+                "mission_failed": EventType.MISSION_FAILED,
+                "mission_aborted": EventType.MISSION_ABORTED,
+                "workspace_ready": EventType.WORKSPACE_SCAN_COMPLETED,
+                "skill_loaded": EventType.SKILL_LOADED,
+                "pipeline_stage": EventType.TASK_PROGRESS,
+            }
+            canonical_type = type_mapping.get(event.event_type)
+            if canonical_type:
+                payload = dict(event.payload) if event.payload else {}
+                m_id = payload.get("mission_id") or getattr(self, "_current_mission_id", "default")
+                t_id = payload.get("task_id")
+                # Preserve tool name
+                if "tool" in payload and "tool_name" not in payload:
+                    payload["tool_name"] = payload["tool"]
+                event_bus.publish(HermesEvent(
+                    event_type=canonical_type,
+                    mission_id=m_id,
+                    task_id=t_id,
+                    payload=payload,
+                    source="mission_runner",
+                ))
+        except Exception as exc:
+            logger.debug(f"MissionRunner: canonical event_bus bridge exception: {exc}")
 
     def _build_result(
         self,

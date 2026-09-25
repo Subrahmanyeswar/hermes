@@ -487,8 +487,9 @@ class ProcessingIndicator(Static):
         # ── Tool execution + retries + error block (Always Visible if populated) ──
         if self.tool_execution:
             t.append("Tool Execution\n", style="bold #4A90D9")
-            t.append(f"  Tool:   {self.tool_execution.get('tool')}\n", style="white")
-            t.append(f"  Target: {self.tool_execution.get('target')}\n", style="white")
+            tool_display = self.tool_execution.get('tool') or 'Unknown tool'
+            t.append(f"  Tool:   {tool_display}\n", style="white")
+            t.append(f"  Target: {self.tool_execution.get('target') or '-'}\n", style="white")
             if self.tool_execution.get("lines"):
                 t.append(f"  Lines:  {self.tool_execution.get('lines')}\n", style="white")
             
@@ -510,7 +511,8 @@ class ProcessingIndicator(Static):
                 t.append("  │                     ERROR DETECTED                     │\n", style="bold #EF4444")
                 t.append("  ├────────────────────────────────────────────────────────┤\n", style="bold #EF4444")
                 t.append(f"  │ Stage:  Tool Execution                                 │\n", style="white")
-                t.append(f"  │ Tool:   {self.tool_execution.get('tool'):<46} │\n", style="white")
+                tool_display = (self.tool_execution.get('tool') or 'Unknown tool')
+                t.append(f"  │ Tool:   {tool_display:<46} │\n", style="white")
                 t.append(f"  │ Reason: {last_reason[:46]:<46} │\n", style="bold #EF4444")
                 
                 if len(attempts) < 3:

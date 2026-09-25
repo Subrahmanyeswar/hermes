@@ -520,16 +520,21 @@ class HermesApp(App):
 
     async def _consume_mission_events(self, user_request: Optional[str] = None) -> None:
         """Consume MissionRunner events and update TUI in real-time."""
-        try:
-            while True:
-                try:
-                    event = await asyncio.wait_for(
-                        self._event_queue.get(),
-                        timeout=0.5
-                    )
-                except asyncio.TimeoutError:
-                    continue
+        while True:
+            try:
+                event = await asyncio.wait_for(
+                    self._event_queue.get(),
+                    timeout=0.5
+                )
+            except asyncio.TimeoutError:
+                continue
+            except asyncio.CancelledError:
+                break
+            except Exception as e:
+                logger.debug(f"_consume_mission_events queue exception: {e}")
+                continue
 
+            try:
                 event_type = event.event_type
                 payload = event.payload
 
@@ -605,7 +610,6 @@ class HermesApp(App):
                 elif event_type == "workspace_ready":
                     workspace_name = payload.get("root", "")
                     if workspace_name:
-                        from pathlib import Path
                         self.workspace_root = workspace_name
                         try:
                             from ui.panels.status_bar import StatusBar
@@ -667,6 +671,7 @@ class HermesApp(App):
                     try:
                         from ui.panels.chat import ChatPanel
                         panel = self.query_one(ChatPanel)
+                        tool_val = payload.get("tool_name") or payload.get("tool")
                         panel.update_progress(
                             "stage_start" if status == "start" else "stage_end",
                             {
@@ -675,6 +680,7 @@ class HermesApp(App):
                                 "spinner_verb": verb,
                                 "thought": payload.get("detail", ""),
                                 "status": "running" if status == "start" else "success",
+                                "tool_name": tool_val,
                             }
                         )
                     except Exception:
@@ -805,12 +811,13 @@ class HermesApp(App):
                             pass
 
                 elif event_type == "structured_feedback":
-                    verdict = payload.get("verdict", "")
-                    file_name = Path(payload.get("file", "")).name
-                    failed_dims = payload.get("failed_dimensions", [])
-                    is_ready = payload.get("is_ready", False)
-
                     try:
+                        verdict = payload.get("verdict", "")
+                        raw_file = payload.get("file", "")
+                        file_name = Path(raw_file).name if raw_file else "artifact"
+                        failed_dims = payload.get("failed_dimensions", [])
+                        is_ready = payload.get("is_ready", False)
+
                         from ui.panels.status_bar import StatusBar
                         sb = self.query_one("#status-bar", StatusBar)
                         if is_ready:
@@ -818,19 +825,18 @@ class HermesApp(App):
                                 f"✓ {file_name}: all feedback dimensions pass"
                             )
                         else:
-                            dims_str = ", ".join(failed_dims[:3])
+                            dims_str = ", ".join(failed_dims[:3]) if failed_dims else "checks"
                             sb.update_log_line(
                                 f"⚠ {file_name}: fixing {dims_str}"
                             )
                             sb.spinner_verb = "Correcting"
-                    except Exception:
-                        pass
+                    except Exception as exc:
+                        logger.debug(f"structured_feedback handler exception: {exc}")
 
-        except asyncio.CancelledError:
-            pass
-        except Exception as e:
-            from loguru import logger
-            logger.debug(f"_consume_mission_events: {e}")
+            except asyncio.CancelledError:
+                break
+            except Exception as e:
+                logger.warning(f"_consume_mission_events event dispatch exception: {e}")
 
     def action_stop_mission(self) -> None:
         """Stop the currently running mission at the next safe checkpoint."""
