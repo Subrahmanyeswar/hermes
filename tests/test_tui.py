@@ -884,3 +884,110 @@ async def test_startup_screen_dismisses_on_launch(tmp_path):
         await pilot.pause()
         assert result_path == str(tmp_path)
 
+
+def test_processing_indicator_render_with_none_verification_state():
+    """
+    ProcessingIndicator must never crash when verification, disagreement,
+    tier3, or live_feed contain None values (e.g. during partial pipeline state).
+    Direct regression test for TypeError: unsupported format string passed to NoneType.__format__.
+    """
+    from ui.panels.chat import ProcessingIndicator
+    from rich.text import Text
+
+    indicator = ProcessingIndicator()
+    indicator.show_detailed_trace = True
+
+    # Exact crash state reported: confidence=None, agree=None, verifier=None
+    indicator.verification = {
+        "verifier": None,
+        "agree": None,
+        "confidence": None,
+        "critical_issues": None,
+    }
+    indicator.disagreement = {
+        "reason": None,
+        "threshold": None,
+        "actual": None,
+        "action": None,
+    }
+    indicator.tier3 = {
+        "reason": None,
+        "model": None,
+        "status": None,
+        "verdict": None,
+    }
+    indicator.live_feed = [
+        {"tool": None, "duration": None, "success": None}
+    ]
+
+    rendered = indicator.render()
+    assert isinstance(rendered, Text)
+    plain = rendered.plain
+
+    # Assert graceful fallback values
+    assert "Verifier: N/A" in plain
+    assert "Agreement: PENDING" in plain
+    assert "Confidence: N/A" in plain
+    assert "Critical Issues: 0" in plain
+    assert "Threshold: N/A" in plain
+    assert "Actual:    N/A" in plain
+    assert "Reason:    N/A" in plain
+    assert "Action:    N/A" in plain
+    assert "Status: Pending" in plain
+    assert "○ Running" in plain
+    assert "unknown_tool" in plain
+
+
+def test_processing_indicator_render_with_list_critical_issues():
+    """ProcessingIndicator must safely handle critical_issues when passed as a list of strings."""
+    from ui.panels.chat import ProcessingIndicator
+    from rich.text import Text
+
+    indicator = ProcessingIndicator()
+    indicator.show_detailed_trace = True
+    indicator.verification = {
+        "verifier": "t2_verifier",
+        "agree": False,
+        "confidence": 0.45,
+        "critical_issues": ["Issue 1: Missing docstrings", "Issue 2: Syntax error"],
+    }
+
+    rendered = indicator.render()
+    assert isinstance(rendered, Text)
+    plain = rendered.plain
+    assert "Issues: 2 (Escalation Required)" in plain
+    assert "Confidence: 0.45" in plain
+    assert "Agreement: NO" in plain
+    assert "Verifier: t2_verifier" in plain
+
+
+def test_hermes_message_widget_safe_float_with_none_latency():
+    """HermesMessageWidget and HermesMessageContent must not crash when latency_seconds is None."""
+    from ui.panels.chat import HermesMessageWidget, HermesMessageContent
+    from core.orchestrator import OrchestratorResult
+
+    res = OrchestratorResult(
+        success=True,
+        final_output="Done",
+        tool_name="test_tool",
+        tool_result=None,
+        task=None,
+        skill_ids_used=[],
+        tier3_was_called=False,
+        total_latency_seconds=None,
+        error=None,
+        pipeline_stage_reached=None,
+        trace_id="test-123",
+    )
+    # Both widget and content render methods must safely handle None
+    widget = HermesMessageWidget(res)
+    rendered_widget = widget.render()
+    assert "0.0s" in rendered_widget.plain
+    assert "Stage: 1/12" in rendered_widget.plain
+
+    content = HermesMessageContent(res)
+    rendered_content = content.render()
+    assert "0.0s" in rendered_content.plain
+    assert "Stage 1/12" in rendered_content.plain
+
+

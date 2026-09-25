@@ -48,6 +48,16 @@ SPINNER_VERBS: list[str] = [
 _spinner_cycle = itertools.cycle(SPINNER_VERBS)
 
 
+def _safe_float_str(val: Any, fmt: str = ".2f", fallback: str = "N/A") -> str:
+    """Format numeric values safely without raising TypeError on None or invalid types."""
+    if val is None:
+        return fallback
+    try:
+        return f"{float(val):{fmt}}"
+    except (ValueError, TypeError):
+        return fallback
+
+
 class UserMessageWidget(Static):
     """
     Renders one user message in the chat history.
@@ -95,8 +105,10 @@ class HermesMessageContent(Static):
         if r.tool_name:
             tool_style = "bold #22C55E" if r.success else "bold #EF4444"
             icon = "✓" if r.success else "✗"
+            lat_str = _safe_float_str(getattr(r, 'latency_seconds', None), ".1f", fallback="0.0")
+            st_reached = getattr(r, 'stage_reached', 1)
             t.append(f"\n  ⚙ Tier 1 ({r.tool_name}) — ", style="#22C55E")
-            t.append(f"Stage {r.stage_reached}/12 | {r.latency_seconds:.1f}s", style="dim")
+            t.append(f"Stage {st_reached}/12 | {lat_str}s", style="dim")
             
         return t
 
@@ -175,7 +187,9 @@ class HermesMessageWidget(Widget):
         if r.tool_name:
             tool_style = "bold #22C55E" if r.success else "bold #EF4444"
             icon = "✓" if r.success else "✗"
-            t.append(f"\n  {icon} Tool: {r.tool_name} | Stage: {r.stage_reached}/12 | {r.latency_seconds:.1f}s", style=tool_style)
+            lat_str = _safe_float_str(getattr(r, 'latency_seconds', None), ".1f", fallback="0.0")
+            st_reached = getattr(r, 'stage_reached', 1)
+            t.append(f"\n  {icon} Tool: {r.tool_name} | Stage: {st_reached}/12 | {lat_str}s", style=tool_style)
         return t
 
 
@@ -512,44 +526,75 @@ class ProcessingIndicator(Static):
             if self.live_feed:
                 t.append("Live Execution Feed\n", style="bold #4A90D9")
                 for entry in self.live_feed[-5:]:
-                    t.append(f"  ⚙ {entry.get('tool')}\n", style="bold #22C55E")
-                    dur_str = f" ({entry.get('duration'):.2f}s)" if entry.get('duration') else ""
-                    res_style = "bold #22C55E" if entry.get('success') else "bold #EF4444"
-                    res_symbol = "✓ Success" if entry.get('success') else "✗ Failed"
+                    tool_name = entry.get("tool") or "unknown_tool"
+                    t.append(f"  ⚙ {tool_name}\n", style="bold #22C55E")
+                    dur = entry.get("duration")
+                    dur_str = f" ({_safe_float_str(dur, '.2f')}s)" if dur is not None else ""
+                    success = entry.get("success")
+                    if success is True:
+                        res_style, res_symbol = "bold #22C55E", "✓ Success"
+                    elif success is False:
+                        res_style, res_symbol = "bold #EF4444", "✗ Failed"
+                    else:
+                        res_style, res_symbol = "dim", "○ Running"
                     t.append(f"  {res_symbol}{dur_str}\n", style=res_style)
                 t.append("\n")
 
             if self.verification:
                 t.append("Verification Stage\n", style="bold #4A90D9")
-                t.append(f"  Verifier: {self.verification.get('verifier')}\n", style="white")
-                agree = self.verification.get('agree')
-                agree_style = "bold #22C55E" if agree else "bold #EF4444"
-                t.append(f"  Agreement: {'YES' if agree else 'NO'}\n", style=agree_style)
-                t.append(f"  Confidence: {self.verification.get('confidence'):.2f}\n", style="white")
-                issues = self.verification.get('critical_issues', 0)
-                if issues > 0:
-                    t.append(f"  Issues: {issues} (Escalation Required)\n", style="bold #EF4444")
+                verifier = self.verification.get("verifier") or "N/A"
+                t.append(f"  Verifier: {verifier}\n", style="white")
+                agree = self.verification.get("agree")
+                if agree is True:
+                    agree_str, agree_style = "YES", "bold #22C55E"
+                elif agree is False:
+                    agree_str, agree_style = "NO", "bold #EF4444"
                 else:
-                    t.append(f"  Critical Issues: {issues}\n", style="bold #22C55E")
+                    agree_str, agree_style = "PENDING", "dim"
+                t.append(f"  Agreement: {agree_str}\n", style=agree_style)
+
+                conf_val = self.verification.get("confidence")
+                conf_str = _safe_float_str(conf_val, ".2f", fallback="N/A")
+                t.append(f"  Confidence: {conf_str}\n", style="white")
+
+                raw_issues = self.verification.get("critical_issues", 0)
+                if isinstance(raw_issues, list):
+                    issues_count = len(raw_issues)
+                elif isinstance(raw_issues, (int, float)):
+                    issues_count = int(raw_issues)
+                else:
+                    issues_count = 0
+
+                if issues_count > 0:
+                    t.append(f"  Issues: {issues_count} (Escalation Required)\n", style="bold #EF4444")
+                else:
+                    t.append(f"  Critical Issues: {issues_count}\n", style="bold #22C55E")
                 t.append("\n")
 
             if self.disagreement:
                 t.append("Escalation Triggered\n", style="bold #EF4444")
-                t.append(f"  Reason:    {self.disagreement.get('reason')}\n", style="white")
-                t.append(f"  Threshold: {self.disagreement.get('threshold'):.2f}\n", style="white")
-                t.append(f"  Actual:    {self.disagreement.get('actual'):.2f}\n", style="white")
-                t.append(f"  Action:    {self.disagreement.get('action')}\n", style="bold #F59E0B")
+                reason = self.disagreement.get("reason") or "N/A"
+                t.append(f"  Reason:    {reason}\n", style="white")
+                thresh_str = _safe_float_str(self.disagreement.get("threshold"), ".2f", fallback="N/A")
+                t.append(f"  Threshold: {thresh_str}\n", style="white")
+                actual_str = _safe_float_str(self.disagreement.get("actual"), ".2f", fallback="N/A")
+                t.append(f"  Actual:    {actual_str}\n", style="white")
+                action = self.disagreement.get("action") or "N/A"
+                t.append(f"  Action:    {action}\n", style="bold #F59E0B")
                 t.append("\n")
 
             if self.tier3:
                 t.append("External Verification Required\n", style="bold #4A90D9")
-                t.append(f"  Reason: {self.tier3.get('reason')}\n", style="white")
-                t.append(f"  Model:  {self.tier3.get('model')}\n", style="white")
-                status = self.tier3.get('status')
+                reason = self.tier3.get("reason") or "N/A"
+                model = self.tier3.get("model") or "N/A"
+                t.append(f"  Reason: {reason}\n", style="white")
+                t.append(f"  Model:  {model}\n", style="white")
+                status = self.tier3.get("status") or "Pending"
                 status_style = "bold #4A90D9 blink" if status == "Reviewing solution..." else ("bold #22C55E" if status == "Approved" else "bold #EF4444")
                 t.append(f"  Status: {status}\n", style=status_style)
-                if self.tier3.get('verdict'):
-                    t.append(f"  Verdict: {self.tier3.get('verdict')}\n", style="bold #22C55E" if self.tier3.get('verdict') == "Approved" else "bold #EF4444")
+                if self.tier3.get("verdict"):
+                    verdict = self.tier3.get("verdict")
+                    t.append(f"  Verdict: {verdict}\n", style="bold #22C55E" if verdict == "Approved" else "bold #EF4444")
                 t.append("\n")
 
             if self.memory_updates:
