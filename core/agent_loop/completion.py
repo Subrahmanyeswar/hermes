@@ -61,7 +61,10 @@ class CompletionPolicy:
         if implies_creation:
             # If the user asked to build/create something, there must be real files
             if ws_root and ws_root.exists():
-                existing_files = [f for f in ws_root.rglob("*") if f.is_file() and not f.name.startswith(".")]
+                existing_files = [
+                    f for f in ws_root.rglob("*")
+                    if f.is_file() and not any(part.startswith(".") for part in f.relative_to(ws_root).parts)
+                ]
                 if not existing_files and not written_files:
                     return (
                         False,
@@ -82,7 +85,7 @@ class CompletionPolicy:
         # ── 2. Local Deterministic Fast Path (Syntax & Parsing) ───────────────
         if ws_root and ws_root.exists():
             for p in ws_root.rglob("*"):
-                if not p.is_file() or p.name.startswith("."):
+                if not p.is_file() or any(part.startswith(".") for part in p.relative_to(ws_root).parts):
                     continue
                 # Python syntax validation via AST
                 if p.suffix == ".py":

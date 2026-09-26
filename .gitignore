@@ -26,6 +26,7 @@ artifacts/performance/traces/
 # Temporary runtime artifacts & scratch exploration
 scratch/
 generated_projects/
+.artifacts/
 
 # Historical benchmark artifacts and optimization probes (preserved locally, excluded from release)
 artifacts/context/

@@ -50,6 +50,8 @@ from config.model_config import (
     TIER1_PROVIDER,
     MODEL_KEEP_ALIVE,
 )
+from core.planning.service import MissionPlanningService
+
 
 
 class AgentLoop:
@@ -95,6 +97,7 @@ class AgentLoop:
             event_bus=self.event_bus,
             project_intelligence=self.project_intelligence,
         )
+        self.planning_service: Optional[MissionPlanningService] = None
 
         # Runtime trackers
         self._start_time: float = 0.0
@@ -134,6 +137,21 @@ class AgentLoop:
                 logger.warning(f"AgentLoop: initial project intelligence discovery warning: {pi_exc}")
 
         logger.info(f"AgentLoop: starting mission '{mission.mission_id}' in {self.config.execution_mode} mode")
+
+        # Mission Planning Service 2.x (Prompt 9)
+        self.planning_service = MissionPlanningService(
+            mission_id=mission.mission_id,
+            workspace_root=self.workspace.root_str if hasattr(self.workspace, "root_str") and self.workspace.root_str else None,
+            event_bus=self.event_bus,
+            state_store=self.state_store,
+        )
+        self.planning_service.initialize_goal(
+            user_prompt=mission.user_prompt,
+            explicit_constraints=getattr(mission, "explicit_constraints", None) or [],
+        )
+        if self.config.execution_mode == "plan" or getattr(mission, "plan_mode", False):
+            self.planning_service.enter_plan_mode()
+
 
         # Publish MISSION_STARTED
         await self._publish_event(
@@ -303,6 +321,37 @@ class AgentLoop:
 
             # 9. Execute Semantic Decision
             if decision.decision_type == AgentDecisionType.ACT:
+                # Plan Mode gating check
+                if hasattr(self, "planning_service") and self.planning_service and self.planning_service.plan_controller.execution_mode.value == "plan":
+                    allowed, reason = self.planning_service.plan_controller.authorize_tool_call(
+                        tool_name=decision.tool_name or "",
+                        arguments=decision.arguments,
+                    )
+                    if not allowed:
+                        logger.warning(f"AgentLoop: plan mode blocked mutation action {decision.tool_name}")
+                        obs = Observation(
+                            observation_id=f"obs_plan_blocked_{uuid.uuid4().hex[:6]}",
+                            mission_id=self._mission_id,
+                            turn_id=turn_id,
+                            source_type="policy",
+                            source_id="plan_mode_controller",
+                            success=False,
+                            summary=reason,
+                            content=f"PERMISSION_DENIED in Plan Mode: {reason}",
+                        )
+                        turn.observation_ids.append(obs.observation_id)
+                        self._record_observation(obs)
+                        consecutive_failures += 1
+                        turn.completed_at = time.monotonic()
+                        turn.state_version_after = self.state_store.get_snapshot().state_version
+                        await self._publish_event(
+                            EventType.AGENT_TURN_COMPLETED,
+                            turn_id=turn_id,
+                            payload={"turn_id": turn_id, "duration": turn.completed_at - turn.started_at}
+                        )
+                        self._turns_count += 1
+                        continue
+
                 action = ActionEnvelope(
                     mission_id=self._mission_id,
                     turn_id=turn_id,
@@ -329,6 +378,11 @@ class AgentLoop:
                     for f in delta_files:
                         if f not in self._written_files:
                             self._written_files.append(f)
+                    if hasattr(self, "planning_service") and self.planning_service:
+                        self.planning_service.update_progress(
+                            event_summary=f"Executed {decision.tool_name}: {obs.summary}",
+                            modified_files=set(delta_files),
+                        )
                 else:
                     consecutive_failures += 1
 
@@ -426,6 +480,15 @@ class AgentLoop:
                     acceptance_criteria=mission.acceptance_criteria,
                     written_files=self._written_files,
                 )
+
+                # Check goal completion status via MissionPlanningService if acceptance criteria or strict requirements active
+                if hasattr(self, "planning_service") and self.planning_service and (mission.acceptance_criteria or getattr(mission, "strict_requirements", False) or getattr(self.config, "strict_requirements", False)):
+                    goal_ok, goal_reason = self.planning_service.is_goal_completed()
+                    if not goal_ok:
+                        accepted = False
+                        v_reason = f"Goal requirements incomplete: {goal_reason}"
+                        if goal_reason not in issues:
+                            issues.append(goal_reason)
 
                 if accepted:
                     logger.info("AgentLoop: completion candidate ACCEPTED by harness & evidence ✓")
@@ -539,7 +602,12 @@ class AgentLoop:
     # ── Helpers ───────────────────────────────────────────────────────────────
 
     def _detect_stall(self) -> bool:
-        """Detect repeated identical actions within the recent window."""
+        """Detect repeated identical actions or stalled progress fingerprint."""
+        if hasattr(self, "planning_service") and self.planning_service:
+            is_stalled, reason, advice = self.planning_service.progress_controller.detect_stall(stall_threshold_turns=3)
+            if is_stalled:
+                return True
+
         window_size = self.config.stall_window_size
         if len(self._recent_actions) < window_size:
             return False
@@ -629,12 +697,12 @@ class AgentLoop:
                     priority=ContextPriority.MANDATORY,
                     pinned=True,
                 ))
-                for f in self._written_files:
-                    self.context_engine.track_file_snippet(
-                        path=f,
-                        content=f"[Modified file: {f}]",
-                        is_modified=True,
-                    )
+                # Sync planning service to context engine
+                if hasattr(self, "planning_service") and self.planning_service:
+                    try:
+                        self.planning_service.sync_to_context_engine(self.context_engine)
+                    except Exception as sync_exc:
+                        logger.warning(f"AgentLoop: planning context sync warning: {sync_exc}")
 
                 pack = self.context_engine.build_context(
                     mission_goal=mission.user_prompt,

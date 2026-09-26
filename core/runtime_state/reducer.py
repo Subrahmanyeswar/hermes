@@ -33,6 +33,19 @@ from core.runtime_state.models import (
     EvidenceState,
     CheckpointStatus,
     TaskState,
+    AcceptanceCheck,
+    AcceptanceCheckStatus,
+    AcceptanceLedger,
+    ExecutionMode,
+    PlanState,
+    PlanStatus,
+    PlanStep,
+    RequirementCategory,
+    RequirementPriority,
+    RequirementState,
+    RequirementStatus,
+    TodoState,
+    TodoStatus,
 )
 from core.runtime_state.events import HermesEvent, EventType
 
@@ -530,6 +543,242 @@ class StateReducer:
             state.progress.waiting_reason = WaitReason.FAILED
             state.progress.current_action = payload.get("error", "Agent failed")
 
+        # ── 13. Goal, Requirement, Todo, Acceptance, Progress & Plan (Prompt 9) ──
+        elif et == EventType.GOAL_CREATED:
+            g_id = payload.get("goal_id", f"goal_{state.mission.mission_id}")
+            state.goal.goal_id = g_id
+            state.goal.title = payload.get("title", "")
+            state.goal.description = payload.get("description", "")
+            state.goal.user_request = payload.get("user_request", state.mission.prompt)
+            state.goal.explicit_constraints = payload.get("explicit_constraints", [])
+            state.goal.explicit_preferences = payload.get("explicit_preferences", [])
+            state.goal.clarifications = payload.get("clarifications", [])
+            state.goal.success_condition = payload.get("success_condition", "")
+            state.goal.status = GoalStatus.ACTIVE
+            state.goal.updated_at = event.timestamp
+            state.acceptance_ledger.goal_id = g_id
+
+        elif et == EventType.GOAL_UPDATED:
+            for k, v in payload.items():
+                if hasattr(state.goal, k):
+                    setattr(state.goal, k, v)
+            state.goal.updated_at = event.timestamp
+
+        elif et == EventType.GOAL_COMPLETED:
+            state.goal.status = GoalStatus.COMPLETED
+            state.goal.updated_at = event.timestamp
+            state.progress.overall_status = "COMPLETED"
+
+        elif et == EventType.GOAL_BLOCKED:
+            state.goal.status = GoalStatus.BLOCKED
+            state.goal.blocked_reason = payload.get("reason", "Blocked")
+            state.goal.updated_at = event.timestamp
+
+        elif et == EventType.REQUIREMENT_CREATED:
+            r_id = payload.get("requirement_id")
+            if r_id:
+                cat_str = payload.get("category", "functional")
+                try:
+                    cat = RequirementCategory(cat_str)
+                except ValueError:
+                    cat = RequirementCategory.FUNCTIONAL
+                prio_str = payload.get("priority", "MEDIUM")
+                try:
+                    prio = RequirementPriority(prio_str)
+                except ValueError:
+                    prio = RequirementPriority.MEDIUM
+                state.requirements[r_id] = RequirementState(
+                    requirement_id=r_id,
+                    goal_id=payload.get("goal_id", state.goal.goal_id),
+                    title=payload.get("title", r_id),
+                    description=payload.get("description", ""),
+                    category=cat,
+                    priority=prio,
+                    status=RequirementStatus.PENDING,
+                    dependencies=payload.get("dependencies", []),
+                    created_at=event.timestamp,
+                    updated_at=event.timestamp,
+                )
+                cls._recalculate_requirement_counts(state)
+
+        elif et == EventType.REQUIREMENT_UPDATED:
+            r_id = payload.get("requirement_id")
+            if r_id and r_id in state.requirements:
+                req = state.requirements[r_id]
+                for k, v in payload.items():
+                    if k not in ("requirement_id", "status") and hasattr(req, k):
+                        setattr(req, k, v)
+                req.updated_at = event.timestamp
+
+        elif et == EventType.REQUIREMENT_STARTED:
+            r_id = payload.get("requirement_id")
+            if r_id and r_id in state.requirements:
+                state.requirements[r_id].transition_status(RequirementStatus.IN_PROGRESS, reason=payload.get("reason", ""), actor=event.source)
+                state.progress.current_focus = r_id
+                state.progress.overall_status = "WORKING"
+                cls._recalculate_requirement_counts(state)
+
+        elif et == EventType.REQUIREMENT_BLOCKED:
+            r_id = payload.get("requirement_id")
+            if r_id and r_id in state.requirements:
+                state.requirements[r_id].transition_status(RequirementStatus.BLOCKED, reason=payload.get("reason", ""), actor=event.source)
+                state.progress.blocked_reason = payload.get("reason", "")
+                cls._recalculate_requirement_counts(state)
+
+        elif et == EventType.REQUIREMENT_COMPLETED:
+            r_id = payload.get("requirement_id")
+            if r_id and r_id in state.requirements:
+                state.requirements[r_id].transition_status(RequirementStatus.VERIFIED, reason=payload.get("reason", ""), actor=event.source)
+                ev = payload.get("evidence_ref")
+                if ev and ev not in state.requirements[r_id].evidence_refs:
+                    state.requirements[r_id].evidence_refs.append(ev)
+                cls._recalculate_requirement_counts(state)
+
+        elif et == EventType.REQUIREMENT_REOPENED:
+            r_id = payload.get("requirement_id")
+            if r_id and r_id in state.requirements:
+                state.requirements[r_id].reopen(reason=payload.get("reason", "Regression detected"))
+                cls._recalculate_requirement_counts(state)
+
+        elif et == EventType.REQUIREMENT_WAIVED:
+            r_id = payload.get("requirement_id")
+            if r_id and r_id in state.requirements:
+                state.requirements[r_id].waive(reason=payload.get("reason", ""), actor=payload.get("actor", "user"))
+                cls._recalculate_requirement_counts(state)
+
+        elif et == EventType.REQUIREMENT_CANCELLED:
+            r_id = payload.get("requirement_id")
+            if r_id and r_id in state.requirements:
+                state.requirements[r_id].transition_status(RequirementStatus.CANCELLED, reason=payload.get("reason", ""), actor=event.source)
+                cls._recalculate_requirement_counts(state)
+
+        elif et == EventType.ACCEPTANCE_CHECK_CREATED:
+            c_id = payload.get("check_id")
+            r_id = payload.get("requirement_id")
+            if c_id and r_id:
+                check = AcceptanceCheck(
+                    check_id=c_id,
+                    requirement_id=r_id,
+                    description=payload.get("description", ""),
+                    critical=payload.get("critical", True),
+                    verification_method=payload.get("verification_method", "test"),
+                )
+                state.acceptance_ledger.add_check(check)
+                if r_id in state.requirements:
+                    if c_id not in state.requirements[r_id].acceptance_check_ids:
+                        state.requirements[r_id].acceptance_check_ids.append(c_id)
+                cls._recalculate_acceptance_counts(state)
+
+        elif et in (EventType.ACCEPTANCE_CHECK_PASSED, EventType.ACCEPTANCE_CHECK_FAILED, EventType.ACCEPTANCE_CHECK_BLOCKED, EventType.ACCEPTANCE_CHECK_SKIPPED):
+            c_id = payload.get("check_id")
+            if c_id:
+                status_map = {
+                    EventType.ACCEPTANCE_CHECK_PASSED: AcceptanceCheckStatus.PASS,
+                    EventType.ACCEPTANCE_CHECK_FAILED: AcceptanceCheckStatus.FAIL,
+                    EventType.ACCEPTANCE_CHECK_BLOCKED: AcceptanceCheckStatus.BLOCKED,
+                    EventType.ACCEPTANCE_CHECK_SKIPPED: AcceptanceCheckStatus.SKIPPED,
+                }
+                st = status_map[et]
+                state.acceptance_ledger.record_result(
+                    check_id=c_id,
+                    status=st,
+                    evidence_ref=payload.get("evidence_ref"),
+                    error=payload.get("error"),
+                    source_versions=payload.get("source_versions"),
+                )
+                cls._recalculate_acceptance_counts(state)
+
+        elif et == EventType.TODO_CREATED:
+            t_id = payload.get("todo_id")
+            if t_id:
+                prio_str = payload.get("priority", "MEDIUM")
+                try:
+                    prio = RequirementPriority(prio_str)
+                except ValueError:
+                    prio = RequirementPriority.MEDIUM
+                state.todos[t_id] = TodoState(
+                    todo_id=t_id,
+                    goal_id=payload.get("goal_id", state.goal.goal_id),
+                    requirement_ids=payload.get("requirement_ids", []),
+                    title=payload.get("title", ""),
+                    description=payload.get("description", ""),
+                    status=TodoStatus.PENDING,
+                    priority=prio,
+                    dependencies=payload.get("dependencies", []),
+                    owner=payload.get("owner", "T1"),
+                    created_at=event.timestamp,
+                    updated_at=event.timestamp,
+                )
+
+        elif et == EventType.TODO_UPDATED:
+            t_id = payload.get("todo_id")
+            if t_id and t_id in state.todos:
+                todo = state.todos[t_id]
+                for k, v in payload.items():
+                    if k != "todo_id" and hasattr(todo, k):
+                        setattr(todo, k, v)
+                todo.updated_at = event.timestamp
+
+        elif et == EventType.TODO_COMPLETED:
+            t_id = payload.get("todo_id")
+            if t_id and t_id in state.todos:
+                state.todos[t_id].status = TodoStatus.DONE
+                state.todos[t_id].updated_at = event.timestamp
+
+        elif et == EventType.PROGRESS_UPDATED:
+            for k in ("last_meaningful_change", "current_focus", "next_action", "blocked_reason", "progress_fingerprint"):
+                if k in payload:
+                    setattr(state.progress, k, payload[k])
+            if "known_failures" in payload:
+                state.progress.known_failures = list(payload["known_failures"])
+            if "recent_evidence" in payload:
+                state.progress.recent_evidence = list(payload["recent_evidence"])
+            if "overall_status" in payload:
+                state.progress.overall_status = payload["overall_status"]
+
+        elif et == EventType.FOCUS_CHANGED:
+            state.progress.current_focus = payload.get("requirement_id")
+            if payload.get("requirement_id") in state.requirements:
+                state.requirements[payload["requirement_id"]].active = True
+
+        elif et == EventType.PLAN_CREATED:
+            p_id = payload.get("plan_id", f"plan_{state.mission.mission_id}")
+            steps_data = payload.get("steps", [])
+            steps = [PlanStep(**s) if isinstance(s, dict) else s for s in steps_data]
+            state.plan = PlanState(
+                plan_id=p_id,
+                goal_id=payload.get("goal_id", state.goal.goal_id),
+                version=payload.get("version", 1),
+                steps=steps,
+                status=PlanStatus.DRAFT,
+                risks=payload.get("risks", []),
+                unknowns=payload.get("unknowns", []),
+                open_questions=payload.get("open_questions", []),
+                created_at=event.timestamp,
+                updated_at=event.timestamp,
+            )
+
+        elif et == EventType.PLAN_APPROVED:
+            if state.plan:
+                state.plan.status = PlanStatus.APPROVED
+                state.plan.approved_by = payload.get("actor", "user")
+                state.plan.approved_at = event.timestamp
+
+        elif et == EventType.PLAN_REJECTED:
+            if state.plan:
+                state.plan.status = PlanStatus.REJECTED
+
+        elif et == EventType.PLAN_STALE:
+            if state.plan:
+                state.plan.status = PlanStatus.STALE
+                state.plan.reason_changed = payload.get("reason", "Requirements changed")
+
+        elif et == EventType.PLAN_MODE_ENTERED:
+            state.execution_mode = ExecutionMode.PLAN_MODE
+
+        elif et == EventType.PLAN_MODE_EXITED:
+            state.execution_mode = ExecutionMode.EXECUTION_MODE
+
         return state
 
     @classmethod
@@ -564,3 +813,17 @@ class StateReducer:
         state.progress.completed_tasks = completed
         state.progress.total_tasks = total
         state.progress.overall_fraction = (completed / total) if total > 0 else 0.0
+
+    @classmethod
+    def _recalculate_requirement_counts(cls, state: HermesRuntimeState) -> None:
+        total = len(state.requirements)
+        verified = sum(1 for r in state.requirements.values() if r.status in (RequirementStatus.VERIFIED, RequirementStatus.WAIVED))
+        state.progress.total_requirements_count = total
+        state.progress.verified_requirements_count = verified
+
+    @classmethod
+    def _recalculate_acceptance_counts(cls, state: HermesRuntimeState) -> None:
+        total = len(state.acceptance_ledger.checks)
+        passed = sum(1 for c in state.acceptance_ledger.checks.values() if c.status == AcceptanceCheckStatus.PASS)
+        state.progress.total_checks_count = total
+        state.progress.passing_checks_count = passed

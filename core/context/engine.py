@@ -91,6 +91,11 @@ class ContextEngine:
         self._last_pack: Optional[ContextPack] = None
         self._mission_id: str = "default"
 
+    @property
+    def items(self) -> Dict[str, ContextItem]:
+        """Access registered context items."""
+        return self._items
+
     # ── Item Ingestion and State Registration ─────────────────────────────────
 
     def register_item(self, item: ContextItem) -> None:

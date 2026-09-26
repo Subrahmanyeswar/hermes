@@ -43,10 +43,76 @@ class TaskStatus(str, Enum):
 
 
 class GoalStatus(str, Enum):
+    NOT_STARTED = "NOT_STARTED"
     ACTIVE = "ACTIVE"
+    BLOCKED = "BLOCKED"
+    AT_RISK = "AT_RISK"
     ACHIEVED = "ACHIEVED"
+    COMPLETED = "COMPLETED"
     FAILED = "FAILED"
     CANCELLED = "CANCELLED"
+    ABORTED = "ABORTED"
+
+
+class RequirementCategory(str, Enum):
+    FUNCTIONAL = "functional"
+    QUALITY = "quality"
+    SECURITY = "security"
+    PERFORMANCE = "performance"
+    INTEGRATION = "integration"
+    UI = "ui"
+    DOCUMENTATION = "documentation"
+    VERIFICATION = "verification"
+
+
+class RequirementPriority(str, Enum):
+    CRITICAL = "CRITICAL"
+    HIGH = "HIGH"
+    MEDIUM = "MEDIUM"
+    LOW = "LOW"
+
+
+class RequirementStatus(str, Enum):
+    PENDING = "PENDING"
+    READY = "READY"
+    IN_PROGRESS = "IN_PROGRESS"
+    BLOCKED = "BLOCKED"
+    FAILED = "FAILED"
+    PASSING = "PASSING"
+    VERIFIED = "VERIFIED"
+    WAIVED = "WAIVED"
+    CANCELLED = "CANCELLED"
+
+
+class AcceptanceCheckStatus(str, Enum):
+    NOT_RUN = "NOT_RUN"
+    PASS = "PASS"
+    FAIL = "FAIL"
+    BLOCKED = "BLOCKED"
+    SKIPPED = "SKIPPED"
+
+
+class TodoStatus(str, Enum):
+    PENDING = "PENDING"
+    READY = "READY"
+    IN_PROGRESS = "IN_PROGRESS"
+    BLOCKED = "BLOCKED"
+    DONE = "DONE"
+    CANCELLED = "CANCELLED"
+
+
+class PlanStatus(str, Enum):
+    DRAFT = "DRAFT"
+    REVIEW_REQUIRED = "REVIEW_REQUIRED"
+    APPROVED = "APPROVED"
+    REJECTED = "REJECTED"
+    SUPERSEDED = "SUPERSEDED"
+    STALE = "STALE"
+
+
+class ExecutionMode(str, Enum):
+    PLAN_MODE = "PLAN_MODE"
+    EXECUTION_MODE = "EXECUTION_MODE"
 
 
 class WaitReason(str, Enum):
@@ -229,12 +295,20 @@ class TaskState:
 class GoalState:
     goal_id: str
     mission_id: str
+    title: str = ""
     description: str = ""
+    user_request: str = ""
+    explicit_constraints: List[str] = field(default_factory=list)
+    explicit_preferences: List[str] = field(default_factory=list)
+    clarifications: List[str] = field(default_factory=list)
+    success_condition: str = ""
     acceptance_criteria: List[str] = field(default_factory=list)
     progress: float = 0.0
     status: GoalStatus = GoalStatus.ACTIVE
     created_at: float = field(default_factory=time.time)
     updated_at: float = field(default_factory=time.time)
+    goal_version: int = 1
+    blocked_reason: Optional[str] = None
     remaining_objectives: List[str] = field(default_factory=list)
     achieved_objectives: List[str] = field(default_factory=list)
 
@@ -259,10 +333,288 @@ class ProgressState:
     elapsed_time: float = 0.0
     waiting_reason: WaitReason = WaitReason.NONE
 
+    # Prompt 9 extensions: Semantic progress & focus
+    last_meaningful_change: str = ""
+    current_focus: Optional[str] = None
+    next_action: str = ""
+    known_failures: List[str] = field(default_factory=list)
+    blocked_reason: Optional[str] = None
+    recent_evidence: List[str] = field(default_factory=list)
+    overall_status: str = "IDLE"
+    verified_requirements_count: int = 0
+    total_requirements_count: int = 0
+    passing_checks_count: int = 0
+    total_checks_count: int = 0
+    progress_fingerprint: str = ""
+
     def to_dict(self) -> Dict[str, Any]:
         d = asdict(self)
         d["waiting_reason"] = self.waiting_reason.value
         return d
+
+
+@dataclass
+class AcceptanceCheck:
+    """A concrete observable acceptance check belonging to a requirement."""
+    check_id: str
+    requirement_id: str
+    description: str
+    status: AcceptanceCheckStatus = AcceptanceCheckStatus.NOT_RUN
+    critical: bool = True
+    evidence_refs: List[str] = field(default_factory=list)
+    verification_method: str = "test"  # "test", "command", "file_exists", "ast_check", "manual"
+    last_run_at: Optional[float] = None
+    error_message: Optional[str] = None
+    source_file_versions: Dict[str, str] = field(default_factory=dict)
+
+    def to_dict(self) -> Dict[str, Any]:
+        d = asdict(self)
+        d["status"] = self.status.value
+        return d
+
+
+@dataclass
+class AcceptanceLedger:
+    """Authoritative completion contract recording concrete verification proofs."""
+    goal_id: str = ""
+    version: int = 1
+    checks: Dict[str, AcceptanceCheck] = field(default_factory=dict)
+    requirement_checks: Dict[str, List[str]] = field(default_factory=dict)
+    updated_at: float = field(default_factory=time.time)
+
+    def add_check(self, check: AcceptanceCheck) -> None:
+        self.checks[check.check_id] = check
+        if check.requirement_id not in self.requirement_checks:
+            self.requirement_checks[check.requirement_id] = []
+        if check.check_id not in self.requirement_checks[check.requirement_id]:
+            self.requirement_checks[check.requirement_id].append(check.check_id)
+        self.updated_at = time.time()
+
+    def record_result(
+        self,
+        check_id: str,
+        status: AcceptanceCheckStatus,
+        evidence_ref: Optional[str] = None,
+        error: Optional[str] = None,
+        source_versions: Optional[Dict[str, str]] = None,
+    ) -> bool:
+        check = self.checks.get(check_id)
+        if not check:
+            return False
+        check.status = status
+        check.last_run_at = time.time()
+        if evidence_ref and evidence_ref not in check.evidence_refs:
+            check.evidence_refs.append(evidence_ref)
+        if error:
+            check.error_message = error
+        if source_versions:
+            check.source_file_versions.update(source_versions)
+        self.updated_at = time.time()
+        return True
+
+    def get_checks_for_requirement(self, requirement_id: str) -> List[AcceptanceCheck]:
+        check_ids = self.requirement_checks.get(requirement_id, [])
+        return [self.checks[cid] for cid in check_ids if cid in self.checks]
+
+    def is_requirement_passing(self, requirement_id: str) -> Tuple[bool, List[str]]:
+        """
+        Evaluate if requirement passes its acceptance checks.
+        Returns: (is_passing: bool, issues: List[str])
+        """
+        checks = self.get_checks_for_requirement(requirement_id)
+        if not checks:
+            return False, ["No acceptance checks defined for requirement"]
+
+        issues = []
+        has_evidence = False
+
+        for c in checks:
+            if c.critical and c.status != AcceptanceCheckStatus.PASS:
+                issues.append(f"Critical check '{c.description}' is {c.status.value}")
+            elif c.status == AcceptanceCheckStatus.FAIL:
+                issues.append(f"Check '{c.description}' failed: {c.error_message or 'Unspecified failure'}")
+            elif c.status == AcceptanceCheckStatus.NOT_RUN:
+                issues.append(f"Check '{c.description}' has not been executed yet")
+            elif c.status == AcceptanceCheckStatus.BLOCKED:
+                issues.append(f"Check '{c.description}' is blocked")
+
+            if c.status == AcceptanceCheckStatus.PASS and c.evidence_refs:
+                has_evidence = True
+
+        if not has_evidence:
+            issues.append("No verified evidence references recorded for passing checks")
+
+        return len(issues) == 0, issues
+
+    def mark_stale_for_files(self, modified_files: Set[str]) -> List[str]:
+        """Mark checks stale if their recorded source files were modified."""
+        stale_check_ids = []
+        for check in self.checks.values():
+            if check.status == AcceptanceCheckStatus.PASS:
+                overlap = set(check.source_file_versions.keys()).intersection(modified_files)
+                if overlap:
+                    check.status = AcceptanceCheckStatus.NOT_RUN
+                    check.evidence_refs.clear()
+                    stale_check_ids.append(check.check_id)
+        if stale_check_ids:
+            self.updated_at = time.time()
+        return stale_check_ids
+
+    def report(self) -> Dict[str, Any]:
+        total = len(self.checks)
+        passed = sum(1 for c in self.checks.values() if c.status == AcceptanceCheckStatus.PASS)
+        failed = sum(1 for c in self.checks.values() if c.status == AcceptanceCheckStatus.FAIL)
+        not_run = sum(1 for c in self.checks.values() if c.status == AcceptanceCheckStatus.NOT_RUN)
+        blocked = sum(1 for c in self.checks.values() if c.status == AcceptanceCheckStatus.BLOCKED)
+        critical_failed = sum(
+            1 for c in self.checks.values() if c.critical and c.status in (AcceptanceCheckStatus.FAIL, AcceptanceCheckStatus.BLOCKED)
+        )
+        return {
+            "total_checks": total,
+            "passed": passed,
+            "failed": failed,
+            "not_run": not_run,
+            "blocked": blocked,
+            "critical_failed": critical_failed,
+        }
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "goal_id": self.goal_id,
+            "version": self.version,
+            "checks": {k: v.to_dict() for k, v in self.checks.items()},
+            "requirement_checks": self.requirement_checks,
+            "updated_at": self.updated_at,
+        }
+
+
+@dataclass
+class RequirementState:
+    """A single concrete required outcome for the user's goal."""
+    requirement_id: str
+    goal_id: str
+    title: str
+    description: str = ""
+    category: RequirementCategory = RequirementCategory.FUNCTIONAL
+    priority: RequirementPriority = RequirementPriority.MEDIUM
+    status: RequirementStatus = RequirementStatus.PENDING
+    dependencies: List[str] = field(default_factory=list)
+    acceptance_check_ids: List[str] = field(default_factory=list)
+    evidence_refs: List[str] = field(default_factory=list)
+    active: bool = False
+    created_at: float = field(default_factory=time.time)
+    updated_at: float = field(default_factory=time.time)
+    attempt_count: int = 0
+    last_failure: Optional[str] = None
+    waiver_reason: Optional[str] = None
+    waiver_actor: Optional[str] = None
+    waiver_timestamp: Optional[float] = None
+    version: int = 1
+    history: List[Dict[str, Any]] = field(default_factory=list)
+
+    def transition_status(self, new_status: RequirementStatus, reason: str = "", actor: str = "system") -> None:
+        if self.status == new_status:
+            return
+        self.history.append({
+            "from_status": self.status.value,
+            "to_status": new_status.value,
+            "reason": reason,
+            "actor": actor,
+            "timestamp": time.time(),
+        })
+        self.status = new_status
+        self.updated_at = time.time()
+        self.version += 1
+
+    def waive(self, reason: str, actor: str) -> None:
+        self.waiver_reason = reason
+        self.waiver_actor = actor
+        self.waiver_timestamp = time.time()
+        self.transition_status(RequirementStatus.WAIVED, reason=f"Waived by {actor}: {reason}", actor=actor)
+
+    def reopen(self, reason: str) -> None:
+        self.transition_status(RequirementStatus.FAILED, reason=f"Reopened: {reason}", actor="verifier")
+
+    def to_dict(self) -> Dict[str, Any]:
+        d = asdict(self)
+        d["category"] = self.category.value
+        d["priority"] = self.priority.value
+        d["status"] = self.status.value
+        return d
+
+
+@dataclass
+class TodoState:
+    """A concrete engineering work item supporting one or more requirements."""
+    todo_id: str
+    goal_id: str
+    requirement_ids: List[str] = field(default_factory=list)
+    title: str = ""
+    description: str = ""
+    status: TodoStatus = TodoStatus.PENDING
+    priority: RequirementPriority = RequirementPriority.MEDIUM
+    dependencies: List[str] = field(default_factory=list)
+    owner: str = "T1"
+    created_at: float = field(default_factory=time.time)
+    updated_at: float = field(default_factory=time.time)
+    attempt_count: int = 0
+    last_failure: Optional[str] = None
+
+    def to_dict(self) -> Dict[str, Any]:
+        d = asdict(self)
+        d["priority"] = self.priority.value
+        d["status"] = self.status.value
+        return d
+
+
+@dataclass
+class PlanStep:
+    """Proposed step in an execution plan."""
+    step_id: str
+    title: str
+    description: str = ""
+    requirement_ids: List[str] = field(default_factory=list)
+    dependencies: List[str] = field(default_factory=list)
+    verification_strategy: str = ""
+    status: str = "PROPOSED"
+
+    def to_dict(self) -> Dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass
+class PlanState:
+    """Proposed strategy decomposing the mission goal into ordered steps."""
+    plan_id: str
+    goal_id: str
+    version: int = 1
+    steps: List[PlanStep] = field(default_factory=list)
+    status: PlanStatus = PlanStatus.DRAFT
+    risks: List[str] = field(default_factory=list)
+    unknowns: List[str] = field(default_factory=list)
+    open_questions: List[str] = field(default_factory=list)
+    created_at: float = field(default_factory=time.time)
+    updated_at: float = field(default_factory=time.time)
+    reason_changed: Optional[str] = None
+    approved_by: Optional[str] = None
+    approved_at: Optional[float] = None
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "plan_id": self.plan_id,
+            "goal_id": self.goal_id,
+            "version": self.version,
+            "steps": [s.to_dict() for s in self.steps],
+            "status": self.status.value,
+            "risks": self.risks,
+            "unknowns": self.unknowns,
+            "open_questions": self.open_questions,
+            "created_at": self.created_at,
+            "updated_at": self.updated_at,
+            "reason_changed": self.reason_changed,
+            "approved_by": self.approved_by,
+            "approved_at": self.approved_at,
+        }
 
 
 @dataclass
@@ -467,6 +819,14 @@ class HermesRuntimeState:
     session: SessionState = field(default_factory=lambda: SessionState(session_id=""))
     evidence: Dict[str, EvidenceState] = field(default_factory=dict)
     checkpoint: CheckpointState = field(default_factory=CheckpointState)
+
+    # Prompt 9 extensions: Authoritative Goal, Requirement, Acceptance, Todo, and Plan state
+    requirements: Dict[str, RequirementState] = field(default_factory=dict)
+    acceptance_ledger: AcceptanceLedger = field(default_factory=AcceptanceLedger)
+    todos: Dict[str, TodoState] = field(default_factory=dict)
+    plan: Optional[PlanState] = None
+    execution_mode: ExecutionMode = ExecutionMode.EXECUTION_MODE
+
     state_version: int = 0
     last_event_sequence: int = 0
     last_updated_at: float = field(default_factory=time.time)
@@ -477,10 +837,12 @@ class HermesRuntimeState:
         s_id = session_id or f"sess_{mission_id}"
         m_state = MissionState(mission_id=mission_id, session_id=s_id)
         g_state = GoalState(goal_id=f"goal_{mission_id}", mission_id=mission_id)
+        ledger = AcceptanceLedger(goal_id=f"goal_{mission_id}")
         sess_state = SessionState(session_id=s_id, mission_id=mission_id)
         return cls(
             mission=m_state,
             goal=g_state,
+            acceptance_ledger=ledger,
             session=sess_state,
             state_version=0,
             last_event_sequence=0,
@@ -502,6 +864,11 @@ class HermesRuntimeState:
             "session": self.session.to_dict(),
             "evidence": {k: v.to_dict() for k, v in self.evidence.items()},
             "checkpoint": self.checkpoint.to_dict(),
+            "requirements": {k: v.to_dict() for k, v in self.requirements.items()},
+            "acceptance_ledger": self.acceptance_ledger.to_dict(),
+            "todos": {k: v.to_dict() for k, v in self.todos.items()},
+            "plan": self.plan.to_dict() if self.plan else None,
+            "execution_mode": self.execution_mode.value,
             "state_version": self.state_version,
             "last_event_sequence": self.last_event_sequence,
             "last_updated_at": self.last_updated_at,
