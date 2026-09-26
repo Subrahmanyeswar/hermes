@@ -18,8 +18,10 @@ class ToolResult:
     error: str | None = None
     exit_code: int = 0
     duration_seconds: float = 0.0
+    details: dict[str, Any] = field(default_factory=dict)
 
     def __str__(self) -> str:
+
         """Return output on success, or a prefixed error message on failure."""
         if self.success:
             return self.output

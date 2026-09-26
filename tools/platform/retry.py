@@ -68,6 +68,7 @@ class RetryPolicy:
         if error.code in (
             ToolErrorCode.PERMISSION_DENIED,
             ToolErrorCode.PATH_OUTSIDE_WORKSPACE,
+            ToolErrorCode.EDIT_PATH_OUTSIDE_WORKSPACE,
             ToolErrorCode.COMMAND_REJECTED,
         ):
             return RetryEvaluation(
@@ -93,6 +94,14 @@ class RetryPolicy:
             ToolErrorCode.INVALID_ARGUMENT,
             ToolErrorCode.FILE_CONFLICT,
             ToolErrorCode.FILE_NOT_FOUND,
+            ToolErrorCode.FILE_EXISTS_OVERWRITE_REQUIRED,
+            ToolErrorCode.EDIT_TARGET_NOT_FOUND,
+            ToolErrorCode.EDIT_TARGET_NOT_UNIQUE,
+            ToolErrorCode.EDIT_EXPECTED_COUNT_MISMATCH,
+            ToolErrorCode.EDIT_FILE_CHANGED,
+            ToolErrorCode.EDIT_POSTCONDITION_FAILED,
+            ToolErrorCode.EDIT_SUSPICIOUS_LARGE_DIFF,
+            ToolErrorCode.GREP_INVALID_PATTERN,
         ):
             return RetryEvaluation(
                 decision=RetryDecision.RETRY_WITH_MODIFIED_INPUT,
@@ -101,6 +110,7 @@ class RetryPolicy:
                 current_attempt=current_attempt + 1,
                 max_budget=budget,
             )
+
 
         # 5. Non-idempotent operations must never be blindly retried on failure
         if spec and spec.risk:

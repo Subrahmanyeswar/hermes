@@ -23,14 +23,34 @@ class Validator:
     Validates proposed tool requests before permission evaluation and physical execution.
     """
 
+    PLATFORM_PARAM_ALIASES = {
+        **PARAM_ALIASES,
+        "offset": "start_line",
+        "limit": "max_lines",
+        "occurrences": "expected_occurrences",
+    }
+
     @classmethod
     def normalize_arguments(cls, raw_args: Dict[str, Any]) -> Dict[str, Any]:
         """Normalize parameter aliases to canonical names."""
         normalized: Dict[str, Any] = {}
         for key, val in raw_args.items():
-            canonical_key = PARAM_ALIASES.get(key, key)
+            canonical_key = cls.PLATFORM_PARAM_ALIASES.get(key, key)
             normalized[canonical_key] = val
+
+        # Ensure bidirectional presence for edit string aliases
+        if "old_string" in normalized and "old_text" not in normalized:
+            normalized["old_text"] = normalized["old_string"]
+        elif "old_text" in normalized and "old_string" not in normalized:
+            normalized["old_string"] = normalized["old_text"]
+
+        if "new_string" in normalized and "new_text" not in normalized:
+            normalized["new_text"] = normalized["new_string"]
+        elif "new_text" in normalized and "new_string" not in normalized:
+            normalized["new_string"] = normalized["new_text"]
+
         return normalized
+
 
     @classmethod
     def validate(

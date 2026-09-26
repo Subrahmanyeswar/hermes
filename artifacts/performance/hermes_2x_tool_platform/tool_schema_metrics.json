@@ -5,22 +5,52 @@
     "legacy_bridged": 17
   },
   "openai_format": {
-    "core_tools_token_est": 1133,
-    "core_tools_bytes": 4534,
-    "all_tools_token_est": 3609,
-    "all_tools_bytes": 14438,
-    "token_savings_pct": 68.61
+    "core_tools_token_est": 1361,
+    "core_tools_bytes": 5447,
+    "all_tools_token_est": 3837,
+    "all_tools_bytes": 15351,
+    "token_savings_pct": 64.53
   },
   "ollama_format": {
-    "core_tools_token_est": 1133,
-    "core_tools_bytes": 4534,
-    "all_tools_token_est": 3609,
-    "all_tools_bytes": 14438,
-    "token_savings_pct": 68.61
+    "core_tools_token_est": 1361,
+    "core_tools_bytes": 5447,
+    "all_tools_token_est": 3837,
+    "all_tools_bytes": 15351,
+    "token_savings_pct": 64.53
   },
   "tool_search_discovery": {
     "interface_token_est": 120,
-    "dynamic_working_set_est": 1133,
-    "search_savings_vs_all_tools_pct": 65.28
+    "dynamic_working_set_est": 1361,
+    "search_savings_vs_all_tools_pct": 61.4
+  },
+  "benchmarks": {
+    "fs_read_small_ms": {
+      "p50": 1.054,
+      "p95": 2.11
+    },
+    "fs_read_large_ms": {
+      "p50": 1.197,
+      "p95": 2.176
+    },
+    "fs_edit_ms": {
+      "p50": 11.513,
+      "p95": 17.705
+    },
+    "fs_write_ms": {
+      "p50": 4.801,
+      "p95": 5.518
+    },
+    "search_glob_ms": {
+      "p50": 2.678,
+      "p95": 3.377
+    },
+    "search_grep_ms": {
+      "p50": 11.306,
+      "p95": 46.406
+    },
+    "workspace_discovery_ms": {
+      "p50": 0.861,
+      "p95": 1.012
+    }
   }
 }

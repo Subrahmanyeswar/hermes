@@ -254,11 +254,11 @@
     "fs.edit": {
       "canonical_name": "fs.edit",
       "display_name": "Edit File",
-      "description": "Apply an exact surgical text replacement to an existing file.",
+      "description": "Apply an exact surgical text replacement to an existing file. By default expected_occurrences=1. Fails if target text is absent or ambiguous.",
       "category": "fs",
       "schema": {
         "name": "fs.edit",
-        "description": "Replace exact old_text with new_text in an existing file.",
+        "description": "Replace exact old_string with new_string in an existing file.",
         "parameters": {
           "type": "object",
           "properties": {
@@ -266,17 +266,36 @@
               "type": "string",
               "description": "Relative path to file"
             },
+            "old_string": {
+              "type": "string",
+              "description": "Exact text to replace (no fuzzy matching)"
+            },
             "old_text": {
               "type": "string",
-              "description": "Exact text to replace"
+              "description": "Alias for old_string"
             },
-            "new_text": {
+            "new_string": {
               "type": "string",
               "description": "Replacement text"
             },
+            "new_text": {
+              "type": "string",
+              "description": "Alias for new_string"
+            },
             "expected_occurrences": {
               "type": "integer",
-              "default": 1
+              "default": 1,
+              "description": "Expected match count (default: 1)"
+            },
+            "replace_all": {
+              "type": "boolean",
+              "default": false,
+              "description": "Replace all occurrences if True"
+            },
+            "allow_large_diff": {
+              "type": "boolean",
+              "default": false,
+              "description": "Permit large diffs exceeding safety limits"
             },
             "response_format": {
               "type": "string",
@@ -289,15 +308,11 @@
             }
           },
           "required": [
-            "path",
-            "old_text",
-            "new_text"
+            "path"
           ]
         },
         "required": [
-          "path",
-          "old_text",
-          "new_text"
+          "path"
         ],
         "output_semantics": "",
         "version": "1.0"
@@ -311,41 +326,42 @@
         "network_access": false,
         "requires_confirmation": false,
         "reversible": true,
-        "idempotent": true,
+        "idempotent": false,
         "affects_workspace": true,
         "affects_external_system": false,
         "blocked_in": [
           "plan"
         ]
       },
-      "version": "1.0",
+      "version": "2.0",
       "examples": [
         {
-          "intent": "Replace a function definition",
+          "intent": "Replace timeout value uniquely in config.py",
           "input": {
-            "path": "main.py",
-            "old_text": "def old():\n    pass",
-            "new_text": "def new():\n    return 42"
+            "path": "config.py",
+            "old_string": "timeout = 30",
+            "new_string": "timeout = 60"
           },
-          "expected_output_summary": "Successfully edited main.py",
+          "expected_output_summary": "Successfully edited 'config.py'. Replaced 1 occurrence(s) (+1/-1 lines).",
           "is_failure_example": false,
           "failure_reason": ""
         },
         {
-          "intent": "Fails if old_text is missing",
+          "intent": "Fails safely when old_string appears multiple times without qualification",
           "input": {
-            "path": "main.py",
-            "old_text": "nonexistent text",
-            "new_text": "new text"
+            "path": "config.py",
+            "old_string": "port = 8080",
+            "new_string": "port = 9000"
           },
           "expected_output_summary": "",
           "is_failure_example": true,
-          "failure_reason": "old_text not found in file"
+          "failure_reason": "EDIT_TARGET_NOT_UNIQUE: old_string matched 3 times. Refine old_string with unique surrounding context."
         }
       ],
       "availability": "AVAILABLE",
       "aliases": [
         "edit",
+        "edit_file",
         "replace_file_content"
       ],
       "batch_safe": false,
@@ -353,18 +369,19 @@
         "fs",
         "edit",
         "replace",
-        "modify"
+        "modify",
+        "surgical"
       ],
       "is_core": true
     },
     "fs.read": {
       "canonical_name": "fs.read",
       "display_name": "Read File",
-      "description": "Read file contents or specific line ranges from disk. Use when inspecting, viewing, opening, or reviewing source files, configuration, or text lines (e.g. lines 10 to 50).",
+      "description": "Read file contents or specific line ranges from disk with 1-based line numbering. Use when inspecting, viewing, or reviewing source files (e.g. start_line=10, end_line=50 or offset/limit).",
       "category": "fs",
       "schema": {
         "name": "fs.read",
-        "description": "Read file contents or specific line ranges within workspace.",
+        "description": "Read file contents or specific line ranges within workspace with line numbers.",
         "parameters": {
           "type": "object",
           "properties": {
@@ -374,15 +391,23 @@
             },
             "start_line": {
               "type": "integer",
-              "description": "1-based starting line"
+              "description": "1-based starting line (inclusive)"
+            },
+            "offset": {
+              "type": "integer",
+              "description": "Alias for start_line (1-based)"
             },
             "end_line": {
               "type": "integer",
-              "description": "1-based ending line"
+              "description": "1-based ending line (inclusive)"
             },
             "max_lines": {
               "type": "integer",
               "description": "Maximum lines to return"
+            },
+            "limit": {
+              "type": "integer",
+              "description": "Alias for max_lines"
             },
             "encoding": {
               "type": "string",
@@ -422,16 +447,16 @@
         "affects_external_system": false,
         "blocked_in": []
       },
-      "version": "1.0",
+      "version": "2.0",
       "examples": [
         {
-          "intent": "Read lines 1 to 50 of app.py",
+          "intent": "Read lines 200 to 260 of auth.py",
           "input": {
-            "path": "app.py",
-            "start_line": 1,
-            "end_line": 50
+            "path": "src/auth.py",
+            "start_line": 200,
+            "end_line": 260
           },
-          "expected_output_summary": "Contents of app.py lines 1-50",
+          "expected_output_summary": "File: src/auth.py\nLines: 200-260 of 450\n 200 | def authenticate...",
           "is_failure_example": false,
           "failure_reason": ""
         },
@@ -448,21 +473,23 @@
       "availability": "AVAILABLE",
       "aliases": [
         "read_file",
-        "read"
+        "read",
+        "view_file"
       ],
       "batch_safe": true,
       "tags": [
         "fs",
         "read",
         "file",
-        "view"
+        "view",
+        "inspect"
       ],
       "is_core": true
     },
     "fs.write": {
       "canonical_name": "fs.write",
       "display_name": "Write File",
-      "description": "Create a new file or completely overwrite an existing file atomically.",
+      "description": "Create a new file or completely overwrite an existing file atomically. Use fs.edit for surgical modifications.",
       "category": "fs",
       "schema": {
         "name": "fs.write",
@@ -481,6 +508,11 @@
             "create_parents": {
               "type": "boolean",
               "default": true
+            },
+            "allow_overwrite": {
+              "type": "boolean",
+              "default": true,
+              "description": "Allow overwriting existing file"
             },
             "response_format": {
               "type": "string",
@@ -513,22 +545,22 @@
         "network_access": false,
         "requires_confirmation": false,
         "reversible": true,
-        "idempotent": true,
+        "idempotent": false,
         "affects_workspace": true,
         "affects_external_system": false,
         "blocked_in": [
           "plan"
         ]
       },
-      "version": "1.0",
+      "version": "2.0",
       "examples": [
         {
-          "intent": "Create hello.py",
+          "intent": "Create a new config file",
           "input": {
-            "path": "hello.py",
-            "content": "print('hello')\n"
+            "path": "config.json",
+            "content": "{\n  \"env\": \"dev\"\n}\n"
           },
-          "expected_output_summary": "Successfully wrote hello.py",
+          "expected_output_summary": "Successfully wrote 24 bytes (3 lines) to 'config.json'.",
           "is_failure_example": false,
           "failure_reason": ""
         }
@@ -1231,7 +1263,7 @@
     "search.glob": {
       "canonical_name": "search.glob",
       "display_name": "Glob File Search",
-      "description": "Find files matching a glob pattern relative to workspace root.",
+      "description": "Find files matching a glob pattern relative to workspace root (e.g. '**/*.py'). Ignores noise dirs (.git, node_modules, .venv).",
       "category": "search",
       "schema": {
         "name": "search.glob",
@@ -1241,7 +1273,7 @@
           "properties": {
             "pattern": {
               "type": "string",
-              "description": "Glob pattern (e.g. '**/*.py')"
+              "description": "Glob pattern (e.g. '**/*.py', 'src/**/*.ts')"
             },
             "base_path": {
               "type": "string",
@@ -1251,99 +1283,7 @@
               "type": "integer",
               "default": 50
             },
-            "response_format": {
-              "type": "string",
-              "enum": [
-                "concise",
-                "normal",
-                "detailed"
-              ],
-              "default": "normal"
-            }
-          },
-          "required": [
-            "pattern"
-          ]
-        },
-        "required": [
-          "pattern"
-        ],
-        "output_semantics": "",
-        "version": "1.0"
-      },
-      "risk": {
-        "risk_score": 0.1,
-        "risk_level": "READ_ONLY",
-        "destructive": false,
-        "writes_files": false,
-        "executes_commands": false,
-        "network_access": false,
-        "requires_confirmation": false,
-        "reversible": true,
-        "idempotent": true,
-        "affects_workspace": false,
-        "affects_external_system": false,
-        "blocked_in": []
-      },
-      "version": "1.0",
-      "examples": [
-        {
-          "intent": "Find all python files",
-          "input": {
-            "pattern": "**/*.py"
-          },
-          "expected_output_summary": "List of matching python files",
-          "is_failure_example": false,
-          "failure_reason": ""
-        }
-      ],
-      "availability": "AVAILABLE",
-      "aliases": [
-        "glob",
-        "list_directory",
-        "list_dir"
-      ],
-      "batch_safe": true,
-      "tags": [
-        "search",
-        "glob",
-        "files",
-        "find"
-      ],
-      "is_core": true
-    },
-    "search.grep": {
-      "canonical_name": "search.grep",
-      "display_name": "Grep Content Search",
-      "description": "Search and find code, function definitions, database connections, regex, or text patterns across files in the workspace. Use to locate where functions, classes, or variables are implemented.",
-      "category": "search",
-      "schema": {
-        "name": "search.grep",
-        "description": "Search file contents for regex/text patterns with context.",
-        "parameters": {
-          "type": "object",
-          "properties": {
-            "pattern": {
-              "type": "string",
-              "description": "Regex/text pattern"
-            },
-            "path": {
-              "type": "string",
-              "default": "."
-            },
-            "file_pattern": {
-              "type": "string",
-              "description": "Optional file filter (e.g. '*.py')"
-            },
-            "max_results": {
-              "type": "integer",
-              "default": 40
-            },
-            "context_lines": {
-              "type": "integer",
-              "default": 1
-            },
-            "case_sensitive": {
+            "include_directories": {
               "type": "boolean",
               "default": false
             },
@@ -1381,15 +1321,117 @@
         "affects_external_system": false,
         "blocked_in": []
       },
-      "version": "1.0",
+      "version": "2.0",
       "examples": [
         {
-          "intent": "Find definition of calculate_total",
+          "intent": "Find all Python files under src",
           "input": {
-            "pattern": "def calculate_total",
+            "pattern": "src/**/*.py"
+          },
+          "expected_output_summary": "Matched 12 file(s) for pattern 'src/**/*.py':",
+          "is_failure_example": false,
+          "failure_reason": ""
+        }
+      ],
+      "availability": "AVAILABLE",
+      "aliases": [
+        "glob",
+        "list_directory",
+        "list_dir"
+      ],
+      "batch_safe": true,
+      "tags": [
+        "search",
+        "glob",
+        "files",
+        "find",
+        "structure"
+      ],
+      "is_core": true
+    },
+    "search.grep": {
+      "canonical_name": "search.grep",
+      "display_name": "Grep Content Search",
+      "description": "Search file contents for regex or literal text patterns with line numbers and context. Line-addressable output (file:line: match).",
+      "category": "search",
+      "schema": {
+        "name": "search.grep",
+        "description": "Search file contents for regex/text patterns with context.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "pattern": {
+              "type": "string",
+              "description": "Regex or text pattern to search for"
+            },
+            "path": {
+              "type": "string",
+              "default": "."
+            },
+            "file_pattern": {
+              "type": "string",
+              "description": "Optional file filter (e.g. '*.py')"
+            },
+            "max_results": {
+              "type": "integer",
+              "default": 50
+            },
+            "context_lines": {
+              "type": "integer",
+              "default": 1
+            },
+            "case_sensitive": {
+              "type": "boolean",
+              "default": false
+            },
+            "literal": {
+              "type": "boolean",
+              "default": false,
+              "description": "Treat pattern as literal string"
+            },
+            "response_format": {
+              "type": "string",
+              "enum": [
+                "concise",
+                "normal",
+                "detailed"
+              ],
+              "default": "normal"
+            }
+          },
+          "required": [
+            "pattern"
+          ]
+        },
+        "required": [
+          "pattern"
+        ],
+        "output_semantics": "",
+        "version": "1.0"
+      },
+      "risk": {
+        "risk_score": 0.1,
+        "risk_level": "READ_ONLY",
+        "destructive": false,
+        "writes_files": false,
+        "executes_commands": false,
+        "network_access": false,
+        "requires_confirmation": false,
+        "reversible": true,
+        "idempotent": true,
+        "affects_workspace": false,
+        "affects_external_system": false,
+        "blocked_in": []
+      },
+      "version": "2.0",
+      "examples": [
+        {
+          "intent": "Find all EventBus.publish occurrences",
+          "input": {
+            "pattern": "EventBus.publish",
             "path": "src/"
           },
-          "expected_output_summary": "Matching file lines with context",
+          "expected_output_summary": "Found 7 match(es) for pattern 'EventBus.publish':\nsrc/core/loop.py:142:\n  142: EventBus.publish(...)",
           "is_failure_example": false,
           "failure_reason": ""
         }
@@ -1405,7 +1447,12 @@
         "grep",
         "regex",
         "content",
-        "code"
+        "code",
+        "symbol",
+        "find",
+        "definition",
+        "string",
+        "text"
       ],
       "is_core": true
     },

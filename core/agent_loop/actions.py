@@ -282,6 +282,7 @@ class ActionExecutor:
                 "success": is_success,
                 "error": obs.error_message,
                 "full_output_ref": obs.full_result_ref,
+                "details": getattr(tool_result, "details", {}) or {},
             },
         ))
 
@@ -300,7 +301,9 @@ class ActionExecutor:
                 "evidence_id": f"ev_{obs.observation_id}",
                 "kind": "TOOL_RESULT",
                 "full_result_ref": obs.full_result_ref,
+                "details": getattr(tool_result, "details", {}) or {},
             }
         ))
+
 
         return obs

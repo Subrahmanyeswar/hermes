@@ -87,6 +87,27 @@ class ToolEvaluationSuite:
                 expected_tools=["shell.bash"],
                 is_held_out=False,
             ),
+            ToolEvaluationTask(
+                task_id="dev-06",
+                scenario_prompt="Find all files matching pattern **/*.json in the workspace.",
+                category="discovery",
+                expected_tools=["search.glob"],
+                is_held_out=False,
+            ),
+            ToolEvaluationTask(
+                task_id="dev-07",
+                scenario_prompt="Inspect lines 100 to 150 of src/auth.py.",
+                category="inspection",
+                expected_tools=["fs.read"],
+                is_held_out=False,
+            ),
+            ToolEvaluationTask(
+                task_id="dev-08",
+                scenario_prompt="Surgically replace MAX_RETRIES = 3 with MAX_RETRIES = 5 in settings.py.",
+                category="modification",
+                expected_tools=["fs.edit"],
+                is_held_out=False,
+            ),
         ]
 
     @classmethod
@@ -113,7 +134,29 @@ class ToolEvaluationSuite:
                 expected_tools=["task.todo"],
                 is_held_out=True,
             ),
+            ToolEvaluationTask(
+                task_id="held-04",
+                scenario_prompt="Search where EventBus.publish is called in the python files.",
+                category="search",
+                expected_tools=["search.grep"],
+                is_held_out=True,
+            ),
+            ToolEvaluationTask(
+                task_id="held-05",
+                scenario_prompt="Create and write a new docker-compose.yml file from scratch.",
+                category="creation",
+                expected_tools=["fs.write"],
+                is_held_out=True,
+            ),
+            ToolEvaluationTask(
+                task_id="held-06",
+                scenario_prompt="Read and review lines 1 to 40 of README.md.",
+                category="inspection",
+                expected_tools=["fs.read"],
+                is_held_out=True,
+            ),
         ]
+
 
     @classmethod
     async def run_evaluation(cls, include_held_out: bool = True) -> ToolEvaluationReport:

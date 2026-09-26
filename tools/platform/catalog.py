@@ -144,19 +144,21 @@ class ToolCatalog:
         self._specs["fs.read"] = ToolSpec(
             canonical_name="fs.read",
             display_name="Read File",
-            description="Read file contents or specific line ranges from disk. Use when inspecting, viewing, opening, or reviewing source files, configuration, or text lines (e.g. lines 10 to 50).",
+            description="Read file contents or specific line ranges from disk with 1-based line numbering. Use when inspecting, viewing, or reviewing source files (e.g. start_line=10, end_line=50 or offset/limit).",
             category="fs",
-            version="1.0",
+            version="2.0",
             schema=ToolSchema(
                 name="fs.read",
-                description="Read file contents or specific line ranges within workspace.",
+                description="Read file contents or specific line ranges within workspace with line numbers.",
                 parameters={
                     "type": "object",
                     "properties": {
                         "path": {"type": "string", "description": "Relative path to file"},
-                        "start_line": {"type": "integer", "description": "1-based starting line"},
-                        "end_line": {"type": "integer", "description": "1-based ending line"},
+                        "start_line": {"type": "integer", "description": "1-based starting line (inclusive)"},
+                        "offset": {"type": "integer", "description": "Alias for start_line (1-based)"},
+                        "end_line": {"type": "integer", "description": "1-based ending line (inclusive)"},
                         "max_lines": {"type": "integer", "description": "Maximum lines to return"},
+                        "limit": {"type": "integer", "description": "Alias for max_lines"},
                         "encoding": {"type": "string", "default": "utf-8"},
                         "response_format": {"type": "string", "enum": ["concise", "normal", "detailed"], "default": "normal"},
                     },
@@ -168,9 +170,9 @@ class ToolCatalog:
             implementation_cls=FSReadTool,
             examples=[
                 ToolExample(
-                    intent="Read lines 1 to 50 of app.py",
-                    input={"path": "app.py", "start_line": 1, "end_line": 50},
-                    expected_output_summary="Contents of app.py lines 1-50",
+                    intent="Read lines 200 to 260 of auth.py",
+                    input={"path": "src/auth.py", "start_line": 200, "end_line": 260},
+                    expected_output_summary="File: src/auth.py\nLines: 200-260 of 450\n 200 | def authenticate...",
                 ),
                 ToolExample(
                     intent="Attempting to read outside workspace fails",
@@ -179,61 +181,65 @@ class ToolCatalog:
                     failure_reason="Path traversal prohibited",
                 ),
             ],
-            aliases=["read_file", "read"],
+            aliases=["read_file", "read", "view_file"],
             batch_safe=True,
-            tags=["fs", "read", "file", "view"],
+            tags=["fs", "read", "file", "view", "inspect"],
         )
 
         # 2. fs.edit
         self._specs["fs.edit"] = ToolSpec(
             canonical_name="fs.edit",
             display_name="Edit File",
-            description="Apply an exact surgical text replacement to an existing file.",
+            description="Apply an exact surgical text replacement to an existing file. By default expected_occurrences=1. Fails if target text is absent or ambiguous.",
             category="fs",
-            version="1.0",
+            version="2.0",
             schema=ToolSchema(
                 name="fs.edit",
-                description="Replace exact old_text with new_text in an existing file.",
+                description="Replace exact old_string with new_string in an existing file.",
                 parameters={
                     "type": "object",
                     "properties": {
                         "path": {"type": "string", "description": "Relative path to file"},
-                        "old_text": {"type": "string", "description": "Exact text to replace"},
-                        "new_text": {"type": "string", "description": "Replacement text"},
-                        "expected_occurrences": {"type": "integer", "default": 1},
+                        "old_string": {"type": "string", "description": "Exact text to replace (no fuzzy matching)"},
+                        "old_text": {"type": "string", "description": "Alias for old_string"},
+                        "new_string": {"type": "string", "description": "Replacement text"},
+                        "new_text": {"type": "string", "description": "Alias for new_string"},
+                        "expected_occurrences": {"type": "integer", "default": 1, "description": "Expected match count (default: 1)"},
+                        "replace_all": {"type": "boolean", "default": False, "description": "Replace all occurrences if True"},
+                        "allow_large_diff": {"type": "boolean", "default": False, "description": "Permit large diffs exceeding safety limits"},
                         "response_format": {"type": "string", "enum": ["concise", "normal", "detailed"], "default": "normal"},
                     },
-                    "required": ["path", "old_text", "new_text"],
+                    "required": ["path"],
                 },
-                required=["path", "old_text", "new_text"],
+                required=["path"],
             ),
-            risk=RiskMetadata(risk_score=0.3, risk_level=RiskLevel.LOW, writes_files=True, affects_workspace=True, blocked_in=["plan"]),
+            risk=RiskMetadata(risk_score=0.3, risk_level=RiskLevel.LOW, writes_files=True, affects_workspace=True, blocked_in=["plan"], idempotent=False),
             implementation_cls=FSEditTool,
             examples=[
                 ToolExample(
-                    intent="Replace a function definition",
-                    input={"path": "main.py", "old_text": "def old():\n    pass", "new_text": "def new():\n    return 42"},
-                    expected_output_summary="Successfully edited main.py",
+                    intent="Replace timeout value uniquely in config.py",
+                    input={"path": "config.py", "old_string": "timeout = 30", "new_string": "timeout = 60"},
+                    expected_output_summary="Successfully edited 'config.py'. Replaced 1 occurrence(s) (+1/-1 lines).",
                 ),
                 ToolExample(
-                    intent="Fails if old_text is missing",
-                    input={"path": "main.py", "old_text": "nonexistent text", "new_text": "new text"},
+                    intent="Fails safely when old_string appears multiple times without qualification",
+                    input={"path": "config.py", "old_string": "port = 8080", "new_string": "port = 9000"},
                     is_failure_example=True,
-                    failure_reason="old_text not found in file",
+                    failure_reason="EDIT_TARGET_NOT_UNIQUE: old_string matched 3 times. Refine old_string with unique surrounding context.",
                 ),
             ],
-            aliases=["edit", "replace_file_content"],
+            aliases=["edit", "edit_file", "replace_file_content"],
             batch_safe=False,
-            tags=["fs", "edit", "replace", "modify"],
+            tags=["fs", "edit", "replace", "modify", "surgical"],
         )
 
         # 3. fs.write
         self._specs["fs.write"] = ToolSpec(
             canonical_name="fs.write",
             display_name="Write File",
-            description="Create a new file or completely overwrite an existing file atomically.",
+            description="Create a new file or completely overwrite an existing file atomically. Use fs.edit for surgical modifications.",
             category="fs",
-            version="1.0",
+            version="2.0",
             schema=ToolSchema(
                 name="fs.write",
                 description="Create or overwrite a file with given text content.",
@@ -243,19 +249,20 @@ class ToolCatalog:
                         "path": {"type": "string", "description": "Relative path to file"},
                         "content": {"type": "string", "description": "Content to write"},
                         "create_parents": {"type": "boolean", "default": True},
+                        "allow_overwrite": {"type": "boolean", "default": True, "description": "Allow overwriting existing file"},
                         "response_format": {"type": "string", "enum": ["concise", "normal", "detailed"], "default": "normal"},
                     },
                     "required": ["path", "content"],
                 },
                 required=["path", "content"],
             ),
-            risk=RiskMetadata(risk_score=0.4, risk_level=RiskLevel.MEDIUM, writes_files=True, affects_workspace=True, blocked_in=["plan"]),
+            risk=RiskMetadata(risk_score=0.4, risk_level=RiskLevel.MEDIUM, writes_files=True, affects_workspace=True, blocked_in=["plan"], idempotent=False),
             implementation_cls=FSWriteTool,
             examples=[
                 ToolExample(
-                    intent="Create hello.py",
-                    input={"path": "hello.py", "content": "print('hello')\n"},
-                    expected_output_summary="Successfully wrote hello.py",
+                    intent="Create a new config file",
+                    input={"path": "config.json", "content": "{\n  \"env\": \"dev\"\n}\n"},
+                    expected_output_summary="Successfully wrote 24 bytes (3 lines) to 'config.json'.",
                 )
             ],
             aliases=["write_file", "write"],
@@ -310,18 +317,19 @@ class ToolCatalog:
         self._specs["search.glob"] = ToolSpec(
             canonical_name="search.glob",
             display_name="Glob File Search",
-            description="Find files matching a glob pattern relative to workspace root.",
+            description="Find files matching a glob pattern relative to workspace root (e.g. '**/*.py'). Ignores noise dirs (.git, node_modules, .venv).",
             category="search",
-            version="1.0",
+            version="2.0",
             schema=ToolSchema(
                 name="search.glob",
                 description="Find matching files using glob patterns.",
                 parameters={
                     "type": "object",
                     "properties": {
-                        "pattern": {"type": "string", "description": "Glob pattern (e.g. '**/*.py')"},
+                        "pattern": {"type": "string", "description": "Glob pattern (e.g. '**/*.py', 'src/**/*.ts')"},
                         "base_path": {"type": "string", "default": "."},
                         "max_results": {"type": "integer", "default": 50},
+                        "include_directories": {"type": "boolean", "default": False},
                         "response_format": {"type": "string", "enum": ["concise", "normal", "detailed"], "default": "normal"},
                     },
                     "required": ["pattern"],
@@ -332,35 +340,36 @@ class ToolCatalog:
             implementation_cls=SearchGlobTool,
             examples=[
                 ToolExample(
-                    intent="Find all python files",
-                    input={"pattern": "**/*.py"},
-                    expected_output_summary="List of matching python files",
+                    intent="Find all Python files under src",
+                    input={"pattern": "src/**/*.py"},
+                    expected_output_summary="Matched 12 file(s) for pattern 'src/**/*.py':",
                 )
             ],
             aliases=["glob", "list_directory", "list_dir"],
             batch_safe=True,
-            tags=["search", "glob", "files", "find"],
+            tags=["search", "glob", "files", "find", "structure"],
         )
 
         # 6. search.grep
         self._specs["search.grep"] = ToolSpec(
             canonical_name="search.grep",
             display_name="Grep Content Search",
-            description="Search and find code, function definitions, database connections, regex, or text patterns across files in the workspace. Use to locate where functions, classes, or variables are implemented.",
+            description="Search file contents for regex or literal text patterns with line numbers and context. Line-addressable output (file:line: match).",
             category="search",
-            version="1.0",
+            version="2.0",
             schema=ToolSchema(
                 name="search.grep",
                 description="Search file contents for regex/text patterns with context.",
                 parameters={
                     "type": "object",
                     "properties": {
-                        "pattern": {"type": "string", "description": "Regex/text pattern"},
+                        "pattern": {"type": "string", "description": "Regex or text pattern to search for"},
                         "path": {"type": "string", "default": "."},
                         "file_pattern": {"type": "string", "description": "Optional file filter (e.g. '*.py')"},
-                        "max_results": {"type": "integer", "default": 40},
+                        "max_results": {"type": "integer", "default": 50},
                         "context_lines": {"type": "integer", "default": 1},
                         "case_sensitive": {"type": "boolean", "default": False},
+                        "literal": {"type": "boolean", "default": False, "description": "Treat pattern as literal string"},
                         "response_format": {"type": "string", "enum": ["concise", "normal", "detailed"], "default": "normal"},
                     },
                     "required": ["pattern"],
@@ -371,15 +380,16 @@ class ToolCatalog:
             implementation_cls=SearchGrepTool,
             examples=[
                 ToolExample(
-                    intent="Find definition of calculate_total",
-                    input={"pattern": "def calculate_total", "path": "src/"},
-                    expected_output_summary="Matching file lines with context",
+                    intent="Find all EventBus.publish occurrences",
+                    input={"pattern": "EventBus.publish", "path": "src/"},
+                    expected_output_summary="Found 7 match(es) for pattern 'EventBus.publish':\nsrc/core/loop.py:142:\n  142: EventBus.publish(...)",
                 )
             ],
             aliases=["grep", "search_files"],
             batch_safe=True,
-            tags=["search", "grep", "regex", "content", "code"],
+            tags=["search", "grep", "regex", "content", "code", "symbol", "find", "definition", "string", "text"],
         )
+
 
         # 7. task.todo
         self._specs["task.todo"] = ToolSpec(

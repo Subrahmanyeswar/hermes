@@ -70,11 +70,22 @@ from tools.platform.linter import (
     LintReport,
     ToolSpecLinter,
 )
+from tools.platform.file_identity import (
+    FileIdentity,
+    FileIdentityCache,
+    file_identity_cache,
+)
+from tools.platform.workspace_discovery import (
+    WorkspaceProfile,
+    WorkspaceDiscoveryService,
+    workspace_discovery,
+)
 from tools.platform.evaluation import (
     ToolEvaluationTask,
     ToolEvaluationReport,
     ToolEvaluationSuite,
 )
+
 
 __all__ = [
     # Specs
@@ -134,4 +145,12 @@ __all__ = [
     "ToolEvaluationTask",
     "ToolEvaluationReport",
     "ToolEvaluationSuite",
+    # File Identity & Discovery (Prompt 6)
+    "FileIdentity",
+    "FileIdentityCache",
+    "file_identity_cache",
+    "WorkspaceProfile",
+    "WorkspaceDiscoveryService",
+    "workspace_discovery",
 ]
+

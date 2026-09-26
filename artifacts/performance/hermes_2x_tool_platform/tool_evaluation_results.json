@@ -1,9 +1,9 @@
 {
   "summary": {
-    "total_tasks": 8,
-    "correct_tool_selections": 8,
+    "total_tasks": 14,
+    "correct_tool_selections": 14,
     "selection_accuracy_pct": 100.0,
-    "total_duration_ms": 6.72,
+    "total_duration_ms": 10.81,
     "tool_errors": 0,
     "error_rate": 0.0
   },
@@ -17,8 +17,8 @@
       ],
       "discovered": [
         "search.grep",
-        "search.glob",
-        "fs.read"
+        "fs.read",
+        "search.glob"
       ],
       "top_hit": true,
       "is_held_out": false
@@ -32,7 +32,7 @@
       "discovered": [
         "search.glob",
         "run_tests",
-        "search.grep"
+        "fs.read"
       ],
       "top_hit": true,
       "is_held_out": false
@@ -45,8 +45,8 @@
       ],
       "discovered": [
         "fs.edit",
-        "open_in_vscode",
-        "web_search"
+        "fs.read",
+        "open_in_vscode"
       ],
       "top_hit": true,
       "is_held_out": false
@@ -60,7 +60,7 @@
       "discovered": [
         "fs.write",
         "create_folder",
-        "user.ask"
+        "fs.read"
       ],
       "top_hit": true,
       "is_held_out": false
@@ -75,6 +75,48 @@
         "run_tests",
         "shell.bash",
         "run_python"
+      ],
+      "top_hit": true,
+      "is_held_out": false
+    },
+    {
+      "task_id": "dev-06",
+      "category": "discovery",
+      "expected": [
+        "search.glob"
+      ],
+      "discovered": [
+        "search.glob",
+        "search.grep",
+        "fs.read"
+      ],
+      "top_hit": true,
+      "is_held_out": false
+    },
+    {
+      "task_id": "dev-07",
+      "category": "inspection",
+      "expected": [
+        "fs.read"
+      ],
+      "discovered": [
+        "fs.read",
+        "search.grep",
+        "task.todo"
+      ],
+      "top_hit": true,
+      "is_held_out": false
+    },
+    {
+      "task_id": "dev-08",
+      "category": "modification",
+      "expected": [
+        "fs.edit"
+      ],
+      "discovered": [
+        "fs.edit",
+        "fs.read",
+        "open_in_vscode"
       ],
       "top_hit": true,
       "is_held_out": false
@@ -117,6 +159,48 @@
         "task.todo",
         "run_tests",
         "run_python"
+      ],
+      "top_hit": true,
+      "is_held_out": true
+    },
+    {
+      "task_id": "held-04",
+      "category": "search",
+      "expected": [
+        "search.grep"
+      ],
+      "discovered": [
+        "search.glob",
+        "search.grep",
+        "fs.read"
+      ],
+      "top_hit": true,
+      "is_held_out": true
+    },
+    {
+      "task_id": "held-05",
+      "category": "creation",
+      "expected": [
+        "fs.write"
+      ],
+      "discovered": [
+        "fs.write",
+        "create_folder",
+        "fs.read"
+      ],
+      "top_hit": true,
+      "is_held_out": true
+    },
+    {
+      "task_id": "held-06",
+      "category": "inspection",
+      "expected": [
+        "fs.read"
+      ],
+      "discovered": [
+        "fs.read",
+        "read_memory",
+        "git_push"
       ],
       "top_hit": true,
       "is_held_out": true
