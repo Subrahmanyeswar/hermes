@@ -68,8 +68,10 @@ class ContextEngine:
         result_store: Optional[ToolResultStore] = None,
         cache_capabilities: Optional[CacheCapabilities] = None,
         estimator: Optional[TokenEstimator] = None,
+        project_intelligence: Optional[Any] = None,
     ) -> None:
         self.event_bus = event_bus
+        self.project_intelligence = project_intelligence
         self.capacity = capacity or ContextCapacity()
         self.estimator = estimator or TokenEstimator()
         self.budgeter = ContextBudgeter(capacity=self.capacity, estimator=self.estimator)
@@ -302,6 +304,18 @@ class ContextEngine:
         start_time = time.monotonic()
         self._context_version_counter += 1
         self._mission_id = getattr(state_snapshot, "mission_id", self._mission_id) if state_snapshot else self._mission_id
+
+        # 0. Sync Project Intelligence (HERMES.md rules, path-scoped rules)
+        if self.project_intelligence and hasattr(self.project_intelligence, "sync_to_context_engine"):
+            try:
+                active_paths = set(self._active_files.keys())
+                self.project_intelligence.sync_to_context_engine(
+                    context_engine=self,
+                    active_files=active_paths,
+                    task_description=mission_goal,
+                )
+            except Exception as pi_exc:
+                logger.warning(f"ContextEngine: project intelligence sync failed: {pi_exc}")
 
         # 1. Freshness check: Verify active files against current filesystem
         for item in list(self._items.values()):

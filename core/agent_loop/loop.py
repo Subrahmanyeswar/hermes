@@ -84,9 +84,17 @@ class AgentLoop:
         self._action_executor = ActionExecutor(mode=mode_str)
         self._completion_policy = CompletionPolicy()
 
-        # Context Engine 2.x (Prompt 7)
+        # Project Intelligence 2.x & Context Engine 2.x (Prompts 7 & 8)
         from core.context.engine import ContextEngine
-        self.context_engine = ContextEngine(event_bus=self.event_bus)
+        from core.project_intelligence.registry import ProjectIntelligenceRegistry
+        self.project_intelligence = ProjectIntelligenceRegistry(
+            workspace_root=self.workspace.root_str if hasattr(self.workspace, "root_str") and self.workspace.root_str else None,
+            event_bus=self.event_bus,
+        )
+        self.context_engine = ContextEngine(
+            event_bus=self.event_bus,
+            project_intelligence=self.project_intelligence,
+        )
 
         # Runtime trackers
         self._start_time: float = 0.0
@@ -116,6 +124,14 @@ class AgentLoop:
         self._written_files.clear()
         self._observation_history.clear()
         self._recent_actions.clear()
+
+        # Update Project Intelligence mission tracking and discover
+        if hasattr(self, "project_intelligence") and self.project_intelligence:
+            self.project_intelligence.mission_id = mission.mission_id
+            try:
+                self.project_intelligence.discover()
+            except Exception as pi_exc:
+                logger.warning(f"AgentLoop: initial project intelligence discovery warning: {pi_exc}")
 
         logger.info(f"AgentLoop: starting mission '{mission.mission_id}' in {self.config.execution_mode} mode")
 
