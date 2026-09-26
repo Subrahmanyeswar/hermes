@@ -102,11 +102,13 @@ class MissionRunner:
         workspace_manager: WorkspaceManager,
         event_queue: Optional[asyncio.Queue] = None,
         abort_event: Optional[asyncio.Event] = None,
+        execution_mode: str = "strict",
     ) -> None:
         self.orchestrator = orchestrator
         self.workspace = workspace_manager
         self.event_queue = event_queue or asyncio.Queue()
         self.abort_event = abort_event or asyncio.Event()
+        self.execution_mode = execution_mode
         self._context_builder = ContextBuilder(workspace_manager)
         from core.cross_file_retriever import CrossFileRetriever
         from memory.trajectory_memory import TrajectoryMemory
@@ -130,6 +132,32 @@ class MissionRunner:
 
         Returns MissionResult with full execution summary.
         """
+        if self.execution_mode == "agentic":
+            from core.agent_loop import AgentLoop, AgentLoopConfig
+            agent_loop = AgentLoop(
+                orchestrator=self.orchestrator,
+                workspace_manager=self.workspace,
+                event_queue=self.event_queue,
+                abort_event=self.abort_event,
+                config=AgentLoopConfig(execution_mode="agentic")
+            )
+            loop_res = await agent_loop.run(mission)
+            return MissionResult(
+                mission_id=loop_res.mission_id,
+                success=loop_res.success,
+                tasks_completed=len(mission.tasks) if loop_res.success else 0,
+                tasks_failed=0 if loop_res.success else 1,
+                tasks_total=len(mission.tasks),
+                total_latency_seconds=loop_res.duration_seconds,
+                total_cost_usd=0.0,
+                tier3_calls=0,
+                files_created=loop_res.files_created,
+                files_modified=loop_res.files_modified,
+                walkthrough_text=loop_res.final_output,
+                error=loop_res.error,
+                status=loop_res.status,
+            )
+
         self._start_time = time.monotonic()
         self._current_mission_id = mission.mission_id
         logger.info(

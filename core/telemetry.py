@@ -96,6 +96,8 @@ class StageSpan:
     duration_ms: float = 0.0
     request_id: str = ""
     task_id: str = ""
+    turn_id: Optional[str] = None
+    action_id: Optional[str] = None
     parent_id: Optional[str] = None
     success: bool = True
     metadata: Dict[str, Any] = field(default_factory=dict)
@@ -129,6 +131,8 @@ class ModelCallTelemetry:
     request_id: str = ""
     mission_id: str = ""
     task_id: str = ""
+    turn_id: Optional[str] = None
+    action_id: Optional[str] = None
     stage: str = ""                         # e.g., "Tier 1", "Tier 2", "Tier 3", "Memory Extraction", "Alternative"
     execution_mode: str = "production"
     model: str = ""
@@ -248,6 +252,24 @@ class RepairTelemetry:
     duration_ms: float = 0.0
     model: str = ""
     success: bool = False
+
+
+@dataclass
+class AgentLoopTelemetry:
+    """Telemetry metrics for an AgentLoop run."""
+    loop_id: str = field(default_factory=lambda: uuid.uuid4().hex[:8])
+    mission_id: str = ""
+    request_id: str = ""
+    turns_count: int = 0
+    actions_count: int = 0
+    tool_calls_count: int = 0
+    verification_calls_count: int = 0
+    stall_count: int = 0
+    user_questions_count: int = 0
+    consecutive_failures_max: int = 0
+    total_duration_ms: float = 0.0
+    status: str = "COMPLETE"
+    execution_mode: str = "agentic"
 
 
 @dataclass
@@ -560,6 +582,18 @@ class TelemetryManager:
                         req.tools.append(tool_telemetry)
         except Exception as e:
             logger.debug(f"Telemetry record_tool error: {e}")
+
+    def record_agent_loop(self, loop_telemetry: AgentLoopTelemetry) -> None:
+        """Record an AgentLoop execution summary entry."""
+        if not self.enabled or not loop_telemetry:
+            return
+        try:
+            with self._global_lock:
+                if not hasattr(self, "_agent_loops"):
+                    self._agent_loops: List[AgentLoopTelemetry] = []
+                self._agent_loops.append(loop_telemetry)
+        except Exception as e:
+            logger.debug(f"Telemetry record_agent_loop error: {e}")
 
     def record_verification(self, ver_telemetry: VerificationTelemetry, request_id: str = ""):
         """Record a verification telemetry entry."""

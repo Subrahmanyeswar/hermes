@@ -453,6 +453,83 @@ class StateReducer:
             state.checkpoint.checkpoint_id = event.checkpoint_id or payload.get("checkpoint_id")
             state.checkpoint.created_at = event.timestamp
 
+        # ── 12. Agent Loop Lifecycle & Decisions (Prompt 4) ────────────────────
+        elif et == EventType.AGENT_TURN_STARTED:
+            turn_id = payload.get("turn_id") or event.turn_id
+            state.model_execution.turn_id = turn_id
+            state.progress.waiting_reason = WaitReason.WAITING_FOR_MODEL
+            state.progress.current_action = f"Turn {turn_id or 'start'}: evaluating next action"
+
+        elif et == EventType.AGENT_DECISION:
+            decision = payload.get("decision_type", "")
+            state.progress.current_action = f"Agent decision: {decision}"
+
+        elif et == EventType.ACTION_REQUESTED:
+            state.tool_execution.status = ToolStatus.REQUESTED
+            state.tool_execution.tool_name = payload.get("tool_name")
+            state.tool_execution.active_tool_call_id = payload.get("action_id") or event.tool_call_id
+            state.progress.waiting_reason = WaitReason.WAITING_FOR_PERMISSION
+            state.progress.current_action = f"Action requested: {payload.get('tool_name')}"
+
+        elif et == EventType.ACTION_ALLOWED:
+            state.tool_execution.status = ToolStatus.VALIDATING
+            state.progress.waiting_reason = WaitReason.WAITING_FOR_TOOL
+
+        elif et == EventType.ACTION_DENIED:
+            state.tool_execution.status = ToolStatus.FAILED
+            state.tool_execution.error = payload.get("reason", "Action denied by harness policy")
+            state.progress.waiting_reason = WaitReason.WORKING
+            state.progress.current_action = f"Action denied: {payload.get('reason', 'Policy violation')[:50]}"
+
+        elif et == EventType.OBSERVATION_CREATED:
+            cls._handle_evidence(state, event, payload)
+            obs_summary = payload.get("summary", "")
+            if obs_summary:
+                state.progress.current_action = f"Observed: {obs_summary[:60]}"
+
+        elif et == EventType.AGENT_WAITING:
+            reason_str = payload.get("reason", "WORKING")
+            try:
+                state.progress.waiting_reason = WaitReason(reason_str)
+            except ValueError:
+                state.progress.waiting_reason = WaitReason.WORKING
+
+        elif et == EventType.AGENT_ASK_USER:
+            state.progress.waiting_reason = WaitReason.WAITING_FOR_USER
+            q = payload.get("question", "")
+            state.progress.current_action = f"Waiting for user: {q[:60]}" if q else "Waiting for user input"
+
+        elif et == EventType.AGENT_USER_RESPONSE:
+            state.progress.waiting_reason = WaitReason.WORKING
+            state.progress.current_action = "Received user input"
+
+        elif et == EventType.AGENT_VERIFICATION_REQUESTED:
+            state.progress.waiting_reason = WaitReason.WAITING_FOR_VERIFICATION
+            state.verification.status = VerificationStatus.PENDING
+            state.progress.current_action = "Running verification"
+
+        elif et == EventType.AGENT_COMPLETION_CANDIDATE:
+            state.mission.status = MissionStatus.COMPLETING
+            state.progress.waiting_reason = WaitReason.WAITING_FOR_VERIFICATION
+            state.progress.current_action = "Evaluating completion evidence"
+
+        elif et == EventType.AGENT_REPAIR_REQUESTED:
+            state.progress.waiting_reason = WaitReason.REPAIRING
+            reason = payload.get("reason", "")
+            state.progress.current_action = f"Repairing: {reason[:60]}" if reason else "Repairing defect"
+
+        elif et == EventType.AGENT_STALL_DETECTED:
+            stall_reason = payload.get("reason", "Repeated action pattern detected")
+            state.progress.current_action = f"Stall detected: {stall_reason[:60]}"
+
+        elif et == EventType.AGENT_STOPPED:
+            state.progress.waiting_reason = WaitReason.NONE
+            state.progress.current_action = payload.get("reason", "Agent stopped")
+
+        elif et == EventType.AGENT_FAILED:
+            state.progress.waiting_reason = WaitReason.FAILED
+            state.progress.current_action = payload.get("error", "Agent failed")
+
         return state
 
     @classmethod

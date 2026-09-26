@@ -197,3 +197,6 @@ class StateStore:
 
 # Legacy alias
 ExecutionStateStore = StateStore
+state_store = StateStore("default")
+
+__all__ = ["StateStore", "ExecutionStateStore", "state_store"]

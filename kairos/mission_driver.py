@@ -41,11 +41,13 @@ class MissionDriver:
         result = await driver.run_mission("Build Flask API and write tests")
     """
 
-    def __init__(self, orchestrator: object) -> None:
+    def __init__(self, orchestrator: object, execution_mode: Optional[str] = None) -> None:
         self.orchestrator = orchestrator
+        self.execution_mode = execution_mode
         self._planner = MissionPlanner()
         self._current_mission: Optional[Mission] = None
         self._current_runner: Optional[MissionRunner] = None
+        self._current_agent_loop: Optional[Any] = None
         self._event_queue: asyncio.Queue = asyncio.Queue(maxsize=500)
         self._abort_event: Optional[asyncio.Event] = None
         self._workspace_initialised: bool = False
@@ -138,16 +140,47 @@ class MissionDriver:
             }
         ))
 
-        # Create MissionRunner with shared event queue and abort event
-        self._current_runner = MissionRunner(
-            orchestrator=self.orchestrator,
-            workspace_manager=global_workspace,
-            event_queue=self._event_queue,
-            abort_event=self._abort_event,
-        )
+        # Run the mission based on execution mode
+        raw_mode = self.execution_mode
+        if raw_mode is None:
+            raw_mode = getattr(self.orchestrator, "execution_mode", "agentic")
+        mode_str = str(raw_mode).lower() if isinstance(raw_mode, str) else "strict"
 
-        # Run the mission
-        result = await self._current_runner.run(mission)
+        if mode_str in ("strict", "production", "benchmark"):
+            logger.info(f"MissionDriver: executing mission {mission.mission_id} via STRICT MissionRunner")
+            self._current_runner = MissionRunner(
+                orchestrator=self.orchestrator,
+                workspace_manager=global_workspace,
+                event_queue=self._event_queue,
+                abort_event=self._abort_event,
+            )
+            result = await self._current_runner.run(mission)
+        else:
+            logger.info(f"MissionDriver: executing mission {mission.mission_id} via AGENTIC AgentLoop")
+            from core.agent_loop import AgentLoop, AgentLoopConfig
+            self._current_agent_loop = AgentLoop(
+                orchestrator=self.orchestrator,
+                workspace_manager=global_workspace,
+                event_queue=self._event_queue,
+                abort_event=self._abort_event,
+                config=AgentLoopConfig(execution_mode="agentic")
+            )
+            loop_res = await self._current_agent_loop.run(mission)
+            result = MissionResult(
+                mission_id=loop_res.mission_id,
+                success=loop_res.success,
+                tasks_completed=len(mission.tasks) if loop_res.success else 0,
+                tasks_failed=0 if loop_res.success else 1,
+                tasks_total=len(mission.tasks),
+                total_latency_seconds=loop_res.duration_seconds,
+                total_cost_usd=0.0,
+                tier3_calls=0,
+                files_created=loop_res.files_created,
+                files_modified=loop_res.files_modified,
+                walkthrough_text=loop_res.final_output,
+                error=loop_res.error,
+                status=loop_res.status,
+            )
 
         # Refresh workspace index after mission completes
         try:
@@ -166,9 +199,11 @@ class MissionDriver:
 
     def abort_current_mission(self) -> None:
         """Signal the current mission to stop at the next checkpoint."""
-        if self._current_runner is not None and self._abort_event is not None:
+        if self._abort_event is not None:
+            self._abort_event.set()
+        if self._current_runner is not None:
             self._current_runner.abort()
-            logger.info("MissionDriver: abort signal sent")
+        logger.info("MissionDriver: abort signal sent")
 
     # ── Event system ──────────────────────────────────────────────────────────
 
