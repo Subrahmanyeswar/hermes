@@ -98,12 +98,43 @@ class OutputStore:
                 del self._records[oldest_id]
             self._records[output_id] = record
 
+        # Also mirror to file-backed ExternalizedOutputStore for persistent retrievability
+        try:
+            from core.context.external_store import externalized_output_store
+            externalized_output_store.put(
+                raw_content=raw_content,
+                tool_call_id=tool_call_id or output_id,
+                tool_name=tool_name,
+                metadata=metadata,
+            )
+        except Exception:
+            pass
+
         return output_id
 
     def get(self, output_id: str) -> Optional[OutputRecord]:
         """Retrieve stored output by ID."""
         with self._lock:
-            return self._records.get(output_id)
+            rec = self._records.get(output_id)
+            if rec:
+                return rec
+        # Fallback to persistent file-backed store
+        try:
+            from core.context.external_store import externalized_output_store
+            content = externalized_output_store.get(output_id)
+            if content is not None:
+                lines = content.splitlines()
+                return OutputRecord(
+                    output_id=output_id,
+                    tool_name="",
+                    tool_call_id="",
+                    raw_content=content,
+                    size_bytes=len(content.encode("utf-8", errors="replace")),
+                    line_count=len(lines),
+                )
+        except Exception:
+            pass
+        return None
 
     def get_slice(
         self,
@@ -117,7 +148,11 @@ class OutputStore:
         """
         rec = self.get(output_id)
         if not rec:
-            return None, False, 0
+            try:
+                from core.context.external_store import externalized_output_store
+                return externalized_output_store.get_slice(output_id, start_line, end_line)
+            except Exception:
+                return None, False, 0
 
         lines = rec.raw_content.splitlines()
         total = len(lines)

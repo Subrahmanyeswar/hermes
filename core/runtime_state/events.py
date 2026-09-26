@@ -20,7 +20,7 @@ from typing import Dict, Any, Optional
 _SECRET_PATTERNS = [
     re.compile(r"(sk-[a-zA-Z0-9_\-]{20,})"),               # OpenAI / NIM API keys
     re.compile(r"(ghp_[a-zA-Z0-9]{36,})"),                 # GitHub tokens
-    re.compile(r"(password['\"]\s*[:=]\s*['\"])([^'\"]+)", re.IGNORECASE),
+    re.compile(r"((?:password|secret|token|api_key)['\"]?\s*[:=]\s*['\"]?)([^'\"\s,;]+)", re.IGNORECASE),
     re.compile(r"(bearer\s+)([a-zA-Z0-9\._\-]{20,})", re.IGNORECASE),
     re.compile(r"(<think>.*?</think>)", re.DOTALL | re.IGNORECASE),  # Hidden chain-of-thought
 ]
@@ -215,6 +215,21 @@ class EventType(str, Enum):
     MEMORY_JOB_STARTED = "MEMORY_JOB_STARTED"
     MEMORY_JOB_COMPLETED = "MEMORY_JOB_COMPLETED"
     MEMORY_JOB_FAILED = "MEMORY_JOB_FAILED"
+
+    # Context Engine 2.x Lifecycle (Prompt 7)
+    CONTEXT_BUDGET_UPDATED = "CONTEXT_BUDGET_UPDATED"
+    CONTEXT_PRESSURE_DETECTED = "CONTEXT_PRESSURE_DETECTED"
+    TOOL_RESULT_EXTERNALIZED = "TOOL_RESULT_EXTERNALIZED"
+    TOOL_RESULT_CLEARED = "TOOL_RESULT_CLEARED"
+    MICROCOMPACTION_STARTED = "MICROCOMPACTION_STARTED"
+    MICROCOMPACTION_COMPLETED = "MICROCOMPACTION_COMPLETED"
+    COMPACTION_STARTED = "COMPACTION_STARTED"
+    COMPACTION_COMPLETED = "COMPACTION_COMPLETED"
+    COMPACTION_FAILED = "COMPACTION_FAILED"
+    CONTEXT_REBUILT = "CONTEXT_REBUILT"
+    CONTEXT_ITEM_INVALIDATED = "CONTEXT_ITEM_INVALIDATED"
+    CONTEXT_CACHE_HIT = "CONTEXT_CACHE_HIT"
+    CONTEXT_CACHE_MISS = "CONTEXT_CACHE_MISS"
 
     # System & Observability
     ERROR = "ERROR"

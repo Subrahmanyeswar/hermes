@@ -84,6 +84,10 @@ class AgentLoop:
         self._action_executor = ActionExecutor(mode=mode_str)
         self._completion_policy = CompletionPolicy()
 
+        # Context Engine 2.x (Prompt 7)
+        from core.context.engine import ContextEngine
+        self.context_engine = ContextEngine(event_bus=self.event_bus)
+
         # Runtime trackers
         self._start_time: float = 0.0
         self._mission_id: str = ""
@@ -529,10 +533,31 @@ class AgentLoop:
         return all(a == first for a in last_actions)
 
     def _record_observation(self, obs: Observation) -> None:
-        """Add observation to bounded history."""
+        """Add observation to bounded history and ContextEngine."""
         self._observation_history.append(obs)
         if len(self._observation_history) > 10:
             self._observation_history.pop(0)
+
+        if hasattr(self, "context_engine") and self.context_engine:
+            try:
+                from core.context.models import ContextItem, ContextSectionType, ContextSourceType, ContextPriority, ContextProvenance
+                is_err = not obs.success
+                item = ContextItem(
+                    id=obs.observation_id or f"obs_{uuid.uuid4().hex[:6]}",
+                    section=ContextSectionType.RECENT_OBSERVATIONS,
+                    content=obs.to_context_string(),
+                    provenance=ContextProvenance(
+                        source_type=ContextSourceType.OBSERVATION,
+                        source_id=obs.source_id or obs.source_type,
+                        turn_id=obs.turn_id,
+                    ),
+                    priority=ContextPriority.IMPORTANT if is_err else ContextPriority.OPTIONAL,
+                    summary=obs.summary,
+                    metadata={"is_error": is_err},
+                )
+                self.context_engine.register_item(item)
+            except Exception:
+                pass
 
     def _build_turn_context(self, mission: Mission, state: Any) -> Tuple[str, str]:
         """Assemble grounding system prompt and observation-enriched user message."""
@@ -568,7 +593,44 @@ class AgentLoop:
                 f"Files ({ws_summary.get('total_files', 0)}):\n{skeleton[:600]}"
             )
 
-        # 3. Formatted Observations
+        # 3. ContextEngine build if available
+        if hasattr(self, "context_engine") and self.context_engine:
+            try:
+                from core.context.models import ContextItem, ContextSectionType, ContextSourceType, ContextPriority, ContextProvenance
+                self.context_engine.register_item(ContextItem(
+                    id="sys_invariant",
+                    section=ContextSectionType.SYSTEM,
+                    content=system_prompt,
+                    provenance=ContextProvenance(source_type=ContextSourceType.SYSTEM, source_id="hermes_core"),
+                    priority=ContextPriority.MANDATORY,
+                    pinned=True,
+                ))
+                self.context_engine.register_item(ContextItem(
+                    id="goal_primary",
+                    section=ContextSectionType.CURRENT_GOAL,
+                    content=f"Goal:\n{mission.user_prompt}\n\n{ws_info}",
+                    provenance=ContextProvenance(source_type=ContextSourceType.USER, source_id=mission.mission_id),
+                    priority=ContextPriority.MANDATORY,
+                    pinned=True,
+                ))
+                for f in self._written_files:
+                    self.context_engine.track_file_snippet(
+                        path=f,
+                        content=f"[Modified file: {f}]",
+                        is_modified=True,
+                    )
+
+                pack = self.context_engine.build_context(
+                    mission_goal=mission.user_prompt,
+                    state_snapshot=state,
+                    turn_number=self._turns_count + 1,
+                )
+                messages = pack.to_messages()
+                return messages[0]["content"], messages[1]["content"]
+            except Exception as ctx_exc:
+                logger.warning(f"AgentLoop: ContextEngine assembly encountered ({ctx_exc}), falling back to direct context")
+
+        # Fallback to direct assembly
         obs_text = ""
         if self._observation_history:
             recent_obs = self._observation_history[-4:]

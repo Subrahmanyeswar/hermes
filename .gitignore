@@ -28,6 +28,7 @@ scratch/
 generated_projects/
 
 # Historical benchmark artifacts and optimization probes (preserved locally, excluded from release)
+artifacts/context/
 artifacts/performance/
 artifacts/production_hardening_results.json
 benchmarks/performance_gate_suite.py
