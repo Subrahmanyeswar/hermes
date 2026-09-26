@@ -1,0 +1,125 @@
+{
+  "summary": {
+    "total_tasks": 8,
+    "correct_tool_selections": 8,
+    "selection_accuracy_pct": 100.0,
+    "total_duration_ms": 6.72,
+    "tool_errors": 0,
+    "error_rate": 0.0
+  },
+  "tasks": [
+    {
+      "task_id": "dev-01",
+      "category": "inspection",
+      "expected": [
+        "search.grep",
+        "fs.read"
+      ],
+      "discovered": [
+        "search.grep",
+        "search.glob",
+        "fs.read"
+      ],
+      "top_hit": true,
+      "is_held_out": false
+    },
+    {
+      "task_id": "dev-02",
+      "category": "discovery",
+      "expected": [
+        "search.glob"
+      ],
+      "discovered": [
+        "search.glob",
+        "run_tests",
+        "search.grep"
+      ],
+      "top_hit": true,
+      "is_held_out": false
+    },
+    {
+      "task_id": "dev-03",
+      "category": "modification",
+      "expected": [
+        "fs.edit"
+      ],
+      "discovered": [
+        "fs.edit",
+        "open_in_vscode",
+        "web_search"
+      ],
+      "top_hit": true,
+      "is_held_out": false
+    },
+    {
+      "task_id": "dev-04",
+      "category": "creation",
+      "expected": [
+        "fs.write"
+      ],
+      "discovered": [
+        "fs.write",
+        "create_folder",
+        "user.ask"
+      ],
+      "top_hit": true,
+      "is_held_out": false
+    },
+    {
+      "task_id": "dev-05",
+      "category": "execution",
+      "expected": [
+        "shell.bash"
+      ],
+      "discovered": [
+        "run_tests",
+        "shell.bash",
+        "run_python"
+      ],
+      "top_hit": true,
+      "is_held_out": false
+    },
+    {
+      "task_id": "held-01",
+      "category": "search",
+      "expected": [
+        "search.grep"
+      ],
+      "discovered": [
+        "search.grep",
+        "search.glob",
+        "open_in_vscode"
+      ],
+      "top_hit": true,
+      "is_held_out": true
+    },
+    {
+      "task_id": "held-02",
+      "category": "interaction",
+      "expected": [
+        "user.ask"
+      ],
+      "discovered": [
+        "user.ask",
+        "create_folder",
+        "run_python"
+      ],
+      "top_hit": true,
+      "is_held_out": true
+    },
+    {
+      "task_id": "held-03",
+      "category": "planning",
+      "expected": [
+        "task.todo"
+      ],
+      "discovered": [
+        "task.todo",
+        "run_tests",
+        "run_python"
+      ],
+      "top_hit": true,
+      "is_held_out": true
+    }
+  ]
+}

@@ -1,0 +1,1957 @@
+{
+  "version": "2.0",
+  "total_tools": 26,
+  "core_tools_count": 9,
+  "tools": {
+    "append_file": {
+      "canonical_name": "append_file",
+      "display_name": "Append File",
+      "description": "Append content to an existing file. Creates the file if it does not exist.",
+      "category": "fs",
+      "schema": {
+        "name": "append_file",
+        "description": "Append content to an existing file. Creates the file if it does not exist.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "path": {
+              "maxLength": 500,
+              "minLength": 1,
+              "title": "Path",
+              "type": "string"
+            },
+            "content": {
+              "maxLength": 100000,
+              "title": "Content",
+              "type": "string"
+            }
+          },
+          "required": [
+            "path",
+            "content"
+          ]
+        },
+        "required": [
+          "path",
+          "content"
+        ],
+        "output_semantics": "",
+        "version": "1.0"
+      },
+      "risk": {
+        "risk_score": 0.2,
+        "risk_level": "LOW",
+        "destructive": false,
+        "writes_files": true,
+        "executes_commands": false,
+        "network_access": false,
+        "requires_confirmation": false,
+        "reversible": true,
+        "idempotent": true,
+        "affects_workspace": false,
+        "affects_external_system": false,
+        "blocked_in": [
+          "safe"
+        ]
+      },
+      "version": "1.0",
+      "examples": [],
+      "availability": "AVAILABLE",
+      "aliases": [
+        "append_file"
+      ],
+      "batch_safe": false,
+      "tags": [
+        "fs",
+        "append_file"
+      ],
+      "is_core": false
+    },
+    "create_folder": {
+      "canonical_name": "create_folder",
+      "display_name": "Create Folder",
+      "description": "Create a new directory/folder and any parent directories. Use when the user asks to create folders, directories, or project structure without file content.",
+      "category": "fs",
+      "schema": {
+        "name": "create_folder",
+        "description": "Create a new directory/folder and any parent directories. Use when the user asks to create folders, directories, or project structure without file content.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "path": {
+              "maxLength": 500,
+              "minLength": 1,
+              "title": "Path",
+              "type": "string"
+            }
+          },
+          "required": [
+            "path"
+          ]
+        },
+        "required": [
+          "path"
+        ],
+        "output_semantics": "",
+        "version": "1.0"
+      },
+      "risk": {
+        "risk_score": 0.1,
+        "risk_level": "READ_ONLY",
+        "destructive": false,
+        "writes_files": true,
+        "executes_commands": false,
+        "network_access": false,
+        "requires_confirmation": false,
+        "reversible": true,
+        "idempotent": true,
+        "affects_workspace": false,
+        "affects_external_system": false,
+        "blocked_in": [
+          "safe"
+        ]
+      },
+      "version": "1.0",
+      "examples": [],
+      "availability": "AVAILABLE",
+      "aliases": [
+        "create_folder"
+      ],
+      "batch_safe": false,
+      "tags": [
+        "fs",
+        "create_folder"
+      ],
+      "is_core": false
+    },
+    "delete_file": {
+      "canonical_name": "delete_file",
+      "display_name": "Delete File",
+      "description": "Delete a file. Requires explicit confirmation in Auto mode. Never deletes directories.",
+      "category": "fs",
+      "schema": {
+        "name": "delete_file",
+        "description": "Delete a file. Requires explicit confirmation in Auto mode. Never deletes directories.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "path": {
+              "maxLength": 500,
+              "minLength": 1,
+              "title": "Path",
+              "type": "string"
+            },
+            "confirm": {
+              "description": "Must be explicitly True to confirm deletion",
+              "title": "Confirm",
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "path",
+            "confirm"
+          ]
+        },
+        "required": [
+          "path",
+          "confirm"
+        ],
+        "output_semantics": "",
+        "version": "1.0"
+      },
+      "risk": {
+        "risk_score": 0.8,
+        "risk_level": "HIGH",
+        "destructive": false,
+        "writes_files": true,
+        "executes_commands": false,
+        "network_access": false,
+        "requires_confirmation": false,
+        "reversible": true,
+        "idempotent": true,
+        "affects_workspace": false,
+        "affects_external_system": false,
+        "blocked_in": [
+          "safe",
+          "plan"
+        ]
+      },
+      "version": "1.0",
+      "examples": [],
+      "availability": "AVAILABLE",
+      "aliases": [
+        "delete_file"
+      ],
+      "batch_safe": false,
+      "tags": [
+        "fs",
+        "delete_file"
+      ],
+      "is_core": false
+    },
+    "export_zip": {
+      "canonical_name": "export_zip",
+      "display_name": "Export Zip",
+      "description": "Export a project folder as a ZIP archive. The ZIP is saved to generated_projects/ and the full path is returned.",
+      "category": "system",
+      "schema": {
+        "name": "export_zip",
+        "description": "Export a project folder as a ZIP archive. The ZIP is saved to generated_projects/ and the full path is returned.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "project_path": {
+              "description": "Path to the project folder to export",
+              "maxLength": 500,
+              "minLength": 1,
+              "title": "Project Path",
+              "type": "string"
+            },
+            "output_name": {
+              "default": "",
+              "description": "Name for the ZIP file without extension. Defaults to the folder name.",
+              "title": "Output Name",
+              "type": "string"
+            }
+          },
+          "required": [
+            "project_path"
+          ]
+        },
+        "required": [
+          "project_path"
+        ],
+        "output_semantics": "",
+        "version": "1.0"
+      },
+      "risk": {
+        "risk_score": 0.1,
+        "risk_level": "READ_ONLY",
+        "destructive": false,
+        "writes_files": false,
+        "executes_commands": false,
+        "network_access": false,
+        "requires_confirmation": false,
+        "reversible": true,
+        "idempotent": true,
+        "affects_workspace": false,
+        "affects_external_system": false,
+        "blocked_in": []
+      },
+      "version": "1.0",
+      "examples": [],
+      "availability": "AVAILABLE",
+      "aliases": [
+        "export_zip"
+      ],
+      "batch_safe": false,
+      "tags": [
+        "system",
+        "export_zip"
+      ],
+      "is_core": false
+    },
+    "fs.edit": {
+      "canonical_name": "fs.edit",
+      "display_name": "Edit File",
+      "description": "Apply an exact surgical text replacement to an existing file.",
+      "category": "fs",
+      "schema": {
+        "name": "fs.edit",
+        "description": "Replace exact old_text with new_text in an existing file.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "path": {
+              "type": "string",
+              "description": "Relative path to file"
+            },
+            "old_text": {
+              "type": "string",
+              "description": "Exact text to replace"
+            },
+            "new_text": {
+              "type": "string",
+              "description": "Replacement text"
+            },
+            "expected_occurrences": {
+              "type": "integer",
+              "default": 1
+            },
+            "response_format": {
+              "type": "string",
+              "enum": [
+                "concise",
+                "normal",
+                "detailed"
+              ],
+              "default": "normal"
+            }
+          },
+          "required": [
+            "path",
+            "old_text",
+            "new_text"
+          ]
+        },
+        "required": [
+          "path",
+          "old_text",
+          "new_text"
+        ],
+        "output_semantics": "",
+        "version": "1.0"
+      },
+      "risk": {
+        "risk_score": 0.3,
+        "risk_level": "LOW",
+        "destructive": false,
+        "writes_files": true,
+        "executes_commands": false,
+        "network_access": false,
+        "requires_confirmation": false,
+        "reversible": true,
+        "idempotent": true,
+        "affects_workspace": true,
+        "affects_external_system": false,
+        "blocked_in": [
+          "plan"
+        ]
+      },
+      "version": "1.0",
+      "examples": [
+        {
+          "intent": "Replace a function definition",
+          "input": {
+            "path": "main.py",
+            "old_text": "def old():\n    pass",
+            "new_text": "def new():\n    return 42"
+          },
+          "expected_output_summary": "Successfully edited main.py",
+          "is_failure_example": false,
+          "failure_reason": ""
+        },
+        {
+          "intent": "Fails if old_text is missing",
+          "input": {
+            "path": "main.py",
+            "old_text": "nonexistent text",
+            "new_text": "new text"
+          },
+          "expected_output_summary": "",
+          "is_failure_example": true,
+          "failure_reason": "old_text not found in file"
+        }
+      ],
+      "availability": "AVAILABLE",
+      "aliases": [
+        "edit",
+        "replace_file_content"
+      ],
+      "batch_safe": false,
+      "tags": [
+        "fs",
+        "edit",
+        "replace",
+        "modify"
+      ],
+      "is_core": true
+    },
+    "fs.read": {
+      "canonical_name": "fs.read",
+      "display_name": "Read File",
+      "description": "Read file contents or specific line ranges from disk. Use when inspecting, viewing, opening, or reviewing source files, configuration, or text lines (e.g. lines 10 to 50).",
+      "category": "fs",
+      "schema": {
+        "name": "fs.read",
+        "description": "Read file contents or specific line ranges within workspace.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "path": {
+              "type": "string",
+              "description": "Relative path to file"
+            },
+            "start_line": {
+              "type": "integer",
+              "description": "1-based starting line"
+            },
+            "end_line": {
+              "type": "integer",
+              "description": "1-based ending line"
+            },
+            "max_lines": {
+              "type": "integer",
+              "description": "Maximum lines to return"
+            },
+            "encoding": {
+              "type": "string",
+              "default": "utf-8"
+            },
+            "response_format": {
+              "type": "string",
+              "enum": [
+                "concise",
+                "normal",
+                "detailed"
+              ],
+              "default": "normal"
+            }
+          },
+          "required": [
+            "path"
+          ]
+        },
+        "required": [
+          "path"
+        ],
+        "output_semantics": "",
+        "version": "1.0"
+      },
+      "risk": {
+        "risk_score": 0.1,
+        "risk_level": "READ_ONLY",
+        "destructive": false,
+        "writes_files": false,
+        "executes_commands": false,
+        "network_access": false,
+        "requires_confirmation": false,
+        "reversible": true,
+        "idempotent": true,
+        "affects_workspace": false,
+        "affects_external_system": false,
+        "blocked_in": []
+      },
+      "version": "1.0",
+      "examples": [
+        {
+          "intent": "Read lines 1 to 50 of app.py",
+          "input": {
+            "path": "app.py",
+            "start_line": 1,
+            "end_line": 50
+          },
+          "expected_output_summary": "Contents of app.py lines 1-50",
+          "is_failure_example": false,
+          "failure_reason": ""
+        },
+        {
+          "intent": "Attempting to read outside workspace fails",
+          "input": {
+            "path": "../../etc/passwd"
+          },
+          "expected_output_summary": "",
+          "is_failure_example": true,
+          "failure_reason": "Path traversal prohibited"
+        }
+      ],
+      "availability": "AVAILABLE",
+      "aliases": [
+        "read_file",
+        "read"
+      ],
+      "batch_safe": true,
+      "tags": [
+        "fs",
+        "read",
+        "file",
+        "view"
+      ],
+      "is_core": true
+    },
+    "fs.write": {
+      "canonical_name": "fs.write",
+      "display_name": "Write File",
+      "description": "Create a new file or completely overwrite an existing file atomically.",
+      "category": "fs",
+      "schema": {
+        "name": "fs.write",
+        "description": "Create or overwrite a file with given text content.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "path": {
+              "type": "string",
+              "description": "Relative path to file"
+            },
+            "content": {
+              "type": "string",
+              "description": "Content to write"
+            },
+            "create_parents": {
+              "type": "boolean",
+              "default": true
+            },
+            "response_format": {
+              "type": "string",
+              "enum": [
+                "concise",
+                "normal",
+                "detailed"
+              ],
+              "default": "normal"
+            }
+          },
+          "required": [
+            "path",
+            "content"
+          ]
+        },
+        "required": [
+          "path",
+          "content"
+        ],
+        "output_semantics": "",
+        "version": "1.0"
+      },
+      "risk": {
+        "risk_score": 0.4,
+        "risk_level": "MEDIUM",
+        "destructive": false,
+        "writes_files": true,
+        "executes_commands": false,
+        "network_access": false,
+        "requires_confirmation": false,
+        "reversible": true,
+        "idempotent": true,
+        "affects_workspace": true,
+        "affects_external_system": false,
+        "blocked_in": [
+          "plan"
+        ]
+      },
+      "version": "1.0",
+      "examples": [
+        {
+          "intent": "Create hello.py",
+          "input": {
+            "path": "hello.py",
+            "content": "print('hello')\n"
+          },
+          "expected_output_summary": "Successfully wrote hello.py",
+          "is_failure_example": false,
+          "failure_reason": ""
+        }
+      ],
+      "availability": "AVAILABLE",
+      "aliases": [
+        "write_file",
+        "write"
+      ],
+      "batch_safe": false,
+      "tags": [
+        "fs",
+        "write",
+        "create",
+        "file"
+      ],
+      "is_core": true
+    },
+    "git_add_commit": {
+      "canonical_name": "git_add_commit",
+      "display_name": "Git Add Commit",
+      "description": "Stage all changes and create a commit in an existing Git repository.",
+      "category": "git",
+      "schema": {
+        "name": "git_add_commit",
+        "description": "Stage all changes and create a commit in an existing Git repository.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "directory": {
+              "default": ".",
+              "description": "Path to the Git repository, relative to project root",
+              "title": "Directory",
+              "type": "string"
+            },
+            "message": {
+              "description": "Commit message - must be descriptive and non-empty",
+              "maxLength": 500,
+              "minLength": 5,
+              "title": "Message",
+              "type": "string"
+            },
+            "add_all": {
+              "default": true,
+              "description": "If True, stage all changes (git add -A). If False, only stage already-tracked files.",
+              "title": "Add All",
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "message"
+          ]
+        },
+        "required": [
+          "message"
+        ],
+        "output_semantics": "",
+        "version": "1.0"
+      },
+      "risk": {
+        "risk_score": 0.3,
+        "risk_level": "LOW",
+        "destructive": false,
+        "writes_files": false,
+        "executes_commands": false,
+        "network_access": false,
+        "requires_confirmation": false,
+        "reversible": true,
+        "idempotent": true,
+        "affects_workspace": false,
+        "affects_external_system": false,
+        "blocked_in": [
+          "safe"
+        ]
+      },
+      "version": "1.0",
+      "examples": [],
+      "availability": "AVAILABLE",
+      "aliases": [
+        "git_add_commit"
+      ],
+      "batch_safe": false,
+      "tags": [
+        "git",
+        "git_add_commit"
+      ],
+      "is_core": false
+    },
+    "git_init": {
+      "canonical_name": "git_init",
+      "display_name": "Git Init",
+      "description": "Initialise a new Git repository in a directory, or verify one already exists.",
+      "category": "git",
+      "schema": {
+        "name": "git_init",
+        "description": "Initialise a new Git repository in a directory, or verify one already exists.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "directory": {
+              "default": ".",
+              "description": "Directory to initialise as a git repo, relative to project root",
+              "title": "Directory",
+              "type": "string"
+            },
+            "initial_branch": {
+              "default": "main",
+              "description": "Name of the initial branch",
+              "title": "Initial Branch",
+              "type": "string"
+            }
+          },
+          "required": []
+        },
+        "required": [],
+        "output_semantics": "",
+        "version": "1.0"
+      },
+      "risk": {
+        "risk_score": 0.2,
+        "risk_level": "LOW",
+        "destructive": false,
+        "writes_files": false,
+        "executes_commands": false,
+        "network_access": false,
+        "requires_confirmation": false,
+        "reversible": true,
+        "idempotent": true,
+        "affects_workspace": false,
+        "affects_external_system": false,
+        "blocked_in": [
+          "safe"
+        ]
+      },
+      "version": "1.0",
+      "examples": [],
+      "availability": "AVAILABLE",
+      "aliases": [
+        "git_init"
+      ],
+      "batch_safe": false,
+      "tags": [
+        "git",
+        "git_init"
+      ],
+      "is_core": false
+    },
+    "git_push": {
+      "canonical_name": "git_push",
+      "display_name": "Git Push",
+      "description": "Push committed changes to a remote GitHub repository. Requires GITHUB_TOKEN environment variable to be set. Never pass the token as a parameter \u2014 it is always read from the environment.",
+      "category": "git",
+      "schema": {
+        "name": "git_push",
+        "description": "Push committed changes to a remote GitHub repository. Requires GITHUB_TOKEN environment variable to be set. Never pass the token as a parameter \u2014 it is always read from the environment.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "directory": {
+              "default": ".",
+              "description": "Path to the git repository, relative to project root",
+              "title": "Directory",
+              "type": "string"
+            },
+            "remote": {
+              "default": "origin",
+              "description": "Remote name to push to",
+              "title": "Remote",
+              "type": "string"
+            },
+            "branch": {
+              "default": "main",
+              "description": "Branch to push",
+              "title": "Branch",
+              "type": "string"
+            }
+          },
+          "required": []
+        },
+        "required": [],
+        "output_semantics": "",
+        "version": "1.0"
+      },
+      "risk": {
+        "risk_score": 0.7,
+        "risk_level": "HIGH",
+        "destructive": false,
+        "writes_files": false,
+        "executes_commands": false,
+        "network_access": false,
+        "requires_confirmation": false,
+        "reversible": true,
+        "idempotent": true,
+        "affects_workspace": false,
+        "affects_external_system": false,
+        "blocked_in": [
+          "safe",
+          "plan"
+        ]
+      },
+      "version": "1.0",
+      "examples": [],
+      "availability": "AVAILABLE",
+      "aliases": [
+        "git_push"
+      ],
+      "batch_safe": false,
+      "tags": [
+        "git",
+        "git_push"
+      ],
+      "is_core": false
+    },
+    "move_file": {
+      "canonical_name": "move_file",
+      "display_name": "Move File",
+      "description": "Move or rename a file or directory.",
+      "category": "fs",
+      "schema": {
+        "name": "move_file",
+        "description": "Move or rename a file or directory.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "source": {
+              "maxLength": 500,
+              "minLength": 1,
+              "title": "Source",
+              "type": "string"
+            },
+            "destination": {
+              "maxLength": 500,
+              "minLength": 1,
+              "title": "Destination",
+              "type": "string"
+            }
+          },
+          "required": [
+            "source",
+            "destination"
+          ]
+        },
+        "required": [
+          "source",
+          "destination"
+        ],
+        "output_semantics": "",
+        "version": "1.0"
+      },
+      "risk": {
+        "risk_score": 0.3,
+        "risk_level": "LOW",
+        "destructive": false,
+        "writes_files": true,
+        "executes_commands": false,
+        "network_access": false,
+        "requires_confirmation": false,
+        "reversible": true,
+        "idempotent": true,
+        "affects_workspace": false,
+        "affects_external_system": false,
+        "blocked_in": [
+          "safe"
+        ]
+      },
+      "version": "1.0",
+      "examples": [],
+      "availability": "AVAILABLE",
+      "aliases": [
+        "move_file"
+      ],
+      "batch_safe": false,
+      "tags": [
+        "fs",
+        "move_file"
+      ],
+      "is_core": false
+    },
+    "open_in_vscode": {
+      "canonical_name": "open_in_vscode",
+      "display_name": "Open In Vscode",
+      "description": "Open a file or folder in VS Code. Requires VS Code to be installed with the 'code' CLI command available.",
+      "category": "system",
+      "schema": {
+        "name": "open_in_vscode",
+        "description": "Open a file or folder in VS Code. Requires VS Code to be installed with the 'code' CLI command available.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "path": {
+              "default": ".",
+              "description": "File or folder path to open in VS Code. Defaults to current directory.",
+              "maxLength": 500,
+              "title": "Path",
+              "type": "string"
+            },
+            "new_window": {
+              "default": false,
+              "description": "Open in a new VS Code window instead of reusing existing.",
+              "title": "New Window",
+              "type": "boolean"
+            }
+          },
+          "required": []
+        },
+        "required": [],
+        "output_semantics": "",
+        "version": "1.0"
+      },
+      "risk": {
+        "risk_score": 0.1,
+        "risk_level": "READ_ONLY",
+        "destructive": false,
+        "writes_files": false,
+        "executes_commands": false,
+        "network_access": false,
+        "requires_confirmation": false,
+        "reversible": true,
+        "idempotent": true,
+        "affects_workspace": false,
+        "affects_external_system": false,
+        "blocked_in": []
+      },
+      "version": "1.0",
+      "examples": [],
+      "availability": "AVAILABLE",
+      "aliases": [
+        "open_in_vscode"
+      ],
+      "batch_safe": false,
+      "tags": [
+        "system",
+        "open_in_vscode"
+      ],
+      "is_core": false
+    },
+    "read_memory": {
+      "canonical_name": "read_memory",
+      "display_name": "Read Memory",
+      "description": "Read a Layer 2 topic file for detailed project information. Use when MEMORY.md has a [DETAIL] pointer.",
+      "category": "memory",
+      "schema": {
+        "name": "read_memory",
+        "description": "Read a Layer 2 topic file for detailed project information. Use when MEMORY.md has a [DETAIL] pointer.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "topic_name": {
+              "description": "Name of the topic file to read, without .md extension",
+              "maxLength": 100,
+              "minLength": 1,
+              "title": "Topic Name",
+              "type": "string"
+            },
+            "project": {
+              "default": "default",
+              "title": "Project",
+              "type": "string"
+            }
+          },
+          "required": [
+            "topic_name"
+          ]
+        },
+        "required": [
+          "topic_name"
+        ],
+        "output_semantics": "",
+        "version": "1.0"
+      },
+      "risk": {
+        "risk_score": 0.0,
+        "risk_level": "READ_ONLY",
+        "destructive": false,
+        "writes_files": false,
+        "executes_commands": false,
+        "network_access": false,
+        "requires_confirmation": false,
+        "reversible": true,
+        "idempotent": true,
+        "affects_workspace": false,
+        "affects_external_system": false,
+        "blocked_in": []
+      },
+      "version": "1.0",
+      "examples": [],
+      "availability": "AVAILABLE",
+      "aliases": [
+        "read_memory"
+      ],
+      "batch_safe": false,
+      "tags": [
+        "memory",
+        "read_memory"
+      ],
+      "is_core": false
+    },
+    "run_python": {
+      "canonical_name": "run_python",
+      "display_name": "Run Python",
+      "description": "Execute a .py Python script file. ONLY use when the user asks to run/execute a specific .py file. Do NOT use for pip install or shell commands.",
+      "category": "shell",
+      "schema": {
+        "name": "run_python",
+        "description": "Execute a .py Python script file. ONLY use when the user asks to run/execute a specific .py file. Do NOT use for pip install or shell commands.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "file_path": {
+              "description": "Path to the Python file to execute, relative to project root",
+              "maxLength": 500,
+              "minLength": 1,
+              "title": "File Path",
+              "type": "string"
+            },
+            "args": {
+              "description": "Command line arguments to pass to the script",
+              "items": {
+                "type": "string"
+              },
+              "title": "Args",
+              "type": "array"
+            },
+            "working_dir": {
+              "default": ".",
+              "description": "Working directory, defaults to project root",
+              "title": "Working Dir",
+              "type": "string"
+            },
+            "timeout_seconds": {
+              "default": 60,
+              "maximum": 600,
+              "minimum": 1,
+              "title": "Timeout Seconds",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "file_path"
+          ]
+        },
+        "required": [
+          "file_path"
+        ],
+        "output_semantics": "",
+        "version": "1.0"
+      },
+      "risk": {
+        "risk_score": 0.5,
+        "risk_level": "MEDIUM",
+        "destructive": false,
+        "writes_files": false,
+        "executes_commands": true,
+        "network_access": false,
+        "requires_confirmation": false,
+        "reversible": true,
+        "idempotent": true,
+        "affects_workspace": false,
+        "affects_external_system": false,
+        "blocked_in": [
+          "safe"
+        ]
+      },
+      "version": "1.0",
+      "examples": [],
+      "availability": "AVAILABLE",
+      "aliases": [
+        "run_python"
+      ],
+      "batch_safe": false,
+      "tags": [
+        "shell",
+        "run_python"
+      ],
+      "is_core": false
+    },
+    "run_tests": {
+      "canonical_name": "run_tests",
+      "display_name": "Run Tests",
+      "description": "Run pytest on a test file or test directory. ONLY use when the user explicitly asks to run tests or pytest. Do NOT use for running regular Python scripts.",
+      "category": "shell",
+      "schema": {
+        "name": "run_tests",
+        "description": "Run pytest on a test file or test directory. ONLY use when the user explicitly asks to run tests or pytest. Do NOT use for running regular Python scripts.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "test_path": {
+              "description": "Path to the test file or directory to run",
+              "maxLength": 500,
+              "minLength": 1,
+              "title": "Test Path",
+              "type": "string"
+            },
+            "verbose": {
+              "default": true,
+              "description": "Run with -v flag for detailed output",
+              "title": "Verbose",
+              "type": "boolean"
+            },
+            "timeout_seconds": {
+              "default": 120,
+              "maximum": 600,
+              "minimum": 1,
+              "title": "Timeout Seconds",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "test_path"
+          ]
+        },
+        "required": [
+          "test_path"
+        ],
+        "output_semantics": "",
+        "version": "1.0"
+      },
+      "risk": {
+        "risk_score": 0.4,
+        "risk_level": "MEDIUM",
+        "destructive": false,
+        "writes_files": false,
+        "executes_commands": true,
+        "network_access": false,
+        "requires_confirmation": false,
+        "reversible": true,
+        "idempotent": true,
+        "affects_workspace": false,
+        "affects_external_system": false,
+        "blocked_in": [
+          "safe"
+        ]
+      },
+      "version": "1.0",
+      "examples": [],
+      "availability": "AVAILABLE",
+      "aliases": [
+        "run_tests"
+      ],
+      "batch_safe": false,
+      "tags": [
+        "shell",
+        "run_tests"
+      ],
+      "is_core": false
+    },
+    "save_memory": {
+      "canonical_name": "save_memory",
+      "display_name": "Save Memory",
+      "description": "Save a fact to project memory. Use when the user says 'remember', 'keep in mind', 'note that', or wants to store a decision. Do NOT use read_memory for saving.",
+      "category": "memory",
+      "schema": {
+        "name": "save_memory",
+        "description": "Save a fact to project memory. Use when the user says 'remember', 'keep in mind', 'note that', or wants to store a decision. Do NOT use read_memory for saving.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "fact_type": {
+              "default": "FACT",
+              "enum": [
+                "FACT",
+                "BUG",
+                "TASK_DONE",
+                "BLOCKED",
+                "DETAIL"
+              ],
+              "title": "Fact Type",
+              "type": "string"
+            },
+            "content": {
+              "description": "The fact to remember \u2014 max 150 characters",
+              "maxLength": 150,
+              "minLength": 5,
+              "title": "Content",
+              "type": "string"
+            },
+            "project": {
+              "default": "default",
+              "description": "Project name this fact belongs to",
+              "title": "Project",
+              "type": "string"
+            }
+          },
+          "required": [
+            "content"
+          ]
+        },
+        "required": [
+          "content"
+        ],
+        "output_semantics": "",
+        "version": "1.0"
+      },
+      "risk": {
+        "risk_score": 0.1,
+        "risk_level": "READ_ONLY",
+        "destructive": false,
+        "writes_files": false,
+        "executes_commands": false,
+        "network_access": false,
+        "requires_confirmation": false,
+        "reversible": true,
+        "idempotent": true,
+        "affects_workspace": false,
+        "affects_external_system": false,
+        "blocked_in": []
+      },
+      "version": "1.0",
+      "examples": [],
+      "availability": "AVAILABLE",
+      "aliases": [
+        "save_memory"
+      ],
+      "batch_safe": false,
+      "tags": [
+        "memory",
+        "save_memory"
+      ],
+      "is_core": false
+    },
+    "screenshot_to_code": {
+      "canonical_name": "screenshot_to_code",
+      "display_name": "Screenshot To Code",
+      "description": "Convert a UI screenshot or image to HTML+Tailwind or React+Tailwind code. Uses the Qwen2.5-Coder vision model. Supported formats: PNG, JPG, JPEG, WEBP. Output is saved to a file and the path is returned.",
+      "category": "vision",
+      "schema": {
+        "name": "screenshot_to_code",
+        "description": "Convert a UI screenshot or image to HTML+Tailwind or React+Tailwind code. Uses the Qwen2.5-Coder vision model. Supported formats: PNG, JPG, JPEG, WEBP. Output is saved to a file and the path is returned.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "image_path": {
+              "description": "Path to the screenshot image file (PNG, JPG, WEBP)",
+              "maxLength": 500,
+              "minLength": 1,
+              "title": "Image Path",
+              "type": "string"
+            },
+            "output_format": {
+              "default": "html",
+              "description": "Output code format: 'html' for HTML+Tailwind, 'react' for React+Tailwind",
+              "enum": [
+                "html",
+                "react"
+              ],
+              "title": "Output Format",
+              "type": "string"
+            },
+            "output_file": {
+              "default": "",
+              "description": "Where to save the generated code. Defaults to generated_projects/screenshot_output.html or .jsx",
+              "title": "Output File",
+              "type": "string"
+            },
+            "ollama_url": {
+              "default": "http://localhost:11434",
+              "description": "Ollama server URL",
+              "title": "Ollama Url",
+              "type": "string"
+            }
+          },
+          "required": [
+            "image_path"
+          ]
+        },
+        "required": [
+          "image_path"
+        ],
+        "output_semantics": "",
+        "version": "1.0"
+      },
+      "risk": {
+        "risk_score": 0.1,
+        "risk_level": "READ_ONLY",
+        "destructive": false,
+        "writes_files": false,
+        "executes_commands": false,
+        "network_access": false,
+        "requires_confirmation": false,
+        "reversible": true,
+        "idempotent": true,
+        "affects_workspace": false,
+        "affects_external_system": false,
+        "blocked_in": []
+      },
+      "version": "1.0",
+      "examples": [],
+      "availability": "AVAILABLE",
+      "aliases": [
+        "screenshot_to_code"
+      ],
+      "batch_safe": false,
+      "tags": [
+        "vision",
+        "screenshot_to_code"
+      ],
+      "is_core": false
+    },
+    "search.glob": {
+      "canonical_name": "search.glob",
+      "display_name": "Glob File Search",
+      "description": "Find files matching a glob pattern relative to workspace root.",
+      "category": "search",
+      "schema": {
+        "name": "search.glob",
+        "description": "Find matching files using glob patterns.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "pattern": {
+              "type": "string",
+              "description": "Glob pattern (e.g. '**/*.py')"
+            },
+            "base_path": {
+              "type": "string",
+              "default": "."
+            },
+            "max_results": {
+              "type": "integer",
+              "default": 50
+            },
+            "response_format": {
+              "type": "string",
+              "enum": [
+                "concise",
+                "normal",
+                "detailed"
+              ],
+              "default": "normal"
+            }
+          },
+          "required": [
+            "pattern"
+          ]
+        },
+        "required": [
+          "pattern"
+        ],
+        "output_semantics": "",
+        "version": "1.0"
+      },
+      "risk": {
+        "risk_score": 0.1,
+        "risk_level": "READ_ONLY",
+        "destructive": false,
+        "writes_files": false,
+        "executes_commands": false,
+        "network_access": false,
+        "requires_confirmation": false,
+        "reversible": true,
+        "idempotent": true,
+        "affects_workspace": false,
+        "affects_external_system": false,
+        "blocked_in": []
+      },
+      "version": "1.0",
+      "examples": [
+        {
+          "intent": "Find all python files",
+          "input": {
+            "pattern": "**/*.py"
+          },
+          "expected_output_summary": "List of matching python files",
+          "is_failure_example": false,
+          "failure_reason": ""
+        }
+      ],
+      "availability": "AVAILABLE",
+      "aliases": [
+        "glob",
+        "list_directory",
+        "list_dir"
+      ],
+      "batch_safe": true,
+      "tags": [
+        "search",
+        "glob",
+        "files",
+        "find"
+      ],
+      "is_core": true
+    },
+    "search.grep": {
+      "canonical_name": "search.grep",
+      "display_name": "Grep Content Search",
+      "description": "Search and find code, function definitions, database connections, regex, or text patterns across files in the workspace. Use to locate where functions, classes, or variables are implemented.",
+      "category": "search",
+      "schema": {
+        "name": "search.grep",
+        "description": "Search file contents for regex/text patterns with context.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "pattern": {
+              "type": "string",
+              "description": "Regex/text pattern"
+            },
+            "path": {
+              "type": "string",
+              "default": "."
+            },
+            "file_pattern": {
+              "type": "string",
+              "description": "Optional file filter (e.g. '*.py')"
+            },
+            "max_results": {
+              "type": "integer",
+              "default": 40
+            },
+            "context_lines": {
+              "type": "integer",
+              "default": 1
+            },
+            "case_sensitive": {
+              "type": "boolean",
+              "default": false
+            },
+            "response_format": {
+              "type": "string",
+              "enum": [
+                "concise",
+                "normal",
+                "detailed"
+              ],
+              "default": "normal"
+            }
+          },
+          "required": [
+            "pattern"
+          ]
+        },
+        "required": [
+          "pattern"
+        ],
+        "output_semantics": "",
+        "version": "1.0"
+      },
+      "risk": {
+        "risk_score": 0.1,
+        "risk_level": "READ_ONLY",
+        "destructive": false,
+        "writes_files": false,
+        "executes_commands": false,
+        "network_access": false,
+        "requires_confirmation": false,
+        "reversible": true,
+        "idempotent": true,
+        "affects_workspace": false,
+        "affects_external_system": false,
+        "blocked_in": []
+      },
+      "version": "1.0",
+      "examples": [
+        {
+          "intent": "Find definition of calculate_total",
+          "input": {
+            "pattern": "def calculate_total",
+            "path": "src/"
+          },
+          "expected_output_summary": "Matching file lines with context",
+          "is_failure_example": false,
+          "failure_reason": ""
+        }
+      ],
+      "availability": "AVAILABLE",
+      "aliases": [
+        "grep",
+        "search_files"
+      ],
+      "batch_safe": true,
+      "tags": [
+        "search",
+        "grep",
+        "regex",
+        "content",
+        "code"
+      ],
+      "is_core": true
+    },
+    "shell.bash": {
+      "canonical_name": "shell.bash",
+      "display_name": "Bash Shell",
+      "description": "Execute shell commands under strict security gates and timeouts.",
+      "category": "shell",
+      "schema": {
+        "name": "shell.bash",
+        "description": "Execute a shell command with security validation.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "command": {
+              "type": "string",
+              "description": "Shell command to run"
+            },
+            "working_dir": {
+              "type": "string",
+              "default": "."
+            },
+            "timeout_seconds": {
+              "type": "integer",
+              "default": 60
+            },
+            "response_format": {
+              "type": "string",
+              "enum": [
+                "concise",
+                "normal",
+                "detailed"
+              ],
+              "default": "normal"
+            }
+          },
+          "required": [
+            "command"
+          ]
+        },
+        "required": [
+          "command"
+        ],
+        "output_semantics": "",
+        "version": "1.0"
+      },
+      "risk": {
+        "risk_score": 0.7,
+        "risk_level": "HIGH",
+        "destructive": false,
+        "writes_files": false,
+        "executes_commands": true,
+        "network_access": false,
+        "requires_confirmation": false,
+        "reversible": true,
+        "idempotent": false,
+        "affects_workspace": true,
+        "affects_external_system": false,
+        "blocked_in": [
+          "safe",
+          "plan"
+        ]
+      },
+      "version": "1.0",
+      "examples": [
+        {
+          "intent": "Run pytest",
+          "input": {
+            "command": "pytest tests/ -v"
+          },
+          "expected_output_summary": "Pytest execution output",
+          "is_failure_example": false,
+          "failure_reason": ""
+        }
+      ],
+      "availability": "AVAILABLE",
+      "aliases": [
+        "bash_exec",
+        "bash",
+        "shell"
+      ],
+      "batch_safe": false,
+      "tags": [
+        "shell",
+        "bash",
+        "command",
+        "exec",
+        "terminal"
+      ],
+      "is_core": true
+    },
+    "task.delegate": {
+      "canonical_name": "task.delegate",
+      "display_name": "Task Delegate",
+      "description": "Delegation contract to specialized subagents (deferred to Prompt 10).",
+      "category": "task",
+      "schema": {
+        "name": "task.delegate",
+        "description": "Request subagent delegation for an isolated objective.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "target_role": {
+              "type": "string"
+            },
+            "objective": {
+              "type": "string"
+            },
+            "context_files": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "constraints": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "target_role",
+            "objective"
+          ]
+        },
+        "required": [
+          "target_role",
+          "objective"
+        ],
+        "output_semantics": "",
+        "version": "1.0"
+      },
+      "risk": {
+        "risk_score": 0.2,
+        "risk_level": "LOW",
+        "destructive": false,
+        "writes_files": false,
+        "executes_commands": false,
+        "network_access": false,
+        "requires_confirmation": false,
+        "reversible": true,
+        "idempotent": true,
+        "affects_workspace": false,
+        "affects_external_system": false,
+        "blocked_in": []
+      },
+      "version": "1.0",
+      "examples": [
+        {
+          "intent": "Request delegation to researcher",
+          "input": {
+            "target_role": "researcher",
+            "objective": "Investigate security issue"
+          },
+          "expected_output_summary": "Delegation response",
+          "is_failure_example": false,
+          "failure_reason": ""
+        }
+      ],
+      "availability": "AVAILABLE",
+      "aliases": [
+        "delegate"
+      ],
+      "batch_safe": false,
+      "tags": [
+        "task",
+        "delegate",
+        "subagent"
+      ],
+      "is_core": true
+    },
+    "task.todo": {
+      "canonical_name": "task.todo",
+      "display_name": "Task Todo List",
+      "description": "Manage planned checklist objectives without altering authoritative state.",
+      "category": "task",
+      "schema": {
+        "name": "task.todo",
+        "description": "Manage visible checklist items (add, update, complete, remove, list).",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "action": {
+              "type": "string",
+              "enum": [
+                "add",
+                "update",
+                "complete",
+                "remove",
+                "list"
+              ]
+            },
+            "item_id": {
+              "type": "string"
+            },
+            "title": {
+              "type": "string"
+            },
+            "status": {
+              "type": "string",
+              "enum": [
+                "pending",
+                "in_progress",
+                "completed"
+              ]
+            }
+          },
+          "required": [
+            "action"
+          ]
+        },
+        "required": [
+          "action"
+        ],
+        "output_semantics": "",
+        "version": "1.0"
+      },
+      "risk": {
+        "risk_score": 0.1,
+        "risk_level": "READ_ONLY",
+        "destructive": false,
+        "writes_files": false,
+        "executes_commands": false,
+        "network_access": false,
+        "requires_confirmation": false,
+        "reversible": true,
+        "idempotent": true,
+        "affects_workspace": false,
+        "affects_external_system": false,
+        "blocked_in": []
+      },
+      "version": "1.0",
+      "examples": [
+        {
+          "intent": "Add objective to checklist",
+          "input": {
+            "action": "add",
+            "title": "Run migrations"
+          },
+          "expected_output_summary": "Added todo item",
+          "is_failure_example": false,
+          "failure_reason": ""
+        }
+      ],
+      "availability": "AVAILABLE",
+      "aliases": [
+        "todo"
+      ],
+      "batch_safe": false,
+      "tags": [
+        "task",
+        "todo",
+        "checklist",
+        "planning",
+        "track"
+      ],
+      "is_core": true
+    },
+    "user.ask": {
+      "canonical_name": "user.ask",
+      "display_name": "Ask User",
+      "description": "Ask the user a clarifying question when requirements are ambiguous.",
+      "category": "user",
+      "schema": {
+        "name": "user.ask",
+        "description": "Prompt the user with a question or choices.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "question": {
+              "type": "string"
+            },
+            "context": {
+              "type": "string"
+            },
+            "choices": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "required": [
+            "question"
+          ]
+        },
+        "required": [
+          "question"
+        ],
+        "output_semantics": "",
+        "version": "1.0"
+      },
+      "risk": {
+        "risk_score": 0.1,
+        "risk_level": "READ_ONLY",
+        "destructive": false,
+        "writes_files": false,
+        "executes_commands": false,
+        "network_access": false,
+        "requires_confirmation": false,
+        "reversible": true,
+        "idempotent": true,
+        "affects_workspace": false,
+        "affects_external_system": false,
+        "blocked_in": []
+      },
+      "version": "1.0",
+      "examples": [
+        {
+          "intent": "Ask user to clarify database preference",
+          "input": {
+            "question": "Use Postgres or SQLite?",
+            "choices": [
+              "postgres",
+              "sqlite"
+            ]
+          },
+          "expected_output_summary": "User question prompted",
+          "is_failure_example": false,
+          "failure_reason": ""
+        }
+      ],
+      "availability": "AVAILABLE",
+      "aliases": [
+        "ask_user",
+        "ask"
+      ],
+      "batch_safe": false,
+      "tags": [
+        "user",
+        "ask",
+        "clarify",
+        "question",
+        "prompt"
+      ],
+      "is_core": true
+    },
+    "web_fetch": {
+      "canonical_name": "web_fetch",
+      "display_name": "Web Fetch",
+      "description": "Fetch the text content of a URL. Returns the page's visible text content, not raw HTML.",
+      "category": "network",
+      "schema": {
+        "name": "web_fetch",
+        "description": "Fetch the text content of a URL. Returns the page's visible text content, not raw HTML.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "url": {
+              "description": "The URL to fetch",
+              "maxLength": 2000,
+              "minLength": 10,
+              "title": "Url",
+              "type": "string"
+            },
+            "max_chars": {
+              "default": 5000,
+              "description": "Maximum characters of content to return",
+              "maximum": 20000,
+              "minimum": 100,
+              "title": "Max Chars",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "url"
+          ]
+        },
+        "required": [
+          "url"
+        ],
+        "output_semantics": "",
+        "version": "1.0"
+      },
+      "risk": {
+        "risk_score": 0.2,
+        "risk_level": "LOW",
+        "destructive": false,
+        "writes_files": false,
+        "executes_commands": false,
+        "network_access": false,
+        "requires_confirmation": false,
+        "reversible": true,
+        "idempotent": true,
+        "affects_workspace": false,
+        "affects_external_system": false,
+        "blocked_in": []
+      },
+      "version": "1.0",
+      "examples": [],
+      "availability": "AVAILABLE",
+      "aliases": [
+        "web_fetch"
+      ],
+      "batch_safe": false,
+      "tags": [
+        "network",
+        "web_fetch"
+      ],
+      "is_core": false
+    },
+    "web_search": {
+      "canonical_name": "web_search",
+      "display_name": "Web Search",
+      "description": "Search the web using DuckDuckGo and return a list of results with titles, URLs, and snippets.",
+      "category": "network",
+      "schema": {
+        "name": "web_search",
+        "description": "Search the web using DuckDuckGo and return a list of results with titles, URLs, and snippets.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "query": {
+              "description": "The search query",
+              "maxLength": 500,
+              "minLength": 1,
+              "title": "Query",
+              "type": "string"
+            },
+            "max_results": {
+              "default": 5,
+              "description": "Maximum number of results to return",
+              "maximum": 10,
+              "minimum": 1,
+              "title": "Max Results",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "query"
+          ]
+        },
+        "required": [
+          "query"
+        ],
+        "output_semantics": "",
+        "version": "1.0"
+      },
+      "risk": {
+        "risk_score": 0.1,
+        "risk_level": "READ_ONLY",
+        "destructive": false,
+        "writes_files": false,
+        "executes_commands": false,
+        "network_access": false,
+        "requires_confirmation": false,
+        "reversible": true,
+        "idempotent": true,
+        "affects_workspace": false,
+        "affects_external_system": false,
+        "blocked_in": []
+      },
+      "version": "1.0",
+      "examples": [],
+      "availability": "AVAILABLE",
+      "aliases": [
+        "web_search"
+      ],
+      "batch_safe": false,
+      "tags": [
+        "network",
+        "web_search"
+      ],
+      "is_core": false
+    },
+    "write_files_batch": {
+      "canonical_name": "write_files_batch",
+      "display_name": "Write Files Batch",
+      "description": "Write between 1 and 3 text/code files in a single atomic batch with transactional staging and all-or-nothing rollback.",
+      "category": "system",
+      "schema": {
+        "name": "write_files_batch",
+        "description": "Write between 1 and 3 text/code files in a single atomic batch with transactional staging and all-or-nothing rollback.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "files": {
+              "description": "List of 1 to 3 files to write atomically",
+              "items": {
+                "$ref": "#/$defs/BatchFileItem"
+              },
+              "maxItems": 3,
+              "minItems": 1,
+              "title": "Files",
+              "type": "array"
+            }
+          },
+          "required": [
+            "files"
+          ]
+        },
+        "required": [
+          "files"
+        ],
+        "output_semantics": "",
+        "version": "1.0"
+      },
+      "risk": {
+        "risk_score": 0.35,
+        "risk_level": "MEDIUM",
+        "destructive": false,
+        "writes_files": false,
+        "executes_commands": false,
+        "network_access": false,
+        "requires_confirmation": false,
+        "reversible": true,
+        "idempotent": true,
+        "affects_workspace": false,
+        "affects_external_system": false,
+        "blocked_in": [
+          "safe"
+        ]
+      },
+      "version": "1.0",
+      "examples": [],
+      "availability": "AVAILABLE",
+      "aliases": [
+        "write_files_batch"
+      ],
+      "batch_safe": false,
+      "tags": [
+        "system",
+        "write_files_batch"
+      ],
+      "is_core": false
+    }
+  },
+  "aliases": {
+    "ask": "user.ask",
+    "ask_user": "user.ask",
+    "bash": "shell.bash",
+    "bash_exec": "shell.bash",
+    "delegate": "task.delegate",
+    "edit": "fs.edit",
+    "edit_file": "fs.edit",
+    "exec_command": "shell.bash",
+    "glob": "search.glob",
+    "grep": "search.grep",
+    "list_dir": "search.glob",
+    "list_directory": "search.glob",
+    "read": "fs.read",
+    "read_file": "fs.read",
+    "replace_file_content": "fs.edit",
+    "search_files": "search.grep",
+    "shell": "shell.bash",
+    "todo": "task.todo",
+    "view_file": "fs.read",
+    "write": "fs.write",
+    "write_file": "fs.write"
+  }
+}

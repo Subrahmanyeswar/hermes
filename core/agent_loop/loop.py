@@ -536,10 +536,19 @@ class AgentLoop:
 
     def _build_turn_context(self, mission: Mission, state: Any) -> Tuple[str, str]:
         """Assemble grounding system prompt and observation-enriched user message."""
-        # 1. System Prompt Contract
         system_prompt = (
             "You are the autonomous decision-maker inside a constrained software-engineering environment.\n"
             "You may inspect and modify the workspace through available tools.\n"
+            "Available Core Tools:\n"
+            "- fs.read: Read file contents or line ranges\n"
+            "- fs.edit: Surgical text replacement (requires exact old_text)\n"
+            "- fs.write: Create or overwrite file atomically\n"
+            "- shell.bash: Execute shell commands (pytest, build, git)\n"
+            "- search.glob: Find files matching patterns\n"
+            "- search.grep: Search file contents with context\n"
+            "- task.todo: Checklist management\n"
+            "- user.ask: Ask user clarifying questions\n"
+            "- tool_search: Discover specialized capabilities on demand\n"
             "Tool results are ground truth observations.\n"
             "Do not claim actions happened unless their results support that claim.\n"
             "Continue iterating when work is incomplete.\n"
@@ -583,10 +592,14 @@ class AgentLoop:
         if hasattr(self.orchestrator, "_generate_t1"):
             gen_fn = getattr(self.orchestrator, "_generate_t1")
             if asyncio.iscoroutinefunction(gen_fn) or hasattr(gen_fn, "assert_awaited"):
+                from tools.platform.catalog import tool_catalog
                 from tools.registry import get_openai_tool_definitions
                 native_tools = None
-                if TIER1_PROVIDER == "nvidia_nim" and self.config.execution_mode != "benchmark":
-                    native_tools = get_openai_tool_definitions(allow_batch_tools=True)
+                if TIER1_PROVIDER == "nvidia_nim":
+                    if self.config.execution_mode == "benchmark":
+                        native_tools = get_openai_tool_definitions()
+                    else:
+                        native_tools = tool_catalog.get_openai_tools(core_only=True)
 
                 res = gen_fn(
                     model=TIER1_MODEL,

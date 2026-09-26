@@ -1,0 +1,26 @@
+{
+  "counts": {
+    "total_registered": 26,
+    "core_tools": 9,
+    "legacy_bridged": 17
+  },
+  "openai_format": {
+    "core_tools_token_est": 1133,
+    "core_tools_bytes": 4534,
+    "all_tools_token_est": 3609,
+    "all_tools_bytes": 14438,
+    "token_savings_pct": 68.61
+  },
+  "ollama_format": {
+    "core_tools_token_est": 1133,
+    "core_tools_bytes": 4534,
+    "all_tools_token_est": 3609,
+    "all_tools_bytes": 14438,
+    "token_savings_pct": 68.61
+  },
+  "tool_search_discovery": {
+    "interface_token_est": 120,
+    "dynamic_working_set_est": 1133,
+    "search_savings_vs_all_tools_pct": 65.28
+  }
+}

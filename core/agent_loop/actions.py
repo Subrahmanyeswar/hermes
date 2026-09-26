@@ -5,6 +5,7 @@ Guarantees that:
     1. Model proposes actions, but harness authorizes.
     2. Unknown tools or out-of-workspace operations are rejected without physical execution.
     3. Execution produces canonical events, state updates, evidence, and observations.
+    4. Integrates seamlessly with tools.platform (Catalog, Validator, PermissionPolicy, OutputShaper).
 """
 
 from __future__ import annotations
@@ -20,20 +21,27 @@ from core.agent_loop.types import ActionEnvelope, ActionStatus, Observation
 from core.agent_loop.observations import ObservationBuilder
 from core.event_bus import event_bus
 from core.runtime_state.events import HermesEvent, EventType, EventSeverity
-from tools.registry import get_tool, list_tools, PermissionGate
-from tools.base import BaseTool, ToolResult
-from core.tool_validator import tool_validator
 from core.workspace import WorkspaceManager
+
+# Tool Platform integration
+from tools.platform.catalog import tool_catalog
+from tools.platform.validator import Validator
+from tools.platform.permissions import PermissionPolicy, PermissionDecision
+from tools.platform.output import OutputShaper, output_store
+from tools.platform.search import tool_search
+from tools.platform.specs import ToolSpec, ResponseFormat
+from tools.base import BaseTool, ToolResult
 
 
 class HarnessPolicy:
     """
     Evaluates proposed actions against security rules, permissions,
-    workspace boundaries, and parameter schemas.
+    workspace boundaries, and parameter schemas using canonical ToolPlatform.
     """
 
     def __init__(self, mode: str = "auto") -> None:
         self.mode = mode if (isinstance(mode, str) and mode in ("auto", "plan", "safe")) else "auto"
+        self._permission_policy = PermissionPolicy(mode=self.mode)
 
     async def evaluate(
         self,
@@ -45,65 +53,39 @@ class HarnessPolicy:
         Returns:
             (allowed: bool, reason: str, tool_class: Optional[Type], validated_params: dict)
         """
-        tool_name = action.tool_name or ""
-        if not tool_name:
+        raw_tool_name = action.tool_name or ""
+        if not raw_tool_name:
             return False, "Tool name is empty", None, {}
 
-        # ── 1. Check Tool Existence in Registry ──────────────────────────────
-        tool_class = get_tool(tool_name)
-        if tool_class is None:
-            available = list_tools()
-            return False, f"Unknown tool '{tool_name}'. Available tools: {', '.join(available[:10])}", None, {}
+        # ── Handle Dynamic Discovery Built-in ────────────────────────────────
+        if raw_tool_name in ("tool_search", "search_tools"):
+            return True, "Allowed", None, action.arguments
 
-        # ── 2. Permission Gate Check ──────────────────────────────────────────
-        gate = PermissionGate(self.mode)
-        allowed, gate_reason = gate.check(tool_class)
-        if not allowed:
-            return False, f"Permission denied for '{tool_name}' in '{self.mode}' mode: {gate_reason}", None, {}
+        # ── 1. Resolve Canonical Name & ToolSpec ──────────────────────────────
+        canonical_name = tool_catalog.resolve_name(raw_tool_name)
+        spec = tool_catalog.get(canonical_name)
 
-        # ── 3. Workspace Boundary Check ───────────────────────────────────────
-        if workspace and workspace.is_locked:
-            path_keys = ("path", "file", "filepath", "filename", "target", "file_path")
-            for k in path_keys:
-                raw_p = action.arguments.get(k)
-                if isinstance(raw_p, str) and raw_p.strip():
-                    try:
-                        resolved = Path(raw_p)
-                        if resolved.is_absolute():
-                            ws_root = Path(workspace.root_str).resolve()
-                            if not str(resolved.resolve()).startswith(str(ws_root)):
-                                return False, f"Path traversal blocked: '{raw_p}' is outside workspace '{ws_root}'", None, {}
-                        elif ".." in resolved.parts:
-                            return False, f"Path traversal blocked: relative '..' navigation not allowed: '{raw_p}'", None, {}
-                    except Exception as p_exc:
-                        return False, f"Invalid path argument '{raw_p}': {p_exc}", None, {}
+        if spec is None:
+            core_tools = [s.canonical_name for s in tool_catalog.list_core()[:8]]
+            return False, f"Unknown tool '{raw_tool_name}'. Available tools: {', '.join(core_tools)}", None, {}
 
-        # ── 4. Parameter Validation via ToolValidator ─────────────────────────
-        try:
-            val_res = await tool_validator.process_and_validate(
-                tool_name=tool_name,
-                raw_params=action.arguments,
-                task_text=action.arguments.get("task_context", "") or tool_name,
-                ollama_client=None,
-                budget_manager=None,
-            )
-            if not val_res.is_valid:
-                err_msg = f"Validation failed for '{tool_name}': {'; '.join(val_res.errors)}"
-                return False, err_msg, tool_class, {}
+        # ── 2. Parameter Validation via Platform Validator ───────────────────
+        is_valid, val_err, validated_args = Validator.validate(spec, action.arguments, workspace=workspace)
+        if not is_valid and val_err is not None:
+            return False, val_err.message, spec.implementation_cls, {}
 
-            validated_params = val_res.normalized_params
-            return True, "Allowed", tool_class, validated_params
+        # ── 3. Permission Clearance via Platform Policy ──────────────────────
+        decision, perm_reason = self._permission_policy.authorize(spec, validated_args)
+        if decision != PermissionDecision.ALLOW:
+            return False, f"Permission denied for '{canonical_name}' in '{self.mode}' mode: {perm_reason}", spec.implementation_cls, {}
 
-        except Exception as val_exc:
-            logger.warning(f"HarnessPolicy: validator exception for '{tool_name}': {val_exc}")
-            # Fallback to arguments as-is if validator throws unexpected error
-            return True, "Allowed (validation fallback)", tool_class, action.arguments
+        return True, "Allowed", spec.implementation_cls, validated_args
 
 
 class ActionExecutor:
     """
     Coordinates harness evaluation, event emission, physical tool execution,
-    and observation generation.
+    output shaping, and observation generation.
     """
 
     def __init__(self, mode: str = "auto") -> None:
@@ -118,6 +100,9 @@ class ActionExecutor:
         Execute action through harness policy.
         Emits canonical events and returns an Observation.
         """
+        raw_name = action.tool_name or ""
+        canonical_name = tool_catalog.resolve_name(raw_name) if raw_name not in ("tool_search", "search_tools") else raw_name
+
         # Publish ACTION_REQUESTED event
         event_bus.publish(HermesEvent(
             event_type=EventType.ACTION_REQUESTED,
@@ -127,7 +112,8 @@ class ActionExecutor:
             tool_call_id=action.tool_call_id,
             payload={
                 "action_id": action.action_id,
-                "tool_name": action.tool_name,
+                "tool_name": canonical_name,
+                "requested_tool_name": raw_name,
                 "arguments": action.arguments,
             }
         ))
@@ -147,12 +133,12 @@ class ActionExecutor:
                 severity=EventSeverity.WARNING,
                 payload={
                     "action_id": action.action_id,
-                    "tool_name": action.tool_name,
+                    "tool_name": canonical_name,
                     "reason": reason,
                 }
             ))
             return ObservationBuilder.from_harness_rejection(
-                tool_name=action.tool_name or "unknown",
+                tool_name=canonical_name or "unknown",
                 reason=reason,
                 mission_id=action.mission_id,
                 task_id=action.task_id,
@@ -170,15 +156,42 @@ class ActionExecutor:
             tool_call_id=action.tool_call_id,
             payload={
                 "action_id": action.action_id,
-                "tool_name": action.tool_name,
+                "tool_name": canonical_name,
             }
         ))
+
+        # ── Handle Dynamic Discovery Built-in Directly ───────────────────────
+        if canonical_name in ("tool_search", "search_tools"):
+            query = validated_params.get("query", "")
+            results = tool_search.search(query=query)
+            formatted = tool_search.format_search_results(query, results)
+            return Observation(
+                mission_id=action.mission_id,
+                task_id=action.task_id,
+                turn_id=action.turn_id,
+                action_id=action.action_id,
+                source_type="tool",
+                source_id="tool_search",
+                success=True,
+                summary=f"Found {len(results)} tool(s) matching '{query}'",
+                content=formatted,
+            )
 
         # Capture filesystem snapshot before tool execution
         ws_root = Path(workspace.root_str) if (workspace and workspace.is_locked) else Path("generated_projects")
         files_before = set(str(f) for f in ws_root.rglob("*") if f.is_file()) if ws_root.exists() else set()
 
         # Physical Tool Execution
+        if tool_class is None:
+            return ObservationBuilder.from_harness_rejection(
+                tool_name=canonical_name,
+                reason=f"No executable class bound for {canonical_name}",
+                mission_id=action.mission_id,
+                task_id=action.task_id,
+                turn_id=action.turn_id,
+                action_id=action.action_id,
+            )
+
         tool_instance = tool_class()
         t_start = time.monotonic()
         action.status = ActionStatus.EXECUTING
@@ -191,14 +204,13 @@ class ActionExecutor:
             tool_call_id=action.tool_call_id,
             payload={
                 "action_id": action.action_id,
-                "tool_name": action.tool_name,
+                "tool_name": canonical_name,
                 "arguments_summary": str(validated_params)[:200],
             }
         ))
 
         try:
-            # Handle Pydantic input model if present on tool class
-            input_model = getattr(tool_class, "input_model", None)
+            input_model = getattr(tool_class, "Input", getattr(tool_class, "input_model", None))
             if input_model is not None and isinstance(validated_params, dict):
                 try:
                     tool_input = input_model(**validated_params)
@@ -216,7 +228,7 @@ class ActionExecutor:
 
         except Exception as exec_exc:
             duration = time.monotonic() - t_start
-            logger.warning(f"ActionExecutor: exception executing {action.tool_name}: {exec_exc}")
+            logger.warning(f"ActionExecutor: exception executing {canonical_name}: {exec_exc}")
             tool_result = ToolResult(
                 success=False,
                 exit_code=1,
@@ -229,7 +241,7 @@ class ActionExecutor:
 
         # Build Observation
         obs = ObservationBuilder.from_tool_result(
-            tool_name=action.tool_name,
+            tool_name=canonical_name,
             tool_result=tool_result,
             duration=duration,
             mission_id=action.mission_id,
@@ -239,6 +251,18 @@ class ActionExecutor:
             files_before=files_before,
             files_after=files_after,
         )
+
+        # Apply Output Shaping and Externalization for large output
+        raw_out = getattr(tool_result, "output", "") or ""
+        if len(raw_out) > OutputShaper.DEFAULT_NORMAL_MAX_CHARS:
+            shaped = OutputShaper.shape(
+                raw_output=raw_out,
+                response_format=ResponseFormat.NORMAL,
+                tool_name=canonical_name,
+                tool_call_id=action.tool_call_id or action.action_id,
+            )
+            obs.content = shaped.to_observation_text()
+            obs.full_result_ref = shaped.full_output_ref
 
         # Publish tool completion / failure event
         is_success = obs.success
@@ -252,12 +276,13 @@ class ActionExecutor:
             severity=EventSeverity.INFO if is_success else EventSeverity.ERROR,
             payload={
                 "action_id": action.action_id,
-                "tool_name": action.tool_name,
+                "tool_name": canonical_name,
                 "exit_code": obs.exit_code,
                 "duration": duration,
                 "success": is_success,
                 "error": obs.error_message,
-            }
+                "full_output_ref": obs.full_result_ref,
+            },
         ))
 
         # Publish Observation event
@@ -269,11 +294,12 @@ class ActionExecutor:
             payload={
                 "observation_id": obs.observation_id,
                 "action_id": action.action_id,
-                "tool_name": action.tool_name,
+                "tool_name": canonical_name,
                 "summary": obs.summary,
                 "success": obs.success,
                 "evidence_id": f"ev_{obs.observation_id}",
                 "kind": "TOOL_RESULT",
+                "full_result_ref": obs.full_result_ref,
             }
         ))
 

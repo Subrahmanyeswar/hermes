@@ -446,6 +446,7 @@ async def test_scenario_h_cancellation(test_env):
     """Scenario H: User cancellation via abort_event halts loop immediately."""
     ws = test_env["workspace"]
     bus = test_env["event_bus"]
+    tmp_path = test_env["tmp_path"]
     abort_ev = asyncio.Event()
 
     mock_orch = MagicMock()
@@ -459,7 +460,7 @@ async def test_scenario_h_cancellation(test_env):
         abort_ev.set()
         return NormalizedModelResponse(
             text="Step 1",
-            tool_calls=[{"id": "c1", "name": "test_write_file", "arguments": {"path": "tmp.txt", "content": "a"}}]
+            tool_calls=[{"id": "c1", "name": "test_write_file", "arguments": {"path": str(tmp_path / "tmp.txt"), "content": "a"}}]
         )
 
     mock_orch._generate_t1 = mock_generate_t1
