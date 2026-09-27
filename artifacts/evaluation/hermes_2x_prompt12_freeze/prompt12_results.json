@@ -1,0 +1,220 @@
+{
+  "tests": [
+    {
+      "node_id": "tests/test_network_resilience.py::test_watchdog_first_delta_timeout",
+      "category": "WATCHDOG",
+      "result": "PASS"
+    },
+    {
+      "node_id": "tests/test_network_resilience.py::test_watchdog_inter_delta_stall",
+      "category": "WATCHDOG",
+      "result": "PASS"
+    },
+    {
+      "node_id": "tests/test_network_resilience.py::test_watchdog_healthy_streaming",
+      "category": "WATCHDOG",
+      "result": "PASS"
+    },
+    {
+      "node_id": "tests/test_network_resilience.py::test_retry_policy_retryable_classification",
+      "category": "RETRY",
+      "result": "PASS"
+    },
+    {
+      "node_id": "tests/test_network_resilience.py::test_retry_policy_max_attempts",
+      "category": "RETRY",
+      "result": "PASS"
+    },
+    {
+      "node_id": "tests/test_network_resilience.py::test_retry_policy_budget_exhaustion",
+      "category": "RETRY",
+      "result": "PASS"
+    },
+    {
+      "node_id": "tests/test_network_resilience.py::test_retry_policy_exponential_backoff_and_jitter",
+      "category": "RETRY",
+      "result": "PASS"
+    },
+    {
+      "node_id": "tests/test_network_resilience.py::test_circuit_breaker_trips_on_threshold",
+      "category": "CIRCUIT_BREAKER",
+      "result": "PASS"
+    },
+    {
+      "node_id": "tests/test_network_resilience.py::test_circuit_breaker_half_open_recovery",
+      "category": "CIRCUIT_BREAKER",
+      "result": "PASS"
+    },
+    {
+      "node_id": "tests/test_network_resilience.py::test_bounded_health_probe_success",
+      "category": "HEALTH",
+      "result": "PASS"
+    },
+    {
+      "node_id": "tests/test_network_resilience.py::test_bounded_health_probe_times_out",
+      "category": "HEALTH",
+      "result": "PASS"
+    },
+    {
+      "node_id": "tests/test_network_resilience.py::test_supervisor_happy_path_streaming",
+      "category": "SUPERVISOR",
+      "result": "PASS"
+    },
+    {
+      "node_id": "tests/test_network_resilience.py::test_supervisor_fresh_connection_retry",
+      "category": "RECOVERY",
+      "result": "PASS"
+    },
+    {
+      "node_id": "tests/test_network_resilience.py::test_supervisor_non_streaming_fallback",
+      "category": "FALLBACK",
+      "result": "PASS"
+    },
+    {
+      "node_id": "tests/test_network_resilience.py::test_supervisor_tool_replay_safety",
+      "category": "TOOL_REPLAY",
+      "result": "PASS"
+    },
+    {
+      "node_id": "tests/test_network_resilience.py::test_legitimate_slow_first_response",
+      "category": "WATCHDOG",
+      "result": "PASS"
+    },
+    {
+      "node_id": "tests/test_network_resilience.py::test_reasoning_model_deltas_reset_watchdog",
+      "category": "WATCHDOG",
+      "result": "PASS"
+    },
+    {
+      "node_id": "tests/test_network_resilience.py::test_tool_call_semantic_action_deduplication",
+      "category": "TOOL_REPLAY",
+      "result": "PASS"
+    },
+    {
+      "node_id": "tests/test_network_resilience.py::test_partial_response_fallback_clean_assembly",
+      "category": "FALLBACK",
+      "result": "PASS"
+    },
+    {
+      "node_id": "tests/test_network_resilience.py::test_provider_circuit_breaker_isolation",
+      "category": "CIRCUIT_BREAKER",
+      "result": "PASS"
+    },
+    {
+      "node_id": "tests/test_network_resilience.py::test_tool_only_response_and_empty_response",
+      "category": "PROVIDER",
+      "result": "PASS"
+    },
+    {
+      "node_id": "tests/test_network_resilience.py::test_secret_redaction_in_network_events",
+      "category": "SECURITY",
+      "result": "PASS"
+    },
+    {
+      "node_id": "tests/test_network_resilience.py::test_concurrent_requests_no_task_leak",
+      "category": "CONCURRENCY",
+      "result": "PASS"
+    },
+    {
+      "node_id": "tests/test_network_resilience.py::test_state_replay_network_lifecycle",
+      "category": "STATE_REPLAY",
+      "result": "PASS"
+    },
+    {
+      "node_id": "tests/test_prompt12_never_hang.py::test_never_hang_simulated_infinite_hang",
+      "category": "NEVER_HANG",
+      "result": "PASS"
+    },
+    {
+      "node_id": "tests/test_prompt12_never_hang.py::test_never_hang_mid_stream_freeze",
+      "category": "NEVER_HANG",
+      "result": "PASS"
+    },
+    {
+      "node_id": "tests/test_prompt12_never_hang.py::test_never_hang_infinite_connect_loop",
+      "category": "NEVER_HANG",
+      "result": "PASS"
+    },
+    {
+      "node_id": "tests/test_prompt12_never_hang.py::test_never_hang_fallback_hang",
+      "category": "NEVER_HANG",
+      "result": "PASS"
+    },
+    {
+      "node_id": "tests/test_prompt12_never_hang.py::test_never_hang_t2_critic_stall",
+      "category": "NEVER_HANG",
+      "result": "PASS"
+    },
+    {
+      "node_id": "tests/test_prompt12_never_hang.py::test_never_hang_t3_judge_stall",
+      "category": "NEVER_HANG",
+      "result": "PASS"
+    },
+    {
+      "node_id": "tests/test_prompt12_never_hang.py::test_never_hang_health_probe_freeze",
+      "category": "NEVER_HANG",
+      "result": "PASS"
+    },
+    {
+      "node_id": "tests/test_prompt12_never_hang.py::test_never_hang_cancel_during_backoff",
+      "category": "NEVER_HANG",
+      "result": "PASS"
+    },
+    {
+      "node_id": "tests/test_prompt12_never_hang.py::test_never_hang_compaction_during_retry",
+      "category": "NEVER_HANG",
+      "result": "PASS"
+    },
+    {
+      "node_id": "tests/test_prompt12_never_hang.py::test_never_hang_tui_exception_isolation",
+      "category": "NEVER_HANG",
+      "result": "PASS"
+    },
+    {
+      "node_id": "tests/test_prompt12_failure_injection.py::test_failure_injection_dns_error",
+      "category": "FAILURE_INJECTION",
+      "result": "PASS"
+    },
+    {
+      "node_id": "tests/test_prompt12_failure_injection.py::test_failure_injection_connection_reset_fresh_pool",
+      "category": "FAILURE_INJECTION",
+      "result": "PASS"
+    },
+    {
+      "node_id": "tests/test_prompt12_failure_injection.py::test_failure_injection_http_429_rate_limit",
+      "category": "FAILURE_INJECTION",
+      "result": "PASS"
+    },
+    {
+      "node_id": "tests/test_prompt12_failure_injection.py::test_failure_injection_http_503_service_unavailable",
+      "category": "FAILURE_INJECTION",
+      "result": "PASS"
+    },
+    {
+      "node_id": "tests/test_prompt12_failure_injection.py::test_failure_injection_auth_failure_fast_fail",
+      "category": "FAILURE_INJECTION",
+      "result": "PASS"
+    },
+    {
+      "node_id": "tests/test_prompt12_failure_injection.py::test_failure_injection_model_not_found_fast_fail",
+      "category": "FAILURE_INJECTION",
+      "result": "PASS"
+    },
+    {
+      "node_id": "tests/test_prompt12_failure_injection.py::test_failure_injection_malformed_chunk_recovery",
+      "category": "FAILURE_INJECTION",
+      "result": "PASS"
+    },
+    {
+      "node_id": "tests/test_prompt12_failure_injection.py::test_prompt1_regression_nvidia_stream_stall_recovery",
+      "category": "FAILURE_INJECTION",
+      "result": "PASS"
+    }
+  ],
+  "summary": {
+    "collected": 42,
+    "passed": 42,
+    "failed": 0,
+    "skipped": 0
+  }
+}

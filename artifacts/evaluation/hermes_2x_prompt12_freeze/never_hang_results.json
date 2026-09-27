@@ -1,0 +1,55 @@
+{
+  "never_hang_tests": [
+    {
+      "node_id": "tests/test_prompt12_never_hang.py::test_never_hang_simulated_infinite_hang",
+      "category": "NEVER_HANG",
+      "result": "PASS"
+    },
+    {
+      "node_id": "tests/test_prompt12_never_hang.py::test_never_hang_mid_stream_freeze",
+      "category": "NEVER_HANG",
+      "result": "PASS"
+    },
+    {
+      "node_id": "tests/test_prompt12_never_hang.py::test_never_hang_infinite_connect_loop",
+      "category": "NEVER_HANG",
+      "result": "PASS"
+    },
+    {
+      "node_id": "tests/test_prompt12_never_hang.py::test_never_hang_fallback_hang",
+      "category": "NEVER_HANG",
+      "result": "PASS"
+    },
+    {
+      "node_id": "tests/test_prompt12_never_hang.py::test_never_hang_t2_critic_stall",
+      "category": "NEVER_HANG",
+      "result": "PASS"
+    },
+    {
+      "node_id": "tests/test_prompt12_never_hang.py::test_never_hang_t3_judge_stall",
+      "category": "NEVER_HANG",
+      "result": "PASS"
+    },
+    {
+      "node_id": "tests/test_prompt12_never_hang.py::test_never_hang_health_probe_freeze",
+      "category": "NEVER_HANG",
+      "result": "PASS"
+    },
+    {
+      "node_id": "tests/test_prompt12_never_hang.py::test_never_hang_cancel_during_backoff",
+      "category": "NEVER_HANG",
+      "result": "PASS"
+    },
+    {
+      "node_id": "tests/test_prompt12_never_hang.py::test_never_hang_compaction_during_retry",
+      "category": "NEVER_HANG",
+      "result": "PASS"
+    },
+    {
+      "node_id": "tests/test_prompt12_never_hang.py::test_never_hang_tui_exception_isolation",
+      "category": "NEVER_HANG",
+      "result": "PASS"
+    }
+  ],
+  "all_terminated": true
+}

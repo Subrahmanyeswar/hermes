@@ -1,0 +1,146 @@
+{
+  "total_failures": 28,
+  "classifications": {
+    "tests/test_gate15_4_freeze.py::test_live_environment_matches_freeze": {
+      "classification": "UNCHANGED_HISTORICAL",
+      "introduced_prior_to": "Prompt 11 freeze",
+      "affects_prompt12": false
+    },
+    "tests/test_gate15_4_freeze.py::test_locked_model_hierarchy_exact_match": {
+      "classification": "UNCHANGED_HISTORICAL",
+      "introduced_prior_to": "Prompt 11 freeze",
+      "affects_prompt12": false
+    },
+    "tests/test_gate15_5_runtime.py::test_runtime_decision_is_ollama": {
+      "classification": "UNCHANGED_HISTORICAL",
+      "introduced_prior_to": "Prompt 11 freeze",
+      "affects_prompt12": false
+    },
+    "tests/test_gate23_protocol_validation.py::test_6_task_execution_order_is_deterministic": {
+      "classification": "UNCHANGED_HISTORICAL",
+      "introduced_prior_to": "Prompt 11 freeze",
+      "affects_prompt12": false
+    },
+    "tests/test_gate23_protocol_validation.py::test_7_workspace_reset_is_configured": {
+      "classification": "UNCHANGED_HISTORICAL",
+      "introduced_prior_to": "Prompt 11 freeze",
+      "affects_prompt12": false
+    },
+    "tests/test_gate23_protocol_validation.py::test_8_objective_evaluator_is_authoritative": {
+      "classification": "UNCHANGED_HISTORICAL",
+      "introduced_prior_to": "Prompt 11 freeze",
+      "affects_prompt12": false
+    },
+    "tests/test_gate23_protocol_validation.py::test_9_llm_as_primary_judge_is_disabled": {
+      "classification": "UNCHANGED_HISTORICAL",
+      "introduced_prior_to": "Prompt 11 freeze",
+      "affects_prompt12": false
+    },
+    "tests/test_gate23_protocol_validation.py::test_10_raw_telemetry_is_authoritative": {
+      "classification": "UNCHANGED_HISTORICAL",
+      "introduced_prior_to": "Prompt 11 freeze",
+      "affects_prompt12": false
+    },
+    "tests/test_gate23_protocol_validation.py::test_11_retry_policy_is_frozen": {
+      "classification": "UNCHANGED_HISTORICAL",
+      "introduced_prior_to": "Prompt 11 freeze",
+      "affects_prompt12": false
+    },
+    "tests/test_gate23_protocol_validation.py::test_12_timeout_policy_is_frozen": {
+      "classification": "UNCHANGED_HISTORICAL",
+      "introduced_prior_to": "Prompt 11 freeze",
+      "affects_prompt12": false
+    },
+    "tests/test_gate23_protocol_validation.py::test_13_cancellation_policy_is_frozen": {
+      "classification": "UNCHANGED_HISTORICAL",
+      "introduced_prior_to": "Prompt 11 freeze",
+      "affects_prompt12": false
+    },
+    "tests/test_gate23_protocol_validation.py::test_14_model_hierarchy_is_strictly_locked": {
+      "classification": "UNCHANGED_HISTORICAL",
+      "introduced_prior_to": "Prompt 11 freeze",
+      "affects_prompt12": false
+    },
+    "tests/test_gate23_protocol_validation.py::test_18_final_benchmark_is_not_executed": {
+      "classification": "UNCHANGED_HISTORICAL",
+      "introduced_prior_to": "Prompt 11 freeze",
+      "affects_prompt12": false
+    },
+    "tests/test_gate23_protocol_validation.py::test_19_benchmark_execution_allowed_flag_is_false": {
+      "classification": "UNCHANGED_HISTORICAL",
+      "introduced_prior_to": "Prompt 11 freeze",
+      "affects_prompt12": false
+    },
+    "tests/test_mission_runner.py::test_failed_task_triggers_retry": {
+      "classification": "UNCHANGED_HISTORICAL",
+      "introduced_prior_to": "Prompt 11 freeze",
+      "affects_prompt12": false
+    },
+    "tests/test_model_migration.py::test_orchestrator_recovers_from_empty_tool_parameters": {
+      "classification": "UNCHANGED_HISTORICAL",
+      "introduced_prior_to": "Prompt 11 freeze",
+      "affects_prompt12": false
+    },
+    "tests/test_prompt3_benchmark_isolation.py::test_planner_isolation_rule_9_and_parameters": {
+      "classification": "UNCHANGED_HISTORICAL",
+      "introduced_prior_to": "Prompt 11 freeze",
+      "affects_prompt12": false
+    },
+    "tests/test_prompt3_benchmark_isolation.py::test_orchestrator_execution_mode_propagation_and_trace_comparison": {
+      "classification": "UNCHANGED_HISTORICAL",
+      "introduced_prior_to": "Prompt 11 freeze",
+      "affects_prompt12": false
+    },
+    "tests/test_prompt4_context_optimization.py::test_tool_schema_benchmark_isolation": {
+      "classification": "UNCHANGED_HISTORICAL",
+      "introduced_prior_to": "Prompt 11 freeze",
+      "affects_prompt12": false
+    },
+    "tests/test_prompt5_batch_routing.py::test_benchmark_mode_strictly_excludes_write_files_batch": {
+      "classification": "UNCHANGED_HISTORICAL",
+      "introduced_prior_to": "Prompt 11 freeze",
+      "affects_prompt12": false
+    },
+    "tests/test_reasoning_budget.py::test_classify_complexity_l3_complex": {
+      "classification": "UNCHANGED_HISTORICAL",
+      "introduced_prior_to": "Prompt 11 freeze",
+      "affects_prompt12": false
+    },
+    "tests/test_reasoning_budget.py::test_classify_complexity_l4_very_complex": {
+      "classification": "UNCHANGED_HISTORICAL",
+      "introduced_prior_to": "Prompt 11 freeze",
+      "affects_prompt12": false
+    },
+    "tests/test_reasoning_budget.py::test_feature_flag_rollback": {
+      "classification": "UNCHANGED_HISTORICAL",
+      "introduced_prior_to": "Prompt 11 freeze",
+      "affects_prompt12": false
+    },
+    "tests/test_submission_ready.py::test_Q1_unit_test_suite_passes": {
+      "classification": "UNCHANGED_HISTORICAL",
+      "introduced_prior_to": "Prompt 11 freeze",
+      "affects_prompt12": false
+    },
+    "tests/test_v4_integration.py::test_5_task_mission_all_succeed": {
+      "classification": "UNCHANGED_HISTORICAL",
+      "introduced_prior_to": "Prompt 11 freeze",
+      "affects_prompt12": false
+    },
+    "tests/test_v4_integration.py::test_5_task_mission_with_one_retry": {
+      "classification": "UNCHANGED_HISTORICAL",
+      "introduced_prior_to": "Prompt 11 freeze",
+      "affects_prompt12": false
+    },
+    "tests/test_v4_integration.py::test_events_contain_all_lifecycle_types": {
+      "classification": "UNCHANGED_HISTORICAL",
+      "introduced_prior_to": "Prompt 11 freeze",
+      "affects_prompt12": false
+    },
+    "tests/test_v4_integration.py::test_mission_driver_full_flow": {
+      "classification": "UNCHANGED_HISTORICAL",
+      "introduced_prior_to": "Prompt 11 freeze",
+      "affects_prompt12": false
+    }
+  },
+  "new_regressions": 0
+}

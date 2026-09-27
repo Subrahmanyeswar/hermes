@@ -1,0 +1,18 @@
+{
+  "prompt12_suites": {
+    "tests/test_network_resilience.py": 24,
+    "tests/test_prompt12_never_hang.py": 10,
+    "tests/test_prompt12_failure_injection.py": 8,
+    "total_prompt12_collected": 42
+  },
+  "focused_prompt3_12_suites": {
+    "total_modules": 18,
+    "total_collected": 223
+  },
+  "full_repository": {
+    "total_collected": 1363,
+    "total_passed": 1307,
+    "total_failed": 28,
+    "total_skipped": 28
+  }
+}

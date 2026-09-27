@@ -1,0 +1,32 @@
+{
+  "RequestLifecycle": {
+    "p50_us": 5.1,
+    "p95_us": 8.1,
+    "p99_us": 9.8
+  },
+  "StreamWatchdog": {
+    "p50_us": 0.7,
+    "p95_us": 0.8,
+    "p99_us": 0.8
+  },
+  "RetryPolicy": {
+    "p50_us": 2.5,
+    "p95_us": 2.6,
+    "p99_us": 2.9
+  },
+  "HealthState_CircuitBreaker": {
+    "p50_us": 1.8,
+    "p95_us": 2.8,
+    "p99_us": 4.0
+  },
+  "ErrorClassification": {
+    "p50_us": 0.2,
+    "p95_us": 0.5,
+    "p99_us": 0.6
+  },
+  "StateReduction": {
+    "p50_us": 12.0,
+    "p95_us": 21.3,
+    "p99_us": 24.0
+  }
+}

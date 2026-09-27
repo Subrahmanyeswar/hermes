@@ -1,0 +1,14 @@
+{
+  "nvidia_nim": {
+    "status": "NOT EXECUTED",
+    "reason": "NVIDIA_API_KEY environment variable not set"
+  },
+  "ollama": {
+    "status": "NOT EXECUTED",
+    "reason": "Local daemon offline (connection timed out on http://localhost:11434)"
+  },
+  "simulation_adapters": {
+    "status": "VERIFIED",
+    "tests_passed": 42
+  }
+}
