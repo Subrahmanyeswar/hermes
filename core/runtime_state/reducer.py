@@ -589,13 +589,27 @@ class StateReducer:
                 "timestamp": event.timestamp,
             }
 
-        # ── 9. Session Lifecycle ──────────────────────────────────────────────
-        if et == EventType.SESSION_STARTED:
+        # ── 9. Session Lifecycle (Prompt 14) ──────────────────────────────────
+        if et in (EventType.SESSION_STARTED, EventType.SESSION_RESUMED, EventType.RECOVERY_COMPLETED):
             state.session.status = SessionStatus.ACTIVE
+            if payload.get("session_id"):
+                state.session.session_id = payload["session_id"]
+            if payload.get("branch_name"):
+                state.session.branch = payload["branch_name"]
+            state.session.last_activity = event.timestamp
         elif et == EventType.SESSION_PAUSED:
             state.session.status = SessionStatus.PAUSED
         elif et == EventType.SESSION_CLOSED:
             state.session.status = SessionStatus.CLOSED
+        elif et in (EventType.SESSION_INTERRUPTED, EventType.RECOVERY_STARTED):
+            state.session.status = SessionStatus.INTERRUPTED
+        elif et == EventType.SESSION_FORKED:
+            state.metadata["forked_session"] = {
+                "child_session_id": payload.get("child_session_id"),
+                "parent_session_id": payload.get("parent_session_id"),
+                "checkpoint_id": payload.get("checkpoint_id"),
+                "timestamp": event.timestamp,
+            }
 
         # ── 10. Evidence Lifecycle ────────────────────────────────────────────
         if et == EventType.EVIDENCE_CREATED:
@@ -619,13 +633,21 @@ class StateReducer:
                     cls._recalculate_requirement_counts(state)
 
 
-        # ── 11. Checkpoint Lifecycle ──────────────────────────────────────────
-        if et == EventType.CHECKPOINT_CREATED:
-            state.checkpoint.status = CheckpointStatus.CREATING
-        elif et == EventType.CHECKPOINT_AVAILABLE:
+        # ── 11. Checkpoint Lifecycle (Prompt 14) ──────────────────────────────
+        if et in (EventType.CHECKPOINT_CREATED, EventType.CHECKPOINT_COMMITTED):
+            cid = event.checkpoint_id or payload.get("checkpoint_id")
             state.checkpoint.status = CheckpointStatus.AVAILABLE
-            state.checkpoint.checkpoint_id = event.checkpoint_id or payload.get("checkpoint_id")
+            state.checkpoint.checkpoint_id = cid
             state.checkpoint.created_at = event.timestamp
+            state.checkpoint.resumable = True
+            state.session.last_checkpoint_id = cid
+        elif et in (EventType.CHECKPOINT_RESTORE_STARTED, EventType.REWIND_STARTED):
+            state.checkpoint.status = CheckpointStatus.RESTORING
+        elif et in (EventType.CHECKPOINT_RESTORED, EventType.REWIND_COMPLETED):
+            cid = event.checkpoint_id or payload.get("checkpoint_id")
+            state.checkpoint.status = CheckpointStatus.RESTORED
+            state.checkpoint.checkpoint_id = cid
+            state.session.last_checkpoint_id = cid
 
         # ── 12. Agent Loop Lifecycle & Decisions (Prompt 4) ────────────────────
         elif et == EventType.AGENT_TURN_STARTED:
