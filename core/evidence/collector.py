@@ -80,8 +80,10 @@ class EvidenceCollector:
         requirement_id: Optional[str] = None,
         acceptance_check_id: Optional[str] = None,
         provenance: Optional[EvidenceProvenance] = None,
+        check_id: Optional[str] = None,
     ) -> Optional[EvidenceRecord]:
         """Collect file existence, content size, and cryptographic hash evidence."""
+        acceptance_check_id = acceptance_check_id or check_id
         full_path = (self.workspace_root / rel_path).resolve()
         prov = provenance or EvidenceProvenance(workspace=str(self.workspace_root))
 
@@ -151,9 +153,11 @@ class EvidenceCollector:
         requirement_id: Optional[str] = None,
         acceptance_check_id: Optional[str] = None,
         provenance: Optional[EvidenceProvenance] = None,
+        check_id: Optional[str] = None,
         **kwargs: Any,
     ) -> EvidenceRecord:
         """Collect test run evidence with stdout/stderr digests and test assertions."""
+        acceptance_check_id = acceptance_check_id or check_id
         prov = provenance or EvidenceProvenance(workspace=str(self.workspace_root))
         cmd_str = command if isinstance(command, str) else " ".join(command)
         out_digest = hashlib.sha256(stdout.encode("utf-8")).hexdigest()

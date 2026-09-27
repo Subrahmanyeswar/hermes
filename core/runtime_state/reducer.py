@@ -404,6 +404,9 @@ class StateReducer:
             state.verification.confidence = payload.get("confidence", state.verification.confidence)
             state.verification.issues = payload.get("issues", [])
             state.verification.repair_required = False
+            state.verification.evidence_required = False
+            state.verification.escalation_required = False
+            state.verification.blocked = False
             state.progress.waiting_reason = WaitReason.WORKING
             cid = event.acceptance_check_id or payload.get("check_id") or payload.get("acceptance_check_id")
             if cid and cid in state.acceptance_ledger.checks:
@@ -423,6 +426,9 @@ class StateReducer:
             state.verification.confidence = payload.get("confidence", state.verification.confidence)
             state.verification.issues = payload.get("issues", [])
             state.verification.repair_required = True
+            state.verification.evidence_required = False
+            state.verification.escalation_required = False
+            state.verification.blocked = False
             cid = event.acceptance_check_id or payload.get("check_id") or payload.get("acceptance_check_id")
             if cid and cid in state.acceptance_ledger.checks:
                 state.acceptance_ledger.checks[cid].status = AcceptanceCheckStatus.FAIL
@@ -439,6 +445,9 @@ class StateReducer:
             state.verification.confidence = payload.get("confidence", state.verification.confidence)
             state.verification.issues = payload.get("issues", [])
             state.verification.repair_required = True
+            state.verification.evidence_required = False
+            state.verification.escalation_required = False
+            state.verification.blocked = False
             state.progress.waiting_reason = WaitReason.REPAIRING
 
         elif et == EventType.VERIFICATION_INCONCLUSIVE:
@@ -446,14 +455,20 @@ class StateReducer:
             state.verification.completed_at = event.timestamp
             state.verification.verdict = "INCONCLUSIVE"
             state.verification.issues = payload.get("issues", [])
-            state.verification.repair_required = True
+            state.verification.repair_required = False
+            state.verification.evidence_required = True
+            state.verification.escalation_required = False
+            state.verification.blocked = False
 
         elif et == EventType.VERIFICATION_BLOCKED:
             state.verification.status = VerificationStatus.BLOCKED
             state.verification.completed_at = event.timestamp
             state.verification.verdict = "BLOCKED"
             state.verification.issues = payload.get("issues", [])
-            state.verification.repair_required = True
+            state.verification.repair_required = False
+            state.verification.evidence_required = False
+            state.verification.escalation_required = True
+            state.verification.blocked = True
 
         elif et == EventType.VERIFICATION_REOPENED:
             cid = event.acceptance_check_id or payload.get("check_id") or payload.get("acceptance_check_id")

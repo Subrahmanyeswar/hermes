@@ -28,7 +28,6 @@ from typing import Dict, Any, List, Optional, Tuple, Type
 from loguru import logger
 from pydantic import BaseModel, ValidationError
 
-from tools.registry import get_tool, list_tools, tool_schema_for_prompt
 from core.workspace import workspace_manager, WorkspaceBoundaryError
 from config.model_config import (
     ROBUST_TOOL_VALIDATION_ENABLED,
@@ -77,6 +76,8 @@ FORBIDDEN_COMMAND_PATTERNS = [
     r"mkfs",
     r"dd\s+if=/dev/zero\s+of=/dev/sd",
 ]
+
+from tools.registry import get_tool, list_tools, tool_schema_for_prompt
 
 
 @dataclass

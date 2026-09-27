@@ -452,6 +452,24 @@ class TestResultVerifier(BaseVerifier):
                 duration_ms=(time.time() - t0) * 1000.0,
             )
 
+        # Check test target correspondence if specified
+        target_test = kwargs.get("target_test") or kwargs.get("test_pattern") or kwargs.get("test_file")
+        if target_test:
+            cmd = (latest.command or "").lower()
+            meta_str = str(latest.metadata or {}).lower()
+            target_lower = str(target_test).lower()
+            if target_lower not in cmd and target_lower not in meta_str:
+                return VerificationResult(
+                    check_id=check_id,
+                    requirement_id=requirement_id,
+                    verdict=VerificationVerdict.FAIL,
+                    failure_class=FailureClass.ASSERTION_FAILED,
+                    message=f"Test evidence does not correspond to expected test '{target_test}' (command: '{latest.command}')",
+                    evidence_ids=evidence_ids,
+                    details=latest.metadata or {},
+                    duration_ms=(time.time() - t0) * 1000.0,
+                )
+
         # Check exit code
         if latest.exit_code is not None and latest.exit_code != 0:
             return VerificationResult(

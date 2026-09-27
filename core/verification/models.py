@@ -62,6 +62,22 @@ class VerificationResult:
     def failed(self) -> bool:
         return self.verdict == VerificationVerdict.FAIL
 
+    @property
+    def repair_required(self) -> bool:
+        return self.verdict == VerificationVerdict.FAIL
+
+    @property
+    def evidence_required(self) -> bool:
+        return self.verdict == VerificationVerdict.INCONCLUSIVE
+
+    @property
+    def escalation_required(self) -> bool:
+        return self.verdict == VerificationVerdict.BLOCKED
+
+    @property
+    def blocked(self) -> bool:
+        return self.verdict == VerificationVerdict.BLOCKED
+
     def to_dict(self) -> Dict[str, Any]:
         return {
             "check_id": self.check_id,
@@ -75,4 +91,8 @@ class VerificationResult:
             "timestamp": self.timestamp,
             "duration_ms": self.duration_ms,
             "passed": self.passed,
+            "repair_required": self.repair_required,
+            "evidence_required": self.evidence_required,
+            "escalation_required": self.escalation_required,
+            "blocked": self.blocked,
         }

@@ -12,6 +12,7 @@ Core Invariants:
 from __future__ import annotations
 
 import hashlib
+import json
 import logging
 import time
 from pathlib import Path
@@ -61,8 +62,18 @@ class VerificationEngine:
         # Cache of evaluated results by (check_id, evidence_digest)
         self._cache: Dict[str, VerificationResult] = {}
 
-    def _compute_fingerprint(self, check_id: str, evidence_ids: List[str]) -> str:
-        h = hashlib.sha256(check_id.encode("utf-8"))
+    def _compute_fingerprint(
+        self,
+        check_id: str,
+        evidence_ids: List[str],
+        check_type: str = "",
+        criteria: Optional[Dict[str, Any]] = None,
+        policy_version: str = "2.0.0",
+    ) -> str:
+        h = hashlib.sha256(f"{check_id}:{check_type}:{policy_version}".encode("utf-8"))
+        if criteria:
+            crit_str = json.dumps(criteria, sort_keys=True, default=str)
+            h.update(f":criteria:{crit_str}".encode("utf-8"))
         for eid in sorted(evidence_ids):
             rec = self.store.get(eid)
             digest = rec.output_digest if rec else ""
@@ -145,14 +156,19 @@ class VerificationEngine:
             self._publish_result_event(res, task_id=task_id)
             return res
 
-        # Check fingerprint cache
-        evidence_ids = [r.evidence_id for r in bundle.records]
-        fingerprint = self._compute_fingerprint(check_id, evidence_ids)
-        if not bypass_cache and fingerprint in self._cache:
-            return self._cache[fingerprint]
-
         # Dispatch verifier
         ct = check_type.value if isinstance(check_type, CheckType) else check_type.upper()
+
+        # Check fingerprint cache
+        evidence_ids = [r.evidence_id for r in bundle.records]
+        fingerprint = self._compute_fingerprint(
+            check_id=check_id,
+            evidence_ids=evidence_ids,
+            check_type=ct,
+            criteria=kwargs,
+        )
+        if not bypass_cache and fingerprint in self._cache:
+            return self._cache[fingerprint]
         if ct == CheckType.FILESYSTEM.value:
             result = self.fs_verifier.verify(check_id, bundle, requirement_id=requirement_id, **kwargs)
         elif ct == CheckType.PYTHON_AST.value:

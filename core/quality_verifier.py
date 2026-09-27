@@ -1,26 +1,14 @@
 # core/quality_verifier.py
 """
+[QUARANTINED LEGACY MODULE — HERMES 1.x]
+
+WARNING: This module contains the legacy Prompt 1 keyword-based verifier.
+In HERMES 2.x, this module is STRICTLY QUARANTINED and is completely UNREACHABLE
+from AgentLoop, CompletionPolicy, and GoalCompleteGuard.
+All HERMES 2.x completion decisions are exclusively governed by EvidenceStore,
+VerificationEngine, and GoalCompleteGuard.
+
 HERMES Quality Verifier — Implementation Depth and Completeness Checker.
-
-Responsibility:
-    After a task executes and writes files, this module inspects the
-    actual filesystem output and determines whether the implementation
-    is genuinely complete or merely superficial.
-
-Design principle:
-    A 10-line HTML file is not a "premium website".
-    A function stub is not an "implemented feature".
-    An empty CSS file is not "styling".
-    Quality verification catches shallow implementations before
-    they are accepted as mission-complete.
-
-Never use line count alone as the quality metric.
-Instead evaluate:
-    - Requirement keyword coverage
-    - Structural completeness
-    - Absence of placeholder patterns
-    - File size relative to task complexity
-    - Content meaningfulness
 """
 
 from __future__ import annotations

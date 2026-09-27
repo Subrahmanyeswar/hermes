@@ -690,6 +690,9 @@ class VerificationState:
     evidence_references: List[str] = field(default_factory=list)
     classification: str = "LEVEL_0"
     repair_required: bool = False
+    evidence_required: bool = False
+    escalation_required: bool = False
+    blocked: bool = False
     attempt: int = 1
 
     def to_dict(self) -> Dict[str, Any]:

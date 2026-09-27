@@ -63,6 +63,10 @@ class EscalationEngine:
         requirement_desc: str = "",
         force_escalation: bool = False,
         task_id: Optional[str] = None,
+        failure_count: int = 0,
+        t1_repair_exhausted: bool = False,
+        waiver_authorized: bool = False,
+        is_critical_requirement: bool = True,
     ) -> Tuple[bool, Optional[T2CriticResult], Optional[T3JudgeResult]]:
         """
         Evaluate whether verification outcome requires escalation.
@@ -73,13 +77,14 @@ class EscalationEngine:
         all_passed = all(vr.verdict == VerificationVerdict.PASS for vr in verification_results)
 
         # 1. Check Risk Profile
+        actual_failures = failure_count if failure_count > 0 else (0 if all_passed else 1)
         risk_level = VerificationPolicy.assess_risk(
             files_modified=files_modified,
             lines_changed=lines_changed,
-            failure_count=0 if all_passed else 1,
+            failure_count=actual_failures,
         )
 
-        # 2. Check Low-Risk Bypass
+        # 2a. Check Low-Risk Passing Bypass
         if not force_escalation and VerificationPolicy.should_bypass_t2_t3(risk_level, all_passed):
             if self.event_bus:
                 event = HermesEvent(
@@ -97,6 +102,25 @@ class EscalationEngine:
                 )
                 self.event_bus.publish(event)
             return (True, None, None)
+
+        # 2b. Ordinary deterministic failures route to T1 repair before T2 unless high risk or T1 exhausted
+        if not all_passed and not force_escalation and not t1_repair_exhausted and risk_level not in (VerificationRiskLevel.HIGH, VerificationRiskLevel.CRITICAL):
+            if self.event_bus:
+                event = HermesEvent(
+                    event_type=EventType.ESCALATION_SKIPPED,
+                    mission_id=self.mission_id,
+                    task_id=task_id,
+                    requirement_id=requirement_id,
+                    acceptance_check_id=check_id,
+                    escalation_id=escalation_id,
+                    payload={
+                        "reason": "ROUTED_TO_T1_REPAIR",
+                        "risk_level": risk_level.value,
+                        "all_passed": False,
+                    },
+                )
+                self.event_bus.publish(event)
+            return (False, None, None)
 
         # 3. Escalate to T2 Critic
         if not self.budget.can_call_t2():
@@ -143,7 +167,8 @@ class EscalationEngine:
             dispute_summary=f"T2 Critic rejected verification: {t2_res.critique}",
             verification_results=verification_results,
             t2_critique=t2_res.critique,
-            is_critical_requirement=True,
+            is_critical_requirement=is_critical_requirement,
+            waiver_authorized=waiver_authorized,
         )
 
         self._publish_event(

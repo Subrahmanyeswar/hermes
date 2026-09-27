@@ -484,6 +484,14 @@ class AgentLoop:
                             role=AgentType.EXPLORER,
                             parent_agent_id="primary",
                         )
+                        # Invariant: Subagent success is candidate evidence only; modified files require root re-verification
+                        if sub_res.files:
+                            for fl in sub_res.files:
+                                if fl not in self._written_files:
+                                    self._written_files.append(fl)
+                            if hasattr(self, "evidence_invalidator") and self.evidence_invalidator:
+                                self.evidence_invalidator.invalidate_for_paths(sub_res.files, task_id=turn_id)
+
                         del_obs = HandoffManager.format_observation(
                             result=sub_res,
                             turn_id=turn_id,

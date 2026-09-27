@@ -134,6 +134,20 @@ class EvidenceInvalidator:
 
         return invalidated
 
+    def invalidate_for_paths(
+        self,
+        paths: List[str],
+        reason: str = "files_modified",
+        task_id: Optional[str] = None,
+    ) -> List[EvidenceRecord]:
+        """
+        Invalidate all evidence records referencing any of the modified file paths.
+        """
+        all_inv: List[EvidenceRecord] = []
+        for p in paths:
+            all_inv.extend(self.invalidate_by_file_path(p, reason=reason))
+        return all_inv
+
     def scan_and_reconcile(self) -> List[str]:
         """
         Scan all stored evidence records against current workspace state.

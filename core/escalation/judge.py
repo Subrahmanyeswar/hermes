@@ -40,6 +40,7 @@ class T3Judge:
         verification_results: List[VerificationResult],
         t2_critique: Optional[str] = None,
         is_critical_requirement: bool = True,
+        waiver_authorized: bool = False,
     ) -> T3JudgeResult:
         """
         Deliver a binding judgment on a contested verification or escalation.
@@ -55,11 +56,12 @@ class T3Judge:
                 "You are HERMES T3 Judge. Deliver a final, binding arbitration decision on this dispute.\n"
                 "CRITICAL INVARIANT: You CANNOT approve or mark passed any requirement where objective verification failed.\n"
                 "Respond ONLY with a JSON object in this schema:\n"
-                '{"decision": "APPROVE"|"REJECT"|"ESCALATE_TO_USER", "rationale": str, "binding_directives": [str]}\n\n'
+                '{"decision": "APPROVE"|"REJECT"|"ESCALATE_TO_USER"|"WAIVE_OPTIONAL_REQUIREMENT", "rationale": str, "binding_directives": [str]}\n\n'
                 f"Dispute: {dispute_summary}\n"
                 f"T2 Critique: {t2_critique or 'None'}\n"
                 f"Has Failed Deterministic Facts: {has_failed_facts}\n"
-                f"Is Critical Requirement: {is_critical_requirement}"
+                f"Is Critical Requirement: {is_critical_requirement}\n"
+                f"Waiver Authorized: {waiver_authorized}"
             )
             try:
                 raw_response = self.arbiter_fn(prompt)
@@ -80,6 +82,17 @@ class T3Judge:
                     decision = EscalationDecisionType.REJECT
                     rationale = f"OVERRULED BY FACT INVARIANT: T3 Judge cannot approve when objective facts failed. Original rationale: {rationale}"
                     directives.append("Deterministic facts failed; must be repaired by T1.")
+                elif decision_str == EscalationDecisionType.WAIVE_OPTIONAL_REQUIREMENT.value:
+                    if is_critical_requirement:
+                        decision = EscalationDecisionType.REJECT
+                        rationale = f"OVERRULED BY CONSTITUTIONAL INVARIANT: Critical requirement cannot be waived. Original rationale: {rationale}"
+                        directives.append("Critical requirements cannot be waived.")
+                    elif not waiver_authorized:
+                        decision = EscalationDecisionType.ESCALATE_TO_USER
+                        rationale = f"WAIVER UNAUTHORIZED: T3 recommended waiver for optional requirement, but explicit authorization is required. Original rationale: {rationale}"
+                        directives.append("Request explicit user authorization to waive requirement.")
+                    else:
+                        decision = EscalationDecisionType.WAIVE_OPTIONAL_REQUIREMENT
                 else:
                     decision = EscalationDecisionType(decision_str) if decision_str in EscalationDecisionType._value2member_map_ else EscalationDecisionType.REJECT
 
