@@ -248,14 +248,36 @@ class EventType(str, Enum):
     # Verification & Quality
     VERIFICATION_STARTED = "VERIFICATION_STARTED"
     VERIFICATION_COMPLETED = "VERIFICATION_COMPLETED"
+    VERIFICATION_PASSED = "VERIFICATION_PASSED"
     VERIFICATION_FAILED = "VERIFICATION_FAILED"
     VERIFICATION_NEEDS_IMPROVEMENT = "VERIFICATION_NEEDS_IMPROVEMENT"
+    VERIFICATION_INCONCLUSIVE = "VERIFICATION_INCONCLUSIVE"
+    VERIFICATION_BLOCKED = "VERIFICATION_BLOCKED"
+    VERIFICATION_REOPENED = "VERIFICATION_REOPENED"
 
     # Repair Lifecycle
     REPAIR_STARTED = "REPAIR_STARTED"
+    REPAIR_ATTEMPTED = "REPAIR_ATTEMPTED"
     REPAIR_COMPLETED = "REPAIR_COMPLETED"
     REPAIR_FAILED = "REPAIR_FAILED"
     REPAIR_EXHAUSTED = "REPAIR_EXHAUSTED"
+    REPAIR_STALLED = "REPAIR_STALLED"
+
+    # Escalation, T2 Critic, and T3 Judge (Prompt 11)
+    ESCALATION_REQUESTED = "ESCALATION_REQUESTED"
+    ESCALATION_SKIPPED = "ESCALATION_SKIPPED"
+    T2_REQUESTED = "T2_REQUESTED"
+    T2_STARTED = "T2_STARTED"
+    T2_COMPLETED = "T2_COMPLETED"
+    T2_FAILED = "T2_FAILED"
+    T2_TIMED_OUT = "T2_TIMED_OUT"
+    T3_REQUESTED = "T3_REQUESTED"
+    T3_STARTED = "T3_STARTED"
+    T3_COMPLETED = "T3_COMPLETED"
+    T3_FAILED = "T3_FAILED"
+    T3_TIMED_OUT = "T3_TIMED_OUT"
+    JUDGMENT_DISAGREEMENT = "JUDGMENT_DISAGREEMENT"
+    EVIDENCE_CONFLICT = "EVIDENCE_CONFLICT"
 
     # Network Lifecycle
     NETWORK_CONNECTING = "NETWORK_CONNECTING"
@@ -364,6 +386,11 @@ class HermesEvent:
     parent_agent_id: Optional[str] = None
     job_id: Optional[str] = None
     worktree_id: Optional[str] = None
+    requirement_id: Optional[str] = None
+    acceptance_check_id: Optional[str] = None
+    evidence_id: Optional[str] = None
+    repair_id: Optional[str] = None
+    escalation_id: Optional[str] = None
     stage: str = "EXECUTION"
     payload: Dict[str, Any] = field(default_factory=dict)
     severity: EventSeverity = EventSeverity.INFO

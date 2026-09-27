@@ -63,6 +63,14 @@ from core.runtime_state.models import (
     SubagentTaskRecord,
     WorktreeRecord,
     BackgroundJobRecord,
+    RepairState,
+    EscalationState,
+    RepairStatus,
+    EscalationDecisionType,
+    DisagreementClass,
+    EvidenceFreshness,
+    EvidenceTrustClass,
+    FailureClass,
 )
 from core.runtime_state.events import HermesEvent, EventType
 
@@ -377,7 +385,7 @@ class StateReducer:
             state.progress.waiting_reason = WaitReason.WAITING_FOR_NETWORK
 
         # ── 6. Verification Lifecycle ─────────────────────────────────────────
-        if et == EventType.VERIFICATION_STARTED:
+        if et in (EventType.VERIFICATION_STARTED, EventType.AGENT_VERIFICATION_REQUESTED):
             state.verification.status = VerificationStatus.RUNNING
             state.verification.verification_id = event.verification_id or payload.get("verification_id")
             state.verification.task_id = tid or state.mission.current_task_id
@@ -389,7 +397,7 @@ class StateReducer:
             state.progress.waiting_reason = WaitReason.WAITING_FOR_VERIFICATION
             state.progress.current_action = "Running structural verification"
 
-        elif et == EventType.VERIFICATION_COMPLETED:
+        elif et in (EventType.VERIFICATION_COMPLETED, EventType.VERIFICATION_PASSED):
             state.verification.status = VerificationStatus.PASSED
             state.verification.completed_at = event.timestamp
             state.verification.verdict = payload.get("verdict", "PASSED")
@@ -397,6 +405,16 @@ class StateReducer:
             state.verification.issues = payload.get("issues", [])
             state.verification.repair_required = False
             state.progress.waiting_reason = WaitReason.WORKING
+            cid = event.acceptance_check_id or payload.get("check_id") or payload.get("acceptance_check_id")
+            if cid and cid in state.acceptance_ledger.checks:
+                state.acceptance_ledger.checks[cid].status = AcceptanceCheckStatus.PASS
+                cls._recalculate_acceptance_counts(state)
+            rid = event.requirement_id or payload.get("requirement_id")
+            if rid and rid in state.requirements:
+                req_checks = [c for c in state.acceptance_ledger.checks.values() if c.requirement_id == rid]
+                if req_checks and all(c.status == AcceptanceCheckStatus.PASS for c in req_checks):
+                    state.requirements[rid].status = RequirementStatus.VERIFIED
+                    cls._recalculate_requirement_counts(state)
 
         elif et == EventType.VERIFICATION_FAILED:
             state.verification.status = VerificationStatus.FAILED
@@ -405,6 +423,14 @@ class StateReducer:
             state.verification.confidence = payload.get("confidence", state.verification.confidence)
             state.verification.issues = payload.get("issues", [])
             state.verification.repair_required = True
+            cid = event.acceptance_check_id or payload.get("check_id") or payload.get("acceptance_check_id")
+            if cid and cid in state.acceptance_ledger.checks:
+                state.acceptance_ledger.checks[cid].status = AcceptanceCheckStatus.FAIL
+                cls._recalculate_acceptance_counts(state)
+            rid = event.requirement_id or payload.get("requirement_id")
+            if rid and rid in state.requirements:
+                state.requirements[rid].status = RequirementStatus.FAILED
+                cls._recalculate_requirement_counts(state)
 
         elif et == EventType.VERIFICATION_NEEDS_IMPROVEMENT:
             state.verification.status = VerificationStatus.NEEDS_IMPROVEMENT
@@ -414,6 +440,31 @@ class StateReducer:
             state.verification.issues = payload.get("issues", [])
             state.verification.repair_required = True
             state.progress.waiting_reason = WaitReason.REPAIRING
+
+        elif et == EventType.VERIFICATION_INCONCLUSIVE:
+            state.verification.status = VerificationStatus.INCONCLUSIVE
+            state.verification.completed_at = event.timestamp
+            state.verification.verdict = "INCONCLUSIVE"
+            state.verification.issues = payload.get("issues", [])
+            state.verification.repair_required = True
+
+        elif et == EventType.VERIFICATION_BLOCKED:
+            state.verification.status = VerificationStatus.BLOCKED
+            state.verification.completed_at = event.timestamp
+            state.verification.verdict = "BLOCKED"
+            state.verification.issues = payload.get("issues", [])
+            state.verification.repair_required = True
+
+        elif et == EventType.VERIFICATION_REOPENED:
+            cid = event.acceptance_check_id or payload.get("check_id") or payload.get("acceptance_check_id")
+            if cid and cid in state.acceptance_ledger.checks:
+                state.acceptance_ledger.checks[cid].status = AcceptanceCheckStatus.PENDING
+                cls._recalculate_acceptance_counts(state)
+            rid = event.requirement_id or payload.get("requirement_id")
+            if rid and rid in state.requirements:
+                if state.requirements[rid].status == RequirementStatus.VERIFIED:
+                    state.requirements[rid].status = RequirementStatus.IN_PROGRESS
+                    cls._recalculate_requirement_counts(state)
 
         # ── 7. Network Lifecycle ──────────────────────────────────────────────
         if et == EventType.NETWORK_CONNECTING:
@@ -474,6 +525,24 @@ class StateReducer:
         # ── 10. Evidence Lifecycle ────────────────────────────────────────────
         if et == EventType.EVIDENCE_CREATED:
             cls._handle_evidence(state, event, payload)
+        elif et == EventType.EVIDENCE_INVALIDATED:
+            ev_id = payload.get("evidence_id") or event.evidence_id
+            if ev_id and ev_id in state.evidence:
+                state.evidence[ev_id].valid = False
+                state.evidence[ev_id].freshness = EvidenceFreshness.INVALIDATED.value
+            cid = event.acceptance_check_id or payload.get("acceptance_check_id")
+            if cid and cid in state.acceptance_ledger.checks:
+                chk = state.acceptance_ledger.checks[cid]
+                if chk.status == AcceptanceCheckStatus.PASS:
+                    chk.status = AcceptanceCheckStatus.PENDING
+                    cls._recalculate_acceptance_counts(state)
+            rid = event.requirement_id or payload.get("requirement_id")
+            if rid and rid in state.requirements:
+                req = state.requirements[rid]
+                if req.status == RequirementStatus.VERIFIED:
+                    req.status = RequirementStatus.IN_PROGRESS
+                    cls._recalculate_requirement_counts(state)
+
 
         # ── 11. Checkpoint Lifecycle ──────────────────────────────────────────
         if et == EventType.CHECKPOINT_CREATED:
@@ -1034,11 +1103,81 @@ class StateReducer:
                 state.agents[aid].status = SubagentStatus.RESOURCE_EXCEEDED
                 state.agents[aid].completed_at = event.timestamp
 
+        # ── 19. Repair Lifecycle (Prompt 11) ──────────────────────────────────
+        rep_id = event.repair_id or payload.get("repair_id")
+        if et == EventType.REPAIR_ATTEMPTED:
+            if rep_id:
+                fc_val = payload.get("failure_class", FailureClass.UNKNOWN_FAILURE.value)
+                try:
+                    fc_enum = FailureClass(fc_val)
+                except ValueError:
+                    fc_enum = FailureClass.UNKNOWN_FAILURE
+                state.repairs[rep_id] = RepairState(
+                    repair_id=rep_id,
+                    mission_id=state.mission.mission_id,
+                    requirement_id=event.requirement_id or payload.get("requirement_id"),
+                    check_id=event.acceptance_check_id or payload.get("check_id"),
+                    task_id=event.task_id or payload.get("task_id"),
+                    attempt=payload.get("attempt_number", 1),
+                    status=RepairStatus.IN_PROGRESS,
+                    failure_class=fc_enum,
+                    failure_reason=payload.get("error_message", ""),
+                    created_at=event.timestamp,
+                    updated_at=event.timestamp,
+                )
+                state.progress.waiting_reason = WaitReason.REPAIRING
+
+        elif et == EventType.REPAIR_STALLED:
+            if rep_id and rep_id in state.repairs:
+                state.repairs[rep_id].status = RepairStatus.STALLED
+                state.repairs[rep_id].updated_at = event.timestamp
+            state.progress.waiting_reason = WaitReason.WORKING
+
+        # ── 20. Escalation Lifecycle (Prompt 11) ──────────────────────────────
+        esc_id = event.escalation_id or payload.get("escalation_id")
+        if esc_id and esc_id not in state.escalations and et.name.startswith(("ESCALATION_", "T2_", "T3_")):
+            state.escalations[esc_id] = EscalationState(
+                escalation_id=esc_id,
+                mission_id=state.mission.mission_id,
+                requirement_id=event.requirement_id or payload.get("requirement_id"),
+                check_id=event.acceptance_check_id or payload.get("check_id"),
+                decision=EscalationDecisionType.NO_ESCALATION,
+                created_at=event.timestamp,
+                updated_at=event.timestamp,
+            )
+
+        if et in (EventType.T2_REQUESTED, EventType.T2_STARTED):
+            if esc_id and esc_id in state.escalations:
+                state.escalations[esc_id].level = "T2_CRITIC"
+                state.escalations[esc_id].updated_at = event.timestamp
+
+        elif et == EventType.T2_COMPLETED:
+            if esc_id and esc_id in state.escalations:
+                approved = payload.get("approved", False)
+                state.escalations[esc_id].t2_verdict = "APPROVED" if approved else "REJECTED"
+                state.escalations[esc_id].updated_at = event.timestamp
+
+        elif et in (EventType.T3_REQUESTED, EventType.T3_STARTED):
+            if esc_id and esc_id in state.escalations:
+                state.escalations[esc_id].level = "T3_JUDGE"
+                state.escalations[esc_id].updated_at = event.timestamp
+
+        elif et == EventType.T3_COMPLETED:
+            if esc_id and esc_id in state.escalations:
+                decision_val = payload.get("decision", "REJECT")
+                try:
+                    dec_enum = EscalationDecisionType(decision_val)
+                except ValueError:
+                    dec_enum = EscalationDecisionType.REJECT
+                state.escalations[esc_id].decision = dec_enum
+                state.escalations[esc_id].t3_decision = decision_val
+                state.escalations[esc_id].updated_at = event.timestamp
+
         return state
 
     @classmethod
     def _handle_evidence(cls, state: HermesRuntimeState, event: HermesEvent, payload: Dict[str, Any]) -> None:
-        ev_id = payload.get("evidence_id") or f"ev_{event.event_id}"
+        ev_id = payload.get("evidence_id") or event.evidence_id or f"ev_{event.event_id}"
         kind_str = payload.get("kind", "TOOL_RESULT")
         try:
             kind_enum = EvidenceKind(kind_str)
@@ -1049,12 +1188,17 @@ class StateReducer:
             evidence_id=ev_id,
             mission_id=state.mission.mission_id,
             task_id=event.task_id or payload.get("task_id"),
-            source=event.source,
+            source=event.source or payload.get("source", "tool"),
             kind=kind_enum,
             timestamp=event.timestamp,
             artifact_path=payload.get("artifact_path"),
-            verification_reference=payload.get("verification_reference"),
-            valid=True,
+            verification_reference=payload.get("verification_reference") or event.acceptance_check_id or payload.get("acceptance_check_id"),
+            digest=payload.get("digest"),
+            valid=payload.get("valid", True),
+            freshness=payload.get("freshness", "FRESH"),
+            trust_class=payload.get("trust_class", "TOOL_DERIVED_OBSERVATION"),
+            requirement_id=event.requirement_id or payload.get("requirement_id"),
+            acceptance_check_id=event.acceptance_check_id or payload.get("acceptance_check_id"),
         )
 
     @classmethod

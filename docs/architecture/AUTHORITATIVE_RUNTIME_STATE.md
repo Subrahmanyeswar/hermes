@@ -158,3 +158,14 @@ The following capabilities are deliberately **not** implemented in Prompt 3 and 
 - Automated Provider Reconnect Engine (Prompt 12)
 - Dynamic Tool Discovery & Indexing (Prompt 10)
 - QualityVerifier short keyword truncation fix (Prompt 5)
+
+---
+
+## 9. Prompt 11 Subsystems — Evidence, Verification, Repair & Escalation
+
+HERMES 2.x Prompt 11 extends the Authoritative Runtime State with:
+1. **Durable Evidence (`EvidenceRecord`, `EvidenceState`):** Append-only factual environment observations, cryptographic digests, freshness tracking (`FRESH`, `STALE`, `INVALIDATED`), and trust class ordering.
+2. **Deterministic Verification (`VerificationResult`, `VerificationVerdict`):** AST parsing, filesystem assertions, JSON schema checks, and test runner outputs evaluated against durable evidence bundles.
+3. **T1 Self-Repair (`RepairState`, `RepairBudget`, `RepairFingerprint`):** Bounded repair attempts (max 2-3 per check), cryptographic stall detection on identical failures, and structured guidance injection.
+4. **Selective Escalation (`EscalationState`, `T2CriticResult`, `T3JudgeResult`):** Multi-tier evaluation with low-risk bypass for routine actions, T2 skeptical review for high-risk modifications, and T3 arbitration strictly bound by the Constitutional Fact Invariant.
+

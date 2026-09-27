@@ -86,6 +86,7 @@ class RequirementStatus(str, Enum):
 
 class AcceptanceCheckStatus(str, Enum):
     NOT_RUN = "NOT_RUN"
+    PENDING = "PENDING"
     PASS = "PASS"
     FAIL = "FAIL"
     BLOCKED = "BLOCKED"
@@ -163,8 +164,10 @@ class VerificationStatus(str, Enum):
     PASSED = "PASSED"
     FAILED = "FAILED"
     NEEDS_IMPROVEMENT = "NEEDS_IMPROVEMENT"
+    INCONCLUSIVE = "INCONCLUSIVE"
     BLOCKED = "BLOCKED"
     CANCELLED = "CANCELLED"
+
 
 
 class NetworkConnectivity(str, Enum):
@@ -771,6 +774,10 @@ class EvidenceState:
     digest: Optional[str] = None
     confidence: Optional[float] = None
     valid: bool = True
+    freshness: str = "FRESH"
+    trust_class: str = "TOOL_DERIVED_OBSERVATION"
+    requirement_id: Optional[str] = None
+    acceptance_check_id: Optional[str] = None
 
     def to_dict(self) -> Dict[str, Any]:
         d = asdict(self)
@@ -1113,7 +1120,132 @@ class BackgroundJobRecord:
         d = asdict(self)
         d["kind"] = self.kind.value
         d["status"] = self.status.value
-        d["lifecycle"] = self.lifecycle.value
+# ── Prompt 11 Evidence, Verification, Repair, and Escalation Models ──────────
+
+class EvidenceFreshness(str, Enum):
+    FRESH = "FRESH"
+    STALE = "STALE"
+    INVALIDATED = "INVALIDATED"
+    UNKNOWN = "UNKNOWN"
+
+
+class EvidenceTrustClass(str, Enum):
+    DIRECT_ENVIRONMENT_OBSERVATION = "DIRECT_ENVIRONMENT_OBSERVATION"
+    TOOL_DERIVED_OBSERVATION = "TOOL_DERIVED_OBSERVATION"
+    DERIVED_ASSERTION = "DERIVED_ASSERTION"
+    SUBAGENT_REPORTED = "SUBAGENT_REPORTED"
+    MODEL_CLAIM = "MODEL_CLAIM"
+    USER_ASSERTION = "USER_ASSERTION"
+
+
+class FailureClass(str, Enum):
+    SYNTAX_ERROR = "SYNTAX_ERROR"
+    TYPE_ERROR = "TYPE_ERROR"
+    TEST_FAILURE = "TEST_FAILURE"
+    BUILD_FAILURE = "BUILD_FAILURE"
+    MISSING_ARTIFACT = "MISSING_ARTIFACT"
+    WRONG_ARTIFACT = "WRONG_ARTIFACT"
+    CONFIGURATION_ERROR = "CONFIGURATION_ERROR"
+    PATH_ERROR = "PATH_ERROR"
+    DEPENDENCY_ERROR = "DEPENDENCY_ERROR"
+    ENVIRONMENT_ERROR = "ENVIRONMENT_ERROR"
+    PERMISSION_ERROR = "PERMISSION_ERROR"
+    NETWORK_ERROR = "NETWORK_ERROR"
+    EVIDENCE_MISSING = "EVIDENCE_MISSING"
+    EVIDENCE_STALE = "EVIDENCE_STALE"
+    EVIDENCE_CONFLICT = "EVIDENCE_CONFLICT"
+    REQUIREMENT_AMBIGUITY = "REQUIREMENT_AMBIGUITY"
+    SECURITY_RISK = "SECURITY_RISK"
+    DESTRUCTIVE_ACTION = "DESTRUCTIVE_ACTION"
+    ASSERTION_FAILED = "ASSERTION_FAILED"
+    FILE_CORRUPTED = "FILE_CORRUPTED"
+    SCHEMA_VIOLATION = "SCHEMA_VIOLATION"
+    TEST_FAILED = "TEST_FAILED"
+    TOOL_EXECUTION_ERROR = "TOOL_EXECUTION_ERROR"
+    MISSING_DEPENDENCY = "MISSING_DEPENDENCY"
+    PERMISSION_VIOLATION = "PERMISSION_VIOLATION"
+    TIMEOUT = "TIMEOUT"
+    OTHER = "OTHER"
+    UNKNOWN_FAILURE = "UNKNOWN_FAILURE"
+
+
+class RepairStatus(str, Enum):
+    IDLE = "IDLE"
+    PLANNING = "PLANNING"
+    REPAIRING = "REPAIRING"
+    IN_PROGRESS = "IN_PROGRESS"
+    COMPLETED = "COMPLETED"
+    SUCCEEDED = "SUCCEEDED"
+    FAILED = "FAILED"
+    EXHAUSTED = "EXHAUSTED"
+    STALLED = "STALLED"
+
+
+class EscalationDecisionType(str, Enum):
+    NO_ESCALATION = "NO_ESCALATION"
+    T1_REPAIR = "T1_REPAIR"
+    T2_REQUIRED = "T2_REQUIRED"
+    T3_REQUIRED = "T3_REQUIRED"
+    USER_REQUIRED = "USER_REQUIRED"
+    APPROVE = "APPROVE"
+    REJECT = "REJECT"
+    ESCALATE_TO_USER = "ESCALATE_TO_USER"
+    WAIVE_OPTIONAL_REQUIREMENT = "WAIVE_OPTIONAL_REQUIREMENT"
+
+
+class DisagreementClass(str, Enum):
+    NO_DISAGREEMENT = "NO_DISAGREEMENT"
+    WEAK_DISAGREEMENT = "WEAK_DISAGREEMENT"
+    EVIDENCE_DISAGREEMENT = "EVIDENCE_DISAGREEMENT"
+    INTERPRETATION_DISAGREEMENT = "INTERPRETATION_DISAGREEMENT"
+    EVIDENCE_INTERPRETATION = "EVIDENCE_INTERPRETATION"
+    HIGH_RISK_DISAGREEMENT = "HIGH_RISK_DISAGREEMENT"
+    PERSISTENT_DISAGREEMENT = "PERSISTENT_DISAGREEMENT"
+
+
+@dataclass
+class RepairState:
+    repair_id: str
+    mission_id: str
+    requirement_id: Optional[str] = None
+    check_id: Optional[str] = None
+    task_id: Optional[str] = None
+    attempt: int = 1
+    max_attempts: int = 3
+    status: RepairStatus = RepairStatus.IDLE
+    failure_class: FailureClass = FailureClass.UNKNOWN_FAILURE
+    failure_reason: str = ""
+    repair_action: Optional[str] = None
+    fingerprints: List[str] = field(default_factory=list)
+    created_at: float = field(default_factory=time.time)
+    updated_at: float = field(default_factory=time.time)
+
+    def to_dict(self) -> Dict[str, Any]:
+        d = asdict(self)
+        d["status"] = self.status.value
+        d["failure_class"] = self.failure_class.value
+        return d
+
+
+@dataclass
+class EscalationState:
+    escalation_id: str
+    mission_id: str
+    requirement_id: Optional[str] = None
+    check_id: Optional[str] = None
+    decision: EscalationDecisionType = EscalationDecisionType.NO_ESCALATION
+    level: str = "LEVEL_0"
+    t2_verdict: Optional[str] = None
+    t3_decision: Optional[str] = None
+    disagreement_class: DisagreementClass = DisagreementClass.NO_DISAGREEMENT
+    reason: str = ""
+    created_at: float = field(default_factory=time.time)
+    updated_at: float = field(default_factory=time.time)
+
+    def to_dict(self) -> Dict[str, Any]:
+        d = asdict(self)
+        d["decision"] = self.decision.value
+        d["disagreement_class"] = self.disagreement_class.value
         return d
 
 
@@ -1151,6 +1283,10 @@ class HermesRuntimeState:
     subagent_tasks: Dict[str, SubagentTaskRecord] = field(default_factory=dict)
     worktrees: Dict[str, WorktreeRecord] = field(default_factory=dict)
     background_jobs: Dict[str, BackgroundJobRecord] = field(default_factory=dict)
+
+    # Prompt 11 extensions: T1 Self-Repair and Selective Escalations
+    repairs: Dict[str, RepairState] = field(default_factory=dict)
+    escalations: Dict[str, EscalationState] = field(default_factory=dict)
 
     state_version: int = 0
     last_event_sequence: int = 0
@@ -1198,6 +1334,8 @@ class HermesRuntimeState:
             "subagent_tasks": {k: v.to_dict() for k, v in self.subagent_tasks.items()},
             "worktrees": {k: v.to_dict() for k, v in self.worktrees.items()},
             "background_jobs": {k: v.to_dict() for k, v in self.background_jobs.items()},
+            "repairs": {k: v.to_dict() for k, v in self.repairs.items()},
+            "escalations": {k: v.to_dict() for k, v in self.escalations.items()},
             "state_version": self.state_version,
             "last_event_sequence": self.last_event_sequence,
             "last_updated_at": self.last_updated_at,

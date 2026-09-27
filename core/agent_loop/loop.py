@@ -51,6 +51,11 @@ from config.model_config import (
     MODEL_KEEP_ALIVE,
 )
 from core.planning.service import MissionPlanningService
+from core.evidence import EvidenceStore, EvidenceCollector, EvidenceInvalidator
+from core.verification import VerificationEngine
+from core.repair import RepairController
+from core.escalation import EscalationEngine
+from core.runtime_state.models import FailureClass
 
 
 
@@ -102,11 +107,32 @@ class AgentLoop:
 
         # Subagents 2.x (Prompt 10)
         from core.subagents.manager import SubagentManager
+        ws_root = self.workspace.root_str if hasattr(self.workspace, "root_str") and self.workspace.root_str else Path.cwd()
         self.subagent_manager = subagent_manager or SubagentManager(
-            workspace_root=self.workspace.root_str if hasattr(self.workspace, "root_str") and self.workspace.root_str else Path.cwd(),
+            workspace_root=ws_root,
             event_bus=self.event_bus,
             state_store=self.state_store,
         )
+
+        # Prompt 11: Evidence, Verification, Repair, and Escalation
+        self.evidence_store = EvidenceStore(workspace_root=ws_root)
+        self.evidence_collector = EvidenceCollector(
+            workspace_root=ws_root,
+            evidence_store=self.evidence_store,
+            event_bus=self.event_bus,
+        )
+        self.evidence_invalidator = EvidenceInvalidator(
+            workspace_root=ws_root,
+            evidence_store=self.evidence_store,
+            event_bus=self.event_bus,
+        )
+        self.verification_engine = VerificationEngine(
+            workspace_root=ws_root,
+            evidence_store=self.evidence_store,
+            event_bus=self.event_bus,
+        )
+        self.repair_controller = RepairController(event_bus=self.event_bus)
+        self.escalation_engine = EscalationEngine(event_bus=self.event_bus)
 
         # Runtime trackers
         self._start_time: float = 0.0
@@ -136,6 +162,14 @@ class AgentLoop:
         self._written_files.clear()
         self._observation_history.clear()
         self._recent_actions.clear()
+
+        # Prompt 11: Configure mission ID on engines
+        self.evidence_store.mission_id = mission.mission_id
+        self.evidence_collector.mission_id = mission.mission_id
+        self.evidence_invalidator.mission_id = mission.mission_id
+        self.verification_engine.mission_id = mission.mission_id
+        self.repair_controller.mission_id = mission.mission_id
+        self.escalation_engine.mission_id = mission.mission_id
 
         # Update Project Intelligence mission tracking and discover
         if hasattr(self, "project_intelligence") and self.project_intelligence:
@@ -488,19 +522,55 @@ class AgentLoop:
                     turn_id=turn_id,
                     payload={"target": decision.verification_target}
                 )
+                target = decision.verification_target or ""
+                check_result = None
+                if target and hasattr(self, "verification_engine"):
+                    check_result = self.verification_engine.verify_check(
+                        check_id=target,
+                        check_type="FILESYSTEM",
+                        target_path=target,
+                        task_id=turn_id,
+                    )
+
+                strict_req = bool(mission.acceptance_criteria or getattr(mission, "strict_requirements", False) or getattr(self.config, "strict_requirements", False))
                 accepted, v_reason, issues = self._completion_policy.evaluate_completion(
                     mission_prompt=mission.user_prompt,
                     workspace=self.workspace,
                     acceptance_criteria=mission.acceptance_criteria,
                     written_files=self._written_files,
+                    runtime_state=self.state_store.get_state() if self.state_store else None,
+                    acceptance_ledger=getattr(self.planning_service, "acceptance_ledger", None) if getattr(self, "planning_service", None) else None,
+                    evidence_store=self.evidence_store,
+                    strict_requirements=strict_req,
                 )
-                v_obs = ObservationBuilder.from_verification(
-                    verdict="PASSED" if accepted else "NEEDS_IMPROVEMENT",
-                    confidence=1.0 if accepted else 0.5,
-                    issues=issues,
-                    mission_id=self._mission_id,
-                    turn_id=turn_id,
-                )
+
+                if check_result and not check_result.passed:
+                    accepted = False
+                    if check_result.message not in issues:
+                        issues.append(check_result.message)
+
+                if not accepted and issues and hasattr(self, "repair_controller"):
+                    can_retry, guidance, rep_id = self.repair_controller.handle_failure(
+                        check_id=target or "verification_gate",
+                        failure_class=check_result.failure_class if check_result and check_result.failure_class else FailureClass.ASSERTION_FAILED,
+                        error_message="; ".join(issues[:2]),
+                        task_id=turn_id,
+                    )
+                    v_obs = ObservationBuilder.from_verification(
+                        verdict="NEEDS_IMPROVEMENT",
+                        confidence=0.5,
+                        issues=[guidance] if guidance else issues,
+                        mission_id=self._mission_id,
+                        turn_id=turn_id,
+                    )
+                else:
+                    v_obs = ObservationBuilder.from_verification(
+                        verdict="PASSED" if accepted else "NEEDS_IMPROVEMENT",
+                        confidence=1.0 if accepted else 0.5,
+                        issues=issues,
+                        mission_id=self._mission_id,
+                        turn_id=turn_id,
+                    )
                 self._record_observation(v_obs)
 
             elif decision.decision_type in (AgentDecisionType.COMPLETE, AgentDecisionType.CONTINUE_REASONING):
@@ -512,11 +582,16 @@ class AgentLoop:
                     payload={"claim": final_output[:120]}
                 )
 
+                strict_req = bool(mission.acceptance_criteria or getattr(mission, "strict_requirements", False) or getattr(self.config, "strict_requirements", False))
                 accepted, v_reason, issues = self._completion_policy.evaluate_completion(
                     mission_prompt=mission.user_prompt,
                     workspace=self.workspace,
                     acceptance_criteria=mission.acceptance_criteria,
                     written_files=self._written_files,
+                    runtime_state=self.state_store.get_state() if self.state_store else None,
+                    acceptance_ledger=getattr(self.planning_service, "acceptance_ledger", None) if getattr(self, "planning_service", None) else None,
+                    evidence_store=self.evidence_store,
+                    strict_requirements=strict_req,
                 )
 
                 # Check goal completion status via MissionPlanningService if acceptance criteria or strict requirements active
