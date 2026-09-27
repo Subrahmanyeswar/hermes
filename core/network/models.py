@@ -206,13 +206,27 @@ class LogicalRequest:
     def current_attempt(self) -> Optional[RequestAttempt]:
         return self.attempts[-1] if self.attempts else None
 
+    @property
+    def is_terminal(self) -> bool:
+        return self.status in (
+            RequestPhase.COMPLETED,
+            RequestPhase.FAILED,
+            RequestPhase.TIMED_OUT,
+            RequestPhase.CANCELLED,
+            RequestPhase.ABORTED,
+        )
+
     def mark_completed(self) -> None:
+        if self.is_terminal:
+            return  # Terminal lock: cannot reopen or alter terminal state
         self.completed_at = time.monotonic()
         self.status = RequestPhase.COMPLETED
         if self.current_attempt and self.current_attempt.phase != RequestPhase.COMPLETED:
             self.current_attempt.complete()
 
     def mark_failed(self, classification: FailureClassification, error_msg: str) -> None:
+        if self.is_terminal:
+            return  # Terminal lock: cannot alter terminal state
         self.completed_at = time.monotonic()
         self.status = RequestPhase.FAILED
         self.failure_classification = classification

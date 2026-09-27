@@ -17,6 +17,7 @@ Central Invariant:
 from __future__ import annotations
 
 import asyncio
+import json
 import time
 import uuid
 from pathlib import Path
@@ -400,8 +401,12 @@ class AgentLoop:
                         continue
 
                 # Prompt 12: Tool Replay Safety - Prevent re-executing already executed tool calls in the same turn
-                if decision.tool_call_id and self.network_supervisor.is_tool_call_executed(decision.tool_call_id, turn_id=turn_id):
-                    logger.warning(f"AgentLoop: Tool call {decision.tool_call_id} already executed in turn {turn_id}, suppressing replay")
+                action_key = f"{decision.tool_name}:{json.dumps(decision.arguments, sort_keys=True)}" if decision.tool_name else None
+                is_replay = self.network_supervisor.is_tool_call_executed(
+                    decision.tool_call_id or "", turn_id=turn_id, action_key=action_key
+                )
+                if is_replay:
+                    logger.warning(f"AgentLoop: Tool action {decision.tool_name} ({decision.tool_call_id}) already executed in turn {turn_id}, suppressing replay")
                     obs = Observation(
                         observation_id=f"obs_replay_suppressed_{uuid.uuid4().hex[:6]}",
                         mission_id=self._mission_id,
@@ -435,8 +440,9 @@ class AgentLoop:
                 turn.action_ids.append(action.action_id)
 
                 obs = await self._action_executor.execute_action(action, workspace=self.workspace)
-                if decision.tool_call_id:
-                    self.network_supervisor.register_executed_tool_call(decision.tool_call_id, turn_id=turn_id)
+                self.network_supervisor.register_executed_tool_call(
+                    decision.tool_call_id or "", turn_id=turn_id, action_key=action_key
+                )
                 turn.observation_ids.append(obs.observation_id)
                 self._record_observation(obs)
                 self._actions_count += 1

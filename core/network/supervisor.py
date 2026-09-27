@@ -60,6 +60,7 @@ class NetworkSupervisor:
 
         self._health_states: Dict[str, ProviderHealthState] = {}
         self._executed_tool_ids: Set[str] = set()
+        self._executed_action_keys: Set[str] = set()
         self._active_requests: Dict[str, LogicalRequest] = {}
 
     def get_provider_health(self, provider_name: str) -> ProviderHealthState:
@@ -68,20 +69,37 @@ class NetworkSupervisor:
             self._health_states[provider_name] = ProviderHealthState(provider_name=provider_name)
         return self._health_states[provider_name]
 
-    def register_executed_tool_call(self, tool_call_id: str, turn_id: Optional[str] = None) -> None:
-        """Register that a tool call was already dispatched/executed to prevent duplicate replay."""
+    def register_executed_tool_call(
+        self,
+        tool_call_id: str,
+        turn_id: Optional[str] = None,
+        action_key: Optional[str] = None,
+    ) -> None:
+        """Register that a tool call or semantic action was already executed to prevent duplicate replay."""
         if tool_call_id:
             key = f"{turn_id}:{tool_call_id}" if turn_id else tool_call_id
             self._executed_tool_ids.add(key)
+        if action_key:
+            act_key = f"{turn_id}:{action_key}" if turn_id else action_key
+            self._executed_action_keys.add(act_key)
 
-    def is_tool_call_executed(self, tool_call_id: str, turn_id: Optional[str] = None) -> bool:
-        """Check if a tool call was already executed in this turn/session."""
-        if not tool_call_id:
-            return False
-        if turn_id and f"{turn_id}:{tool_call_id}" in self._executed_tool_ids:
-            return True
-        if tool_call_id in self._executed_tool_ids:
-            return True
+    def is_tool_call_executed(
+        self,
+        tool_call_id: str,
+        turn_id: Optional[str] = None,
+        action_key: Optional[str] = None,
+    ) -> bool:
+        """Check if a tool call or semantic action was already executed in this turn/session."""
+        if tool_call_id:
+            if turn_id and f"{turn_id}:{tool_call_id}" in self._executed_tool_ids:
+                return True
+            if tool_call_id in self._executed_tool_ids:
+                return True
+        if action_key:
+            if turn_id and f"{turn_id}:{action_key}" in self._executed_action_keys:
+                return True
+            if action_key in self._executed_action_keys:
+                return True
         return False
 
     def _publish_event(
@@ -519,8 +537,9 @@ class NetworkSupervisor:
                         },
                     )
                 else:
-                    watchdog.record_delta(len(delta.content))
-                    attempt.record_delta(len(delta.content))
+                    progress_len = len(delta.content) + len(delta.reasoning_content) + len(delta.tool_calls)
+                    watchdog.record_delta(max(1, progress_len))
+                    attempt.record_delta(max(1, progress_len))
 
                 if delta.content:
                     content_parts.append(delta.content)
