@@ -538,16 +538,16 @@ class StateReducer:
             state.network.health_status = payload.get("health_status", state.network.health_status)
             state.network.circuit_state = payload.get("circuit_state", state.network.circuit_state)
 
-        # ── 8. Permission Lifecycle ───────────────────────────────────────────
-        if et == EventType.PERMISSION_REQUESTED:
+        # ── 8. Permission & Security Lifecycle (Prompt 13) ───────────────────
+        if et in (EventType.PERMISSION_REQUESTED, EventType.PERMISSION_ASKED):
             state.permission.status = PermissionStatus.REQUESTED
             state.permission.permission_request_id = payload.get("request_id")
-            state.permission.action = payload.get("action", "")
-            state.permission.risk = payload.get("risk", "NORMAL")
+            state.permission.action = payload.get("action", payload.get("tool_name", ""))
+            state.permission.risk = payload.get("risk", payload.get("risk_level", "NORMAL"))
             state.permission.requested_at = event.timestamp
             state.progress.waiting_reason = WaitReason.WAITING_FOR_PERMISSION
 
-        elif et == EventType.PERMISSION_APPROVED:
+        elif et in (EventType.PERMISSION_APPROVED, EventType.PERMISSION_GRANTED):
             state.permission.status = PermissionStatus.APPROVED
             state.permission.resolved_at = event.timestamp
             state.permission.decision = "APPROVED"
@@ -558,6 +558,36 @@ class StateReducer:
             state.permission.resolved_at = event.timestamp
             state.permission.decision = "DENIED"
             state.permission.resolution_reason = payload.get("reason", "Denied")
+
+        elif et == EventType.SECURITY_RISK_ASSESSED:
+            state.permission.action = payload.get("tool_name", state.permission.action)
+            state.permission.risk = payload.get("risk_level", state.permission.risk)
+
+        elif et == EventType.PERMISSION_EVALUATED:
+            outcome = payload.get("outcome")
+            if outcome == "DENY":
+                state.permission.status = PermissionStatus.DENIED
+                state.permission.decision = "DENIED"
+                state.permission.resolution_reason = payload.get("reason", payload.get("reason_code", "Denied"))
+            elif outcome == "ALLOW":
+                state.permission.status = PermissionStatus.APPROVED
+                state.permission.decision = "ALLOWED"
+
+        elif et == EventType.PROMPT_INJECTION_DETECTED:
+            state.metadata["last_prompt_injection"] = {
+                "source_id": payload.get("source_id"),
+                "family": payload.get("family"),
+                "confidence": payload.get("confidence"),
+                "timestamp": event.timestamp,
+            }
+
+        elif et == EventType.SECURITY_ESCALATION:
+            state.progress.waiting_reason = WaitReason.FAILED
+            state.metadata["security_escalation"] = {
+                "reason": payload.get("reason"),
+                "consecutive_denials": payload.get("consecutive_denials"),
+                "timestamp": event.timestamp,
+            }
 
         # ── 9. Session Lifecycle ──────────────────────────────────────────────
         if et == EventType.SESSION_STARTED:

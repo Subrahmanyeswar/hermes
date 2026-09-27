@@ -46,6 +46,8 @@ from core.subagents.background import BackgroundJobManager
 from core.subagents.cancellation import CancellationController, CancellationToken, SubagentCancelledException
 from core.subagents.governor import ResourceGovernor, BudgetExceededException
 from core.subagents.handoff import HandoffManager
+from core.security.gate import SecurityGate
+from core.security.models import SubagentSecurityContext
 
 logger = logging.getLogger("hermes.subagents.manager")
 
@@ -73,6 +75,7 @@ class SubagentManager:
         self.background_mgr = BackgroundJobManager(self.workspace_root)
         self.governor = ResourceGovernor(max_concurrent=max_concurrent)
         self._cancellation_tokens: Dict[str, CancellationToken] = {}
+        self.security_gate = SecurityGate()
 
     async def _publish(
         self,
@@ -325,6 +328,27 @@ class SubagentManager:
                     task_id=task_id,
                     worktree_id=worktree_record.worktree_id,
                 )
+
+            # Prompt 13: Inbound Subagent Handoff Security Check
+            child_sec_ctx = SubagentSecurityContext(
+                agent_id=agent_id,
+                parent_id=parent_agent_id,
+            )
+            artifacts = (
+                getattr(result, "artifact_refs", None)
+                or getattr(result, "files", None)
+                or getattr(result, "artifacts", None)
+                or []
+            )
+            handoff_assessment = self.security_gate.inspect_subagent_handoff(
+                child_context=child_sec_ctx,
+                return_payload=getattr(result, "summary", "") or "",
+                artifacts_produced=artifacts,
+            )
+            if not handoff_assessment.safe_to_ingest:
+                result.summary = handoff_assessment.sanitized_payload
+                if hasattr(result, "errors") and isinstance(result.errors, list):
+                    result.errors.extend(handoff_assessment.violations)
 
             await self._publish(
                 EventType.SUBAGENT_COMPLETED if result.status == SubagentStatus.SUCCEEDED else EventType.SUBAGENT_FAILED,

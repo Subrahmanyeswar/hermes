@@ -32,6 +32,10 @@ from tools.platform.search import tool_search
 from tools.platform.specs import ToolSpec, ResponseFormat
 from tools.base import BaseTool, ToolResult
 
+# Security Platform integration (Prompt 13)
+from core.security.gate import SecurityGate
+from core.security.enums import PermissionOutcome as SecPermissionOutcome, ContentTrust
+
 
 class HarnessPolicy:
     """
@@ -39,9 +43,10 @@ class HarnessPolicy:
     workspace boundaries, and parameter schemas using canonical ToolPlatform.
     """
 
-    def __init__(self, mode: str = "auto") -> None:
+    def __init__(self, mode: str = "auto", security_gate: Optional[SecurityGate] = None) -> None:
         self.mode = mode if (isinstance(mode, str) and mode in ("auto", "plan", "safe")) else "auto"
         self._permission_policy = PermissionPolicy(mode=self.mode)
+        self.security_gate = security_gate or SecurityGate()
 
     async def evaluate(
         self,
@@ -79,6 +84,19 @@ class HarnessPolicy:
         if decision != PermissionDecision.ALLOW:
             return False, f"Permission denied for '{canonical_name}' in '{self.mode}' mode: {perm_reason}", spec.implementation_cls, {}
 
+        # ── 4. Canonical Prompt 13 SecurityGate Enforcement ─────────────────
+        sec_decision, _ = self.security_gate.evaluate_action(
+            tool_name=canonical_name,
+            arguments=validated_args,
+            session_id=getattr(action, "session_id", None),
+            task_id=action.task_id,
+        )
+        if sec_decision.outcome == SecPermissionOutcome.DENY:
+            alt = f" Suggestion: {sec_decision.suggested_alternative}" if sec_decision.suggested_alternative else ""
+            return False, f"Security Policy Denied ({sec_decision.reason_code.value}): {sec_decision.reason}.{alt}", spec.implementation_cls, {}
+        elif sec_decision.outcome == SecPermissionOutcome.ASK and self.mode in ("plan", "safe"):
+            return False, f"Security Authorization Required ({sec_decision.required_scope.value}): {sec_decision.reason}", spec.implementation_cls, {}
+
         return True, "Allowed", spec.implementation_cls, validated_args
 
 
@@ -88,8 +106,9 @@ class ActionExecutor:
     output shaping, and observation generation.
     """
 
-    def __init__(self, mode: str = "auto") -> None:
-        self.policy = HarnessPolicy(mode=mode)
+    def __init__(self, mode: str = "auto", security_gate: Optional[SecurityGate] = None) -> None:
+        self.security_gate = security_gate or SecurityGate()
+        self.policy = HarnessPolicy(mode=mode, security_gate=self.security_gate)
 
     async def execute_action(
         self,
@@ -263,6 +282,15 @@ class ActionExecutor:
             )
             obs.content = shaped.to_observation_text()
             obs.full_result_ref = shaped.full_output_ref
+
+        # ── Prompt 13 Untrusted Content Screening ─────────────────────────────
+        if obs.content:
+            sanitized_content, _ = self.security_gate.screen_observation(
+                raw_output=obs.content,
+                trust_level=ContentTrust.UNTRUSTED_EXTERNAL,
+                source_id=f"tool_{canonical_name}",
+            )
+            obs.content = sanitized_content
 
         # Publish tool completion / failure event
         is_success = obs.success
