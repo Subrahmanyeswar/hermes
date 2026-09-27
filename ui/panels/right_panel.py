@@ -418,32 +418,25 @@ class MemoryViewPane(Widget):
                 id="memory-empty",
             )
 
-    async def refresh_memory(self, project: str = "default") -> None:
-        """Re-read MEMORY.md and update the display."""
-        try:
-            from memory.store import read_memory_index
-            index = read_memory_index(project=project)
-        except Exception as e:
-            await self._show_error(f"Could not read memory: {e}")
-            return
-
+    async def refresh_memory(self, facts: Optional[list[str]] = None, project: str = "default") -> None:
+        """Update memory display from state projection without querying disk."""
         scroll = self.query_one("#memory-scroll", ScrollableContainer)
 
         # Clear existing content
         await scroll.remove_children()
 
-        if not index.facts:
+        if facts is None:
+            facts = []
+
+        if not facts:
             await scroll.mount(Static(
                 "Memory is empty. Complete tasks to build project memory.",
             ))
             return
 
         # Render each fact
-        for fact in index.facts:
-            try:
-                line = fact.to_memory_line()
-            except Exception:
-                continue
+        for fact in facts:
+            line = fact if isinstance(fact, str) else getattr(fact, "to_memory_line", lambda: str(fact))()
 
             # Determine if this line was added this session
             is_new = line in self._session_added_lines
@@ -533,116 +526,55 @@ class TaskQueuePane(Widget):
         self.set_interval(30.0, self._auto_refresh)
 
     def _auto_refresh(self) -> None:
-        """Called by timer every 30 seconds."""
-        self.run_worker(self.refresh_tasks(), exclusive=False)
+        """Periodic timer no-op; tasks update reactively via event/state projection."""
+        pass
 
-    async def refresh_from_mission(self, mission) -> None:
-        """
-        Refresh task queue display directly from Mission object.
-        Called after every task state change by _consume_mission_events.
-        More accurate than SQLite polling for in-progress missions.
-        """
-        if mission is None:
+    async def refresh_from_viewmodel(self, vm) -> None:
+        """Update tasks from normalized TaskQueueViewModel without querying SQLite."""
+        if vm is None:
             return
-
         try:
             scroll = self.query_one("#task-scroll", ScrollableContainer)
             await scroll.remove_children()
         except Exception:
             return
 
-        completed, total = mission.progress
+        if not vm.tasks:
+            try:
+                await scroll.mount(Static("No tasks yet. Send requests to populate."))
+            except Exception:
+                pass
+            return
 
-        # Header
-        from rich.text import Text
-        header = Text()
-        header.append(f"  Mission: {completed}/{total} tasks  ", style="bold")
-        header.append(
-            "✓" * completed + "○" * (total - completed),
-            style="#22C55E" if completed == total else "#4A90D9"
-        )
+        summary = Text()
+        summary.append(f"  Tasks: {vm.completed_count}/{vm.total_count} completed  ", style="bold")
         try:
-            scroll = self.query_one("#task-scroll", ScrollableContainer)
-            await scroll.mount(Static(header))
+            await scroll.mount(Static(summary))
         except Exception:
             pass
 
-        # Task rows
         state_icons = {
-            "PENDING":   ("○", "dim"),
-            "RUNNING":   ("▶", "bold #4A90D9"),
-            "COMPLETED": ("✓", "#22C55E"),
-            "FAILED":    ("✗", "#EF4444"),
-            "BLOCKED":   ("⊘", "#F59E0B"),
-            "SKIPPED":   ("−", "dim"),
+            "PENDING": ("○", "#4A90D9"),
+            "RUNNING": ("▶", "#22C55E"),
+            "COMPLETED": ("✓", "dim #22C55E"),
+            "FAILED": ("✗", "#EF4444"),
+            "BLOCKED": ("⊘", "#F59E0B"),
         }
 
-        for i, task in enumerate(mission.tasks, 1):
-            state = task.state.value if hasattr(task.state, 'value') else str(task.state)
-            icon, style = state_icons.get(state, ("?", "dim"))
+        for task in vm.tasks:
+            icon, col = state_icons.get(task.status, ("?", "white"))
             line = Text()
-            line.append(f"  {i:2d}. ", style="dim")
-            line.append(f"{icon} ", style=style)
-            line.append(f"{task.title[:45]:<45}", style="white" if state == "RUNNING" else "dim")
-            line.append(f" {state.title()}", style=style)
+            line.append(f"  {icon} ", style=f"bold {col}")
+            line.append(f"{task.title[:45]:<45} ", style="white")
+            line.append(f"{task.status}", style=col)
             try:
-                scroll = self.query_one("#task-scroll", ScrollableContainer)
                 await scroll.mount(Static(line))
             except Exception:
                 pass
 
     async def refresh_tasks(self, session_id: Optional[str] = None) -> None:
-        """Re-read the task queue from SQLite and update display, handling missing DB gracefully."""
-        try:
-            from kairos.db import DB_PATH, execute_read
-        except Exception as e:
-            logger.error(f"Failed to import DB utilities: {e}")
-            return
-
-        db_path = self._db_path or DB_PATH
-        # If DB does not exist yet, show placeholder and exit
-        if not db_path.exists():
-            scroll = self.query_one("#task-scroll", ScrollableContainer)
-            await scroll.remove_children()
-            await scroll.mount(Static("Task queue initialising…"))
-            return
-
-        # Query tasks (last 50)
-        try:
-            rows = execute_read(
-                "SELECT * FROM tasks ORDER BY created_at DESC LIMIT 50",
-                db_path=db_path,
-            )
-        except Exception as e:
-            logger.error(f"Error reading tasks from DB: {e}")
-            rows = []
-
-        scroll = self.query_one("#task-scroll", ScrollableContainer)
-        await scroll.remove_children()
-
-        if not rows:
-            await scroll.mount(Static("No tasks yet. Send requests to populate."))
-            return
-
-        # Count statuses
-        counts = {"PENDING": 0, "RUNNING": 0, "COMPLETED": 0, "FAILED": 0, "STUCK": 0}
-        for row in rows:
-            status = row["status"] if row["status"] in counts else "COMPLETED"
-            counts[status] += 1
-
-        # Summary line
-        summary = Text()
-        summary.append(f"  P:{counts['PENDING']} ", style="#4A90D9")
-        summary.append(f"R:{counts['RUNNING']} ", style="#22C55E")
-        summary.append(f"✓:{counts['COMPLETED']} ", style="dim #22C55E")
-        summary.append(f"✗:{counts['FAILED']} ", style="#EF4444")
-        summary.append(f"⚠:{counts['STUCK']}", style="#F59E0B")
-        await scroll.mount(Static(summary))
-
-        # Render individual tasks (most recent first, limit 30)
-        for row in rows[:30]:
-            task_widget = Static(self._render_task_row(row))
-            await scroll.mount(task_widget)
+        """Compatible no-op placeholder for deprecated SQLite polling."""
+        pass
 
     def _render_task_row(self, row) -> Text:
         t = Text()
