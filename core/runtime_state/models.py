@@ -174,9 +174,12 @@ class NetworkConnectivity(str, Enum):
     UNKNOWN = "UNKNOWN"
     CONNECTING = "CONNECTING"
     CONNECTED = "CONNECTED"
+    STREAMING = "STREAMING"
+    STALLING = "STALLING"
     DEGRADED = "DEGRADED"
     DISCONNECTED = "DISCONNECTED"
     RECONNECTING = "RECONNECTING"
+    RECOVERED = "RECOVERED"
     FAILED = "FAILED"
 
 
@@ -707,13 +710,19 @@ class NetworkState:
     provider: str = ""
     endpoint: str = ""
     request_id: Optional[str] = None
+    attempt_id: Optional[str] = None
     connected_at: Optional[float] = None
     disconnected_at: Optional[float] = None
     retry_count: int = 0
     last_error: Optional[str] = None
+    last_failure_classification: Optional[str] = None
     reconnecting: bool = False
     latency_ms: Optional[float] = None
     health_status: str = "HEALTHY"
+    circuit_state: str = "CLOSED"
+    streaming_active: bool = False
+    ttft_ms: Optional[float] = None
+    deltas_received: int = 0
 
     def to_dict(self) -> Dict[str, Any]:
         d = asdict(self)

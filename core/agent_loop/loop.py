@@ -134,6 +134,10 @@ class AgentLoop:
         self.repair_controller = RepairController(event_bus=self.event_bus)
         self.escalation_engine = EscalationEngine(event_bus=self.event_bus)
 
+        # Prompt 12: Network Resilience Supervisor
+        from core.network.supervisor import NetworkSupervisor
+        self.network_supervisor = NetworkSupervisor(event_bus=self.event_bus)
+
         # Runtime trackers
         self._start_time: float = 0.0
         self._mission_id: str = ""
@@ -395,6 +399,31 @@ class AgentLoop:
                         self._turns_count += 1
                         continue
 
+                # Prompt 12: Tool Replay Safety - Prevent re-executing already executed tool calls in the same turn
+                if decision.tool_call_id and self.network_supervisor.is_tool_call_executed(decision.tool_call_id, turn_id=turn_id):
+                    logger.warning(f"AgentLoop: Tool call {decision.tool_call_id} already executed in turn {turn_id}, suppressing replay")
+                    obs = Observation(
+                        observation_id=f"obs_replay_suppressed_{uuid.uuid4().hex[:6]}",
+                        mission_id=self._mission_id,
+                        turn_id=turn_id,
+                        source_type="policy",
+                        source_id="network_supervisor",
+                        success=True,
+                        summary=f"Tool call {decision.tool_call_id} already executed; duplicate replay suppressed",
+                        content="SUPPRESSED_DUPLICATE_TOOL_REPLAY",
+                    )
+                    turn.observation_ids.append(obs.observation_id)
+                    self._record_observation(obs)
+                    turn.completed_at = time.monotonic()
+                    turn.state_version_after = self.state_store.get_snapshot().state_version
+                    await self._publish_event(
+                        EventType.AGENT_TURN_COMPLETED,
+                        turn_id=turn_id,
+                        payload={"turn_id": turn_id, "duration": turn.completed_at - turn.started_at},
+                    )
+                    self._turns_count += 1
+                    continue
+
                 action = ActionEnvelope(
                     mission_id=self._mission_id,
                     turn_id=turn_id,
@@ -406,6 +435,8 @@ class AgentLoop:
                 turn.action_ids.append(action.action_id)
 
                 obs = await self._action_executor.execute_action(action, workspace=self.workspace)
+                if decision.tool_call_id:
+                    self.network_supervisor.register_executed_tool_call(decision.tool_call_id, turn_id=turn_id)
                 turn.observation_ids.append(obs.observation_id)
                 self._record_observation(obs)
                 self._actions_count += 1

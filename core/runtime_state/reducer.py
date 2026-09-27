@@ -482,31 +482,61 @@ class StateReducer:
                     cls._recalculate_requirement_counts(state)
 
         # ── 7. Network Lifecycle ──────────────────────────────────────────────
-        if et == EventType.NETWORK_CONNECTING:
+        if et == EventType.NETWORK_REQUEST_CREATED:
+            state.network.request_id = payload.get("request_id")
+            state.network.provider = payload.get("provider", state.network.provider)
+            state.network.deltas_received = 0
+            state.network.ttft_ms = None
+        elif et == EventType.NETWORK_CONNECTING:
             state.network.connectivity = NetworkConnectivity.CONNECTING
+            state.network.attempt_id = payload.get("attempt_id")
+            if "provider" in payload:
+                state.network.provider = payload["provider"]
         elif et == EventType.NETWORK_CONNECTED:
             state.network.connectivity = NetworkConnectivity.CONNECTED
             state.network.connected_at = event.timestamp
             state.network.reconnecting = False
+        elif et == EventType.NETWORK_STREAMING:
+            state.network.connectivity = NetworkConnectivity.STREAMING
+            state.network.streaming_active = True
+        elif et == EventType.REQUEST_FIRST_DELTA:
+            state.network.connectivity = NetworkConnectivity.STREAMING
+            state.network.streaming_active = True
+            ttft = payload.get("ttft_seconds")
+            if ttft is not None:
+                state.network.ttft_ms = round(ttft * 1000.0, 2)
+        elif et == EventType.REQUEST_PROGRESS:
+            state.network.deltas_received += payload.get("deltas_count", 1)
+        elif et == EventType.NETWORK_STALLING:
+            state.network.connectivity = NetworkConnectivity.STALLING
+            state.network.last_error = payload.get("stall_reason", "Stream stalled")
         elif et == EventType.NETWORK_DEGRADED:
             state.network.connectivity = NetworkConnectivity.DEGRADED
         elif et == EventType.NETWORK_DISCONNECTED:
             state.network.connectivity = NetworkConnectivity.DISCONNECTED
             state.network.disconnected_at = event.timestamp
-            state.network.last_error = payload.get("error", "Disconnected")
+            state.network.last_error = payload.get("error", payload.get("stall_reason", "Disconnected"))
+            state.network.streaming_active = False
             state.progress.waiting_reason = WaitReason.WAITING_FOR_NETWORK
         elif et == EventType.NETWORK_RECONNECTING:
             state.network.connectivity = NetworkConnectivity.RECONNECTING
             state.network.reconnecting = True
             state.network.retry_count += 1
+            state.network.streaming_active = False
             state.progress.waiting_reason = WaitReason.WAITING_FOR_NETWORK
-        elif et == EventType.NETWORK_RESTORED:
-            state.network.connectivity = NetworkConnectivity.CONNECTED
+        elif et in (EventType.NETWORK_RECOVERED, EventType.NETWORK_RESTORED):
+            state.network.connectivity = NetworkConnectivity.RECOVERED if et == EventType.NETWORK_RECOVERED else NetworkConnectivity.CONNECTED
             state.network.reconnecting = False
             state.network.health_status = "HEALTHY"
             state.progress.waiting_reason = WaitReason.WORKING
         elif et == EventType.NETWORK_FAILED:
             state.network.connectivity = NetworkConnectivity.FAILED
+            state.network.last_error = payload.get("error")
+            state.network.last_failure_classification = payload.get("classification")
+            state.network.streaming_active = False
+        elif et == EventType.PROVIDER_HEALTH_CHANGED:
+            state.network.health_status = payload.get("health_status", state.network.health_status)
+            state.network.circuit_state = payload.get("circuit_state", state.network.circuit_state)
 
         # ── 8. Permission Lifecycle ───────────────────────────────────────────
         if et == EventType.PERMISSION_REQUESTED:
