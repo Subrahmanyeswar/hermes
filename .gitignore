@@ -27,6 +27,7 @@ artifacts/performance/traces/
 scratch/
 generated_projects/
 .artifacts/
+.hermes/
 
 # Historical benchmark artifacts and optimization probes (preserved locally, excluded from release)
 artifacts/context/

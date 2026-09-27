@@ -798,6 +798,325 @@ class CheckpointState:
         return d
 
 
+# ── Prompt 10 Subagents, Worktrees, and Background Execution Models ──────────
+
+class AgentType(str, Enum):
+    PRIMARY = "PRIMARY"
+    EXPLORER = "EXPLORER"
+    REVIEWER = "REVIEWER"
+    TESTER = "TESTER"
+    IMPLEMENTER = "IMPLEMENTER"
+    ANALYST = "ANALYST"
+    CUSTOM = "CUSTOM"
+
+
+class SubagentStatus(str, Enum):
+    CREATED = "CREATED"
+    QUEUED = "QUEUED"
+    STARTING = "STARTING"
+    RUNNING = "RUNNING"
+    WAITING = "WAITING"
+    COMPLETING = "COMPLETING"
+    SUCCEEDED = "SUCCEEDED"
+    FAILED = "FAILED"
+    CANCELLED = "CANCELLED"
+    TIMED_OUT = "TIMED_OUT"
+    RESOURCE_EXCEEDED = "RESOURCE_EXCEEDED"
+    ORPHANED = "ORPHANED"
+
+    @property
+    def is_terminal(self) -> bool:
+        return self in (
+            SubagentStatus.SUCCEEDED,
+            SubagentStatus.FAILED,
+            SubagentStatus.CANCELLED,
+            SubagentStatus.TIMED_OUT,
+            SubagentStatus.RESOURCE_EXCEEDED,
+            SubagentStatus.ORPHANED,
+        )
+
+
+class JobKind(str, Enum):
+    SUBAGENT = "SUBAGENT"
+    SHELL = "SHELL"
+    SERVER = "SERVER"
+    TEST = "TEST"
+    BUILD = "BUILD"
+    CUSTOM = "CUSTOM"
+
+
+class JobStatus(str, Enum):
+    QUEUED = "QUEUED"
+    STARTING = "STARTING"
+    RUNNING = "RUNNING"
+    WAITING = "WAITING"
+    SUCCEEDED = "SUCCEEDED"
+    FAILED = "FAILED"
+    CANCEL_REQUESTED = "CANCEL_REQUESTED"
+    CANCELLED = "CANCELLED"
+    TIMED_OUT = "TIMED_OUT"
+    RESOURCE_EXCEEDED = "RESOURCE_EXCEEDED"
+    ORPHANED = "ORPHANED"
+
+    @property
+    def is_terminal(self) -> bool:
+        return self in (
+            JobStatus.SUCCEEDED,
+            JobStatus.FAILED,
+            JobStatus.CANCELLED,
+            JobStatus.TIMED_OUT,
+            JobStatus.RESOURCE_EXCEEDED,
+            JobStatus.ORPHANED,
+        )
+
+
+class JobLifecycle(str, Enum):
+    CHILD_BOUND = "CHILD_BOUND"
+    DETACHED = "DETACHED"
+
+
+class WorktreeStatus(str, Enum):
+    CREATED = "CREATED"
+    READY = "READY"
+    IN_USE = "IN_USE"
+    HANDOFF = "HANDOFF"
+    INTEGRATED = "INTEGRATED"
+    CONFLICT = "CONFLICT"
+    ORPHANED = "ORPHANED"
+    CLEANED = "CLEANED"
+
+
+class WorktreeMode(str, Enum):
+    NO_WORKTREE = "NO_WORKTREE"
+    READ_ONLY_SHARED_WORKSPACE = "READ_ONLY_SHARED_WORKSPACE"
+    ISOLATED_WORKTREE = "ISOLATED_WORKTREE"
+
+
+class WorktreeIntegrationPolicy(str, Enum):
+    PATCH_ONLY = "PATCH_ONLY"
+    FAST_FORWARD = "FAST_FORWARD"
+    MERGE_COMMIT = "MERGE_COMMIT"
+    MANUAL = "MANUAL"
+    REVIEW_REQUIRED = "REVIEW_REQUIRED"
+
+
+@dataclass
+class SubagentToolPolicy:
+    allowed_tools: List[str] = field(default_factory=list)
+    denied_tools: List[str] = field(default_factory=list)
+    read_only: bool = True
+    can_mutate: bool = False
+    can_shell: bool = False
+    can_network: bool = False
+    can_delegate: bool = False
+
+    def is_tool_allowed(self, tool_name: str) -> Tuple[bool, str]:
+        canonical = tool_name.strip().lower()
+        if canonical in [t.lower() for t in self.denied_tools]:
+            return False, f"Tool '{tool_name}' is explicitly denied by subagent policy."
+        if not self.can_delegate and canonical in ("task.delegate", "delegate"):
+            return False, "Subagent is prohibited from recursive delegation (can_delegate=False)."
+        if self.read_only and canonical in ("fs.write", "fs.edit", "write_file", "edit_file"):
+            return False, f"Mutating tool '{tool_name}' prohibited by read-only subagent policy."
+        if not self.can_shell and canonical in ("shell.bash", "bash"):
+            return False, "Shell command execution prohibited by subagent policy."
+        if self.allowed_tools and not any(canonical == a.lower() or canonical.startswith(a.lower() + ".") for a in self.allowed_tools):
+            return False, f"Tool '{tool_name}' is not in allowed tools list {self.allowed_tools}."
+        return True, "Allowed"
+
+    def to_dict(self) -> Dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass
+class SubagentBudget:
+    max_input_tokens: int = 50_000
+    max_output_tokens: int = 4_096
+    max_total_tokens: int = 60_000
+    max_turns: int = 15
+    max_tool_calls: int = 30
+    max_runtime_seconds: float = 120.0
+    max_output_bytes: int = 100_000
+    max_children: int = 0
+
+    def to_dict(self) -> Dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass
+class AgentResourceUsage:
+    turns: int = 0
+    tool_calls: int = 0
+    wall_time_ms: float = 0.0
+    output_bytes: int = 0
+    context_peak_estimate: int = 0
+    worktree_disk_bytes: int = 0
+    input_tokens: int = 0
+    output_tokens: int = 0
+
+    def to_dict(self) -> Dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass
+class SubagentResult:
+    status: SubagentStatus
+    task_id: str
+    agent_id: str
+    summary: str
+    findings: List[str] = field(default_factory=list)
+    files: List[str] = field(default_factory=list)
+    changes: List[Dict[str, Any]] = field(default_factory=list)
+    evidence_refs: List[str] = field(default_factory=list)
+    artifact_refs: List[str] = field(default_factory=list)
+    tests: Dict[str, Any] = field(default_factory=dict)
+    errors: List[str] = field(default_factory=list)
+    next_recommendation: Optional[str] = None
+    duration: float = 0.0
+    resource_usage: Dict[str, Any] = field(default_factory=dict)
+    partial: bool = False
+
+    def to_dict(self) -> Dict[str, Any]:
+        d = asdict(self)
+        d["status"] = self.status.value
+        return d
+
+
+@dataclass
+class SubagentHandoff:
+    task_id: str
+    agent_id: str
+    goal: str
+    requirements: List[str] = field(default_factory=list)
+    scope_paths: List[str] = field(default_factory=list)
+    constraints: List[str] = field(default_factory=list)
+    allowed_tools: List[str] = field(default_factory=list)
+    budget: SubagentBudget = field(default_factory=SubagentBudget)
+    workspace_path: str = ""
+    worktree_id: Optional[str] = None
+    relevant_context_refs: List[str] = field(default_factory=list)
+    expected_output: str = ""
+    deadline: float = 0.0
+
+    def to_dict(self) -> Dict[str, Any]:
+        d = asdict(self)
+        d["budget"] = self.budget.to_dict()
+        return d
+
+
+@dataclass
+class AgentRecord:
+    agent_id: str
+    agent_type: AgentType
+    mission_id: str
+    parent_agent_id: Optional[str] = None
+    task_id: Optional[str] = None
+    context_id: str = ""
+    worktree_id: Optional[str] = None
+    execution_mode: str = "EXECUTION_MODE"
+    status: SubagentStatus = SubagentStatus.CREATED
+    budget: SubagentBudget = field(default_factory=SubagentBudget)
+    tool_policy: SubagentToolPolicy = field(default_factory=SubagentToolPolicy)
+    resource_usage: AgentResourceUsage = field(default_factory=AgentResourceUsage)
+    created_at: float = field(default_factory=time.time)
+    started_at: Optional[float] = None
+    completed_at: Optional[float] = None
+    error: Optional[str] = None
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "agent_id": self.agent_id,
+            "agent_type": self.agent_type.value,
+            "mission_id": self.mission_id,
+            "parent_agent_id": self.parent_agent_id,
+            "task_id": self.task_id,
+            "context_id": self.context_id,
+            "worktree_id": self.worktree_id,
+            "execution_mode": self.execution_mode,
+            "status": self.status.value,
+            "budget": self.budget.to_dict(),
+            "tool_policy": self.tool_policy.to_dict(),
+            "resource_usage": self.resource_usage.to_dict(),
+            "created_at": self.created_at,
+            "started_at": self.started_at,
+            "completed_at": self.completed_at,
+            "error": self.error,
+        }
+
+
+@dataclass
+class SubagentTaskRecord:
+    task_id: str
+    parent_task_id: Optional[str] = None
+    mission_id: str = ""
+    goal_id: Optional[str] = None
+    requirement_ids: List[str] = field(default_factory=list)
+    todo_ids: List[str] = field(default_factory=list)
+    title: str = ""
+    description: str = ""
+    mode: str = "auto"
+    status: SubagentStatus = SubagentStatus.CREATED
+    agent_id: Optional[str] = None
+    owner_agent_id: str = ""
+    parent_agent_id: Optional[str] = None
+    depth: int = 0
+    created_at: float = field(default_factory=time.time)
+    started_at: Optional[float] = None
+    completed_at: Optional[float] = None
+
+    def to_dict(self) -> Dict[str, Any]:
+        d = asdict(self)
+        d["status"] = self.status.value
+        return d
+
+
+@dataclass
+class WorktreeRecord:
+    worktree_id: str
+    path: str
+    branch: str
+    base_commit: str
+    agent_id: str
+    task_id: str
+    status: WorktreeStatus = WorktreeStatus.CREATED
+    created_at: float = field(default_factory=time.time)
+    deleted_at: Optional[float] = None
+    dirty: bool = False
+    sparse_paths: List[str] = field(default_factory=list)
+
+    def to_dict(self) -> Dict[str, Any]:
+        d = asdict(self)
+        d["status"] = self.status.value
+        return d
+
+
+@dataclass
+class BackgroundJobRecord:
+    job_id: str
+    owner_agent_id: str
+    task_id: str
+    kind: JobKind = JobKind.SUBAGENT
+    status: JobStatus = JobStatus.QUEUED
+    started_at: float = field(default_factory=time.time)
+    completed_at: Optional[float] = None
+    pid: Optional[int] = None
+    process_group: Optional[int] = None
+    worktree_id: Optional[str] = None
+    artifact_ref: Optional[str] = None
+    exit_code: Optional[int] = None
+    error: Optional[str] = None
+    command: Optional[str] = None
+    cwd: str = ""
+    lifecycle: JobLifecycle = JobLifecycle.CHILD_BOUND
+
+    def to_dict(self) -> Dict[str, Any]:
+        d = asdict(self)
+        d["kind"] = self.kind.value
+        d["status"] = self.status.value
+        d["lifecycle"] = self.lifecycle.value
+        return d
+
+
 # ── Canonical Root State Tree ────────────────────────────────────────────────
 
 @dataclass
@@ -826,6 +1145,12 @@ class HermesRuntimeState:
     todos: Dict[str, TodoState] = field(default_factory=dict)
     plan: Optional[PlanState] = None
     execution_mode: ExecutionMode = ExecutionMode.EXECUTION_MODE
+
+    # Prompt 10 extensions: Subagents, Delegated Tasks, Worktrees, and Background Jobs
+    agents: Dict[str, AgentRecord] = field(default_factory=dict)
+    subagent_tasks: Dict[str, SubagentTaskRecord] = field(default_factory=dict)
+    worktrees: Dict[str, WorktreeRecord] = field(default_factory=dict)
+    background_jobs: Dict[str, BackgroundJobRecord] = field(default_factory=dict)
 
     state_version: int = 0
     last_event_sequence: int = 0
@@ -869,6 +1194,10 @@ class HermesRuntimeState:
             "todos": {k: v.to_dict() for k, v in self.todos.items()},
             "plan": self.plan.to_dict() if self.plan else None,
             "execution_mode": self.execution_mode.value,
+            "agents": {k: v.to_dict() for k, v in self.agents.items()},
+            "subagent_tasks": {k: v.to_dict() for k, v in self.subagent_tasks.items()},
+            "worktrees": {k: v.to_dict() for k, v in self.worktrees.items()},
+            "background_jobs": {k: v.to_dict() for k, v in self.background_jobs.items()},
             "state_version": self.state_version,
             "last_event_sequence": self.last_event_sequence,
             "last_updated_at": self.last_updated_at,

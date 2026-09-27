@@ -37,6 +37,7 @@ import subprocess
 import sys
 import tempfile
 import time
+import uuid
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Tuple
 from pydantic import BaseModel, Field
@@ -1010,30 +1011,96 @@ class TaskTodoTool(BaseTool):
 # ─────────────────────────────────────────────────────────────────────────────
 
 class TaskDelegateInput(BaseModel):
-    target_role: str = Field(..., description="Target subagent role (e.g. 'researcher', 'debugger')")
+    target_role: str = Field(default="explorer", description="Target subagent role: explorer, reviewer, tester, implementer, analyst")
     objective: str = Field(..., description="Specific subtask or objective to delegate")
     context_files: List[str] = Field(default_factory=list, description="Relevant files for the subagent")
     constraints: Optional[str] = Field(None, description="Execution constraints or parameters")
+    requirements: List[str] = Field(default_factory=list, description="Specific goal requirements assigned")
+    is_background: bool = Field(default=False, description="Run as asynchronous background task")
 
 
 class TaskDelegateTool(BaseTool):
     name = "task.delegate"
     description = (
-        "Request delegation of a self-contained subtask to a specialized subagent. "
-        "Returns structured NOT_AVAILABLE if subagent subsystem is not enabled."
+        "Delegate an isolated subtask to a specialized subagent (explorer, reviewer, tester, implementer). "
+        "The child subagent runs with an isolated context and strictly enforced tool permissions."
     )
     risk_score = 0.2
     blocked_in = []
 
     def execute(self, inp: Any) -> ToolResult:
-        # Prompt 5 defines the formal delegation boundary contract; full subagents are deferred to Prompt 10.
         data = inp if isinstance(inp, dict) else (inp.model_dump() if hasattr(inp, "model_dump") else inp.dict())
-        role = data.get("target_role", "subagent")
+        role = data.get("target_role", "explorer")
         obj = data.get("objective", "")
+        files = data.get("context_files", [])
+        constraints = data.get("constraints")
+        requirements = data.get("requirements", [])
+        is_bg = data.get("is_background", False)
+
+        subagent_mgr = data.get("_subagent_manager")
+        if subagent_mgr is not None:
+            task_id = f"task_{uuid.uuid4().hex[:6]}"
+            try:
+                try:
+                    loop = asyncio.get_event_loop()
+                except RuntimeError:
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
+
+                if loop.is_running():
+                    coro = subagent_mgr.delegate_task(
+                        task_id=task_id,
+                        goal=obj,
+                        role=role,
+                        requirements=requirements,
+                        scope_paths=files,
+                        constraints=[constraints] if constraints else [],
+                        is_background=is_bg,
+                    )
+                    future = asyncio.run_coroutine_threadsafe(coro, loop)
+                    res = future.result(timeout=180.0)
+                else:
+                    res = loop.run_until_complete(
+                        subagent_mgr.delegate_task(
+                            task_id=task_id,
+                            goal=obj,
+                            role=role,
+                            requirements=requirements,
+                            scope_paths=files,
+                            constraints=[constraints] if constraints else [],
+                            is_background=is_bg,
+                        )
+                    )
+
+                if is_bg:
+                    return ToolResult(
+                        success=True,
+                        output=f"Background subagent task spawned successfully. Job ID: {res.job_id}",
+                        details=res.to_dict(),
+                    )
+                else:
+                    return ToolResult(
+                        success=(res.status.value in ("SUCCEEDED", "COMPLETED")),
+                        output=f"Subagent execution complete ({res.status.value}):\n{res.summary}",
+                        details=res.to_dict(),
+                    )
+            except Exception as e:
+                return ToolResult(
+                    success=False,
+                    error=f"SUBAGENT_DELEGATION_FAILED: {e}",
+                    exit_code=1,
+                )
+
         return ToolResult(
             success=False,
-            error=f"SUBAGENT_DELEGATION_NOT_AVAILABLE: Subagent delegation for role '{role}' is deferred to Prompt 10. Please handle objective '{obj[:50]}' directly in the current turn.",
+            error=f"SUBAGENT_DELEGATION_NOT_AVAILABLE: Subagent delegation for role '{role}' is not configured in this execution context. Please handle objective '{obj[:50]}' directly in the current turn.",
             exit_code=1,
+            details={
+                "role": role,
+                "objective": obj,
+                "context_files": files,
+                "is_background": is_bg,
+            },
         )
 
 

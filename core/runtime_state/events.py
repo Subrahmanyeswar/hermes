@@ -180,6 +180,44 @@ class EventType(str, Enum):
     TASK_FAILED = "TASK_FAILED"
     TASK_CANCELLED = "TASK_CANCELLED"
 
+    # Subagent Lifecycle (Prompt 10)
+    SUBAGENT_CREATED = "SUBAGENT_CREATED"
+    SUBAGENT_STARTED = "SUBAGENT_STARTED"
+    SUBAGENT_PROGRESS = "SUBAGENT_PROGRESS"
+    SUBAGENT_WAITING = "SUBAGENT_WAITING"
+    SUBAGENT_COMPLETED = "SUBAGENT_COMPLETED"
+    SUBAGENT_FAILED = "SUBAGENT_FAILED"
+    SUBAGENT_CANCELLED = "SUBAGENT_CANCELLED"
+    SUBAGENT_TIMED_OUT = "SUBAGENT_TIMED_OUT"
+    SUBAGENT_RESOURCE_EXCEEDED = "SUBAGENT_RESOURCE_EXCEEDED"
+
+    # Background Job Lifecycle (Prompt 10)
+    BACKGROUND_JOB_CREATED = "BACKGROUND_JOB_CREATED"
+    BACKGROUND_JOB_STARTED = "BACKGROUND_JOB_STARTED"
+    BACKGROUND_JOB_OUTPUT_AVAILABLE = "BACKGROUND_JOB_OUTPUT_AVAILABLE"
+    BACKGROUND_JOB_WAITING = "BACKGROUND_JOB_WAITING"
+    BACKGROUND_JOB_COMPLETED = "BACKGROUND_JOB_COMPLETED"
+    BACKGROUND_JOB_FAILED = "BACKGROUND_JOB_FAILED"
+    BACKGROUND_JOB_CANCEL_REQUESTED = "BACKGROUND_JOB_CANCEL_REQUESTED"
+    BACKGROUND_JOB_CANCELLED = "BACKGROUND_JOB_CANCELLED"
+    BACKGROUND_JOB_TIMED_OUT = "BACKGROUND_JOB_TIMED_OUT"
+    BACKGROUND_JOB_ORPHANED = "BACKGROUND_JOB_ORPHANED"
+
+    # Worktree Lifecycle (Prompt 10)
+    WORKTREE_CREATED = "WORKTREE_CREATED"
+    WORKTREE_READY = "WORKTREE_READY"
+    WORKTREE_DIRTY = "WORKTREE_DIRTY"
+    WORKTREE_INTEGRATION_STARTED = "WORKTREE_INTEGRATION_STARTED"
+    WORKTREE_INTEGRATION_COMPLETED = "WORKTREE_INTEGRATION_COMPLETED"
+    WORKTREE_INTEGRATION_FAILED = "WORKTREE_INTEGRATION_FAILED"
+    WORKTREE_ORPHANED = "WORKTREE_ORPHANED"
+    WORKTREE_CLEANED = "WORKTREE_CLEANED"
+
+    # Resource Limit Lifecycle (Prompt 10)
+    RESOURCE_LIMIT_WARNING = "RESOURCE_LIMIT_WARNING"
+    RESOURCE_LIMIT_REACHED = "RESOURCE_LIMIT_REACHED"
+    RESOURCE_LIMIT_TERMINATED = "RESOURCE_LIMIT_TERMINATED"
+
     # Model Lifecycle
     MODEL_REQUEST_STARTED = "MODEL_REQUEST_STARTED"
     MODEL_REQUESTED = "MODEL_REQUESTED"
@@ -310,7 +348,7 @@ class HermesEvent:
     and safe, redacted payloads.
     """
     event_type: EventType
-    mission_id: str
+    mission_id: str = ""
     task_id: Optional[str] = None
     event_id: str = field(default_factory=lambda: uuid.uuid4().hex[:10])
     timestamp: float = field(default_factory=time.time)
@@ -322,6 +360,10 @@ class HermesEvent:
     tool_call_id: Optional[str] = None
     verification_id: Optional[str] = None
     checkpoint_id: Optional[str] = None
+    agent_id: Optional[str] = None
+    parent_agent_id: Optional[str] = None
+    job_id: Optional[str] = None
+    worktree_id: Optional[str] = None
     stage: str = "EXECUTION"
     payload: Dict[str, Any] = field(default_factory=dict)
     severity: EventSeverity = EventSeverity.INFO

@@ -46,6 +46,23 @@ from core.runtime_state.models import (
     RequirementStatus,
     TodoState,
     TodoStatus,
+    AgentType,
+    SubagentStatus,
+    JobKind,
+    JobStatus,
+    JobLifecycle,
+    WorktreeStatus,
+    WorktreeMode,
+    WorktreeIntegrationPolicy,
+    SubagentToolPolicy,
+    SubagentBudget,
+    AgentResourceUsage,
+    SubagentResult,
+    SubagentHandoff,
+    AgentRecord,
+    SubagentTaskRecord,
+    WorktreeRecord,
+    BackgroundJobRecord,
 )
 from core.runtime_state.events import HermesEvent, EventType
 
@@ -778,6 +795,244 @@ class StateReducer:
 
         elif et == EventType.PLAN_MODE_EXITED:
             state.execution_mode = ExecutionMode.EXECUTION_MODE
+
+        # ── 15. Subagent Lifecycle ────────────────────────────────────────────
+        aid = event.agent_id or payload.get("agent_id")
+        subtask_id = event.task_id or payload.get("task_id")
+
+        if et == EventType.SUBAGENT_CREATED:
+            if aid:
+                agent_type_str = payload.get("agent_type", "CUSTOM")
+                try:
+                    agent_type = AgentType(agent_type_str)
+                except ValueError:
+                    agent_type = AgentType.CUSTOM
+                state.agents[aid] = AgentRecord(
+                    agent_id=aid,
+                    agent_type=agent_type,
+                    mission_id=state.mission.mission_id,
+                    parent_agent_id=event.parent_agent_id or payload.get("parent_agent_id"),
+                    task_id=subtask_id,
+                    context_id=payload.get("context_id", ""),
+                    worktree_id=event.worktree_id or payload.get("worktree_id"),
+                    execution_mode=payload.get("execution_mode", "EXECUTION_MODE"),
+                    status=SubagentStatus.CREATED,
+                    budget=SubagentBudget(**payload["budget"]) if "budget" in payload and isinstance(payload["budget"], dict) else SubagentBudget(),
+                    tool_policy=SubagentToolPolicy(**payload["tool_policy"]) if "tool_policy" in payload and isinstance(payload["tool_policy"], dict) else SubagentToolPolicy(),
+                    created_at=event.timestamp,
+                )
+            if subtask_id and subtask_id not in state.subagent_tasks:
+                state.subagent_tasks[subtask_id] = SubagentTaskRecord(
+                    task_id=subtask_id,
+                    parent_task_id=payload.get("parent_task_id"),
+                    mission_id=state.mission.mission_id,
+                    goal_id=payload.get("goal_id", state.goal.goal_id),
+                    requirement_ids=payload.get("requirement_ids", []),
+                    todo_ids=payload.get("todo_ids", []),
+                    title=payload.get("title", subtask_id),
+                    description=payload.get("description", ""),
+                    mode=payload.get("mode", "auto"),
+                    status=SubagentStatus.CREATED,
+                    agent_id=aid,
+                    owner_agent_id=payload.get("owner_agent_id", "primary"),
+                    parent_agent_id=event.parent_agent_id or payload.get("parent_agent_id"),
+                    depth=payload.get("depth", 0),
+                    created_at=event.timestamp,
+                )
+
+        elif et == EventType.SUBAGENT_STARTED:
+            if aid and aid in state.agents and not state.agents[aid].status.is_terminal:
+                state.agents[aid].status = SubagentStatus.RUNNING
+                state.agents[aid].started_at = event.timestamp
+            if subtask_id and subtask_id in state.subagent_tasks and not state.subagent_tasks[subtask_id].status.is_terminal:
+                state.subagent_tasks[subtask_id].status = SubagentStatus.RUNNING
+                state.subagent_tasks[subtask_id].started_at = event.timestamp
+
+        elif et == EventType.SUBAGENT_PROGRESS:
+            if aid and aid in state.agents:
+                rec = state.agents[aid]
+                if "turns" in payload:
+                    rec.resource_usage.turns = payload["turns"]
+                if "tool_calls" in payload:
+                    rec.resource_usage.tool_calls = payload["tool_calls"]
+                if "wall_time_ms" in payload:
+                    rec.resource_usage.wall_time_ms = payload["wall_time_ms"]
+                if "input_tokens" in payload:
+                    rec.resource_usage.input_tokens = payload["input_tokens"]
+                if "output_tokens" in payload:
+                    rec.resource_usage.output_tokens = payload["output_tokens"]
+
+        elif et == EventType.SUBAGENT_WAITING:
+            if aid and aid in state.agents and not state.agents[aid].status.is_terminal:
+                state.agents[aid].status = SubagentStatus.WAITING
+
+        elif et == EventType.SUBAGENT_COMPLETED:
+            if aid and aid in state.agents and not state.agents[aid].status.is_terminal:
+                state.agents[aid].status = SubagentStatus.SUCCEEDED
+                state.agents[aid].completed_at = event.timestamp
+            if subtask_id and subtask_id in state.subagent_tasks and not state.subagent_tasks[subtask_id].status.is_terminal:
+                state.subagent_tasks[subtask_id].status = SubagentStatus.SUCCEEDED
+                state.subagent_tasks[subtask_id].completed_at = event.timestamp
+
+        elif et == EventType.SUBAGENT_FAILED:
+            if aid and aid in state.agents and not state.agents[aid].status.is_terminal:
+                state.agents[aid].status = SubagentStatus.FAILED
+                state.agents[aid].completed_at = event.timestamp
+                state.agents[aid].error = payload.get("error", "Execution failed")
+            if subtask_id and subtask_id in state.subagent_tasks and not state.subagent_tasks[subtask_id].status.is_terminal:
+                state.subagent_tasks[subtask_id].status = SubagentStatus.FAILED
+                state.subagent_tasks[subtask_id].completed_at = event.timestamp
+
+        elif et == EventType.SUBAGENT_CANCELLED:
+            if aid and aid in state.agents and not state.agents[aid].status.is_terminal:
+                state.agents[aid].status = SubagentStatus.CANCELLED
+                state.agents[aid].completed_at = event.timestamp
+            if subtask_id and subtask_id in state.subagent_tasks and not state.subagent_tasks[subtask_id].status.is_terminal:
+                state.subagent_tasks[subtask_id].status = SubagentStatus.CANCELLED
+                state.subagent_tasks[subtask_id].completed_at = event.timestamp
+
+        elif et == EventType.SUBAGENT_TIMED_OUT:
+            if aid and aid in state.agents and not state.agents[aid].status.is_terminal:
+                state.agents[aid].status = SubagentStatus.TIMED_OUT
+                state.agents[aid].completed_at = event.timestamp
+                state.agents[aid].error = payload.get("error", "Execution timed out")
+            if subtask_id and subtask_id in state.subagent_tasks and not state.subagent_tasks[subtask_id].status.is_terminal:
+                state.subagent_tasks[subtask_id].status = SubagentStatus.TIMED_OUT
+                state.subagent_tasks[subtask_id].completed_at = event.timestamp
+
+        elif et == EventType.SUBAGENT_RESOURCE_EXCEEDED:
+            if aid and aid in state.agents and not state.agents[aid].status.is_terminal:
+                state.agents[aid].status = SubagentStatus.RESOURCE_EXCEEDED
+                state.agents[aid].completed_at = event.timestamp
+                state.agents[aid].error = payload.get("reason", "Resource limit exceeded")
+            if subtask_id and subtask_id in state.subagent_tasks and not state.subagent_tasks[subtask_id].status.is_terminal:
+                state.subagent_tasks[subtask_id].status = SubagentStatus.RESOURCE_EXCEEDED
+                state.subagent_tasks[subtask_id].completed_at = event.timestamp
+
+        # ── 16. Background Jobs Lifecycle ─────────────────────────────────────
+        jid = event.job_id or payload.get("job_id")
+        if et == EventType.BACKGROUND_JOB_CREATED:
+            if jid:
+                kind_str = payload.get("kind", "SUBAGENT")
+                try:
+                    kind_enum = JobKind(kind_str)
+                except ValueError:
+                    kind_enum = JobKind.SUBAGENT
+                lifecycle_str = payload.get("lifecycle", "CHILD_BOUND")
+                try:
+                    lc_enum = JobLifecycle(lifecycle_str)
+                except ValueError:
+                    lc_enum = JobLifecycle.CHILD_BOUND
+                state.background_jobs[jid] = BackgroundJobRecord(
+                    job_id=jid,
+                    owner_agent_id=payload.get("owner_agent_id", "primary"),
+                    task_id=subtask_id or "",
+                    kind=kind_enum,
+                    status=JobStatus.QUEUED,
+                    started_at=event.timestamp,
+                    pid=payload.get("pid"),
+                    worktree_id=event.worktree_id or payload.get("worktree_id"),
+                    command=payload.get("command"),
+                    cwd=payload.get("cwd", ""),
+                    lifecycle=lc_enum,
+                )
+
+        elif et == EventType.BACKGROUND_JOB_STARTED:
+            if jid and jid in state.background_jobs and not state.background_jobs[jid].status.is_terminal:
+                state.background_jobs[jid].status = JobStatus.RUNNING
+                state.background_jobs[jid].started_at = event.timestamp
+                if "pid" in payload:
+                    state.background_jobs[jid].pid = payload["pid"]
+
+        elif et == EventType.BACKGROUND_JOB_WAITING:
+            if jid and jid in state.background_jobs and not state.background_jobs[jid].status.is_terminal:
+                state.background_jobs[jid].status = JobStatus.WAITING
+
+        elif et == EventType.BACKGROUND_JOB_CANCEL_REQUESTED:
+            if jid and jid in state.background_jobs and not state.background_jobs[jid].status.is_terminal:
+                state.background_jobs[jid].status = JobStatus.CANCEL_REQUESTED
+
+        elif et == EventType.BACKGROUND_JOB_COMPLETED:
+            if jid and jid in state.background_jobs and not state.background_jobs[jid].status.is_terminal:
+                state.background_jobs[jid].status = JobStatus.SUCCEEDED
+                state.background_jobs[jid].completed_at = event.timestamp
+                state.background_jobs[jid].exit_code = payload.get("exit_code", 0)
+                state.background_jobs[jid].artifact_ref = payload.get("artifact_ref")
+
+        elif et == EventType.BACKGROUND_JOB_FAILED:
+            if jid and jid in state.background_jobs and not state.background_jobs[jid].status.is_terminal:
+                state.background_jobs[jid].status = JobStatus.FAILED
+                state.background_jobs[jid].completed_at = event.timestamp
+                state.background_jobs[jid].exit_code = payload.get("exit_code", 1)
+                state.background_jobs[jid].error = payload.get("error")
+
+        elif et == EventType.BACKGROUND_JOB_CANCELLED:
+            if jid and jid in state.background_jobs and not state.background_jobs[jid].status.is_terminal:
+                state.background_jobs[jid].status = JobStatus.CANCELLED
+                state.background_jobs[jid].completed_at = event.timestamp
+
+        elif et == EventType.BACKGROUND_JOB_TIMED_OUT:
+            if jid and jid in state.background_jobs and not state.background_jobs[jid].status.is_terminal:
+                state.background_jobs[jid].status = JobStatus.TIMED_OUT
+                state.background_jobs[jid].completed_at = event.timestamp
+                state.background_jobs[jid].error = payload.get("error", "Job timed out")
+
+        elif et == EventType.BACKGROUND_JOB_ORPHANED:
+            if jid and jid in state.background_jobs:
+                state.background_jobs[jid].status = JobStatus.ORPHANED
+                state.background_jobs[jid].completed_at = event.timestamp
+
+        # ── 17. Worktree Lifecycle ────────────────────────────────────────────
+        wid = event.worktree_id or payload.get("worktree_id")
+        if et == EventType.WORKTREE_CREATED:
+            if wid:
+                state.worktrees[wid] = WorktreeRecord(
+                    worktree_id=wid,
+                    path=payload.get("path", ""),
+                    branch=payload.get("branch", ""),
+                    base_commit=payload.get("base_commit", ""),
+                    agent_id=aid or payload.get("agent_id", ""),
+                    task_id=subtask_id or payload.get("task_id", ""),
+                    status=WorktreeStatus.CREATED,
+                    created_at=event.timestamp,
+                    sparse_paths=payload.get("sparse_paths", []),
+                )
+
+        elif et == EventType.WORKTREE_READY:
+            if wid and wid in state.worktrees:
+                state.worktrees[wid].status = WorktreeStatus.READY
+
+        elif et == EventType.WORKTREE_DIRTY:
+            if wid and wid in state.worktrees:
+                state.worktrees[wid].status = WorktreeStatus.IN_USE
+                state.worktrees[wid].dirty = True
+
+        elif et == EventType.WORKTREE_INTEGRATION_STARTED:
+            if wid and wid in state.worktrees:
+                state.worktrees[wid].status = WorktreeStatus.HANDOFF
+
+        elif et == EventType.WORKTREE_INTEGRATION_COMPLETED:
+            if wid and wid in state.worktrees:
+                state.worktrees[wid].status = WorktreeStatus.INTEGRATED
+
+        elif et == EventType.WORKTREE_INTEGRATION_FAILED:
+            if wid and wid in state.worktrees:
+                state.worktrees[wid].status = WorktreeStatus.CONFLICT
+
+        elif et == EventType.WORKTREE_ORPHANED:
+            if wid and wid in state.worktrees:
+                state.worktrees[wid].status = WorktreeStatus.ORPHANED
+
+        elif et == EventType.WORKTREE_CLEANED:
+            if wid and wid in state.worktrees:
+                state.worktrees[wid].status = WorktreeStatus.CLEANED
+                state.worktrees[wid].deleted_at = event.timestamp
+
+        # ── 18. Resource Limit Events ─────────────────────────────────────────
+        elif et == EventType.RESOURCE_LIMIT_TERMINATED:
+            if aid and aid in state.agents and not state.agents[aid].status.is_terminal:
+                state.agents[aid].status = SubagentStatus.RESOURCE_EXCEEDED
+                state.agents[aid].completed_at = event.timestamp
 
         return state
 

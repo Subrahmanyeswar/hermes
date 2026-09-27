@@ -69,6 +69,7 @@ class AgentLoop:
         abort_event: Optional[asyncio.Event] = None,
         user_input_callback: Optional[Callable[[str], Coroutine[Any, Any, str]]] = None,
         config: Optional[AgentLoopConfig] = None,
+        subagent_manager: Optional[Any] = None,
     ) -> None:
         self.orchestrator = orchestrator
         self.workspace = workspace_manager or global_workspace
@@ -98,6 +99,14 @@ class AgentLoop:
             project_intelligence=self.project_intelligence,
         )
         self.planning_service: Optional[MissionPlanningService] = None
+
+        # Subagents 2.x (Prompt 10)
+        from core.subagents.manager import SubagentManager
+        self.subagent_manager = subagent_manager or SubagentManager(
+            workspace_root=self.workspace.root_str if hasattr(self.workspace, "root_str") and self.workspace.root_str else Path.cwd(),
+            event_bus=self.event_bus,
+            state_store=self.state_store,
+        )
 
         # Runtime trackers
         self._start_time: float = 0.0
@@ -430,17 +439,46 @@ class AgentLoop:
                     turn_id=turn_id,
                     payload={"target": decision.delegation_target}
                 )
-                # Controlled NOT_AVAILABLE observation
-                del_obs = Observation(
-                    observation_id=f"obs_del_{uuid.uuid4().hex[:6]}",
-                    mission_id=self._mission_id,
-                    turn_id=turn_id,
-                    source_type="delegation",
-                    source_id="subagent_service",
-                    success=False,
-                    summary="Delegation service is not configured in this runtime.",
-                    content="Delegation is disabled. Please perform the action directly using available tools."
-                )
+                if self.subagent_manager:
+                    try:
+                        from core.runtime_state.models import AgentType
+                        from core.subagents.handoff import HandoffManager
+                        del_task_id = f"task_{uuid.uuid4().hex[:6]}"
+                        sub_res = await self.subagent_manager.delegate_task(
+                            task_id=del_task_id,
+                            goal=decision.delegation_target or "Delegated task",
+                            role=AgentType.EXPLORER,
+                            parent_agent_id="primary",
+                        )
+                        del_obs = HandoffManager.format_observation(
+                            result=sub_res,
+                            turn_id=turn_id,
+                            workspace_root=self.workspace.root_str if self.workspace.is_locked else Path.cwd(),
+                        )
+                        del_obs.mission_id = self._mission_id
+                    except Exception as sub_err:
+                        del_obs = Observation(
+                            observation_id=f"obs_del_{uuid.uuid4().hex[:6]}",
+                            mission_id=self._mission_id,
+                            turn_id=turn_id,
+                            source_type="delegation",
+                            source_id="subagent_manager",
+                            success=False,
+                            summary=f"Delegation error: {sub_err}",
+                            content=f"Subagent delegation failed: {sub_err}",
+                        )
+                else:
+                    # Controlled NOT_AVAILABLE observation
+                    del_obs = Observation(
+                        observation_id=f"obs_del_{uuid.uuid4().hex[:6]}",
+                        mission_id=self._mission_id,
+                        turn_id=turn_id,
+                        source_type="delegation",
+                        source_id="subagent_service",
+                        success=False,
+                        summary="Delegation service is not configured in this runtime.",
+                        content="Delegation is disabled. Please perform the action directly using available tools."
+                    )
                 self._record_observation(del_obs)
 
             elif decision.decision_type == AgentDecisionType.VERIFY:
