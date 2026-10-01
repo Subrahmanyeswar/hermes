@@ -250,6 +250,28 @@ async def handle_doctor(
     except Exception as e:
         checks.append(("Terminal Capabilities", "WARN", f"Capability detection fallback: {e}"))
 
+    # 8. LSP / Code Intelligence
+    try:
+        from core.code_intelligence.registry import lsp_registry
+        avail_servers = [s["language_id"] for s in lsp_registry.list_available_servers() if s["available"]]
+        if avail_servers:
+            checks.append(("LSP Servers", "PASS", f"Active: {', '.join(avail_servers)} (AST/Jedi fallback ready)"))
+        else:
+            checks.append(("LSP Servers", "PASS", "AST/Jedi fallback active (No external LSP binary found)"))
+    except Exception as e:
+        checks.append(("LSP Servers", "WARN", f"LSP check error: {e}"))
+
+    # 9. Browser Subsystem
+    try:
+        from core.browser.driver import CdpBrowserDriver
+        browser_bin = CdpBrowserDriver._find_browser_binary()
+        if browser_bin:
+            checks.append(("Browser Engine", "PASS", f"Live CDP ready ({Path(browser_bin).name})"))
+        else:
+            checks.append(("Browser Engine", "PASS", "Simulated driver ready (Edge/Chrome binary not found)"))
+    except Exception as e:
+        checks.append(("Browser Engine", "WARN", f"Browser check error: {e}"))
+
     lines = ["HERMES System Diagnostics (/doctor)", "=" * 40]
     all_pass = True
     for name, status, detail in checks:

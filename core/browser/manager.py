@@ -1,0 +1,164 @@
+# core/browser/manager.py
+"""
+Browser Manager for HERMES 2.x (Prompt 17).
+Orchestrates browser automation, driver selection (CDP vs Simulated),
+dev server management, screenshot artifact persistence, and security enforcement.
+"""
+
+from __future__ import annotations
+
+import asyncio
+import hashlib
+import logging
+import os
+import time
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Union
+
+from core.browser.dev_server import DevServerInfo, DevServerManager
+from core.browser.driver import BrowserDriver, CdpBrowserDriver, SimulatedBrowserDriver
+from core.browser.models import (
+    ActionResult,
+    BrowserSessionConfig,
+    ConsoleMessage,
+    InspectResult,
+    NavigationResult,
+    NetworkRequestRecord,
+    ScreenshotArtifact,
+    Viewport,
+)
+from core.browser.security import BrowserSecurityManager, BrowserSecurityViolation
+
+logger = logging.getLogger("hermes.browser.manager")
+
+
+class BrowserManager:
+    """Canonical manager for browser sessions and web testing."""
+
+    def __init__(
+        self,
+        artifacts_dir: Optional[Path | str] = None,
+        security_manager: Optional[BrowserSecurityManager] = None,
+        prefer_cdp: bool = True,
+    ) -> None:
+        self.artifacts_dir = Path(artifacts_dir or "artifacts/browser").resolve()
+        self.artifacts_dir.mkdir(parents=True, exist_ok=True)
+        self.security = security_manager or BrowserSecurityManager()
+        self.dev_servers = DevServerManager()
+
+        self.driver: Optional[BrowserDriver] = None
+        self._prefer_cdp = prefer_cdp
+        self._is_active: bool = False
+        self._generation: int = 1
+
+    @property
+    def is_active(self) -> bool:
+        return self._is_active and self.driver is not None
+
+    async def launch(
+        self,
+        headless: bool = True,
+        viewport: Optional[Viewport] = None,
+        timeout: float = 30.0,
+    ) -> bool:
+        """Launch a fresh browser session."""
+        if self.is_active:
+            await self.close()
+
+        cfg = BrowserSessionConfig(
+            headless=headless,
+            viewport=viewport or Viewport.desktop(),
+            timeout=timeout,
+        )
+
+        # Driver selection
+        cdp_driver = CdpBrowserDriver(security_manager=self.security)
+        if self._prefer_cdp and cdp_driver.is_available:
+            try:
+                launched = await cdp_driver.launch(cfg)
+                if launched:
+                    self.driver = cdp_driver
+                    self._is_active = True
+                    logger.info("BrowserManager: launched real CDP browser driver")
+                    return True
+            except Exception as e:
+                logger.warning(f"Failed to launch CDP browser driver, falling back to Simulated: {e}")
+
+        # Fallback to simulated in-memory browser
+        sim_driver = SimulatedBrowserDriver(security_manager=self.security)
+        await sim_driver.launch(cfg)
+        self.driver = sim_driver
+        self._is_active = True
+        logger.info("BrowserManager: launched Simulated browser driver")
+        return True
+
+    async def navigate(self, url: str) -> NavigationResult:
+        """Navigate active browser session to URL."""
+        if not self.is_active:
+            await self.launch()
+        assert self.driver is not None
+        return await self.driver.navigate(url)
+
+    async def click(self, target: str) -> ActionResult:
+        """Click an element identified by selector, ID, or visible text."""
+        if not self.is_active:
+            raise RuntimeError("Browser session is not active")
+        assert self.driver is not None
+        return await self.driver.click(target)
+
+    async def type_text(self, target: str, text: str, is_secret: bool = False) -> ActionResult:
+        """Type text into an input field or textarea."""
+        if not self.is_active:
+            raise RuntimeError("Browser session is not active")
+        assert self.driver is not None
+        return await self.driver.type_text(target, text, is_secret=is_secret)
+
+    type = type_text
+
+    async def inspect(self, selector: Optional[str] = None) -> InspectResult:
+        """Inspect visible DOM tree and interactive elements."""
+        if not self.is_active:
+            raise RuntimeError("Browser session is not active")
+        assert self.driver is not None
+        return await self.driver.inspect_dom(selector)
+
+    async def capture_screenshot(
+        self,
+        name: str = "screenshot",
+        viewport: Optional[Viewport] = None,
+    ) -> ScreenshotArtifact:
+        """Capture screenshot and store it in artifacts directory with SHA-256 digest."""
+        if not self.is_active:
+            raise RuntimeError("Browser session is not active")
+        assert self.driver is not None
+
+        timestamp = int(time.time() * 1000)
+        file_path = self.artifacts_dir / f"{name}_{timestamp}.png"
+        artifact = await self.driver.capture_screenshot(file_path, viewport=viewport)
+        artifact.generation = self._generation
+        return artifact
+
+    def get_console_messages(self) -> List[ConsoleMessage]:
+        """Fetch all recorded console messages."""
+        if not self.driver:
+            return []
+        return self.driver.get_console_messages()
+
+    def get_network_records(self) -> List[NetworkRequestRecord]:
+        """Fetch all recorded network requests/responses."""
+        if not self.driver:
+            return []
+        return self.driver.get_network_records()
+
+    async def close(self) -> None:
+        """Cleanly terminate browser session and stop managed dev servers."""
+        if self.driver:
+            try:
+                await self.driver.close()
+            except Exception as e:
+                logger.warning(f"Error closing browser driver: {e}")
+            self.driver = None
+
+        self.dev_servers.stop_all()
+        self._is_active = False
+        self._generation += 1

@@ -1,0 +1,46 @@
+{
+  "task_id": "reg_browser_navigation_health",
+  "task_name": "Browser Headless Navigation Health",
+  "category": "REGRESSION",
+  "trial_count": 1,
+  "pass_count": 1,
+  "fail_count": 0,
+  "blocked_count": 0,
+  "pass_rate": 1.0,
+  "is_flaky": false,
+  "median_duration": 0.0,
+  "p95_duration": 0.0,
+  "failure_modes": [],
+  "overall_status": "PASS",
+  "trials": [
+    {
+      "trial_id": "tr_reg_browser_navigation_health_1_e9c6b7",
+      "trial_index": 1,
+      "status": "PASS",
+      "duration": 0.0,
+      "functional": null,
+      "visual": null,
+      "tool_metrics": {
+        "total_calls": 0,
+        "lsp_calls": 0,
+        "browser_calls": 0,
+        "test_calls": 0,
+        "shell_calls": 0,
+        "file_calls": 0,
+        "failed_calls": 0,
+        "redundant_calls": 0
+      },
+      "latency_breakdown": {
+        "time_to_first_model": 0.0,
+        "time_in_model": 0.0,
+        "time_in_lsp": 0.0,
+        "time_in_browser": 0.0,
+        "time_in_tests": 0.0,
+        "time_in_evaluator": 0.0,
+        "time_total": 0.0
+      },
+      "error": null
+    }
+  ],
+  "timestamp": 1790847247.4297078
+}

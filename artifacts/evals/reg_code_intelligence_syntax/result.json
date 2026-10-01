@@ -1,0 +1,78 @@
+{
+  "task_id": "reg_code_intelligence_syntax",
+  "task_name": "Code Intelligence Syntax Verification",
+  "category": "REGRESSION",
+  "trial_count": 1,
+  "pass_count": 1,
+  "fail_count": 0,
+  "blocked_count": 0,
+  "pass_rate": 1.0,
+  "is_flaky": false,
+  "median_duration": 0.0,
+  "p95_duration": 0.0,
+  "failure_modes": [],
+  "overall_status": "PASS",
+  "trials": [
+    {
+      "trial_id": "tr_reg_code_intelligence_syntax_1_d31fb6",
+      "trial_index": 1,
+      "status": "PASS",
+      "duration": 0.0,
+      "functional": {
+        "evaluation_id": "eval_fad69acb",
+        "task_id": "reg_code_intelligence_syntax",
+        "status": "PASS",
+        "passed_checks": 1,
+        "failed_checks": 0,
+        "blocked_checks": 0,
+        "duration": 0.0,
+        "requirements": [
+          {
+            "req_id": "req_reg_code_intelligence_syntax",
+            "title": "Functional Requirements for Code Intelligence Syntax Verification",
+            "is_passed": true,
+            "checks": [
+              {
+                "check_id": "chk_main_syntax",
+                "name": "Main Entrypoint Syntax Valid",
+                "layer": "STATIC",
+                "is_required": true,
+                "status": "PASS",
+                "expected": "main.py",
+                "actual": "No syntax or compiler diagnostics errors detected.",
+                "duration": 0.0,
+                "failure_reason": null,
+                "evidence_ids": [],
+                "suspected_location": null
+              }
+            ]
+          }
+        ],
+        "findings": [],
+        "timestamp": 1790847247.4247956
+      },
+      "visual": null,
+      "tool_metrics": {
+        "total_calls": 0,
+        "lsp_calls": 0,
+        "browser_calls": 0,
+        "test_calls": 0,
+        "shell_calls": 0,
+        "file_calls": 0,
+        "failed_calls": 0,
+        "redundant_calls": 0
+      },
+      "latency_breakdown": {
+        "time_to_first_model": 0.0,
+        "time_in_model": 0.0,
+        "time_in_lsp": 0.0,
+        "time_in_browser": 0.0,
+        "time_in_tests": 0.0,
+        "time_in_evaluator": 0.0,
+        "time_total": 0.0
+      },
+      "error": null
+    }
+  ],
+  "timestamp": 1790847247.4247956
+}

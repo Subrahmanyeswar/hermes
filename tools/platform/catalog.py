@@ -62,7 +62,10 @@ class ToolCatalog:
             # ── 2. Bridge Legacy Registry Tools ──────────────────────────────
             self._bridge_legacy_registry()
 
-            # ── 3. Establish Canonical Aliases ───────────────────────────────
+            # ── 3. Register Prompt 17 Tools (LSP & Browser) ──────────────────
+            self._register_prompt17_tools()
+
+            # ── 4. Establish Canonical Aliases ───────────────────────────────
             self._register_aliases()
 
             self._initialized = True
@@ -569,6 +572,260 @@ class ToolCatalog:
                 tags=[cat, name],
             )
             self._specs[name] = spec
+
+    def _register_prompt17_tools(self) -> None:
+        """Register Prompt 17 LSP and Browser tools."""
+        try:
+            from core.code_intelligence.tools import (
+                LspDiagnosticsTool,
+                LspDefinitionTool,
+                LspReferencesTool,
+                LspSymbolsTool,
+                LspTypeInfoTool,
+                LspRenameTool,
+            )
+            from core.browser.tools import (
+                BrowserNavigateTool,
+                BrowserClickTool,
+                BrowserTypeTool,
+                BrowserInspectTool,
+                BrowserScreenshotTool,
+                BrowserConsoleTool,
+                BrowserNetworkTool,
+            )
+        except ImportError:
+            return
+
+        # ── LSP Tools ────────────────────────────────────────────────────────
+        lsp_tools = [
+            (
+                "lsp.diagnostics",
+                "LSP Diagnostics",
+                "Inspect compiler/linter diagnostics, syntax errors, and type warnings for a file.",
+                LspDiagnosticsTool,
+                {"file_path": {"type": "string", "description": "Path to file to inspect"}},
+                ["file_path"],
+                0.0,
+                RiskLevel.READ_ONLY,
+                ["lsp_diagnostics"],
+                ["lsp", "diagnostics", "lint", "syntax", "errors"],
+            ),
+            (
+                "lsp.definition",
+                "LSP Go to Definition",
+                "Find definition location of a symbol at specified line and column.",
+                LspDefinitionTool,
+                {
+                    "file_path": {"type": "string", "description": "Path to file"},
+                    "line": {"type": "integer", "description": "1-based line number"},
+                    "column": {"type": "integer", "description": "0-based column offset"},
+                },
+                ["file_path", "line", "column"],
+                0.0,
+                RiskLevel.READ_ONLY,
+                ["lsp_definition"],
+                ["lsp", "definition", "navigation", "symbols"],
+            ),
+            (
+                "lsp.references",
+                "LSP Find References",
+                "Find all references to a symbol across the workspace.",
+                LspReferencesTool,
+                {
+                    "file_path": {"type": "string", "description": "Path to file"},
+                    "line": {"type": "integer", "description": "1-based line number"},
+                    "column": {"type": "integer", "description": "0-based column offset"},
+                    "include_declaration": {"type": "boolean", "description": "Include declaration in results"},
+                },
+                ["file_path", "line", "column"],
+                0.0,
+                RiskLevel.READ_ONLY,
+                ["lsp_references"],
+                ["lsp", "references", "usage", "callers"],
+            ),
+            (
+                "lsp.symbols",
+                "LSP Document Symbols",
+                "List all functions, classes, and variables defined in a document.",
+                LspSymbolsTool,
+                {"file_path": {"type": "string", "description": "Path to file"}},
+                ["file_path"],
+                0.0,
+                RiskLevel.READ_ONLY,
+                ["lsp_symbols"],
+                ["lsp", "symbols", "outline", "structure"],
+            ),
+            (
+                "lsp.type_info",
+                "LSP Type Information",
+                "Get hover signature, type info, and docstrings for symbol at position.",
+                LspTypeInfoTool,
+                {
+                    "file_path": {"type": "string", "description": "Path to file"},
+                    "line": {"type": "integer", "description": "1-based line number"},
+                    "column": {"type": "integer", "description": "0-based column offset"},
+                },
+                ["file_path", "line", "column"],
+                0.0,
+                RiskLevel.READ_ONLY,
+                ["lsp_type_info", "lsp_hover"],
+                ["lsp", "hover", "type", "signature", "docs"],
+            ),
+            (
+                "lsp.rename",
+                "LSP Semantic Rename",
+                "Safely rename a symbol across the workspace using language server or AST.",
+                LspRenameTool,
+                {
+                    "file_path": {"type": "string", "description": "Path to file"},
+                    "line": {"type": "integer", "description": "1-based line number"},
+                    "column": {"type": "integer", "description": "0-based column offset"},
+                    "new_name": {"type": "string", "description": "New identifier name"},
+                    "apply": {"type": "boolean", "description": "Whether to apply edits to disk immediately"},
+                },
+                ["file_path", "line", "column", "new_name"],
+                0.5,
+                RiskLevel.MEDIUM,
+                ["lsp_rename"],
+                ["lsp", "rename", "refactor"],
+            ),
+        ]
+
+        for canon_name, disp_name, desc, cls, params, req, risk_s, risk_l, aliases, tags in lsp_tools:
+            spec = ToolSpec(
+                canonical_name=canon_name,
+                display_name=disp_name,
+                description=desc,
+                category="lsp",
+                version="1.0",
+                schema=ToolSchema(
+                    name=canon_name,
+                    description=desc,
+                    parameters={"type": "object", "properties": params, "required": req},
+                    required=req,
+                ),
+                risk=RiskMetadata(risk_score=risk_s, risk_level=risk_l, writes_files=canon_name == "lsp.rename"),
+                implementation_cls=cls,
+                aliases=aliases,
+                tags=tags,
+            )
+            self._specs[canon_name] = spec
+            for al in aliases:
+                self._aliases[al] = canon_name
+
+        # ── Browser Tools ────────────────────────────────────────────────────
+        browser_tools = [
+            (
+                "browser.navigate",
+                "Browser Navigate",
+                "Navigate browser to a specified URL.",
+                BrowserNavigateTool,
+                {"url": {"type": "string", "description": "URL to navigate to"}},
+                ["url"],
+                0.2,
+                RiskLevel.LOW,
+                ["browser_navigate"],
+                ["browser", "navigate", "url", "web"],
+            ),
+            (
+                "browser.click",
+                "Browser Click",
+                "Click an interactive element in the browser matching a selector.",
+                BrowserClickTool,
+                {"selector": {"type": "string", "description": "CSS selector or element text/ID to click"}},
+                ["selector"],
+                0.2,
+                RiskLevel.LOW,
+                ["browser_click"],
+                ["browser", "click", "interact", "dom"],
+            ),
+            (
+                "browser.type",
+                "Browser Type Text",
+                "Type text into an input or textarea element matching a selector.",
+                BrowserTypeTool,
+                {
+                    "selector": {"type": "string", "description": "CSS selector or input identifier"},
+                    "text": {"type": "string", "description": "Text to type into input"},
+                    "clear_first": {"type": "boolean", "description": "Whether to clear input before typing"},
+                },
+                ["selector", "text"],
+                0.2,
+                RiskLevel.LOW,
+                ["browser_type"],
+                ["browser", "type", "input", "form"],
+            ),
+            (
+                "browser.inspect",
+                "Browser Inspect DOM",
+                "Inspect interactive elements, accessibility tree, and structure of current page.",
+                BrowserInspectTool,
+                {"selector": {"type": "string", "description": "Optional CSS selector to scope inspection"}},
+                [],
+                0.0,
+                RiskLevel.READ_ONLY,
+                ["browser_inspect"],
+                ["browser", "inspect", "dom", "accessibility"],
+            ),
+            (
+                "browser.screenshot",
+                "Browser Screenshot",
+                "Capture a screenshot of current page at specified viewport dimensions.",
+                BrowserScreenshotTool,
+                {"viewport": {"type": "string", "description": "Viewport: desktop, tablet, or mobile", "enum": ["desktop", "tablet", "mobile"]}},
+                [],
+                0.1,
+                RiskLevel.READ_ONLY,
+                ["browser_screenshot"],
+                ["browser", "screenshot", "visual", "capture"],
+            ),
+            (
+                "browser.console",
+                "Browser Console Logs",
+                "Get captured browser console messages and runtime errors.",
+                BrowserConsoleTool,
+                {"min_level": {"type": "string", "description": "Minimum level: info, warn, error"}},
+                [],
+                0.0,
+                RiskLevel.READ_ONLY,
+                ["browser_console"],
+                ["browser", "console", "logs", "errors"],
+            ),
+            (
+                "browser.network",
+                "Browser Network Activity",
+                "Get recorded network HTTP requests and responses from the browser.",
+                BrowserNetworkTool,
+                {"include_static": {"type": "boolean", "description": "Include static assets like CSS/images"}},
+                [],
+                0.0,
+                RiskLevel.READ_ONLY,
+                ["browser_network"],
+                ["browser", "network", "requests", "http"],
+            ),
+        ]
+
+        for canon_name, disp_name, desc, cls, params, req, risk_s, risk_l, aliases, tags in browser_tools:
+            spec = ToolSpec(
+                canonical_name=canon_name,
+                display_name=disp_name,
+                description=desc,
+                category="browser",
+                version="1.0",
+                schema=ToolSchema(
+                    name=canon_name,
+                    description=desc,
+                    parameters={"type": "object", "properties": params, "required": req},
+                    required=req,
+                ),
+                risk=RiskMetadata(risk_score=risk_s, risk_level=risk_l),
+                implementation_cls=cls,
+                aliases=aliases,
+                tags=tags,
+            )
+            self._specs[canon_name] = spec
+            for al in aliases:
+                self._aliases[al] = canon_name
 
     def _register_aliases(self) -> None:
         """Register legacy aliases and standard shortcuts."""

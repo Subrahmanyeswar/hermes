@@ -28,6 +28,7 @@ scratch/
 generated_projects/
 .artifacts/
 .hermes/
+artifacts/browser/
 
 # Historical benchmark artifacts and optimization probes (preserved locally, excluded from release)
 artifacts/context/

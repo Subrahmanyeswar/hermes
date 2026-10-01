@@ -534,5 +534,79 @@ def tasks():
     res = asyncio.run(handle_tasks(intent))
     typer.echo(res.message)
 
+@app.command(name="eval")
+def run_eval(
+    suite: str = typer.Option("capability", "--suite", "-s", help="Suite category: capability, regression, heldout, all"),
+    task: Optional[str] = typer.Option(None, "--task", "-t", help="Specific task ID to run"),
+    trials: Optional[int] = typer.Option(None, "--trials", help="Override number of trials per task"),
+    output_dir: str = typer.Option("artifacts/evals", "--output", "-o", help="Output directory for reports and results"),
+    list_tasks: bool = typer.Option(False, "--list", "-l", help="List registered evaluation tasks and exit"),
+    json_output: bool = typer.Option(False, "--json", help="Output results in JSON format"),
+    workspace: Optional[str] = typer.Option(None, "--workspace", "-w", help="Workspace directory"),
+):
+    """Run HERMES Evaluation Harness across capability, regression, or held-out suites."""
+    from core.evaluation.harness.suites import suite_registry
+    from core.evaluation.harness.runner import EvalRunner
+    from core.evaluation.harness.models import EvaluationCategory
+
+    if list_tasks:
+        tasks = suite_registry.list_all_tasks()
+        typer.echo(f"Registered Evaluation Tasks ({len(tasks)}):")
+        typer.echo("=" * 60)
+        for t in tasks:
+            typer.echo(f"  • {t.task_id:<35} [{t.category.value}] ({t.difficulty.value}) - {t.name}")
+        return
+
+    # Select tasks
+    if task:
+        selected_task = suite_registry.get_task(task)
+        if not selected_task:
+            typer.echo(f"Task '{task}' not found in registry.", err=True)
+            raise typer.Exit(1)
+        tasks_to_run = [selected_task]
+    else:
+        suite_lower = suite.lower()
+        if suite_lower == "all":
+            tasks_to_run = suite_registry.list_all_tasks()
+        elif suite_lower in ("capability", "cap"):
+            tasks_to_run = suite_registry.get_tasks_by_category(EvaluationCategory.CAPABILITY)
+        elif suite_lower in ("regression", "reg"):
+            tasks_to_run = suite_registry.get_tasks_by_category(EvaluationCategory.REGRESSION)
+        elif suite_lower in ("heldout", "held_out"):
+            tasks_to_run = suite_registry.get_tasks_by_category(EvaluationCategory.HELDOUT)
+        else:
+            typer.echo(f"Unknown suite '{suite}'. Must be: capability, regression, heldout, all", err=True)
+            raise typer.Exit(1)
+
+    if not tasks_to_run:
+        typer.echo("No tasks matched selection.", err=True)
+        raise typer.Exit(1)
+
+    runner = EvalRunner(base_runs_dir=output_dir)
+    all_passed = True
+    summaries = []
+
+    typer.echo(f"Running Evaluation Suite: {len(tasks_to_run)} task(s)...")
+    for t in tasks_to_run:
+        if trials is not None:
+            t.trial_count = trials
+        typer.echo(f"\nEvaluating: {t.name} ({t.task_id}) [{t.trial_count} trial(s)]")
+        res = asyncio.run(runner.run_task(t, workspace_dir=workspace))
+        summaries.append(res.to_dict())
+        icon = "[PASS]" if res.overall_status == "PASS" else "[FAIL]"
+        typer.echo(f"  {icon} Status: {res.overall_status} | Pass Rate: {res.pass_rate*100:.1f}% | Median: {res.median_duration:.2f}s | Flaky: {res.is_flaky}")
+        if res.overall_status != "PASS":
+            all_passed = False
+            for fm in res.failure_modes:
+                typer.echo(f"      Failure mode: {fm}")
+
+    typer.echo(f"\nEvaluation Complete. Reports written to: {output_dir}")
+    if json_output:
+        import json
+        typer.echo(json.dumps(summaries, indent=2))
+
+    if not all_passed:
+        raise typer.Exit(1)
+
 if __name__ == "__main__":
     app()

@@ -1,0 +1,55 @@
+# evals/rubrics/frontend.yaml
+version: "1.0.0"
+name: "Frontend Visual Quality Rubric"
+pass_threshold: 0.70
+
+criteria:
+  - id: "DESIGN_QUALITY"
+    name: "Design Quality"
+    description: "Coherent visual language, intentional aesthetics, professional appearance."
+    weight: 1.2
+
+  - id: "LAYOUT"
+    name: "Layout & Alignment"
+    description: "Elements properly positioned, grid alignment respected, viewport space utilized effectively."
+    weight: 1.2
+
+  - id: "VISUAL_HIERARCHY"
+    name: "Visual Hierarchy"
+    description: "Clear prominence for primary actions, distinct headings, readable scanning order."
+    weight: 1.0
+
+  - id: "TYPOGRAPHY"
+    name: "Typography"
+    description: "Consistent font sizes, readable line heights, appropriate weights and readable scales."
+    weight: 0.8
+
+  - id: "SPACING"
+    name: "Spacing & Rhythm"
+    description: "Consistent margin and padding rhythm; no cramped, colliding, or overlapping elements."
+    weight: 1.0
+
+  - id: "COLOR_CONTRAST"
+    name: "Color & Contrast"
+    description: "Text is clearly distinguishable from background; accessible contrast ratios."
+    weight: 1.0
+
+  - id: "COMPONENT_CONSISTENCY"
+    name: "Component Consistency"
+    description: "Unified styling for buttons, cards, inputs, and borders across screens."
+    weight: 0.8
+
+  - id: "RESPONSIVE_BEHAVIOR"
+    name: "Responsive Behavior"
+    description: "Layout gracefully adapts to mobile (375px), tablet (768px), and desktop (1280px) without horizontal clipping."
+    weight: 1.5
+
+  - id: "INTERACTION_CLARITY"
+    name: "Interaction Clarity"
+    description: "Interactive controls look clickable and distinct from non-interactive labels."
+    weight: 0.8
+
+  - id: "ACCESSIBILITY_SIGNALS"
+    name: "Accessibility Signals"
+    description: "Images possess alt attributes, inputs have associated labels, controls have accessible names."
+    weight: 0.7
