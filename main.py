@@ -13,6 +13,7 @@ import asyncio
 import json
 import sys
 from pathlib import Path
+from typing import Optional
 import typer
 from loguru import logger
 from textual.css.query import NoMatches
@@ -103,16 +104,74 @@ def setup_logging(debug: bool = False):
 
 @app.command()
 def run(
+    prompt: Optional[str] = typer.Argument(None, help="User prompt to execute (headless/script mode)"),
     mode: str = typer.Option("auto", help="Permission mode: safe, plan, auto"),
     project: str = typer.Option("default", help="Project name for memory context"),
-    debug: bool = typer.Option(False, help="Enable debug logging")
+    workspace: Optional[str] = typer.Option(None, help="Workspace directory"),
+    session: Optional[str] = typer.Option(None, help="Session ID to resume or run"),
+    plan: bool = typer.Option(False, "--plan", help="Run in plan mode"),
+    output_format: str = typer.Option("text", "--output-format", help="Output format: text, json, stream-json"),
+    debug: bool = typer.Option(False, help="Enable debug logging"),
 ):
-    """Start HERMES in interactive CLI mode."""
+    """Start HERMES in headless script mode (with prompt/stdin) or interactive CLI mode."""
     if mode not in ("safe", "plan", "auto"):
         typer.echo(f"Invalid mode '{mode}'. Must be: safe, plan, auto", err=True)
-        raise typer.Exit(1)
+        raise typer.Exit(2)
     setup_logging(debug)
+
+    # Check for stdin input if prompt not provided
+    stdin_prompt = None
+    if not prompt and not sys.stdin.isatty():
+        try:
+            stdin_prompt = sys.stdin.read().strip()
+        except Exception:
+            stdin_prompt = None
+
+    effective_prompt = prompt or stdin_prompt
+
+    if effective_prompt:
+        # Headless script execution through shared ApplicationRuntimeFactory
+        exit_code = asyncio.run(_run_headless(
+            prompt=effective_prompt,
+            workspace=workspace,
+            session=session,
+            plan=plan,
+            output_format=output_format,
+            debug=debug,
+        ))
+        raise typer.Exit(exit_code)
+
+    # Interactive mode
     asyncio.run(_run_interactive(mode, project))
+
+
+async def _run_headless(
+    prompt: str,
+    workspace: Optional[str],
+    session: Optional[str],
+    plan: bool,
+    output_format: str,
+    debug: bool,
+) -> int:
+    from core.runtime_factory import ApplicationRuntimeFactory, SurfaceMode
+    from core.sinks import JsonSink, StreamJsonSink, TextSink
+
+    rt = ApplicationRuntimeFactory.create_runtime(
+        mode=SurfaceMode.HEADLESS,
+        workspace_root=workspace,
+        session_id=session,
+        debug=debug,
+    )
+
+    if output_format == "json":
+        sink = JsonSink()
+    elif output_format == "stream-json":
+        sink = StreamJsonSink()
+    else:
+        sink = TextSink()
+
+    res = await rt.execute_input(prompt, sink=sink)
+    return res.exit_code
 
 async def _run_interactive(mode: str, project: str):
     from core.orchestrator import Orchestrator
@@ -396,6 +455,84 @@ def trace(
                 # Skip raw JSONL lines (message is the full JSON)
                 if not msg.startswith("{"):
                     typer.echo(f"  {level} {msg[:80]}")
+
+@app.command()
+def doctor(
+    probe: bool = typer.Option(False, "--probe", help="Perform active network reachability probe"),
+    workspace: Optional[str] = typer.Option(None, help="Workspace directory"),
+):
+    """Run comprehensive system, environment, network, and dependency diagnostics."""
+    from core.commands.handlers.query_handlers import handle_doctor
+    from core.commands.models import CommandIntent
+    intent = CommandIntent.create("doctor", "/doctor", args=("--probe",) if probe else ())
+    res = asyncio.run(handle_doctor(intent, workspace_root=workspace))
+    typer.echo(res.message)
+    if res.exit_code != 0:
+        raise typer.Exit(res.exit_code)
+
+@app.command()
+def replay(
+    target: str = typer.Argument(..., help="Session ID or trace file path to replay"),
+    output_format: str = typer.Option("text", "--format", help="Presentation format: text, json, stream-json"),
+    workspace: Optional[str] = typer.Option(None, help="Workspace directory"),
+):
+    """Replay historical session or trace file without executing any live actions."""
+    from core.runtime_factory import ApplicationRuntimeFactory, SurfaceMode
+    from core.sinks import JsonSink, StreamJsonSink, TextSink
+
+    rt = ApplicationRuntimeFactory.create_runtime(SurfaceMode.REPLAY, workspace_root=workspace)
+    if output_format == "json":
+        sink = JsonSink()
+    elif output_format == "stream-json":
+        sink = StreamJsonSink()
+    else:
+        sink = TextSink()
+
+    p = Path(target)
+    if p.exists() and p.is_file():
+        res = rt.replay_engine.replay_trace_file(p, sink=lambda evt, st: sink.on_event(evt, st))
+    else:
+        res = rt.replay_engine.replay_session(target, sink=lambda evt, st: sink.on_event(evt, st))
+
+    sink.on_completed(res.final_state, exit_code=0 if res.success else 1, error_message=res.error)
+    if not res.success:
+        raise typer.Exit(1)
+
+@app.command()
+def status(workspace: Optional[str] = typer.Option(None, help="Workspace directory")):
+    """Display authoritative runtime and session status."""
+    from core.commands.handlers.query_handlers import handle_status
+    from core.commands.models import CommandIntent
+    intent = CommandIntent.create("status", "/status")
+    res = asyncio.run(handle_status(intent, workspace_root=workspace))
+    typer.echo(res.message)
+
+@app.command()
+def diff(workspace: Optional[str] = typer.Option(None, help="Workspace directory")):
+    """Display uncommitted workspace diff."""
+    from core.commands.handlers.query_handlers import handle_diff
+    from core.commands.models import CommandIntent
+    intent = CommandIntent.create("diff", "/diff")
+    res = asyncio.run(handle_diff(intent, workspace_root=workspace))
+    typer.echo(res.message)
+
+@app.command()
+def cost():
+    """Display model token and cost accounting."""
+    from core.commands.handlers.query_handlers import handle_cost
+    from core.commands.models import CommandIntent
+    intent = CommandIntent.create("cost", "/cost")
+    res = asyncio.run(handle_cost(intent))
+    typer.echo(res.message)
+
+@app.command()
+def tasks():
+    """Display active task queue and background jobs."""
+    from core.commands.handlers.query_handlers import handle_tasks
+    from core.commands.models import CommandIntent
+    intent = CommandIntent.create("tasks", "/tasks")
+    res = asyncio.run(handle_tasks(intent))
+    typer.echo(res.message)
 
 if __name__ == "__main__":
     app()
