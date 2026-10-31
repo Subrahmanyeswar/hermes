@@ -94,6 +94,17 @@ class WebsiteMvpGate:
 
         return False
 
+    def evaluate(self, workspace_root: Optional[Path] = None) -> Tuple[bool, List[str]]:
+        """
+        Authoritative evaluation of workspace scaffold completeness (P0 requirement).
+        Returns:
+            Tuple[bool, List[str]]: (is_complete, list_of_unmet_requirement_descriptions)
+        """
+        ws = workspace_root or self.workspace_root
+        ok, missing = self.check_scaffold_complete(ws)
+        unmet = [f"Scaffold missing/incomplete: {m}" for m in missing]
+        return ok, unmet
+
     def check_scaffold_complete(self, workspace_root: Optional[Path] = None) -> Tuple[bool, List[str]]:
         """
         Verify that core Phase 1 scaffold files exist, are valid, and contain non-placeholder code.

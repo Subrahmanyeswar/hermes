@@ -31,6 +31,19 @@ class DecisionInterpreter:
         Interpret model response into an AgentDecision.
         Accepts NormalizedModelResponse, dict, or raw text.
         """
+        # 0. Check Provider Failure / Explicit Error Response (P0 Provider Resilience)
+        if getattr(response, "success", True) is False or getattr(response, "error", None):
+            err_msg = getattr(response, "error", None) or "Provider generation failed"
+            raw_val = getattr(response, "text", "") or ""
+            logger.warning(f"DecisionInterpreter: classified provider failure | error={err_msg}")
+            return AgentDecision(
+                decision_type=AgentDecisionType.INVALID,
+                reasoning=f"PROVIDER_ERROR: {err_msg}",
+                explanation=str(err_msg),
+                raw_text=str(raw_val),
+                turn_id=turn_id,
+            )
+
         raw_val = getattr(response, "text", None) or getattr(response, "content", None)
         if raw_val is not None and not hasattr(raw_val, "assert_called"):
             raw_text = str(raw_val).strip()

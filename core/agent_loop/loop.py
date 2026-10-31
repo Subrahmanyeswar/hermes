@@ -1442,6 +1442,41 @@ class AgentLoop:
                                         rejection_reason=rejection_reason,
                                     )
                                     if not recovery_handled:
+                                        # Deterministic In-Tier Correction before aborting: if actionable deliverable is missing, command fs.write
+                                        target_file_to_write = None
+                                        if unmet_reqs:
+                                            from core.agent_loop.mvp_gate import WebsiteMvpGate
+                                            tf, _ = WebsiteMvpGate.parse_scaffold_target(unmet_reqs[0])
+                                            if tf and tf not in ("npm run build", "browser_open_preview"):
+                                                target_file_to_write = tf
+
+                                        in_tier_corrections = getattr(self, "_in_tier_correction_count", 0)
+                                        if target_file_to_write and in_tier_corrections < 2:
+                                            self._in_tier_correction_count = in_tier_corrections + 1
+                                            logger.warning(
+                                                f"AgentLoop: In-tier corrective directive issued for '{target_file_to_write}' (attempt {in_tier_corrections + 1}/2)"
+                                            )
+                                            from core.agent_loop.observations import Observation
+                                            directive_obs = Observation(
+                                                observation_id=f"obs_cor_{uuid.uuid4().hex[:6]}",
+                                                mission_id=self._mission_id,
+                                                turn_id=turn_id,
+                                                source_type="governor",
+                                                source_id="reconciliation_controller",
+                                                success=False,
+                                                summary=f"MANDATORY DIRECTIVE: You MUST create '{target_file_to_write}' using fs.write now. Reading '{raw_read_path}' is strictly prohibited.",
+                                                content=(
+                                                    f"CRITICAL SYSTEM DIRECTIVE:\n"
+                                                    f"The required application file '{target_file_to_write}' is MISSING.\n"
+                                                    f"Do NOT call fs.read on '{raw_read_path}'.\n"
+                                                    f"Call fs.write immediately with target path '{target_file_to_write}' and complete code.\n"
+                                                ),
+                                                metadata={"code": "MANDATORY_WRITE_DIRECTIVE", "target": target_file_to_write},
+                                            )
+                                            self._record_observation(directive_obs)
+                                            self._consecutive_no_progress_blocks = 0
+                                            continue
+
                                         termination_reason = (
                                             f"AGENT_NO_PROGRESS: Mission loop terminated. Repeated no-progress operations on '{raw_read_path}' "
                                             f"persisted after recovery transition. Unmet: {'; '.join(unmet_reqs) if unmet_reqs else 'Deliverables incomplete'}."
@@ -2665,6 +2700,10 @@ class AgentLoop:
             if current_tier >= 3:
                 return False
 
+        # Reset consecutive stall/no-progress counters for the newly engaged tier
+        self._consecutive_no_progress_blocks = 0
+        self._consecutive_empty_turns = 0
+
         # Build compact recovery context
         try:
             ws_dir = Path(self.workspace.root_str if (self.workspace and self.workspace.is_locked) else Path.cwd())
@@ -2675,6 +2714,15 @@ class AgentLoop:
             files_summary = []
 
         from core.agent_loop.mvp_gate import WebsiteMvpGate
+        if not unmet_reqs:
+            try:
+                gate = getattr(self, "mvp_gate", None) or WebsiteMvpGate(workspace_root=ws_dir)
+                ok_scaff, missing_items = gate.evaluate(ws_dir)
+                if not ok_scaff and missing_items:
+                    unmet_reqs = missing_items
+            except Exception:
+                pass
+
         target_repair_file = None
         target_action_hint = None
         if unmet_reqs:
@@ -2688,6 +2736,16 @@ class AgentLoop:
         completed_files = [f for f in existing_files if f != target_repair_file]
         missing_desc = "; ".join(unmet_reqs) if unmet_reqs else "Missing required application deliverables."
 
+        # Extract DOM inventory if available so the recovery model has the exact contract without reading
+        dom_summary = ""
+        try:
+            from core.project_contract import ProjectContract
+            dom_inv = ProjectContract.extract_dom_inventory(ws_dir)
+            if dom_inv.get("ids"):
+                dom_summary = f"DOM CONTRACT: Available IDs: {', '.join(dom_inv['ids'][:35])}\n"
+        except Exception:
+            pass
+
         compact_recovery_msg = (
             f"=== MANDATORY SYSTEM RECOVERY DIRECTIVE ===\n"
             f"ESCALATION: Tier failover to Tier {next_tier} ({target_model}) due to prior stall.\n"
@@ -2695,8 +2753,9 @@ class AgentLoop:
             f"COMPLETED & VALID FILES: {', '.join(completed_files) if completed_files else 'None'}\n"
             f"UNMET REQUIREMENTS: {missing_desc}\n"
             f"MANDATORY TARGET: '{target_repair_file or 'missing deliverable'}'\n"
-            f"DIRECTIVE: {target_action_hint or 'Create or update the target file using fs.write.'}\n"
-            f"INSPECTION: You may read existing files using fs.read to discover their DOM element IDs and structure, then apply the required changes to resolve all unmet requirements.\n"
+            f"DIRECTIVE: {target_action_hint or 'Create the target file immediately using fs.write.'}\n"
+            f"PROHIBITION: Do NOT call fs.read or rewrite already completed files ({', '.join(completed_files)}). Write the missing deliverable '{target_repair_file or 'missing file'}' directly using fs.write.\n"
+            f"{dom_summary}"
             f"============================================"
         )
         self._active_recovery_brief = compact_recovery_msg
@@ -2900,23 +2959,45 @@ class AgentLoop:
             t2_gen = getattr(tier2_client, "generate")
             try:
                 res = t2_gen(**t2_kwargs)
-                return (await res) if asyncio.iscoroutine(res) else res
+                res_obj = (await res) if asyncio.iscoroutine(res) else res
+                if getattr(res_obj, "success", True) is False:
+                    err_msg = getattr(res_obj, "error", None) or f"Tier 2 ({TIER2_PROVIDER}/{TIER2_MODEL}) failed"
+                    raise RuntimeError(err_msg)
+                return res_obj
             except Exception as t2_exc:
-                from models.ollama_client import OllamaTimeoutError
-                if isinstance(t2_exc, (OllamaTimeoutError, asyncio.TimeoutError, TimeoutError)) or "timed out" in str(t2_exc).lower():
-                    logger.warning(f"AgentLoop: Tier 2 request timed out ({t2_exc})")
-                    from core.agent_loop.observations import Observation
-                    return Observation(
-                        observation_id=f"obs_timeout_{uuid.uuid4().hex[:6]}",
-                        mission_id=self._mission_id,
-                        turn_id=turn_id or "",
-                        source_type="model",
-                        source_id=TIER2_MODEL,
-                        success=False,
-                        summary=f"Tier 2 model request timed out: {t2_exc}",
-                        content=str(t2_exc),
-                        metadata={"code": "TIER2_REQUEST_TIMEOUT", "tier": 2, "model": TIER2_MODEL},
+                logger.warning(f"AgentLoop: Tier 2 generation failed ({t2_exc}). Escalating failover to Tier 3 ({TIER3_PROVIDER}/{TIER3_MODEL})...")
+                from core.adaptive_routing import adaptive_router
+                adaptive_router.record_failure(tier=2, error=t2_exc)
+                
+                # Tier 3 failover dispatch
+                tier3_client = getattr(self.orchestrator, "tier3", None) or getattr(self.orchestrator, "_tier3", None) or getattr(self.orchestrator, "ollama", None)
+                if tier3_client and hasattr(tier3_client, "generate") and TIER3_MODEL:
+                    setattr(self.orchestrator, "_active_tier", 3)
+                    await self._publish_event(
+                        EventType.TIER_FAILOVER_STARTED,
+                        turn_id=turn_id,
+                        payload={
+                            "from_tier": 2,
+                            "to_tier": 3,
+                            "provider": TIER3_PROVIDER,
+                            "model": TIER3_MODEL,
+                            "reason": str(t2_exc),
+                        },
                     )
+                    t3_kwargs = {
+                        "prompt": user_message,
+                        "system": system_prompt,
+                        "mission_id": self._mission_id,
+                        "turn_id": turn_id or "",
+                        "temperature": self.config.temperature,
+                        "model": TIER3_MODEL,
+                        "tools": native_tools,
+                    }
+                    if timeout_seconds is not None:
+                        t3_kwargs["timeout_seconds"] = timeout_seconds
+                    t3_gen = getattr(tier3_client, "generate")
+                    res3 = t3_gen(**t3_kwargs)
+                    return (await res3) if asyncio.iscoroutine(res3) else res3
                 raise
 
         await self._publish_event(

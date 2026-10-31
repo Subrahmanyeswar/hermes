@@ -199,13 +199,30 @@ class AdaptiveRouter:
         ):
             self.schedule_background_probe(tier=1, client=client_t1)
 
-        # Zero-wait bypass: route directly to T2
+        # Zero-wait bypass: evaluate T2 health, then T3 if T2 is also degraded/open
         expected_saved_ms = MODEL_FIRST_TOKEN_TIMEOUT * 1000.0
         self.telemetry.avoided_timeout_count += 1
         self.telemetry.avoided_timeout_ms += expected_saved_ms
-        self.telemetry.t2_circuit_bypass_dispatches += 1
         dec_lat = (time.perf_counter() - t0) * 1000.0
 
+        t3 = self.providers.get(3)
+        if t2.state in (ProviderHealthState.OPEN_CIRCUIT, ProviderHealthState.DEGRADED) and t3 and t3.model:
+            self.telemetry.t3_arbitration_dispatches += 1
+            logger.warning(
+                f"[ADAPTIVE ROUTING] T1 circuit is {t1.state.value} and T2 circuit is {t2.state.value}. "
+                f"Zero-wait failover directly to T3 ({t3.model}) in {dec_lat:.3f}ms"
+            )
+            return RouteDecision(
+                tier=3,
+                provider=t3.provider,
+                model=t3.model,
+                bypassed=True,
+                reason=f"T1 circuit {t1.state.value} and T2 circuit {t2.state.value}, fast-failover to T3",
+                avoided_timeout_ms=expected_saved_ms * 2,
+                decision_latency_ms=dec_lat,
+            )
+
+        self.telemetry.t2_circuit_bypass_dispatches += 1
         logger.info(
             f"[ADAPTIVE ROUTING] T1 circuit is {t1.state.value}. Zero-wait failover to T2 ({t2.model}) "
             f"in {dec_lat:.3f}ms (avoided {expected_saved_ms/1000:.1f}s stall)"
@@ -245,14 +262,14 @@ class AdaptiveRouter:
             if len(record.rolling_first_token_latency) > 20:
                 record.rolling_first_token_latency.pop(0)
 
-        # If tier 1 was recovering or degraded, restore HEALTHY state
-        if tier == 1 and record.state != ProviderHealthState.HEALTHY:
+        # If tier was recovering or degraded, restore HEALTHY state
+        if tier in (1, 2) and record.state != ProviderHealthState.HEALTHY:
             old_state = record.state.value
             record.state = ProviderHealthState.HEALTHY
             record.last_state_change_ts = now
             record.circuit_close_ts = now
             self.telemetry.state_transitions.append({
-                "tier": 1,
+                "tier": tier,
                 "from": old_state,
                 "to": ProviderHealthState.HEALTHY.value,
                 "timestamp": now,
@@ -287,9 +304,10 @@ class AdaptiveRouter:
         else:
             record.consecutive_first_token_failures += 1
 
-        if tier == 1:
+        if tier in (1, 2):
             old_state = record.state
-            if record.consecutive_first_token_failures >= T1_CIRCUIT_BREAKER_FAILURES:
+            threshold = T1_CIRCUIT_BREAKER_FAILURES if tier == 1 else 2
+            if record.consecutive_first_token_failures >= threshold:
                 new_state = ProviderHealthState.OPEN_CIRCUIT
             else:
                 new_state = ProviderHealthState.DEGRADED
@@ -300,15 +318,15 @@ class AdaptiveRouter:
                 if new_state == ProviderHealthState.OPEN_CIRCUIT:
                     record.circuit_open_ts = now
                 self.telemetry.state_transitions.append({
-                    "tier": 1,
+                    "tier": tier,
                     "from": old_state.value,
                     "to": new_state.value,
                     "timestamp": now,
                     "reason": f"{timeout_type or 'failure'}: {str(error)[:100]}",
                 })
                 logger.warning(
-                    f"[ADAPTIVE ROUTING] Tier 1 circuit transitioned {old_state.value} -> {new_state.value} "
-                    f"(failures={record.consecutive_first_token_failures}/{T1_CIRCUIT_BREAKER_FAILURES})"
+                    f"[ADAPTIVE ROUTING] Tier {tier} circuit transitioned {old_state.value} -> {new_state.value} "
+                    f"(failures={record.consecutive_first_token_failures}/{threshold})"
                 )
 
             # Enforce cooldown on probe
