@@ -17,6 +17,12 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Tuple
 from loguru import logger
 
+from core.browser.evidence import (
+    BrowserEvidenceLifecycle,
+    BrowserEvidenceValidator,
+    AuthoritativeBrowserEvidence,
+)
+
 
 class MvpPhase(str, Enum):
     PHASE_1_SCAFFOLD = "PHASE_1_SCAFFOLD"
@@ -39,13 +45,15 @@ class WebsiteMvpGate:
     Guarantees working MVP prior to optional visual or architectural enhancements.
     """
 
-    def __init__(self, workspace_root: Optional[Path] = None) -> None:
+    def __init__(self, workspace_root: Optional[Path] = None, mission_id: Optional[str] = None) -> None:
         self.workspace_root = workspace_root or Path.cwd()
+        self.mission_id: Optional[str] = mission_id
         self.current_phase: MvpPhase = MvpPhase.PHASE_1_SCAFFOLD
         self.build_passed: bool = False
         self.browser_verified: bool = False
         self.last_build_error: Optional[str] = None
         self.last_browser_error: Optional[str] = None
+        self.evidence_lifecycle: BrowserEvidenceLifecycle = BrowserEvidenceLifecycle.UNAVAILABLE
 
     @classmethod
     def is_website_mission(
@@ -302,8 +310,8 @@ class WebsiteMvpGate:
             err = f" (Error: {self.last_build_error})" if self.last_build_error else ""
             return [f"Build not verified{err}. Project build must pass (npm run build)."]
         elif phase == MvpPhase.PHASE_3_HTTP_BROWSER_VERIFICATION:
-            err = f" (Error: {self.last_browser_error})" if self.last_browser_error else ""
-            return [f"Browser qualification not passed{err}. Must verify HTTP 200, styles, and canvas."]
+            err = f" ({self.last_browser_error})" if self.last_browser_error else ""
+            return [f"Authoritative browser qualification not passed{err}. Must verify HTTP 200, styles, canvas, and 0 console errors via CDP evidence."]
         return []
 
     def evaluate_phase(
@@ -347,36 +355,35 @@ class WebsiteMvpGate:
             self.current_phase = MvpPhase.PHASE_2_BUILD_AND_REPAIR
             return self.current_phase
 
-        # Phase 3: Check HTTP browser verification
-        if not self.browser_verified:
-            # Inspect workspace for durable browser qualification / verification evidence
-            for evidence_name in ("browser-qualification.json", "verification.json", ".hermes/browser_verified.json"):
-                ev_path = ws / evidence_name
-                if ev_path.exists():
-                    try:
-                        ev_data = json.loads(ev_path.read_text(encoding="utf-8", errors="ignore"))
-                        if (
-                            ev_data.get("status") in ("passed", "success", "ok", "verified")
-                            or ev_data.get("http_status") == 200
-                            or ev_data.get("styles_verified") is True
-                        ):
-                            self.browser_verified = True
-                            break
-                    except Exception:
-                        pass
+        # Phase 3: Check HTTP browser verification with authoritative evidence
+        # Detect if project is purely static HTML/CSS (no JavaScript entrypoint required)
+        is_pure_static = False
+        html_file = ws / "index.html"
+        if html_file.exists():
+            try:
+                html_txt_check = html_file.read_text(encoding="utf-8", errors="ignore")
+                has_script = bool(re.search(r"""<script[^>]+src=["']([^"']+\.js)["']""", html_txt_check, re.I))
+                if not has_script:
+                    is_pure_static = True
+            except Exception:
+                pass
 
-        if not self.browser_verified:
-            # Check if static verification files (HTML + CSS + JS) all exist and are non-empty
-            # When deliverables are present and build passes, mark browser verification qualified.
-            html_ok = (ws / "index.html").exists() and (ws / "index.html").stat().st_size > 100
-            css_ok = any((ws / c).exists() and (ws / c).stat().st_size > 50 for c in ("style.css", "styles.css"))
-            js_ok = any((ws / j).exists() and (ws / j).stat().st_size > 50 for j in ("main.js", "app.js", "src/main.js"))
-            if html_ok and css_ok and js_ok and self.build_passed:
+        if is_pure_static and self.build_passed:
+            # Pure static HTML/CSS with valid structure passes without interactive CDP
+            self.browser_verified = True
+            self.evidence_lifecycle = BrowserEvidenceLifecycle.PASSED
+        else:
+            # Interactive web applications strictly require authoritative browser verification evidence
+            status, ev, reason = BrowserEvidenceValidator.load_and_validate(ws, mission_id=self.mission_id)
+            self.evidence_lifecycle = status
+            if status == BrowserEvidenceLifecycle.PASSED:
                 self.browser_verified = True
-
-        if not self.browser_verified:
-            self.current_phase = MvpPhase.PHASE_3_HTTP_BROWSER_VERIFICATION
-            return self.current_phase
+                self.last_browser_error = None
+            else:
+                self.browser_verified = False
+                self.last_browser_error = f"Browser verification {status.value}: {reason}"
+                self.current_phase = MvpPhase.PHASE_3_HTTP_BROWSER_VERIFICATION
+                return self.current_phase
 
         # Phase 4: All MVP gates passed -> enhancements allowed
         self.current_phase = MvpPhase.PHASE_4_ENHANCEMENT

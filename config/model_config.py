@@ -28,6 +28,11 @@ TIER3_BASE_URL = os.getenv("TIER3_BASE_URL", "https://openrouter.ai/api/v1")
 TIER3_PROVIDER_STATUS = os.getenv("TIER3_PROVIDER_STATUS", "OPERATIONAL")
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "")
 
+TIER4_PROVIDER = os.getenv("TIER4_PROVIDER", "ollama")
+TIER4_MODEL = os.getenv("TIER4_MODEL", "llama3.2:latest")
+TIER4_BASE_URL = os.getenv("TIER4_BASE_URL", "http://localhost:11434")
+TIER4_PROVIDER_STATUS = os.getenv("TIER4_PROVIDER_STATUS", "OPERATIONAL")
+
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
 
@@ -101,6 +106,7 @@ T1_BUDGET_L4 = int(os.getenv("T1_BUDGET_L4", "8192"))
 TIER1_PARAMS = {"temperature": 0.0, "top_p": 1.0, "max_tokens": 8192}
 TIER2_PARAMS = {"temperature": 0.0, "top_p": 1.0, "max_tokens": 4096}
 TIER3_PARAMS = {"temperature": 0.0, "top_p": 1.0, "max_tokens": 4096}
+TIER4_PARAMS = {"temperature": 0.0, "top_p": 1.0, "max_tokens": 4096}
 
 # Phase 4D Adaptive Routing & Circuit Breaker Configurations
 CIRCUIT_BREAKER_ENABLED = os.getenv("CIRCUIT_BREAKER_ENABLED", "true").lower() == "true"

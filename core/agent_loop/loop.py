@@ -220,6 +220,12 @@ class AgentLoop:
         self._consecutive_no_progress_blocks: int = 0
         self._recovery_attempt_count: int = 0
         self._recovery_escalation_attempted: bool = False
+        # Separated failure and recovery tracking structures (P0)
+        self._cycle_no_progress_blocks: int = 0
+        self._cycle_empty_turns: int = 0
+        self._mission_failure_history: List[Dict[str, Any]] = []
+        self._provider_failure_counts: Dict[str, int] = {}
+        self._total_recovery_budget: int = 4
 
     async def _ensure_active_task(self) -> None:
         """Ensure an active task has been transitioned to RUNNING via TASK_STARTED."""
@@ -432,7 +438,7 @@ class AgentLoop:
         self._recovery_escalation_attempted = False
         from core.agent_loop.mvp_gate import WebsiteMvpGate
         ws_root = Path(self.workspace.workspace_root) if (self.workspace and hasattr(self.workspace, "workspace_root") and self.workspace.workspace_root) else Path(".")
-        self.mvp_gate = WebsiteMvpGate(workspace_root=ws_root)
+        self.mvp_gate = WebsiteMvpGate(workspace_root=ws_root, mission_id=self._mission_id)
 
         # Resolve mission-specific turn budget (e.g. 80 turns for complex website missions)
         if hasattr(self.config, "resolve_for_mission"):
@@ -1597,8 +1603,9 @@ class AgentLoop:
                             call_str = f"{call_name} {str(call_args)}".lower()
                             if any(w in call_str for w in ("build", "npm run build", "vite build", "package_install")):
                                 self.mvp_gate.build_passed = True
-                            if any(w in call_str for w in ("browser_open_preview", "open_preview", "browser.navigate", "navigate")):
-                                self.mvp_gate.browser_verified = True
+                            if any(w in call_str for w in ("browser_verify", "browser_qualification", "verify_browser")):
+                                ws_eval = Path(self.workspace.root_str if (self.workspace and self.workspace.is_locked) else Path.cwd())
+                                self.mvp_gate.evaluate_phase(ws_eval)
 
                         # Record created files
                         for f in delta_files:
@@ -2660,22 +2667,74 @@ class AgentLoop:
         5. Preserves tool-call history, conversation state, and cancellation checks.
         """
         recovery_count = getattr(self, "_recovery_attempt_count", 0)
-        if recovery_count >= 2:
-            logger.warning(f"AgentLoop: Recovery transitions exhausted ({recovery_count} >= 2).")
+        max_recovery = getattr(self, "_total_recovery_budget", 4)
+        if recovery_count >= max_recovery:
+            logger.warning(f"AgentLoop: Recovery budget exhausted ({recovery_count} >= {max_recovery}).")
             return False
 
         self._recovery_attempt_count = recovery_count + 1
         current_tier = getattr(self.orchestrator, "_active_tier", 1)
-        next_tier = current_tier + 1 if current_tier < 3 else None
 
         from config.model_config import (
             TIER1_PROVIDER, TIER1_MODEL,
             TIER2_PROVIDER, TIER2_MODEL,
             TIER3_PROVIDER, TIER3_MODEL,
+            TIER4_PROVIDER, TIER4_MODEL,
         )
+        from core.adaptive_routing import adaptive_router, ProviderHealthState
 
-        target_provider = TIER2_PROVIDER if next_tier == 2 else (TIER3_PROVIDER if next_tier == 3 else None)
-        target_model = TIER2_MODEL if next_tier == 2 else (TIER3_MODEL if next_tier == 3 else None)
+        # Deterministic multi-tier transition state machine with recovery verification
+        next_tier = None
+        if current_tier == 1:
+            t2_st = adaptive_router.get_health(2).state
+            if t2_st not in (ProviderHealthState.OPEN_CIRCUIT, ProviderHealthState.DEGRADED):
+                next_tier = 2
+            elif adaptive_router.get_health(3).state not in (ProviderHealthState.OPEN_CIRCUIT, ProviderHealthState.DEGRADED):
+                next_tier = 3
+            else:
+                next_tier = 4
+        elif current_tier == 2:
+            t3_st = adaptive_router.get_health(3).state
+            if t3_st not in (ProviderHealthState.OPEN_CIRCUIT, ProviderHealthState.DEGRADED):
+                next_tier = 3
+            else:
+                next_tier = 4
+        elif current_tier == 3:
+            # Verified recovery check: if Tier 1 circuit has recovered to HEALTHY, transition T3 -> T1
+            if adaptive_router.get_health(1).state == ProviderHealthState.HEALTHY:
+                next_tier = 1
+                logger.info("[RECOVERY TRANSITION] Tier 1 verified recovered to HEALTHY; routing T3 -> T1")
+            else:
+                next_tier = 4
+        elif current_tier >= 4:
+            if adaptive_router.get_health(1).state == ProviderHealthState.HEALTHY:
+                next_tier = 1
+            else:
+                next_tier = None
+
+        provider_map = {
+            1: (TIER1_PROVIDER, TIER1_MODEL),
+            2: (TIER2_PROVIDER, TIER2_MODEL),
+            3: (TIER3_PROVIDER, TIER3_MODEL),
+            4: (TIER4_PROVIDER, TIER4_MODEL),
+        }
+        target_provider, target_model = provider_map.get(next_tier, (None, None))
+
+        # Record mission-wide failure history without resetting it
+        if not hasattr(self, "_mission_failure_history"):
+            self._mission_failure_history = []
+        self._mission_failure_history.append({
+            "timestamp": time.time(),
+            "turn_id": turn_id,
+            "from_tier": current_tier,
+            "to_tier": next_tier,
+            "reason": rejection_reason,
+            "recovery_attempt": self._recovery_attempt_count,
+        })
+        if not hasattr(self, "_provider_failure_counts"):
+            self._provider_failure_counts = {}
+        cur_pname = provider_map.get(current_tier, ("unknown", ""))[0]
+        self._provider_failure_counts[cur_pname] = self._provider_failure_counts.get(cur_pname, 0) + 1
 
         if next_tier and target_model:
             logger.info(
@@ -2700,7 +2759,9 @@ class AgentLoop:
             if current_tier >= 3:
                 return False
 
-        # Reset consecutive stall/no-progress counters for the newly engaged tier
+        # Reset current recovery-cycle counters (preserves mission failure history, fingerprints & failure counts)
+        self._cycle_no_progress_blocks = 0
+        self._cycle_empty_turns = 0
         self._consecutive_no_progress_blocks = 0
         self._consecutive_empty_turns = 0
 

@@ -19,6 +19,7 @@ from config.model_config import (
     TIER1_PROVIDER, TIER1_MODEL,
     TIER2_PROVIDER, TIER2_MODEL,
     TIER3_PROVIDER, TIER3_MODEL,
+    TIER4_PROVIDER, TIER4_MODEL,
     CIRCUIT_BREAKER_ENABLED,
     T1_CIRCUIT_BREAKER_FAILURES,
     T1_CIRCUIT_BREAKER_WINDOW,
@@ -134,6 +135,7 @@ class AdaptiveRouter:
             1: ProviderHealthRecord(tier=1, provider=TIER1_PROVIDER, model=TIER1_MODEL),
             2: ProviderHealthRecord(tier=2, provider=TIER2_PROVIDER, model=TIER2_MODEL),
             3: ProviderHealthRecord(tier=3, provider=TIER3_PROVIDER, model=TIER3_MODEL),
+            4: ProviderHealthRecord(tier=4, provider=TIER4_PROVIDER, model=TIER4_MODEL),
         }
         self.telemetry = AdaptiveRoutingTelemetry()
         self._t2_semaphore: Optional[asyncio.Semaphore] = None
@@ -374,17 +376,19 @@ class AdaptiveRouter:
                     is_ok = await client.is_running(timeout=2.0)
                     if not is_ok:
                         success = False
-                    elif hasattr(client, "generate") and getattr(getattr(client, "generate", None), "__class__", None).__name__ not in ("AsyncMock", "MagicMock", "Mock"):
+                    elif hasattr(client, "generate"):
                         try:
                             resp = await asyncio.wait_for(
                                 client.generate(prompt="ping", max_tokens=1, stream=False),
                                 timeout=2.5
                             )
+                            # Strictly distinguish model inference health from endpoint availability
                             success = bool(resp and getattr(resp, "success", False))
                         except Exception:
                             success = False
                     else:
-                        success = bool(is_ok)
+                        # Endpoint responding without inference capability cannot mark provider healthy
+                        success = False
                 elif hasattr(client, "generate"):
                     try:
                         resp = await asyncio.wait_for(
