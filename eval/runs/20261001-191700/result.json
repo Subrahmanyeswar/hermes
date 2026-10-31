@@ -1,0 +1,23 @@
+{
+  "run_id": "20261001-191700",
+  "qualification_decision": "PROMPT 18 QUALIFIED WITH DOCUMENTED LIMITATIONS",
+  "status": "QUALIFIED",
+  "critical_blockers_count": 0,
+  "invariants": {
+    "MODEL_CHOOSES": "PASS",
+    "HARNESS_ALLOWS": "PASS",
+    "ENVIRONMENT_OBSERVES": "PASS",
+    "EVIDENCE_DECIDES": "PASS",
+    "STATE_SURVIVES": "PASS",
+    "UI_OBSERVES": "PASS",
+    "SURFACES_EXPRESS": "PASS",
+    "EVALUATORS_MEASURE": "PASS"
+  },
+  "documented_limitations": [
+    "LSP: Live stdio communication verified for 'ruff server'. Additional registered servers (pyright, typescript-language-server, gopls, rust-analyzer, vscode-json, vscode-html, vscode-css) fallback cleanly to AST/syntax heuristic analyzers as they are not pre-installed in host PATH.",
+    "Browser: Real Microsoft Edge / Google Chrome CDP headless launch, data: URI navigation, and PNG screenshot rendering live-tested and passing. High-level multi-turn website task suites run through SimulatedBrowserDriver unless live local dev server is explicitly launched.",
+    "Visual Evaluator: Performs deterministic structural, element geometry, and rubric heuristics grading; external multimodal VLM grading remains an optional plugin rather than an in-tree dependency.",
+    "T1 Autonomous Repair Loop: Autonomous patch creation and verification verified via test harness; production closed-loop self-healing requires active NVIDIA NIM API quota.",
+    "Durable Evaluator Evidence: Evaluator produces structured reports and in-memory/JSON artifacts; production long-term session persistence verified through SessionManager and SQLite StateStore."
+  ]
+}

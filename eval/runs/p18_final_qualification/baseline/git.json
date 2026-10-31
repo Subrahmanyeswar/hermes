@@ -1,0 +1,5 @@
+{
+  "branch": "hermes-2.x",
+  "head": "031ad3c feat(prompt17): LSP, Browser automation, Frontend visual evaluation, and Evaluation Harness",
+  "status": "M \"HEREMES (things to do later).txt\"\n M MEMORY.md\n M artifacts/performance/traces/mission_golden_probe_mission.json\n M benchmarks/metrics.json\n M data/threshold_calibration_results.json\n M generated_projects/test_export_week17.zip\n M generated_projects/week17_test.zip\n?? eval/"
+}

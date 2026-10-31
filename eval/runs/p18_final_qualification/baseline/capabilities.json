@@ -1,0 +1,9 @@
+{
+  "ruff": "C:\\Users\\SUBBU\\AppData\\Local\\Programs\\Python\\Python310\\Scripts\\ruff.EXE",
+  "clangd": "C:\\Users\\SUBBU\\Downloads\\clang+llvm-20.1.1-x86_64-pc-windows-msvc\\bin\\clangd.EXE",
+  "git": "C:\\Program Files\\Git\\cmd\\git.EXE",
+  "edge_cdp_available": true,
+  "chrome_cdp_available": false,
+  "powershell": "C:\\WINDOWS\\System32\\WindowsPowerShell\\v1.0\\powershell.EXE",
+  "sqlite3": true
+}

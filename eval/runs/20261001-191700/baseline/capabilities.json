@@ -1,0 +1,176 @@
+{
+  "total_registered_tasks": 19,
+  "tasks": [
+    {
+      "task_id": "cap_web_transaction_dashboard",
+      "name": "Web Transaction Dashboard Implementation",
+      "category": "CAPABILITY",
+      "difficulty": "MEDIUM",
+      "trial_count": 3,
+      "requires_browser": true,
+      "requires_visual": true
+    },
+    {
+      "task_id": "cap_cross_file_rename",
+      "name": "Semantic Cross-File Symbol Rename",
+      "category": "CAPABILITY",
+      "difficulty": "MEDIUM",
+      "trial_count": 1,
+      "requires_browser": false,
+      "requires_visual": false
+    },
+    {
+      "task_id": "reg_code_intelligence_syntax",
+      "name": "Code Intelligence Syntax Verification",
+      "category": "REGRESSION",
+      "difficulty": "SIMPLE",
+      "trial_count": 1,
+      "requires_browser": false,
+      "requires_visual": false
+    },
+    {
+      "task_id": "reg_browser_navigation_health",
+      "name": "Browser Headless Navigation Health",
+      "category": "REGRESSION",
+      "difficulty": "SIMPLE",
+      "trial_count": 1,
+      "requires_browser": true,
+      "requires_visual": false
+    },
+    {
+      "task_id": "heldout_persistence_contract",
+      "name": "Held-Out Verification of Reload Durability",
+      "category": "HELDOUT",
+      "difficulty": "COMPLEX",
+      "trial_count": 2,
+      "requires_browser": true,
+      "requires_visual": false
+    },
+    {
+      "task_id": "heldout_multi_tenant_isolation",
+      "name": "Held-Out Multi-Tenant Storage Isolation",
+      "category": "HELDOUT",
+      "difficulty": "COMPLEX",
+      "trial_count": 2,
+      "requires_browser": false,
+      "requires_visual": false
+    },
+    {
+      "task_id": "cap_simple_file_edit",
+      "name": "Simple File Creation & Version Bump",
+      "category": "CAPABILITY",
+      "difficulty": "SIMPLE",
+      "trial_count": 1,
+      "requires_browser": false,
+      "requires_visual": false
+    },
+    {
+      "task_id": "cap_bugfix_off_by_one",
+      "name": "Diagnostic & Fix for Off-By-One Boundary",
+      "category": "CAPABILITY",
+      "difficulty": "MEDIUM",
+      "trial_count": 1,
+      "requires_browser": false,
+      "requires_visual": false
+    },
+    {
+      "task_id": "cap_refactor_extract_helper",
+      "name": "Clean Extraction of Utility Helper",
+      "category": "CAPABILITY",
+      "difficulty": "MEDIUM",
+      "trial_count": 1,
+      "requires_browser": false,
+      "requires_visual": false
+    },
+    {
+      "task_id": "cap_backend_transaction_endpoint",
+      "name": "Backend REST Endpoint Validation",
+      "category": "CAPABILITY",
+      "difficulty": "MEDIUM",
+      "trial_count": 1,
+      "requires_browser": false,
+      "requires_visual": false
+    },
+    {
+      "task_id": "cap_database_query_consistency",
+      "name": "Database Query Consistency & Constraints",
+      "category": "CAPABILITY",
+      "difficulty": "MEDIUM",
+      "trial_count": 1,
+      "requires_browser": false,
+      "requires_visual": false
+    },
+    {
+      "task_id": "cap_negative_non_action_stop",
+      "name": "Negative Capability: Stop & Non-Action",
+      "category": "CAPABILITY",
+      "difficulty": "SIMPLE",
+      "trial_count": 1,
+      "requires_browser": false,
+      "requires_visual": false
+    },
+    {
+      "task_id": "chaos_network_disconnect",
+      "name": "Network Disconnect & Connection Drop Resilience",
+      "category": "CHAOS",
+      "difficulty": "COMPLEX",
+      "trial_count": 2,
+      "requires_browser": false,
+      "requires_visual": false
+    },
+    {
+      "task_id": "chaos_provider_timeout",
+      "name": "Provider Timeout & Reconnect Gracefulness",
+      "category": "CHAOS",
+      "difficulty": "COMPLEX",
+      "trial_count": 2,
+      "requires_browser": false,
+      "requires_visual": false
+    },
+    {
+      "task_id": "chaos_malformed_tool_result",
+      "name": "Malformed Tool Result Boundary Defense",
+      "category": "CHAOS",
+      "difficulty": "MEDIUM",
+      "trial_count": 1,
+      "requires_browser": false,
+      "requires_visual": false
+    },
+    {
+      "task_id": "sec_prompt_injection_readme",
+      "name": "Passive Data Confinement Against Hostile README",
+      "category": "SECURITY",
+      "difficulty": "MEDIUM",
+      "trial_count": 1,
+      "requires_browser": false,
+      "requires_visual": false
+    },
+    {
+      "task_id": "sec_path_traversal_confinement",
+      "name": "Path Traversal & Symlink Escape Confinement",
+      "category": "SECURITY",
+      "difficulty": "MEDIUM",
+      "trial_count": 1,
+      "requires_browser": false,
+      "requires_visual": false
+    },
+    {
+      "task_id": "sec_credential_redaction",
+      "name": "Automated Credential Redaction in Telemetry",
+      "category": "SECURITY",
+      "difficulty": "SIMPLE",
+      "trial_count": 1,
+      "requires_browser": false,
+      "requires_visual": false
+    },
+    {
+      "task_id": "soak_render_and_event_bus",
+      "name": "TUI Render Supervisor & Event Bus Soak",
+      "category": "SOAK",
+      "difficulty": "COMPLEX",
+      "trial_count": 1,
+      "requires_browser": false,
+      "requires_visual": false
+    }
+  ]
+}

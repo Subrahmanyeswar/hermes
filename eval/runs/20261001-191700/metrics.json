@@ -1,0 +1,55 @@
+{
+  "run_id": "20261001-191700",
+  "total_test_suites_executed": 6,
+  "regressions": {
+    "prompt13": {
+      "expected_baseline": 39,
+      "passed": 39,
+      "failed": 0,
+      "duration_seconds": 0.48,
+      "status": "PASS"
+    },
+    "prompt14": {
+      "expected_baseline": 20,
+      "passed": 20,
+      "failed": 0,
+      "duration_seconds": 1.53,
+      "status": "PASS"
+    },
+    "prompt15": {
+      "expected_baseline": 143,
+      "passed": 143,
+      "failed": 0,
+      "duration_seconds": 1.65,
+      "status": "PASS"
+    },
+    "prompt16": {
+      "expected_baseline": 54,
+      "passed": 65,
+      "failed": 0,
+      "duration_seconds": 150.13,
+      "status": "PASS"
+    },
+    "prompt17": {
+      "expected_baseline": 35,
+      "passed": 35,
+      "failed": 0,
+      "duration_seconds": 29.39,
+      "status": "PASS"
+    },
+    "prompt18": {
+      "expected_baseline": 5,
+      "passed": 32,
+      "failed": 0,
+      "duration_seconds": 2.13,
+      "status": "PASS"
+    }
+  },
+  "total_passed": 334,
+  "total_failed": 0,
+  "new_failures": 0,
+  "live_system_validations": {
+    "browser_cdp_live": "PASS",
+    "lsp_ruff_live": "PASS"
+  }
+}

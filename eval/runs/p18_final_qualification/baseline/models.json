@@ -1,0 +1,14 @@
+{
+  "T1": {
+    "provider": "nvidia_nim",
+    "model": "z-ai/glm-5.3-flash"
+  },
+  "T2": {
+    "provider": "ollama",
+    "model": "gpt-oss:120b-cloud"
+  },
+  "T3": {
+    "provider": "ollama",
+    "model": "nemotron-3-ultra:cloud"
+  }
+}
