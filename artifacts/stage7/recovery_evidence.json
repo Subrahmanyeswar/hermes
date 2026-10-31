@@ -1,0 +1,8 @@
+{
+  "stage": "7",
+  "sse_cursor_reconnection": "PASS",
+  "stale_approvals_invalidation": "PASS",
+  "directory_boundary_enforcement": "PASS",
+  "cancellation_locking": "PASS",
+  "backend_restart_contract": "Documented: In-memory missions terminate with process; UI surfaces 404/disconnected cleanly without claiming false success."
+}

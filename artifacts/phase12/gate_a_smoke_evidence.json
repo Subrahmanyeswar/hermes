@@ -1,0 +1,23 @@
+{
+  "gate": "A",
+  "status": "PASSED",
+  "timestamp": "2026-10-22T15:09:38+0530",
+  "mission_id": "m_smoke_a0bcbde0",
+  "session_id": "sess_smoke_a0bcbde0",
+  "workspace_path": "C:\\Users\\SUBBU\\AppData\\Local\\Temp\\hermes_gate_a_smoke_a0bcbde0",
+  "target_file": "C:\\Users\\SUBBU\\AppData\\Local\\Temp\\hermes_gate_a_smoke_a0bcbde0\\smoke_manifest.json",
+  "file_relative_path": "smoke_manifest.json",
+  "file_size_bytes": 165,
+  "file_sha256": "6273886c4fc5c5de8d5d2cc866004c9bd49efa61b308612ad9c26abf02faf7a1",
+  "subsequent_operation": "ReadFileTool read back and SHA-256 verification",
+  "events_emitted": 5,
+  "event_sequence": [
+    "MISSION_STARTED",
+    "TOOL_COMPLETED (write_file)",
+    "TOOL_COMPLETED (read_file)",
+    "VERIFICATION_PASSED",
+    "MISSION_COMPLETED"
+  ],
+  "durable_status": "COMPLETED",
+  "raw_bytes_verified": true
+}

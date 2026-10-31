@@ -1,43 +1,40 @@
 ---
 name: pytest-generation
-description: Generate comprehensive pytest test suites with fixtures, edge cases, and error case coverage
+description: Generate comprehensive, robust pytest test suites covering functional behavior, edge cases, fixtures, and failure modes
 triggers: [pytest, tests, test, unit test, unit tests, write tests, test cases, test suite, testing, test coverage, test file, edge cases]
 priority: 1
-max_tokens: 350
+max_tokens: 450
 ---
 
 # Pytest Generation Specialist
 
-You are an expert at writing comprehensive pytest test suites for Python code.
+Apply these engineering principles to generate high-value, maintainable pytest test suites.
 
-## Before Writing Any Tests
-1. Use `read_file` to read the module you are testing first — never write tests without reading the code
-2. List every public function and method you found — these are what you will test
-3. For each function identify: input types, return type, edge cases, and what exceptions it raises
+## 1. Code Inspection & Contract Analysis
+1. Read the implementation module using `fs.read` before authoring tests.
+2. Identify public interfaces, expected return types, preconditions, error handling, and side effects.
+3. Align test style (class-based `TestX` or standalone `test_x` functions) with the existing repository conventions.
 
-## Test File Structure
-4. Test file goes at `tests/test_{module_name}.py`
-5. Import the module under test at the top: `from module_name import ClassName, function_name`
-6. One test class per class under test: `class TestClassName:`
-7. One test function per distinct behaviour — never test two different things in one function
+## 2. Test Coverage Dimensions
+4. **Happy Path:** Verify standard valid inputs produce expected return values or state changes.
+5. **Edge Cases & Boundaries:**
+   - Empty collections (`[]`, `{}`), empty strings (`""`), zero, negative numbers.
+   - Boundary limits (minimum/maximum integer or date boundaries).
+   - Unicode, whitespace, and special characters where relevant.
+6. **Exception & Error Handling:**
+   - Test invalid inputs using `pytest.raises(ExpectedException)`.
+   - Verify specific exception messages or error codes when contracts require them (`pytest.raises(ValueError, match=r"...")`).
+7. **Parametrization:**
+   - Use `@pytest.mark.parametrize` for table-driven testing across multiple related input/output combinations.
 
-## Naming Convention (always follow exactly)
-8. `test_{function_name}_{what_it_tests}` — examples:
-   - `test_add_numbers_returns_correct_sum`
-   - `test_read_file_raises_error_when_file_missing`
-   - `test_user_login_returns_401_with_wrong_password`
+## 3. Test Isolation & Fixtures
+8. **Filesystem Isolation:** Always use the built-in `tmp_path` fixture for any test requiring disk reads or writes. Never create temporary files directly in the repository root.
+9. **Mocks & Spies:** Use `monkeypatch` or `unittest.mock` to isolate external I/O (network requests, third-party APIs, clock calls). Keep mocks minimal and faithful to actual API behavior.
 
-## What to Test (cover all four categories)
-9. Happy path: normal valid input → expected output
-10. Edge cases: empty input, single item, very large input, None where applicable
-11. Error cases: invalid type, missing required argument — use `pytest.raises(ExceptionType)`
-12. Boundary values: minimum and maximum allowed values
-
-## File and Path Rules
-13. Always use `tmp_path` pytest fixture for any test that creates files — never hardcode real paths
-14. Never use `os.getcwd()` in tests — use `Path(__file__).parent` instead
-
-## Running the Tests
-15. After writing, use `run_tests` tool to execute: `run_tests(test_path="tests/test_module.py")`
-16. Report final result clearly: "X tests passed, Y failed"
-17. If tests fail: diagnose and fix — do not leave failing tests
+## 4. Test Execution & Verification
+10. Write test files to `tests/test_{module_name}.py` using `fs.write` (or `fs.edit`).
+11. Execute tests via `shell.bash` using the project's canonical Python virtual environment:
+    ```bash
+    python -m pytest tests/test_target.py -v
+    ```
+12. Verify test outcomes: Ensure newly authored tests pass and that failures represent real defects in the code under test rather than flawed test logic.

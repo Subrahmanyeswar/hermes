@@ -1,28 +1,39 @@
 ---
 name: react-frontend
-description: React 18 component patterns with Tailwind CSS, hooks, and state management
-triggers: [react, frontend, component, tailwind, jsx, ui, hooks, useState, useEffect, nextjs, website, site, web, robotics, robot, page, html, css]
+description: Modern React 18+ component patterns, state management, hooks lifecycle, accessible UI, and TypeScript integration
+triggers: [react, reactjs, jsx, tsx, nextjs, react-router, zustand, redux, react-hooks]
 priority: 1
-max_tokens: 300
+max_tokens: 450
 ---
+
 # React Frontend Specialist
-Apply these rules for all React component and UI tasks.
-## Component Structure
-1. One component per file — filename matches component name exactly
-2. Always use functional components — never class components
-3. Props must be destructured in the function signature with TypeScript types
-4. Export default at the bottom of the file, not inline with the function
-## Hooks Rules
-5. useState for local component state only
-6. useEffect dependencies array must be complete — include all values used inside
-7. Custom hooks go in src/hooks/ and start with 'use' prefix
-## Tailwind CSS Rules
-8. Use Tailwind utility classes only — no custom CSS files unless absolutely necessary
-9. Responsive design: start mobile-first with sm: md: lg: prefixes
-10. Common patterns: flex items-center justify-between, grid grid-cols-N gap-4
-## File Structure
-11. Components: src/components/ComponentName.tsx
-12. Pages: src/pages/PageName.tsx or src/app/page.tsx (Next.js App Router)
-13. API calls: src/lib/api.ts — never make fetch calls directly in components
-## State Management
-14. Local state: useState, complex local: useReducer, global: Context API or Zustand
+
+Apply these best practices for building responsive, accessible, and maintainable React applications.
+
+## 1. Project Alignment & Architecture
+1. Inspect existing project structure before creating components (Vite, Next.js App Router, or standard SPA).
+2. Adapt to the project's established styling strategy (Tailwind CSS, CSS Modules, styled-components, or vanilla CSS). Do not introduce Tailwind if the project does not already configure it.
+3. Keep component responsibilities focused: separate presentation components from data-fetching or state-container logic.
+
+## 2. Component Design & TypeScript
+4. Use functional components with explicit TypeScript interfaces for props:
+   ```tsx
+   interface UserCardProps {
+     name: string;
+     email: string;
+     onSelect?: (email: string) => void;
+   }
+   export const UserCard: React.FC<UserCardProps> = ({ name, email, onSelect }) => { ... };
+   ```
+5. Destructure props in the function signature for clarity and default values.
+6. Provide meaningful fallback states for loading and error conditions in asynchronous UI.
+
+## 3. Hooks & State Ownership
+7. Keep state as local as possible (`useState`, `useReducer`). Hoist state to parents or context only when multiple sibling components genuinely require it.
+8. Maintain exhaustive dependency arrays in `useEffect` and `useCallback`. Never suppress ESLint dependency warnings without clear architectural justification.
+9. Avoid redundant state that can be derived during rendering from existing props or state.
+
+## 4. Accessibility & User Experience
+10. Use semantic HTML elements (`<main>`, `<header>`, `<nav>`, `<article>`, `<button>`). Never use `<div onClick=...>` without proper `role="button"`, `tabIndex`, and keyboard handlers (`onKeyDown`).
+11. Ensure form inputs have associated `<label>` elements or `aria-label` attributes.
+12. Design responsive layouts mobile-first using Flexbox and CSS Grid.

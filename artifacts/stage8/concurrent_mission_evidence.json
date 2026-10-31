@@ -1,0 +1,51 @@
+{
+  "test_date": "2026-10-11T23:14:30+05:30",
+  "deterministic_concurrency_suite": {
+    "file": "tests/test_stage7_2_concurrent_isolation.py",
+    "total_tests": 6,
+    "passed": 6,
+    "failed": 0,
+    "status": "PASS",
+    "scenarios": [
+      {
+        "name": "test_scenario_a_simultaneous_independent_missions",
+        "result": "PASS",
+        "description": "Two simultaneous missions operate on isolated temporary workspaces without cross-talk."
+      },
+      {
+        "name": "test_scenario_b_cancel_one_mission_while_other_continues",
+        "result": "PASS",
+        "description": "Canceling Mission A leaves Mission B running to successful completion."
+      },
+      {
+        "name": "test_scenario_c_one_mission_times_out_while_another_completes",
+        "result": "PASS",
+        "description": "Mission A timeout/deadline expiration terminates only Mission A; Mission B finishes cleanly."
+      },
+      {
+        "name": "test_scenario_d_process_tree_cleanup_and_isolation",
+        "result": "PASS",
+        "description": "Terminating Mission A cleans up only its own child processes; Mission B processes remain untouched."
+      },
+      {
+        "name": "test_scenario_e_approvals_and_event_isolation",
+        "result": "PASS",
+        "description": "Pending approval in Mission A does not block or leak into Mission B events or state."
+      },
+      {
+        "name": "test_scenario_f_concurrent_deadline_and_cancellation_races",
+        "result": "PASS",
+        "description": "Race conditions between cancellation and timeout are resolved safely without crashes or deadlocks."
+      }
+    ]
+  },
+  "live_cloud_model_integration": {
+    "status": "BLOCKED",
+    "reason": "Missing cloud model API credentials in local environment (NVIDIA_API_KEY, OLLAMA_API_KEY, OLLAMA_CLOUD_API_KEY are unset). Per Stage 8 specification Section 4, live calls are not simulated and are marked BLOCKED while deterministic concurrency tests serve as the authoritative evidence category.",
+    "model_stack": {
+      "tier1": "nvidia_nim / z-ai/glm-5.3-flash",
+      "tier2": "ollama / gpt-oss:120b-cloud",
+      "tier3": "ollama / nemotron-3-ultra:cloud"
+    }
+  }
+}

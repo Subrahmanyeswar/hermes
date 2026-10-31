@@ -1,0 +1,27 @@
+{
+  "target": "Automatic Resume and Reconciliation Invariants",
+  "verified_at": "2026-10-13T11:18:45+05:30",
+  "status": "PASS",
+  "pipeline_stages_measured_ms": {
+    "probe_check_latency_ms": 0.02,
+    "enter_waiting_state_ms": 0.29,
+    "checkpoint_validation_ms": 0.34,
+    "workspace_validation_ms": 0.35,
+    "reconcile_disk_ledger_ms": 0.09,
+    "determine_first_unfinished_task_ms": 0.01,
+    "formulate_resume_plan_ms": 0.73,
+    "auto_resume_launch_ms": 1.6
+  },
+  "safety_invariants": {
+    "first_safe_unfinished_task": "Tasks already completed and verified are skipped; execution resumes from first pending task in topological order.",
+    "continuation_identity": "Continuation runs obtain a monotonic attempt_number increment (e.g. attempt 2) and deterministic run_id prefix (run_2_...).",
+    "zero_duplicate_side_effects": "File operations and tool dispatches committed in prior run attempts are verified from the ledger and never re-executed.",
+    "disk_reconciliation": "Filesystem drift is checked against write-ahead intent hashes prior to resuming execution."
+  },
+  "test_evidence": [
+    "tests/test_phase7_network_recovery.py::test_section_d_safe_boundary_preservation",
+    "tests/test_phase7_network_recovery.py::test_section_e_auto_recovery_coordinator_execution",
+    "tests/test_phase5_resume_control.py::test_scenario_c_disk_reconciliation_and_user_mod_detection",
+    "tests/test_phase5_resume_control.py::test_scenario_e_first_unfinished_task_selection"
+  ]
+}

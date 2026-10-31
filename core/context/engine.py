@@ -214,6 +214,30 @@ class ContextEngine:
         self.register_item(obs_item)
         return rec
 
+    def ingest_tool_result(
+        self,
+        tool_name: str,
+        result_str: str,
+        success: bool = True,
+        tool_call_id: Optional[str] = None,
+        turn_id: Optional[str] = None,
+        mission_id: Optional[str] = None,
+    ) -> ToolResultRecord:
+        """Convenience adapter for ingesting tool results from AgentLoop observations."""
+        cid = tool_call_id or f"tc_{uuid.uuid4().hex[:6]}"
+        tid = turn_id or "turn_current"
+        mid = mission_id or "mission_default"
+        status = "success" if success else "error"
+        return self.record_tool_result(
+            tool_call_id=cid,
+            tool_name=tool_name,
+            turn_id=tid,
+            mission_id=mid,
+            output_text=result_str,
+            status=status,
+            summary=result_str[:120],
+        )
+
     # ── Tiered Context Management: Clear, Microcompact, Full Compact ──────────
 
     def clear_tool_results(self, max_age_turns: int = 3) -> int:

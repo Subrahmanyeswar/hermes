@@ -1,0 +1,14 @@
+{
+  "phase": "Phase 4",
+  "verification": "Late Model Generation Cancellation and Rejection",
+  "test_scenario": "test_scenario_c_late_model_response_discard",
+  "behavior": {
+    "model_generation_in_flight": true,
+    "abort_signaled_during_generation": true,
+    "late_model_turn_discarded": true,
+    "downstream_tool_dispatched": false,
+    "state_transition_prevented": true,
+    "final_mission_status": "CANCELLED"
+  },
+  "verdict": "PASS"
+}

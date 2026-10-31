@@ -79,6 +79,48 @@ class BrowserSecurityManager:
             )
 
         if scheme in ("file", "data"):
+            if scheme == "file":
+                # Vite / ESM module CORS defense
+                file_path_str = parsed.path
+                if file_path_str.startswith("/") and len(file_path_str) > 2 and file_path_str[2] == ":":
+                    file_path_str = file_path_str[1:]
+                from pathlib import Path
+                file_p = Path(file_path_str)
+                is_vite_or_esm = False
+                parent_dir = file_p.parent if file_p.exists() else Path.cwd()
+                if (parent_dir / "vite.config.js").exists() or (parent_dir / "vite.config.ts").exists():
+                    is_vite_or_esm = True
+                elif (parent_dir / "package.json").exists():
+                    try:
+                        pkg_content = (parent_dir / "package.json").read_text(encoding="utf-8", errors="ignore").lower()
+                        if "vite" in pkg_content:
+                            is_vite_or_esm = True
+                    except Exception:
+                        pass
+                if file_p.suffix.lower() in (".html", ".htm") and file_p.exists():
+                    try:
+                        html_text = file_p.read_text(encoding="utf-8", errors="ignore").lower()
+                        if 'type="module"' in html_text or "type='module'" in html_text:
+                            is_vite_or_esm = True
+                    except Exception:
+                        pass
+                # Check workspace manager locked root as well
+                try:
+                    from core.workspace import workspace_manager
+                    if workspace_manager.is_locked and workspace_manager.workspace_root:
+                        ws_root = Path(workspace_manager.workspace_root)
+                        if (ws_root / "vite.config.js").exists() or (ws_root / "vite.config.ts").exists():
+                            is_vite_or_esm = True
+                except Exception:
+                    pass
+
+                if is_vite_or_esm:
+                    raise BrowserSecurityViolation(
+                        f"Vite/ESM module application cannot be opened via 'file://' ({clean_url}). "
+                        "Browser CORS policy blocks ES module scripts loaded from 'file://' (origin 'null'). "
+                        "Vite applications must be served over HTTP. "
+                        "Use browser_open_preview or start a dev server and navigate via http://127.0.0.1:<port>."
+                    )
             return clean_url
 
         hostname = (parsed.hostname or "").lower()

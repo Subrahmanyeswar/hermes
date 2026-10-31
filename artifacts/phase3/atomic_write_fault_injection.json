@@ -1,0 +1,32 @@
+{
+  "phase": "Phase 3: Fault Injection - Atomic Writes and Rollback Safety",
+  "generated_at": "2026-10-12T21:24:00+05:30",
+  "injections": [
+    {
+      "test": "Syntax Error Postcondition Validation in fs.edit",
+      "target": "bad_syntax.py",
+      "syntax_error_injected": "def foo(:\n    pass",
+      "ast_parse_success": false,
+      "rollback_executed": true,
+      "original_content_restored": true,
+      "error_code": "EDIT_POSTCONDITION_FAILED",
+      "status": "PASSED"
+    },
+    {
+      "test": "Zero-Byte Truncation Defense",
+      "target": "empty_defense.py",
+      "post_size_bytes": 0,
+      "rollback_executed": true,
+      "error_code": "EDIT_POSTCONDITION_FAILED",
+      "status": "PASSED"
+    },
+    {
+      "test": "Atomic Staging via Tempfile",
+      "target": "deeply/nested/artifact.json",
+      "tempfile_created": true,
+      "fsync_performed": true,
+      "atomic_rename_performed": true,
+      "status": "PASSED"
+    }
+  ]
+}

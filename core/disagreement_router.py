@@ -29,6 +29,21 @@ class RoutingDecision(Enum):
     BLOCK = "block"         # Too dangerous — require explicit user confirmation
 
 
+class FailureCategory(Enum):
+    """Granular failure classification ensuring only actual verification disagreements reach Tier 3."""
+    TOOL_INFRASTRUCTURE_FAILURE = "TOOL_INFRASTRUCTURE_FAILURE"
+    PROVIDER_FAILURE = "PROVIDER_FAILURE"
+    VERIFICATION_INFRASTRUCTURE_FAILURE = "VERIFICATION_INFRASTRUCTURE_FAILURE"
+    APPLICATION_FAILURE = "APPLICATION_FAILURE"
+    SYNTAX_FAILURE = "SYNTAX_FAILURE"
+    ARGUMENT_FAILURE = "ARGUMENT_FAILURE"
+    SECURITY_DENIAL = "SECURITY_DENIAL"
+    PERMISSION_REQUIRED = "PERMISSION_REQUIRED"
+    PATH_FAILURE = "PATH_FAILURE"
+    ENVIRONMENT_FAILURE = "ENVIRONMENT_FAILURE"
+    ACTUAL_VERIFICATION_MISMATCH = "ACTUAL_VERIFICATION_MISMATCH"
+
+
 @dataclass
 class RouterResult:
     """The complete output of the disagreement router."""
@@ -113,6 +128,10 @@ def load_calibrated_threshold(results_path: str = "data/threshold_calibration_re
 # Disagreement Router
 # ──────────────────────────────────────────────────────────────────────
 
+MAX_T3_PER_MISSION: int = 2
+MAX_T3_PER_TASK: int = 1
+
+
 class DisagreementRouter:
     """
     Deterministic routing engine for Speculative Disagreement Routing.
@@ -125,26 +144,88 @@ class DisagreementRouter:
         self.accept_count = 0
         self.escalate_count = 0
         self.block_count = 0
+        self.t3_fingerprints_seen: set[str] = set()
+        self.t3_count_by_mission: dict[str, int] = {}
+        self.t3_count_by_task: dict[str, int] = {}
+
+    def classify_failure(self, tool_name: str, issues: list[str], error_message: str = "", reasoning: str = "") -> FailureCategory:
+        """Classify failure into one of 11 explicit categories to determine T3 arbitrability."""
+        combined = " ".join(issues + [error_message, reasoning]).lower()
+
+        # Security & Permissions
+        if any(w in combined for w in ("security:", "security denial", "forbidden", "permission denied")):
+            return FailureCategory.SECURITY_DENIAL
+        if any(w in combined for w in ("permission required", "needs confirmation", "user approval")):
+            return FailureCategory.PERMISSION_REQUIRED
+
+        # Path Failure
+        if any(w in combined for w in ("outside workspace", "escapes workspace", "invalid path", "directory traversal")):
+            return FailureCategory.PATH_FAILURE
+
+        # Environment & System Missing
+        if any(w in combined for w in (
+            "missing npm", "command not found", "npm: command not found", "node: not found",
+            "browser not installed", "playwright not installed", "exit_code=127", "no such executable"
+        )):
+            return FailureCategory.ENVIRONMENT_FAILURE
+
+        # Tool Infrastructure Failure
+        if any(w in combined for w in (
+            "file not found", "no such file", "edit_target_not_found", "cannot find",
+            "does not exist", "filenotfounderror", "cannot edit nonexistent", "stale_reason",
+            "target file missing", "tool_infrastructure_failure", "infrastructure", "disk i/o", "ioerror", "oserror"
+        )):
+            return FailureCategory.TOOL_INFRASTRUCTURE_FAILURE
+
+        # Provider Failure
+        if any(w in combined for w in ("timeout", "timed out", "connectionerror", "503", "504", "rate limit", "overloaded")):
+            return FailureCategory.PROVIDER_FAILURE
+
+        # Argument / Input Failure
+        if any(w in combined for w in ("invalid argument", "missing required", "expected_count_mismatch", "expected_occurrences")):
+            return FailureCategory.ARGUMENT_FAILURE
+
+        # Syntax Failure
+        if any(w in combined for w in ("syntaxerror", "syntax error", "malformed json", "unbalanced")):
+            return FailureCategory.SYNTAX_FAILURE
+
+        # Verification Infrastructure
+        if any(w in combined for w in ("verifier crashed", "test runner not found", "pytest: command not found")):
+            return FailureCategory.VERIFICATION_INFRASTRUCTURE_FAILURE
+
+        # Application Logic Failure
+        if any(w in combined for w in ("assertionerror", "test failed", "unit test failure")):
+            return FailureCategory.APPLICATION_FAILURE
+
+        return FailureCategory.ACTUAL_VERIFICATION_MISMATCH
+
+    def _is_infrastructure_error(self, issues: list[str], error_message: str = "", reasoning: str = "") -> bool:
+        """Check if an error is pure infrastructure/filesystem and should not invoke Tier 3."""
+        fail_cat = self.classify_failure("", issues, error_message, reasoning)
+        return fail_cat in (
+            FailureCategory.TOOL_INFRASTRUCTURE_FAILURE,
+            FailureCategory.ENVIRONMENT_FAILURE,
+            FailureCategory.PATH_FAILURE,
+            FailureCategory.ARGUMENT_FAILURE,
+            FailureCategory.SYNTAX_FAILURE,
+            FailureCategory.PROVIDER_FAILURE,
+            FailureCategory.VERIFICATION_INFRASTRUCTURE_FAILURE,
+        )
 
     def route(
         self,
         verification: VerificationResult,
         tool_name: str,
-        mode: str = "auto"
+        mode: str = "auto",
+        task_id: str = "",
+        mission_id: str = "",
+        error_message: str = "",
     ) -> RouterResult:
         """
         Make a routing decision based on verification result.
         Pure logic — no async, no LLM calls.
-
-        Checks are evaluated in strict priority order:
-        1. Hard block (risk >= 0.9)
-        2. Always-escalate tools
-        3. T2 explicitly disagrees
-        4. Critical issues present
-        5. Low confidence
-        6. Elevated risk score
-        7. Default: ACCEPT
         """
+        import hashlib
 
         # ── Check 1: Hard block (risk too high for autonomous execution) ──
         if verification.risk_score >= HARD_BLOCK_RISK_THRESHOLD:
@@ -158,17 +239,85 @@ class DisagreementRouter:
             logger.warning(f"Router: BLOCK | tool={tool_name} | {result.summary()}")
             return result
 
+        # Helper to filter and guard candidate escalations
+        def _guarded_escalate(reason: str, requires_confirm: bool = False) -> RouterResult:
+            issues = getattr(verification, "critical_issues", [])
+            reasoning = getattr(verification, "reasoning", "")
+
+            # 1. Quarantine non-arbitrable infrastructure categories from invoking Tier 3
+            fail_cat = self.classify_failure(tool_name, issues, error_message, reasoning)
+            if fail_cat in (
+                FailureCategory.TOOL_INFRASTRUCTURE_FAILURE,
+                FailureCategory.ENVIRONMENT_FAILURE,
+                FailureCategory.PATH_FAILURE,
+                FailureCategory.PROVIDER_FAILURE,
+                FailureCategory.VERIFICATION_INFRASTRUCTURE_FAILURE,
+            ):
+                logger.info(f"Router: Escalation suppressed for {fail_cat.value} | tool={tool_name}")
+                return RouterResult(
+                    decision=RoutingDecision.ACCEPT,
+                    reason=f"Failure categorized as {fail_cat.value}; quarantined from Tier 3 ({reason[:50]})",
+                    tier3_needed=False,
+                    requires_user_confirm=False,
+                )
+
+            # 2. Fingerprint bounding (max 1 T3 call per failure fingerprint per task)
+            if task_id:
+                issues_str = "; ".join(issues[:2])
+                fp_key = f"{task_id}:{tool_name}:{fail_cat.value}:{issues_str[:80]}"
+                fingerprint = hashlib.sha256(fp_key.encode("utf-8")).hexdigest()
+                if fingerprint in self.t3_fingerprints_seen:
+                    logger.info(f"Router: Escalation suppressed — duplicate failure fingerprint {fingerprint[:8]}")
+                    return RouterResult(
+                        decision=RoutingDecision.ACCEPT,
+                        reason="Escalation suppressed: failure fingerprint already arbitrated by Tier 3",
+                        tier3_needed=False,
+                        requires_user_confirm=False,
+                    )
+                self.t3_fingerprints_seen.add(fingerprint)
+
+            # 3. Mission budget check
+            if mission_id and self.t3_count_by_mission.get(mission_id, 0) >= MAX_T3_PER_MISSION:
+                logger.warning(f"Router: Escalation suppressed — mission T3 budget ({MAX_T3_PER_MISSION}) exhausted")
+                return RouterResult(
+                    decision=RoutingDecision.ACCEPT,
+                    reason=f"Tier 3 budget limit reached for mission (max {MAX_T3_PER_MISSION})",
+                    tier3_needed=False,
+                    requires_user_confirm=False,
+                )
+
+            # 4. Task budget check
+            if task_id and self.t3_count_by_task.get(task_id, 0) >= MAX_T3_PER_TASK:
+                logger.warning(f"Router: Escalation suppressed — task T3 budget ({MAX_T3_PER_TASK}) exhausted")
+                return RouterResult(
+                    decision=RoutingDecision.ACCEPT,
+                    reason=f"Tier 3 budget limit reached for task (max {MAX_T3_PER_TASK})",
+                    tier3_needed=False,
+                    requires_user_confirm=False,
+                )
+
+            # Register escalation
+            if mission_id:
+                self.t3_count_by_mission[mission_id] = self.t3_count_by_mission.get(mission_id, 0) + 1
+            if task_id:
+                self.t3_count_by_task[task_id] = self.t3_count_by_task.get(task_id, 0) + 1
+            self.escalate_count += 1
+
+            res = RouterResult(
+                decision=RoutingDecision.ESCALATE,
+                reason=reason,
+                tier3_needed=True,
+                requires_user_confirm=requires_confirm,
+            )
+            logger.info(f"Router: ESCALATE | tool={tool_name} | {res.summary()}")
+            return res
+
         # ── Check 2: Always-escalate tools ────────────────────────────────
         if tool_name in ALWAYS_ESCALATE_TOOLS:
-            self.escalate_count += 1
-            result = RouterResult(
-                decision=RoutingDecision.ESCALATE,
+            return _guarded_escalate(
                 reason=f"Tool '{tool_name}' always requires Tier 3 review",
-                tier3_needed=True,
-                requires_user_confirm=tool_name in ALWAYS_CONFIRM_TOOLS
+                requires_confirm=tool_name in ALWAYS_CONFIRM_TOOLS
             )
-            logger.info(f"Router: ESCALATE (always-escalate tool) | tool={tool_name} | {result.summary()}")
-            return result
 
         # ── Check 3: T2 explicitly disagrees ──────────────────────────────
         if not verification.agree:
@@ -177,51 +326,29 @@ class DisagreementRouter:
                 if verification.critical_issues
                 else "no specific issues given"
             )
-            self.escalate_count += 1
-            result = RouterResult(
-                decision=RoutingDecision.ESCALATE,
-                reason=f"Tier 2 disagreed: {issues_str}",
-                tier3_needed=True,
-                requires_user_confirm=False
-            )
-            logger.info(f"Router: ESCALATE (T2 disagreed) | tool={tool_name} | {result.summary()}")
-            return result
+            return _guarded_escalate(reason=f"Tier 2 disagreed: {issues_str}")
 
         # ── Check 4: Critical issues even if agree=True ───────────────────
-        if verification.critical_issues:
-            self.escalate_count += 1
-            result = RouterResult(
-                decision=RoutingDecision.ESCALATE,
-                reason=f"Tier 2 found {len(verification.critical_issues)} critical issue(s) despite agreeing",
-                tier3_needed=True,
-                requires_user_confirm=False
+        actionable_issues = [
+            iss for iss in verification.critical_issues
+            if not any(kw in iss.lower() for kw in ("unavailable", "timeout", "timed out", "fallback", "n/a", "pending"))
+        ]
+        if actionable_issues:
+            return _guarded_escalate(
+                reason=f"Tier 2 found {len(actionable_issues)} critical issue(s) despite agreeing"
             )
-            logger.info(f"Router: ESCALATE (critical issues) | tool={tool_name} | {result.summary()}")
-            return result
 
         # ── Check 5: Low confidence ───────────────────────────────────────
         if verification.confidence < self.confidence_threshold:
-            self.escalate_count += 1
-            result = RouterResult(
-                decision=RoutingDecision.ESCALATE,
-                reason=f"Tier 2 confidence {verification.confidence:.2f} is below threshold {self.confidence_threshold}",
-                tier3_needed=True,
-                requires_user_confirm=False
+            return _guarded_escalate(
+                reason=f"Tier 2 confidence {verification.confidence:.2f} is below threshold {self.confidence_threshold}"
             )
-            logger.info(f"Router: ESCALATE (low confidence) | tool={tool_name} | {result.summary()}")
-            return result
 
         # ── Check 6: Elevated risk score (below hard block but above escalate) ─
         if verification.risk_score >= ESCALATE_RISK_THRESHOLD:
-            self.escalate_count += 1
-            result = RouterResult(
-                decision=RoutingDecision.ESCALATE,
-                reason=f"Risk score {verification.risk_score:.2f} exceeds escalation threshold {ESCALATE_RISK_THRESHOLD}",
-                tier3_needed=True,
-                requires_user_confirm=False
+            return _guarded_escalate(
+                reason=f"Risk score {verification.risk_score:.2f} exceeds escalation threshold {ESCALATE_RISK_THRESHOLD}"
             )
-            logger.info(f"Router: ESCALATE (elevated risk) | tool={tool_name} | {result.summary()}")
-            return result
 
         # ── Default: ACCEPT ───────────────────────────────────────────────
         self.accept_count += 1

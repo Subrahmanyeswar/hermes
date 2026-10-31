@@ -1,0 +1,39 @@
+{
+  "disjoint_execution": {
+    "task_a": {
+      "id": "task_1",
+      "keys": [
+        "index.html"
+      ]
+    },
+    "task_b": {
+      "id": "task_2",
+      "keys": [
+        "styles.css"
+      ]
+    },
+    "can_parallel": true,
+    "verified": true
+  },
+  "conflicting_execution": {
+    "task_c": {
+      "id": "task_3",
+      "keys": [
+        "state.json",
+        "app.js"
+      ]
+    },
+    "task_d": {
+      "id": "task_4",
+      "keys": [
+        "state.json"
+      ]
+    },
+    "must_serialize": true,
+    "shared_keys": [
+      "state.json"
+    ],
+    "verified": true
+  },
+  "invariants_passed": true
+}

@@ -1,0 +1,7 @@
+{
+  "path_traversal_blocked": true,
+  "checkpoint_created": true,
+  "initial_integrity_verified": true,
+  "checkpoint_tamper_detected": true,
+  "all_security_invariants_passed": true
+}

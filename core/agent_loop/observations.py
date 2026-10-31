@@ -85,6 +85,7 @@ class ObservationBuilder:
             metadata={
                 "duration_seconds": duration,
                 "files_created": created,
+                **(getattr(tool_result, "metadata", {}) or {}),
             }
         )
 

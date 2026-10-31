@@ -1,0 +1,111 @@
+{
+  "timestamp": "2026-10-12T22:34:00+05:30",
+  "python_interpreter": "C:\\Users\\SUBBU\\Downloads\\hermes\\venv\\Scripts\\python.exe",
+  "python_version": "3.12.0",
+  "total_collected": 61,
+  "suites": [
+    {
+      "suite": "tests/test_phase1_mission_lifecycle.py",
+      "count": 7,
+      "test_ids": [
+        "tests/test_phase1_mission_lifecycle.py::test_scenario_a_legal_transition_graph",
+        "tests/test_phase1_mission_lifecycle.py::test_scenario_b_illegal_transition_rejection",
+        "tests/test_phase1_mission_lifecycle.py::test_scenario_c_terminal_state_immutability",
+        "tests/test_phase1_mission_lifecycle.py::test_scenario_d_mission_identity_stability_and_run_correlation",
+        "tests/test_phase1_mission_lifecycle.py::test_scenario_e_concurrent_run_control_isolation",
+        "tests/test_phase1_mission_lifecycle.py::test_scenario_f_workspace_binding_and_snapshot_fields",
+        "tests/test_phase1_mission_lifecycle.py::test_scenario_g_run_control_pause_resume_contracts"
+      ]
+    },
+    {
+      "suite": "tests/test_phase2_durable_persistence.py",
+      "count": 12,
+      "test_ids": [
+        "tests/test_phase2_durable_persistence.py::test_scenario_a_durable_event_journal_append",
+        "tests/test_phase2_durable_persistence.py::test_scenario_b_sequence_monotonicity_across_restart",
+        "tests/test_phase2_durable_persistence.py::test_scenario_c_snapshot_persistence_and_replay_reconstruction",
+        "tests/test_phase2_durable_persistence.py::test_scenario_d_checkpoint_manifest_and_blob_integrity",
+        "tests/test_phase2_durable_persistence.py::test_scenario_e_safe_execution_boundary_checkpoints",
+        "tests/test_phase2_durable_persistence.py::test_scenario_f_verification_evidence_preservation",
+        "tests/test_phase2_durable_persistence.py::test_scenario_g_process_restart_recovery_state",
+        "tests/test_phase2_durable_persistence.py::test_scenario_h_replay_beyond_buffer_limit",
+        "tests/test_phase2_durable_persistence.py::test_scenario_i_concurrent_persistence_ordering",
+        "tests/test_phase2_durable_persistence.py::test_scenario_j_corruption_and_tamper_detection",
+        "tests/test_phase2_durable_persistence.py::test_scenario_k_non_blocking_publish_performance",
+        "tests/test_phase2_durable_persistence.py::test_scenario_l_phase1_lifecycle_preservation"
+      ]
+    },
+    {
+      "suite": "tests/test_stage9_workspace_hub.py",
+      "count": 8,
+      "test_ids": [
+        "tests/test_stage9_workspace_hub.py::test_scenario_a_initial_project_discovery",
+        "tests/test_stage9_workspace_hub.py::test_scenario_b_native_picker_cancelled_and_selected",
+        "tests/test_stage9_workspace_hub.py::test_scenario_c_select_arbitrary_local_folder",
+        "tests/test_stage9_workspace_hub.py::test_scenario_d_and_e_task_workspace_binding_and_switching",
+        "tests/test_stage9_workspace_hub.py::test_scenario_f_immutable_mission_workspace_snapshot",
+        "tests/test_stage9_workspace_hub.py::test_scenario_g_hermes_root_protection_flag",
+        "tests/test_stage9_workspace_hub.py::test_scenario_h_invalid_workspace_path_rejected",
+        "tests/test_stage9_workspace_hub.py::test_scenario_i_remove_recent_workspace"
+      ]
+    },
+    {
+      "suite": "tests/test_phase3_tool_journaling.py",
+      "count": 7,
+      "test_ids": [
+        "tests/test_phase3_tool_journaling.py::test_scenario_a_write_ahead_intent_committed_before_execution",
+        "tests/test_phase3_tool_journaling.py::test_scenario_b_intent_commit_failure_prevents_physical_execution",
+        "tests/test_phase3_tool_journaling.py::test_scenario_c_result_durability_and_hash_correlation",
+        "tests/test_phase3_tool_journaling.py::test_scenario_d_uncertain_outcome_protocol_on_result_commit_failure",
+        "tests/test_phase3_tool_journaling.py::test_scenario_e_duplicate_dispatch_rejection",
+        "tests/test_phase3_tool_journaling.py::test_scenario_f_interrupted_operation_startup_reconciliation",
+        "tests/test_phase3_tool_journaling.py::test_scenario_g_subprocess_execution_journaling"
+      ]
+    },
+    {
+      "suite": "tests/test_phase3_file_safety.py",
+      "count": 9,
+      "test_ids": [
+        "tests/test_phase3_file_safety.py::test_scenario_h_workspace_containment_rejections",
+        "tests/test_phase3_file_safety.py::test_scenario_i_read_before_edit_enforcement",
+        "tests/test_phase3_file_safety.py::test_scenario_j_stale_file_protection",
+        "tests/test_phase3_file_safety.py::test_scenario_k_nonexistent_file_edit_rejection",
+        "tests/test_phase3_file_safety.py::test_scenario_l_ambiguous_edit_target_rejection",
+        "tests/test_phase3_file_safety.py::test_scenario_m_exact_string_matching",
+        "tests/test_phase3_file_safety.py::test_scenario_n_write_file_no_clobber_when_allow_overwrite_false",
+        "tests/test_phase3_file_safety.py::test_scenario_o_atomic_write_and_parent_creation",
+        "tests/test_phase3_file_safety.py::test_scenario_p_newline_style_preservation"
+      ]
+    },
+    {
+      "suite": "tests/test_phase4_stop_control.py",
+      "count": 8,
+      "test_ids": [
+        "tests/test_phase4_stop_control.py::test_scenario_a_concurrent_mission_isolation",
+        "tests/test_phase4_stop_control.py::test_scenario_b_immediate_stop_barrier_prevents_tool_execution",
+        "tests/test_phase4_stop_control.py::test_scenario_c_late_model_response_discard",
+        "tests/test_phase4_stop_control.py::test_scenario_d_subprocess_tree_termination",
+        "tests/test_phase4_stop_control.py::test_scenario_e_filesystem_preservation_on_stop",
+        "tests/test_phase4_stop_control.py::test_scenario_f_settled_checkpoint_and_durable_stop",
+        "tests/test_phase4_stop_control.py::test_scenario_g_idempotency_of_repeated_stop",
+        "tests/test_phase4_stop_control.py::test_scenario_h_non_blocking_stop_execution"
+      ]
+    },
+    {
+      "suite": "tests/test_phase5_resume_control.py",
+      "count": 10,
+      "test_ids": [
+        "tests/test_phase5_resume_control.py::test_scenario_a_checkpoint_integrity_validation",
+        "tests/test_phase5_resume_control.py::test_scenario_b_original_workspace_binding_and_verification",
+        "tests/test_phase5_resume_control.py::test_scenario_c_disk_reconciliation_and_user_mod_detection",
+        "tests/test_phase5_resume_control.py::test_scenario_d_uncertain_outcome_protocol_blocking",
+        "tests/test_phase5_resume_control.py::test_scenario_e_first_unfinished_task_selection",
+        "tests/test_phase5_resume_control.py::test_scenario_f_terminal_run_immutability_and_continuation_identity",
+        "tests/test_phase5_resume_control.py::test_scenario_g_duplicate_resume_idempotency",
+        "tests/test_phase5_resume_control.py::test_scenario_h_resume_via_http_api",
+        "tests/test_phase5_resume_control.py::test_scenario_i_resume_preview_endpoint",
+        "tests/test_phase5_resume_control.py::test_scenario_j_full_restart_recovery_cycle"
+      ]
+    }
+  ]
+}

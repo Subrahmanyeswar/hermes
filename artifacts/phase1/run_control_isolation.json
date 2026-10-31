@@ -1,0 +1,46 @@
+{
+  "phase": "Phase 1 - Canonical Mission Lifecycle and Run Control",
+  "generated_at": 1791809500.0,
+  "run_control_architecture": {
+    "defect_identified": "Cached ApplicationRuntime in RuntimeAdapter had shared abort_event and global_abort_event overwritten on every new mission start, creating cross-mission cancellation leaks.",
+    "isolation_solution": {
+      "context_class": "MissionControlContext (core.runtime_state.models)",
+      "instance_tracking": "RuntimeAdapter._mission_controls[mission_id]",
+      "agent_loop_scoping": "Instantiate scoped AgentLoop per mission run rather than mutating shared runtime.agent_loop",
+      "fields_per_mission": [
+        "mission_id",
+        "run_id",
+        "attempt_number",
+        "abort_event",
+        "pause_event",
+        "workspace_root",
+        "is_cancelled",
+        "is_paused",
+        "is_terminal"
+      ]
+    }
+  },
+  "operations_contract": {
+    "stop": {
+      "semantics": "Immediately trigger abort_event, terminate mission-owned subprocesses, cancel background asyncio.Task, invalidate pending approval requests, and publish MISSION_CANCELLED.",
+      "is_terminal": true
+    },
+    "pause": {
+      "semantics": "Clear pause_event, suspend agent loop iteration before turn execution begins, preserve all files, memory, and task state intact, publish MISSION_PAUSED.",
+      "is_terminal": false
+    },
+    "resume": {
+      "semantics": "Set pause_event, verify resume eligibility, resume turn execution from exact paused state, publish MISSION_RESUMED.",
+      "eligibility": "Allowed only for non-terminal, paused missions in the active session. Cold restart or cross-process resume deferred to Phase 2/3 durable checkpoints."
+    },
+    "cancel": {
+      "semantics": "Authoritative user/system termination marking run as terminal, releasing locks, and preventing any late model or tool transitions from altering state.",
+      "is_terminal": true
+    }
+  },
+  "verification": {
+    "concurrent_isolation_test": "tests/test_phase1_mission_lifecycle.py::test_scenario_e_concurrent_run_control_isolation",
+    "pause_resume_contract_test": "tests/test_phase1_mission_lifecycle.py::test_scenario_g_run_control_pause_resume_contracts",
+    "verdict": "PASSED"
+  }
+}

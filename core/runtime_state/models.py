@@ -29,6 +29,133 @@ class MissionStatus(str, Enum):
     ABORTED = "ABORTED"
 
 
+# ── Authoritative Mission State Machine (Phase 1) ────────────────────────────
+
+LEGAL_MISSION_TRANSITIONS: Dict[MissionStatus, set[MissionStatus]] = {
+    MissionStatus.CREATED: {
+        MissionStatus.PLANNING,
+        MissionStatus.RUNNING,
+        MissionStatus.FAILED,
+        MissionStatus.CANCELLED,
+        MissionStatus.ABORTED,
+    },
+    MissionStatus.PLANNING: {
+        MissionStatus.RUNNING,
+        MissionStatus.WAITING,
+        MissionStatus.PAUSED,
+        MissionStatus.FAILED,
+        MissionStatus.CANCELLED,
+        MissionStatus.ABORTED,
+    },
+    MissionStatus.RUNNING: {
+        MissionStatus.WAITING,
+        MissionStatus.PAUSED,
+        MissionStatus.COMPLETING,
+        MissionStatus.COMPLETED,
+        MissionStatus.FAILED,
+        MissionStatus.CANCELLED,
+        MissionStatus.ABORTED,
+    },
+    MissionStatus.WAITING: {
+        MissionStatus.RUNNING,
+        MissionStatus.PAUSED,
+        MissionStatus.COMPLETING,
+        MissionStatus.FAILED,
+        MissionStatus.CANCELLED,
+        MissionStatus.ABORTED,
+    },
+    MissionStatus.PAUSED: {
+        MissionStatus.RUNNING,
+        MissionStatus.CANCELLED,
+        MissionStatus.ABORTED,
+    },
+    MissionStatus.COMPLETING: {
+        MissionStatus.COMPLETED,
+        MissionStatus.FAILED,
+        MissionStatus.CANCELLED,
+        MissionStatus.ABORTED,
+    },
+    # Terminal states: strictly immutable, empty set of outbound transitions
+    MissionStatus.COMPLETED: set(),
+    MissionStatus.FAILED: set(),
+    MissionStatus.CANCELLED: set(),
+    MissionStatus.ABORTED: set(),
+}
+
+
+def is_legal_mission_transition(current: MissionStatus, target: MissionStatus) -> bool:
+    """Validate whether target is a legal transition from current status."""
+    if current == target:
+        return True
+    allowed = LEGAL_MISSION_TRANSITIONS.get(current, set())
+    return target in allowed
+
+
+@dataclass
+class MissionControlContext:
+    """
+    Per-mission execution control and identity context.
+    Ensures cancellation signals, pause states, and attempts are completely
+    isolated per mission instance and not shared across cached runtimes.
+    """
+    mission_id: str
+    run_id: str
+    attempt_number: int = 1
+    abort_event: Any = None  # asyncio.Event or threading.Event
+    pause_event: Any = None  # asyncio.Event
+    workspace_root: str = ""
+    is_cancelled: bool = False
+    is_paused: bool = False
+    pause_requested: bool = False
+    is_terminal: bool = False
+    created_at: float = field(default_factory=time.time)
+
+    def cancel(self, reason: str = "User requested cancellation") -> None:
+        """Trigger cancellation signal for this isolated mission run."""
+        self.is_cancelled = True
+        self.is_terminal = True
+        self.is_paused = False
+        self.pause_requested = False
+        if self.abort_event is not None:
+            self.abort_event.set()
+        if self.pause_event is not None:
+            self.pause_event.set()
+
+    def request_pause(self) -> None:
+        """Request execution pause. Leaves is_paused=False until confirmed at boundary."""
+        if self.is_terminal:
+            return
+        self.pause_requested = True
+        self.is_paused = False
+        if self.pause_event is not None:
+            self.pause_event.clear()
+
+    def confirm_pause(self) -> None:
+        """Confirm execution pause at safe checkpoint boundary."""
+        if self.is_terminal or not self.pause_requested:
+            self.pause_requested = False
+            return
+        self.is_paused = True
+        self.pause_requested = False
+
+    def resume(self) -> None:
+        """Resume execution."""
+        if self.is_terminal:
+            return
+        self.is_paused = False
+        self.pause_requested = False
+        if self.pause_event is not None:
+            self.pause_event.set()
+
+    def mark_terminal(self) -> None:
+        """Mark this run as reaching a terminal state."""
+        self.is_terminal = True
+        self.is_paused = False
+        self.pause_requested = False
+        if self.pause_event is not None:
+            self.pause_event.set()
+
+
 class TaskStatus(str, Enum):
     PENDING = "PENDING"
     READY = "READY"
@@ -63,6 +190,15 @@ class RequirementCategory(str, Enum):
     UI = "ui"
     DOCUMENTATION = "documentation"
     VERIFICATION = "verification"
+
+
+class RequirementType(str, Enum):
+    OUTPUT_ARTIFACT = "output_artifact"
+    DEPENDENCY = "dependency"
+    RUNTIME = "runtime"
+    SOURCE_REFERENCE = "source_reference"
+    BEHAVIORAL = "behavioral"
+    ACCEPTANCE_TEST = "acceptance_test"
 
 
 class RequirementPriority(str, Enum):
@@ -124,6 +260,7 @@ class WaitReason(str, Enum):
     WAITING_FOR_VERIFICATION = "WAITING_FOR_VERIFICATION"
     WAITING_FOR_PERMISSION = "WAITING_FOR_PERMISSION"
     WAITING_FOR_NETWORK = "WAITING_FOR_NETWORK"
+    WAITING_FOR_PROVIDER = "WAITING_FOR_PROVIDER"
     WAITING_FOR_USER = "WAITING_FOR_USER"
     REPAIRING = "REPAIRING"
     COMPLETED = "COMPLETED"
@@ -200,6 +337,7 @@ class SessionStatus(str, Enum):
     DISCONNECTED = "DISCONNECTED"
     RESUMING = "RESUMING"
     CLOSED = "CLOSED"
+    INTERRUPTED = "INTERRUPTED"
 
 
 class EvidenceKind(str, Enum):
@@ -227,6 +365,8 @@ class CheckpointStatus(str, Enum):
 @dataclass
 class MissionState:
     mission_id: str
+    run_id: Optional[str] = None
+    attempt_number: int = 1
     request_id: Optional[str] = None
     session_id: Optional[str] = None
     status: MissionStatus = MissionStatus.CREATED
@@ -245,6 +385,8 @@ class MissionState:
     execution_mode: str = "auto"
     workspace_root: str = ""
     last_event_sequence: int = 0
+    active_skills: List[str] = field(default_factory=list)
+    skill_fingerprints: Dict[str, str] = field(default_factory=dict)
 
     @property
     def is_terminal(self) -> bool:
@@ -502,6 +644,7 @@ class RequirementState:
     title: str
     description: str = ""
     category: RequirementCategory = RequirementCategory.FUNCTIONAL
+    requirement_type: RequirementType = RequirementType.OUTPUT_ARTIFACT
     priority: RequirementPriority = RequirementPriority.MEDIUM
     status: RequirementStatus = RequirementStatus.PENDING
     dependencies: List[str] = field(default_factory=list)
@@ -544,6 +687,7 @@ class RequirementState:
     def to_dict(self) -> Dict[str, Any]:
         d = asdict(self)
         d["category"] = self.category.value
+        d["requirement_type"] = self.requirement_type.value if hasattr(self.requirement_type, "value") else str(self.requirement_type)
         d["priority"] = self.priority.value
         d["status"] = self.status.value
         return d
@@ -1300,15 +1444,35 @@ class HermesRuntimeState:
     repairs: Dict[str, RepairState] = field(default_factory=dict)
     escalations: Dict[str, EscalationState] = field(default_factory=dict)
 
+    # Phase 11 extensions: High-End Code Generation Contracts
+    blueprint: Optional[Any] = None
+    interface_manifest: Optional[Any] = None
+    quality_rubric: Optional[Any] = None
+
+    # Phase 6 extensions: Progressive Skill Routing & Selection State
+    active_skills: List[str] = field(default_factory=list)
+    skill_fingerprints: Dict[str, str] = field(default_factory=dict)
+
     state_version: int = 0
     last_event_sequence: int = 0
     last_updated_at: float = field(default_factory=time.time)
     metadata: Dict[str, Any] = field(default_factory=dict)
 
     @classmethod
-    def create_empty(cls, mission_id: str, session_id: Optional[str] = None) -> HermesRuntimeState:
+    def create_empty(
+        cls,
+        mission_id: str,
+        session_id: Optional[str] = None,
+        run_id: Optional[str] = None,
+        attempt_number: int = 1,
+    ) -> HermesRuntimeState:
         s_id = session_id or f"sess_{mission_id}"
-        m_state = MissionState(mission_id=mission_id, session_id=s_id)
+        m_state = MissionState(
+            mission_id=mission_id,
+            session_id=s_id,
+            run_id=run_id,
+            attempt_number=attempt_number,
+        )
         g_state = GoalState(goal_id=f"goal_{mission_id}", mission_id=mission_id)
         ledger = AcceptanceLedger(goal_id=f"goal_{mission_id}")
         sess_state = SessionState(session_id=s_id, mission_id=mission_id)
@@ -1348,6 +1512,11 @@ class HermesRuntimeState:
             "background_jobs": {k: v.to_dict() for k, v in self.background_jobs.items()},
             "repairs": {k: v.to_dict() for k, v in self.repairs.items()},
             "escalations": {k: v.to_dict() for k, v in self.escalations.items()},
+            "blueprint": self.blueprint.to_dict() if hasattr(self.blueprint, "to_dict") else self.blueprint,
+            "interface_manifest": self.interface_manifest.to_dict() if hasattr(self.interface_manifest, "to_dict") else self.interface_manifest,
+            "quality_rubric": self.quality_rubric.to_dict() if hasattr(self.quality_rubric, "to_dict") else self.quality_rubric,
+            "active_skills": list(self.active_skills),
+            "skill_fingerprints": dict(self.skill_fingerprints),
             "state_version": self.state_version,
             "last_event_sequence": self.last_event_sequence,
             "last_updated_at": self.last_updated_at,

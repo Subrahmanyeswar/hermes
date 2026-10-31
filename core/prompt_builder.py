@@ -54,36 +54,53 @@ DO:
   ✓ Continue until the actual task is done, not just started
   ✓ Verify your output makes sense for the request
 
-═══ FILE CONTENT REQUIREMENTS ═══
+═══ FILE CONTENT & CANONICAL ARCHITECTURE REQUIREMENTS ═══
 
-Every file you write must contain complete, working implementation:
+Every file you write must contain a complete, working, high-end implementation:
 
-HTML files (minimum 40 lines):
-  - Full document structure (DOCTYPE, html, head, body)
-  - Semantic elements (nav, main, section, article, footer)
-  - Real content in every section
-  - Links to CSS and JS files
-  - All requested sections implemented
+Canonical Web Structure:
+  - Root entrypoint: `index.html`
+  - Stylesheet: `css/styles.css` (linked in HTML via `<link rel="stylesheet" href="css/styles.css" />`)
+  - Scripts: `js/app.js` (linked in HTML via `<script src="js/app.js" defer></script>`)
+  - NEVER create redundant root files like `style.css` when `css/styles.css` is referenced.
 
-CSS files (minimum 30 lines):
-  - CSS custom properties/variables
-  - Real style rules (not just resets)
-  - Flexbox or Grid layout where appropriate
-  - Hover states and transitions
-  - @media queries if responsive was requested
-  - @keyframes if animations were requested
+Cross-File Coherence Contract:
+  - Element IDs and form control names MUST match EXACTLY between HTML and JavaScript querySelectors/listeners.
+  - Class names styled in CSS must match the exact classes rendered in HTML and generated in JS template literals.
 
-JavaScript/JSX files (minimum 25 lines):
-  - Real DOM manipulation or React components
-  - Event listeners or hooks
-  - Actual logic, not just console.log
-  - Connected to HTML elements
+HTML files:
+  - Semantic HTML5 structure (header, main, section, article, modal, footer)
+  - Accessible form controls with explicit labels, semantic inputs, and clear placeholders
+  - Modal dialogue with backdrop blur, accessible close button, and structured metadata display
+  - Empty state container for search/filter no-match scenarios
+  - Elements initialized with semantic markup ready for dynamic client-side hydration
 
-Python files (minimum 20 lines):
-  - Real imports
-  - Actual class/function implementations
-  - Error handling
-  - Not just pass statements
+CSS files (High-End Design System & Micro-Interactions):
+  - Comprehensive design tokens via CSS custom properties:
+    * Palette: --primary, --primary-hover, --surface, --surface-elevated, --text-primary, --text-secondary, --border, --accent
+    * Elevation: --shadow-sm, --shadow-md, --shadow-lg (layered depth)
+    * Typography: deliberate scale with font-family, font-weight, line-height, letter-spacing
+  - Responsive layout: CSS Grid with fluid minmax columns and Flexbox for controls
+  - Multi-viewport responsive rules: Mobile (375px), Tablet (768px), Desktop (1280px) with ZERO horizontal overflow (max-width: 100%, box-sizing: border-box)
+  - Micro-interactions & Polish:
+    * Card hover elevation (transform: translateY(-2px), transition: 0.2s cubic-bezier(0.4, 0, 0.2, 1))
+    * Button hover/focus/active states with visible focus-visible outlines
+    * Modal entrance transition (opacity and scale transform)
+    * @media (prefers-reduced-motion: reduce) support
+
+JavaScript files (Complete Production Functionality):
+  - Robust client-side state management backed by localStorage persistence
+  - Rich initial mock dataset: AT LEAST 5 realistic, fully-populated domain records tailored to the application's specific domain
+  - Self-contained vanilla ES6+ logic in js/app.js (do NOT import from non-existent external files)
+  - Instant search filtering and category/status filtering matching item properties
+  - Empty state rendering displaying a friendly message when queries return 0 results
+  - Full details/modal interaction: opens on item click, displays metadata, closes on close button, backdrop click, or ESC key
+  - Interactive state toggles and action forms: validates inputs, appends to state and storage, and immediately updates the DOM
+  - Zero placeholders, stubs, or dead handlers; every control is functional
+
+Python files:
+  - Real imports, typed function and class implementations
+  - Comprehensive error handling and clean modular structure
 
 ═══ TOOL USAGE ═══
 
@@ -91,11 +108,12 @@ Available tools:
 {tool_descriptions}
 
 Tool selection rules:
-  1. read_file — ALWAYS read existing files before modifying them
-  2. write_file — Write COMPLETE content, not partial/placeholder
-  3. bash_exec — Run validation: check files exist, run builds/tests
-  4. create_folder — Only when you will immediately create files inside it
-  5. Never use create_folder as your only action for an implementation task
+  1. read-before-write — If modifying an EXISTING file, read it once first.
+  2. write_file — If the requested target file does NOT exist yet, create it IMMEDIATELY with write_file. Do NOT call list_directory if the target path is already known.
+  3. Action Momentum — OBSERVE → UNDERSTAND → ACT → VERIFY. Take the implementation action directly. Never call list_directory or read_file repeatedly without making code changes.
+  4. bash_exec — Run validation: check files exist, run builds/tests
+  5. create_folder — Only when you will immediately create files inside it
+  6. Never use create_folder or list_directory as your only action for an implementation task.
 
 ═══ PERMISSION MODE ═══
 Mode: {mode}
@@ -161,36 +179,53 @@ DO:
   ✓ Continue until the actual task is done, not just started
   ✓ Verify your output makes sense for the request
 
-═══ FILE CONTENT REQUIREMENTS ═══
+═══ FILE CONTENT & CANONICAL ARCHITECTURE REQUIREMENTS ═══
 
-Every file you write must contain complete, working implementation:
+Every file you write must contain a complete, working, high-end implementation:
 
-HTML files (minimum 40 lines):
-  - Full document structure (DOCTYPE, html, head, body)
-  - Semantic elements (nav, main, section, article, footer)
-  - Real content in every section
-  - Links to CSS and JS files
-  - All requested sections implemented
+Canonical Web Structure:
+  - Root entrypoint: `index.html`
+  - Stylesheet: `css/styles.css` (linked in HTML via `<link rel="stylesheet" href="css/styles.css" />`)
+  - Scripts: `js/app.js` (linked in HTML via `<script src="js/app.js" defer></script>`)
+  - NEVER create redundant root files like `style.css` when `css/styles.css` is referenced.
 
-CSS files (minimum 30 lines):
-  - CSS custom properties/variables
-  - Real style rules (not just resets)
-  - Flexbox or Grid layout where appropriate
-  - Hover states and transitions
-  - @media queries if responsive was requested
-  - @keyframes if animations were requested
+Cross-File Coherence Contract:
+  - Element IDs and form control names MUST match EXACTLY between HTML and JavaScript querySelectors/listeners.
+  - Class names styled in CSS must match the exact classes rendered in HTML and generated in JS template literals.
 
-JavaScript/JSX files (minimum 25 lines):
-  - Real DOM manipulation or React components
-  - Event listeners or hooks
-  - Actual logic, not just console.log
-  - Connected to HTML elements
+HTML files:
+  - Semantic HTML5 structure (header, main, section, article, modal, footer)
+  - Accessible form controls with explicit labels, semantic inputs, and clear placeholders
+  - Modal dialogue with backdrop blur, accessible close button, and structured metadata display
+  - Empty state container for search/filter no-match scenarios
+  - Elements initialized with semantic markup ready for dynamic client-side hydration
 
-Python files (minimum 20 lines):
-  - Real imports
-  - Actual class/function implementations
-  - Error handling
-  - Not just pass statements
+CSS files (High-End Design System & Micro-Interactions):
+  - Comprehensive design tokens via CSS custom properties:
+    * Palette: --primary, --primary-hover, --surface, --surface-elevated, --text-primary, --text-secondary, --border, --accent
+    * Elevation: --shadow-sm, --shadow-md, --shadow-lg (layered depth)
+    * Typography: deliberate scale with font-family, font-weight, line-height, letter-spacing
+  - Responsive layout: CSS Grid with fluid minmax columns and Flexbox for controls
+  - Multi-viewport responsive rules: Mobile (375px), Tablet (768px), Desktop (1280px) with ZERO horizontal overflow (max-width: 100%, box-sizing: border-box)
+  - Micro-interactions & Polish:
+    * Card hover elevation (transform: translateY(-2px), transition: 0.2s cubic-bezier(0.4, 0, 0.2, 1))
+    * Button hover/focus/active states with visible focus-visible outlines
+    * Modal entrance transition (opacity and scale transform)
+    * @media (prefers-reduced-motion: reduce) support
+
+JavaScript files (Complete Production Functionality):
+  - Robust client-side state management backed by localStorage persistence
+  - Rich initial mock dataset: AT LEAST 5 realistic, fully-populated domain records tailored to the application's specific domain
+  - Self-contained vanilla ES6+ logic in js/app.js (do NOT import from non-existent external files)
+  - Instant search filtering and category/status filtering matching item properties
+  - Empty state rendering displaying a friendly message when queries return 0 results
+  - Full details/modal interaction: opens on item click, displays metadata, closes on close button, backdrop click, or ESC key
+  - Interactive state toggles and action forms: validates inputs, appends to state and storage, and immediately updates the DOM
+  - Zero placeholders, stubs, or dead handlers; every control is functional
+
+Python files:
+  - Real imports, typed function and class implementations
+  - Comprehensive error handling and clean modular structure
 
 ═══ RESPONSE FORMAT ═══
 When native function/tool calling is available, ALWAYS invoke the appropriate tool natively (e.g. write_file(path=..., content=...)). Never emit raw file implementations or large code blocks as plain chat messages when a tool action is needed.
@@ -222,11 +257,12 @@ Available tools:
 {tool_descriptions}
 
 Tool selection rules:
-  1. read_file — ALWAYS read existing files before modifying them
-  2. write_file — Write COMPLETE content, not partial/placeholder
-  3. bash_exec — Run validation: check files exist, run builds/tests
-  4. create_folder — Only when you will immediately create files inside it
-  5. Never use create_folder as your only action for an implementation task
+  1. read-before-write — If modifying an EXISTING file, read it once first.
+  2. write_file — If the requested target file does NOT exist yet, create it IMMEDIATELY with write_file. Do NOT call list_directory if the target path is already known.
+  3. Action Momentum — OBSERVE → UNDERSTAND → ACT → VERIFY. Take the implementation action directly. Never call list_directory or read_file repeatedly without making code changes.
+  4. bash_exec — Run validation: check files exist, run builds/tests
+  5. create_folder — Only when you will immediately create files inside it
+  6. Never use create_folder or list_directory as your only action for an implementation task.
 
 ═══ PERMISSION MODE ═══
 Mode: {mode}

@@ -1,0 +1,55 @@
+{
+  "phase": 2,
+  "phase_name": "Mission Lifecycle, Stop & Durable Continuation",
+  "status": "PASSED",
+  "environment": {
+    "repository_root": "C:\\Users\\SUBBU\\Downloads\\hermes",
+    "python_executable": "C:\\Users\\SUBBU\\Downloads\\hermes\\venv\\Scripts\\python.exe",
+    "python_version": "3.12.0",
+    "model_stack": {
+      "tier1": "nvidia_nim / z-ai/glm-5.3-flash",
+      "tier2": "ollama / gpt-oss:120b-cloud",
+      "tier3": "ollama / nemotron-3-ultra:cloud"
+    }
+  },
+  "invariants_verified": {
+    "INV-01": "PASSED - Single active mission mutual exclusion verified. 5 concurrent submissions produced 1 winner and 4 HTTP 409 / RuntimeError rejections.",
+    "INV-02": "PASSED - In-flight worker truth vs orphaned DB record verified. Live tasks and dead PIDs distinguished unambiguously.",
+    "INV-03": "PASSED - Workspace lock ownership verified via WorkspaceManager. Multi-workspace isolation preserved.",
+    "INV-04": "PASSED - Cooperative Stop at model turn & tool execution boundaries verified. Invariant STOP REQUESTED != STOP COMPLETED confirmed under stubborn worker timeout.",
+    "INV-05": "PASSED - Repeated Stop requests idempotent. First completes/aborts, second returns False gracefully without corrupted state.",
+    "INV-06": "PASSED - Atomic tool execution boundary verified. Once abort_event is set, subsequent tool calls are blocked before execution.",
+    "INV-07": "PASSED - Crash/cold restart recovery and resume verified. Checkpoint & state snapshots rehydrated; completed tasks preserved without re-running.",
+    "INV-08": "PASSED - Physical workspace reconciliation verified. External deletions (FILE_MISSING) and tampering (USER_MODIFIED) detected and resume safely blocked.",
+    "INV-09": "PASSED - Attempt fencing verified. Events from attempt 1 rejected once attempt 2 is active.",
+    "INV-10": "PASSED - Terminal state immutability verified. Delayed out-of-order events cannot resurrect COMPLETED/CANCELLED/FAILED missions within same attempt.",
+    "INV-11": "PASSED - Strictly monotonic event sequence numbers across restarts verified. Monotonic ordering and deduplication validated."
+  },
+  "scenarios": {
+    "Scenario_A": "PASSED - 5 concurrent submissions -> 1 winner, 4 rejected (tests/test_phase2_concurrency.py)",
+    "Scenario_B": "PASSED - Stop during model turn cancels worker and prevents file creation (tests/test_phase2_stop_safety.py)",
+    "Scenario_C": "PASSED - Stop at tool boundary intercepts execution before disk write (tests/test_phase2_stop_safety.py)",
+    "Scenario_D": "PASSED - Repeated Stop idempotency verified (tests/test_phase2_stop_safety.py)",
+    "Scenario_E": "PASSED - Cold restart resume preserves completed tasks (tests/test_phase2_restart_recovery.py)",
+    "Scenario_F": "PASSED - Stale attempt events rejected by reducer (tests/test_phase2_stale_worker_fencing.py)",
+    "Scenario_G": "PASSED - External file deletion detected as FILE_MISSING discrepancy (tests/test_phase2_workspace_reconciliation.py)",
+    "Scenario_H": "PASSED - External file modification detected as USER_MODIFIED discrepancy (tests/test_phase2_workspace_reconciliation.py)",
+    "Scenario_I": "PASSED - Worker refusing cancellation within timeout returns unconfirmed Stop (tests/test_phase2_stop_safety.py)",
+    "Scenario_J": "PASSED - Startup reconciliation detects dead PIDs and marks recovery_required (tests/test_phase2_restart_recovery.py)",
+    "Scenario_K": "PASSED - Delayed events cannot resurrect terminal missions (tests/test_phase2_stale_worker_fencing.py)",
+    "Scenario_L": "PASSED - Disconnected client reconnects and retrieves full sequential replay without event loss (tests/test_phase2_gui_lifecycle.py)"
+  },
+  "ui_contract": {
+    "pause_button_removed": true,
+    "composer_clean": true,
+    "right_pane_clean": true,
+    "gui_typecheck_and_build": "PASSED (tsc && vite build exit code 0)",
+    "snapshot_race_and_reconciliation": "PASSED (node gui/test_snapshot_race.mjs 5/5 passing)"
+  },
+  "test_summary": {
+    "phase2_dedicated_tests_passed": 19,
+    "phase1_regression_tests_passed": 26,
+    "total_verified_tests_passed": 45,
+    "failures": 0
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "benchmark_name": "event_replay_past_buffer_limits",
+  "memory_ring_buffer_size": 10,
+  "events_stored_in_db": 1200,
+  "events_replayed_count": 1200,
+  "iterations": 20,
+  "metrics": {
+    "mean_replay_ms": 17.50,
+    "median_replay_ms": 16.53,
+    "p95_replay_ms": 30.20,
+    "min_replay_ms": 14.18,
+    "max_replay_ms": 30.20
+  },
+  "verdict": "Sub-35ms deep retrieval across 1,200 events from disk database with 100% order fidelity."
+}

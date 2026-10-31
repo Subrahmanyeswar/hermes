@@ -1,0 +1,54 @@
+{
+  "tiers": [
+    "TRIVIAL",
+    "SIMPLE",
+    "MEDIUM",
+    "COMPLEX",
+    "LARGE"
+  ],
+  "matrix": {
+    "TRIVIAL": {
+      "TRIVIAL": 5,
+      "SIMPLE": 0,
+      "MEDIUM": 0,
+      "COMPLEX": 0,
+      "LARGE": 0
+    },
+    "SIMPLE": {
+      "TRIVIAL": 0,
+      "SIMPLE": 5,
+      "MEDIUM": 0,
+      "COMPLEX": 0,
+      "LARGE": 0
+    },
+    "MEDIUM": {
+      "TRIVIAL": 0,
+      "SIMPLE": 0,
+      "MEDIUM": 5,
+      "COMPLEX": 0,
+      "LARGE": 0
+    },
+    "COMPLEX": {
+      "TRIVIAL": 0,
+      "SIMPLE": 0,
+      "MEDIUM": 0,
+      "COMPLEX": 5,
+      "LARGE": 0
+    },
+    "LARGE": {
+      "TRIVIAL": 0,
+      "SIMPLE": 0,
+      "MEDIUM": 0,
+      "COMPLEX": 0,
+      "LARGE": 5
+    }
+  },
+  "per_tier_accuracy": {
+    "TRIVIAL": 100.0,
+    "SIMPLE": 100.0,
+    "MEDIUM": 100.0,
+    "COMPLEX": 100.0,
+    "LARGE": 100.0
+  },
+  "overall_accuracy_pct": 100.0
+}

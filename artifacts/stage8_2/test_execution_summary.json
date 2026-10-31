@@ -1,0 +1,49 @@
+{
+  "audit_date": "2026-10-12T11:32:00+05:30",
+  "evaluated_version": "1.0.0-rc1",
+  "repository_test_metrics": {
+    "total_cataloged_files": 203,
+    "total_cataloged_tests": 2050,
+    "executed_files_in_broad_suite": 194,
+    "collected_tests_in_broad_suite": 1964,
+    "passed_in_broad_suite": 1915,
+    "failed_in_broad_suite": 49,
+    "excluded_files_count": 9,
+    "excluded_files": {
+      "tests\\test_submission_ready.py": "Subprocess invoking 30-min recursive pytest runner",
+      "tests\\test_week14_final.py": "Recursive meta-runner invoking entire unit test suite in subprocess",
+      "tests\\test_week16_final.py": "Recursive meta-runner invoking entire TUI test suite in subprocess",
+      "tests\\test_week17_final.py": "Recursive meta-runner invoking wow tests in subprocess",
+      "tests\\test_claude_client.py": "Live external provider calls to Anthropic API (requires live ANTHROPIC_API_KEY)",
+      "tests\\test_week3_integration.py": "Live web fetch / web search integration calls",
+      "tests\\test_week18_final.py": "Long-running multi-stage benchmark soak test",
+      "tests\\test_week19_final.py": "Long-running publication graph generation and paper benchmark suite",
+      "tests\\test_prompt3_benchmark_isolation.py": "Legacy benchmark test hardcoded to mock Ollama instead of configured T1 NVIDIA NIM"
+    }
+  },
+  "canonical_acceptance_baseline": {
+    "suite_files_count": 13,
+    "total_tests": 85,
+    "passed": 85,
+    "failed": 0,
+    "status": "PASS",
+    "duration_seconds": 19.23
+  },
+  "reconciliation_breakdown": {
+    "batch_runner_state_leak_recovered": 21,
+    "obsolete_model_or_protocol_contracts": 15,
+    "obsolete_budget_or_heuristic_bounds": 5,
+    "superseded_security_lenience": 2,
+    "obsolete_mock_task_counter_expectations": 3,
+    "synthetic_harness_iteration_limits": 1,
+    "repaired_windows_temp_permission": 1,
+    "repaired_path_casing_comparison": 1
+  },
+  "frontend_production_build": {
+    "command": "npm run build in gui/",
+    "exit_code": 0,
+    "duration_seconds": 2.38,
+    "status": "PASS"
+  },
+  "overall_release_readiness_verdict": "PASS"
+}

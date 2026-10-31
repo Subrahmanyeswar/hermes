@@ -1,0 +1,24 @@
+{
+  "phase": "Phase 4",
+  "verification": "Concurrent Mission Isolation",
+  "test_scenario": "test_scenario_a_concurrent_mission_isolation",
+  "contract": {
+    "abort_event_per_mission": true,
+    "mission_control_per_mission": true,
+    "state_store_per_mission": true,
+    "cross_mission_leakage": false
+  },
+  "results": {
+    "mission_a_stopped": {
+      "status": "CANCELLED",
+      "is_terminal": true,
+      "is_cancelled": true
+    },
+    "mission_b_concurrent": {
+      "status": "RUNNING",
+      "is_terminal": false,
+      "is_cancelled": false
+    }
+  },
+  "verdict": "PASS"
+}

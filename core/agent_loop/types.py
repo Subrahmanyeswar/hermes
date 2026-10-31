@@ -12,11 +12,18 @@ Provides normalized representations for:
 
 from __future__ import annotations
 
+import os
 import time
 import uuid
 from dataclasses import dataclass, field, asdict
 from enum import Enum
-from typing import Dict, List, Optional, Any
+from pathlib import Path
+from typing import Dict, List, Optional, Any, Set
+
+from config.model_config import (
+    DEFAULT_MISSION_MAX_TURNS,
+    WEBSITE_MISSION_MAX_TURNS,
+)
 
 
 class LifecycleDimension(str, Enum):
@@ -67,6 +74,7 @@ class AgentDecision:
     tool_name: Optional[str] = None
     arguments: Dict[str, Any] = field(default_factory=dict)
     tool_call_id: Optional[str] = None
+    tool_calls: List[Dict[str, Any]] = field(default_factory=list)
     user_question: Optional[str] = None
     verification_target: Optional[str] = None
     delegation_target: Optional[str] = None
@@ -186,9 +194,10 @@ class AgentTurn:
 @dataclass
 class AgentLoopConfig:
     """Explicit safety guardrails and resource budgets for AgentLoop execution."""
-    max_turns: int = 40
+    max_turns: int = DEFAULT_MISSION_MAX_TURNS
+    website_max_turns: int = WEBSITE_MISSION_MAX_TURNS
     max_tool_actions: int = 50
-    max_wall_time_seconds: float = 600.0
+    max_wall_time_seconds: float = float(os.getenv("MISSION_MAX_WALL_TIME_SECONDS", "1200.0"))
     max_consecutive_failures: int = 5
     stall_window_size: int = 4
     stall_repeat_threshold: int = 3
@@ -196,6 +205,89 @@ class AgentLoopConfig:
     enable_streaming: bool = True
     auto_verify_on_completion: bool = True
     temperature: float = 0.2
+    _explicit_max_turns: bool = field(default=False, repr=False)
+    _initialized: bool = field(default=False, repr=False)
+
+    def __init__(
+        self,
+        max_turns: Optional[int] = None,
+        website_max_turns: Optional[int] = None,
+        max_tool_actions: int = 50,
+        max_wall_time_seconds: Optional[float] = None,
+        max_consecutive_failures: int = 5,
+        stall_window_size: int = 4,
+        stall_repeat_threshold: int = 3,
+        execution_mode: str = "agentic",
+        enable_streaming: bool = True,
+        auto_verify_on_completion: bool = True,
+        temperature: float = 0.2,
+        **kwargs: Any,
+    ):
+        object.__setattr__(self, "_initialized", False)
+        object.__setattr__(self, "_explicit_max_turns", (max_turns is not None))
+        object.__setattr__(self, "max_turns", max_turns if max_turns is not None else DEFAULT_MISSION_MAX_TURNS)
+        object.__setattr__(self, "website_max_turns", website_max_turns if website_max_turns is not None else WEBSITE_MISSION_MAX_TURNS)
+        self.max_tool_actions = max_tool_actions
+        self.max_wall_time_seconds = (
+            max_wall_time_seconds
+            if max_wall_time_seconds is not None
+            else float(os.getenv("MISSION_MAX_WALL_TIME_SECONDS", "1200.0"))
+        )
+        self.max_consecutive_failures = max_consecutive_failures
+        self.stall_window_size = stall_window_size
+        self.stall_repeat_threshold = stall_repeat_threshold
+        self.execution_mode = execution_mode
+        self.enable_streaming = enable_streaming
+        self.auto_verify_on_completion = auto_verify_on_completion
+        self.temperature = temperature
+        for k, v in kwargs.items():
+            setattr(self, k, v)
+        object.__setattr__(self, "_initialized", True)
+
+    def __setattr__(self, name: str, value: Any) -> None:
+        if name == "max_turns" and getattr(self, "_initialized", False):
+            object.__setattr__(self, "_explicit_max_turns", True)
+        object.__setattr__(self, name, value)
+
+    def resolve_for_mission(
+        self,
+        mission: Any,
+        workspace_root: Optional[Path] = None,
+        written_files: Optional[Set[str]] = None,
+    ) -> int:
+        """
+        Resolve the effective turn budget based on mission type and configuration.
+        Website missions receive website_max_turns (default 80) unless max_turns
+        was explicitly overridden.
+        """
+        # If caller explicitly specified mission.max_turns on mission object, respect it
+        mission_override = getattr(mission, "max_turns", None)
+        if mission_override is not None:
+            object.__setattr__(self, "max_turns", int(mission_override))
+            object.__setattr__(self, "_explicit_max_turns", True)
+            return self.max_turns
+
+        if getattr(self, "_explicit_max_turns", False):
+            return self.max_turns
+
+        from core.agent_loop.mvp_gate import WebsiteMvpGate
+        prompt = getattr(mission, "user_prompt", "") or str(mission or "")
+        ws = workspace_root
+        if ws is None and hasattr(mission, "workspace_root") and mission.workspace_root:
+            ws = Path(mission.workspace_root)
+
+        from core.verification_profiles import classify_verification_profile, VerificationProfile
+        prof = classify_verification_profile(prompt, workspace_path=str(ws) if ws else None, written_files=list(written_files) if written_files else None)
+
+        if prof == VerificationProfile.PROFILE_A:
+            # Simple smoke test / diagnostic task: compact turn budget and wall time
+            object.__setattr__(self, "max_turns", min(self.max_turns, 8))
+            object.__setattr__(self, "max_wall_time_seconds", min(self.max_wall_time_seconds, 120.0))
+        elif WebsiteMvpGate.is_website_mission(prompt, workspace_root=ws, written_files=written_files):
+            object.__setattr__(self, "max_turns", self.website_max_turns)
+        else:
+            object.__setattr__(self, "max_turns", DEFAULT_MISSION_MAX_TURNS)
+        return self.max_turns
 
 
 @dataclass

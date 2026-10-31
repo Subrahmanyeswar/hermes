@@ -1,0 +1,51 @@
+{
+  "phase": "Phase 3: Subprocess Execution Journaling",
+  "generated_at": "2026-10-12T21:24:00+05:30",
+  "tools": [
+    {
+      "tool_name": "shell.bash",
+      "tracked_fields": [
+        "command",
+        "cmd_to_run",
+        "cwd",
+        "pid",
+        "exit_code",
+        "duration_seconds",
+        "timed_out",
+        "stdout_chars",
+        "stderr_chars"
+      ],
+      "process_tracking": "register_active_subprocess & unregister_active_subprocess",
+      "tree_termination": "psutil recursive kill on timeout or cancel",
+      "canonical_python_rewriting": true,
+      "security_gates_enforced": 15
+    },
+    {
+      "tool_name": "bash_exec",
+      "tracked_fields": [
+        "command",
+        "cmd_to_run",
+        "cwd",
+        "pid",
+        "exit_code",
+        "duration_seconds",
+        "timed_out",
+        "stdout_chars",
+        "stderr_chars"
+      ],
+      "process_tracking": "register_active_subprocess & unregister_active_subprocess",
+      "canonical_python_rewriting": true,
+      "security_gates_enforced": 15
+    }
+  ],
+  "sample_execution": {
+    "operation_id": "op_shell_sample",
+    "command": "echo HERMES_PHASE3_SUBPROCESS_TEST",
+    "exit_code": 0,
+    "duration_seconds": 0.03,
+    "stdout_chars": 33,
+    "stderr_chars": 0,
+    "timed_out": false,
+    "durably_journaled": true
+  }
+}

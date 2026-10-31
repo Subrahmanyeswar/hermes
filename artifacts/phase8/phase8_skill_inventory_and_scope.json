@@ -1,0 +1,71 @@
+{
+  "phase": 8,
+  "title": "Backend, Architecture and Documentation Skills",
+  "status": "IN_PROGRESS",
+  "timestamp": "2026-10-22T11:04:00Z",
+  "environment": {
+    "python_executable": "C:\\Users\\SUBBU\\Downloads\\hermes\\venv\\Scripts\\python.exe",
+    "python_version": "3.12.0",
+    "branch": "hermes-2.x",
+    "canonical_skills_root": "C:\\Users\\SUBBU\\Downloads\\hermes\\skills"
+  },
+  "installed_stack_evidence": {
+    "fastapi": "0.143.0",
+    "uvicorn": "0.54.0",
+    "pydantic": "2.13.5",
+    "httpx": "0.28.1",
+    "sqlite": "3.x (native python sqlite3 with WAL)"
+  },
+  "baseline_skills_locked": [
+    "auto-docs",
+    "bash-scripting",
+    "code-review",
+    "database-design",
+    "debugging",
+    "design-engineering",
+    "design-system",
+    "flask-rest-api",
+    "git-workflow",
+    "pytest-generation",
+    "react-best-practices",
+    "react-composition-patterns",
+    "react-frontend",
+    "refactoring",
+    "screenshot-to-code",
+    "security-audit",
+    "shadcn-ui",
+    "taste-design",
+    "vanilla-web",
+    "web-design-guidelines"
+  ],
+  "phase8_skills_planned": [
+    {
+      "name": "fastapi-backend",
+      "status": "PLANNED",
+      "category": "backend",
+      "tools": ["fs.read", "fs.write", "fs.edit", "shell.bash", "search.glob", "search.grep"]
+    },
+    {
+      "name": "software-architecture",
+      "status": "PLANNED",
+      "category": "architecture",
+      "tools": ["fs.read", "fs.write", "fs.edit", "search.glob", "search.grep"]
+    },
+    {
+      "name": "project-context",
+      "status": "PLANNED",
+      "category": "documentation",
+      "tools": ["fs.read", "fs.write", "fs.edit", "search.glob", "search.grep"]
+    }
+  ],
+  "deferred_skills": [
+    {
+      "name": "node-rest-api",
+      "reason": "HERMES runtime has no Node.js backend environment; Node tooling in gui/ is strictly for Vite/TypeScript frontend client bundling."
+    },
+    {
+      "name": "prisma-migrations",
+      "reason": "HERMES persistence stack uses SQLite3 with WAL journal mode; Prisma is not part of the active HERMES backend stack."
+    }
+  ]
+}

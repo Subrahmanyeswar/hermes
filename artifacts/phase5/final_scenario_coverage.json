@@ -1,0 +1,115 @@
+{
+  "phase": "Phase 5",
+  "acceptance_suite": "tests/test_phase5_resume_control.py",
+  "mappings": [
+    {
+      "scenario": "Scenario A",
+      "test_name": "test_scenario_a_checkpoint_integrity_validation",
+      "requirement": "Checkpoint Integrity & CAS Blob Verification",
+      "verifications": [
+        "Manifest hash recalculation and comparison against stored manifest_hash",
+        "CAS state blob existence and hash verification in BlobStore",
+        "CAS workspace file snapshots verification in BlobStore",
+        "Rejection of corrupted CAS file blob on disk with CHECKPOINT_CORRUPT discrepancy"
+      ],
+      "result": "PASS"
+    },
+    {
+      "scenario": "Scenario B",
+      "test_name": "test_scenario_b_original_workspace_binding_and_verification",
+      "requirement": "Original Workspace Binding & Directory Validation",
+      "verifications": [
+        "Locks and checks authoritative workspace path from mission metadata",
+        "Rejection when workspace directory is missing or deleted",
+        "Discrepancy typed as WORKSPACE_INACCESSIBLE with blocking=True"
+      ],
+      "result": "PASS"
+    },
+    {
+      "scenario": "Scenario C",
+      "test_name": "test_scenario_c_disk_reconciliation_and_user_mod_detection",
+      "requirement": "Disk-vs-Ledger Reconciliation & External Edit Detection",
+      "verifications": [
+        "Comparison of disk SHA-256 against durable post_hash from tool operation ledger",
+        "Detection and blocking on post-interruption external user modification (USER_MODIFIED)",
+        "Detection and blocking on missing expected files (FILE_MISSING)"
+      ],
+      "result": "PASS"
+    },
+    {
+      "scenario": "Scenario D",
+      "test_name": "test_scenario_d_uncertain_outcome_protocol_blocking",
+      "requirement": "Uncertain Outcome Protocol & Fault Barrier",
+      "verifications": [
+        "Detection of interrupted tool intent (INTENT_COMMITTED or OUTCOME_UNKNOWN)",
+        "Blocks resumption until manual or automated reconciliation resolves uncertainty"
+      ],
+      "result": "PASS"
+    },
+    {
+      "scenario": "Scenario E",
+      "test_name": "test_scenario_e_first_unfinished_task_selection",
+      "requirement": "Earliest Incomplete Task Selection in Dependency Order",
+      "verifications": [
+        "Verified completed tasks are preserved without repetition",
+        "Selects earliest incomplete task whose dependencies are satisfied",
+        "Returns completed_tasks and pending_tasks lists accurately"
+      ],
+      "result": "PASS"
+    },
+    {
+      "scenario": "Scenario F",
+      "test_name": "test_scenario_f_terminal_run_immutability_and_continuation_identity",
+      "requirement": "Terminal Run Immutability & Monotonic Attempt Increment",
+      "verifications": [
+        "Old terminal run_id remains cancelled/stopped; abort event is never reset",
+        "New continuation run receives fresh run_id (run_{attempt}_{uuid})",
+        "attempt_number is monotonically incremented (prev + 1)",
+        "Canonical mission row updated in SQLite with active execution flag"
+      ],
+      "result": "PASS"
+    },
+    {
+      "scenario": "Scenario G",
+      "test_name": "test_scenario_g_duplicate_resume_idempotency",
+      "requirement": "Concurrency Protection & Duplicate Resume Idempotency",
+      "verifications": [
+        "Blocks simultaneous resume requests on an actively executing mission",
+        "Raises RuntimeError / HTTP 409 Conflict preventing double dispatch"
+      ],
+      "result": "PASS"
+    },
+    {
+      "scenario": "Scenario H",
+      "test_name": "test_scenario_h_resume_via_http_api",
+      "requirement": "HTTP REST Resume Endpoint",
+      "verifications": [
+        "Validates POST /api/missions/{mission_id}/resume via FastAPI and ASGI client",
+        "Returns ResumeMissionResponse with continuation run_id, attempt_number, and status=RUNNING"
+      ],
+      "result": "PASS"
+    },
+    {
+      "scenario": "Scenario I",
+      "test_name": "test_scenario_i_resume_preview_endpoint",
+      "requirement": "Non-destructive Preflight Resume Preview API",
+      "verifications": [
+        "Validates GET /api/missions/{mission_id}/resume-preview",
+        "Returns ResumePreviewResponse with can_resume, target_task_id, and discrepancies without side effects"
+      ],
+      "result": "PASS"
+    },
+    {
+      "scenario": "Scenario J",
+      "test_name": "test_scenario_j_full_restart_recovery_cycle",
+      "requirement": "Cold Process Restart Recovery Cycle",
+      "verifications": [
+        "Disposes in-memory runtime adapter, event bus, and workspace manager",
+        "Recreates fresh runtime adapter against existing SQLite database and BlobStore",
+        "Verifies startup recovery flags execution_active=False and recovery_required=True",
+        "Performs complete resume plan formulation and spawns continuation run_2_..."
+      ],
+      "result": "PASS"
+    }
+  ]
+}

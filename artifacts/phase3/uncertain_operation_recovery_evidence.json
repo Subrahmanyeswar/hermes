@@ -1,0 +1,32 @@
+{
+  "phase": "Phase 3: Uncertain Operation Recovery & Startup Reconciliation",
+  "generated_at": "2026-10-12T21:24:00+05:30",
+  "scenarios": [
+    {
+      "scenario": "D",
+      "name": "Live Result Commit Failure with Physical Side Effects",
+      "operation_id": "op_test_scenario_d",
+      "tool_name": "fs.write",
+      "physical_write_occurred": true,
+      "result_db_commit_succeeded": false,
+      "resulting_operation_status": "OUTCOME_UNKNOWN",
+      "observation_error_type": "OUTCOME_UNKNOWN",
+      "requires_reconciliation": true,
+      "automatic_retry_blocked": true,
+      "status": "PASSED"
+    },
+    {
+      "scenario": "F",
+      "name": "Interrupted Operation Reconciliation on Startup",
+      "mission_id": "m_restart_test",
+      "operation_id": "op_interrupted_test",
+      "pre_restart_status": "INTENT_COMMITTED",
+      "post_restart_status": "OUTCOME_UNKNOWN",
+      "mission_execution_active": false,
+      "mission_recovery_required": true,
+      "unmatched_intent_reconciled": true,
+      "duplicate_execution_avoided": true,
+      "status": "PASSED"
+    }
+  ]
+}

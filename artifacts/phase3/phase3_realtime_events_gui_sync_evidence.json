@@ -1,0 +1,125 @@
+{
+  "phase": 3,
+  "phase_name": "Real-Time Events and GUI Synchronization",
+  "status": "CLOSED / LOCKED",
+  "timestamp": "2026-10-21T14:04:00+05:30",
+  "git_branch": "hermes-2.x",
+  "environment": {
+    "python_executable": "C:\\Users\\SUBBU\\Downloads\\hermes\\venv\\Scripts\\python.exe",
+    "python_version": "3.12.0",
+    "node_version": "v22.12.0",
+    "os": "Windows (nt)"
+  },
+  "root_cause_analysis": {
+    "incident": "Mission reached seq ~5189 while GUI Activity Panel showed 0 events",
+    "root_causes": [
+      {
+        "id": "RC-1",
+        "component": "gui/src/sync.ts (processIncomingSnapshot)",
+        "defect": "Snapshot polling periodically fetched authoritative snapshots where last_sequence was ~5189, and filtered in-memory events with: currentState.events.filter(e => (e.sequence || 0) > incomingSnapshot.last_sequence). This completely erased all events with sequence <= 5189, resulting in 0 events rendered in the GUI.",
+        "remediation": "Preserved historical event timeline across snapshot refreshes by merging incoming snapshots with local event journal while deduplicating by sequence and event_id."
+      },
+      {
+        "id": "RC-2",
+        "component": "core/persistence/serializer.py",
+        "defect": "Missing EvidenceKind import in serializer.py resulted in NameError during restore_persisted_missions snapshot deserialization on server startup.",
+        "remediation": "Imported EvidenceKind from core.runtime_state.evidence."
+      },
+      {
+        "id": "RC-3",
+        "component": "core/event_bus.py (publish_durable)",
+        "defect": "Events were dispatched to in-memory history and active subscribers before SQLite transaction commitment was guaranteed, risking broadcast of phantom events if disk writes failed.",
+        "remediation": "Enforced strict durability-before-broadcast order: validate -> assign monotonic sequence -> synchronously commit to SQLite database -> append to history -> dispatch to live subscribers."
+      },
+      {
+        "id": "RC-4",
+        "component": "core/server/runtime_adapter.py",
+        "defect": "Missing os import in runtime_adapter.py caused NameError when accessing os.getpid() during mission resumption.",
+        "remediation": "Imported os at module top level."
+      }
+    ]
+  },
+  "ui_improvements": {
+    "prompt_composer": {
+      "auto_expansion": "Textarea expands smoothly up to 220px maxHeight, then scrolls internally",
+      "min_height": "40px",
+      "max_height": "220px",
+      "status": "VERIFIED"
+    },
+    "file_count_formatting": {
+      "formatter": "formatFileCount(n, capped)",
+      "examples": {
+        "0": "0 files",
+        "1": "1 file",
+        "1000": "1,000 files",
+        "capped_1000": "1,000+ files"
+      },
+      "legacy_notation_removed": "1000f replaced everywhere",
+      "status": "VERIFIED"
+    },
+    "activity_panel": {
+      "max_height": "220px",
+      "status": "Truthful waiting states rendered; no fake timers or progress bars",
+      "timeline": "Monotonically ordered sequence, timestamps, status colors, and readable payload details"
+    }
+  },
+  "acceptance_gates": {
+    "Gate A: Durability Before Broadcast": {
+      "status": "PASSED",
+      "test_suite": "tests/test_phase3_event_persistence_order.py",
+      "tests_passed": 2
+    },
+    "Gate B: Event Envelope & Contract": {
+      "status": "PASSED",
+      "test_suite": "tests/test_phase3_event_contract.py",
+      "tests_passed": 2
+    },
+    "Gate C: SSE Reconnect & Isolation": {
+      "status": "PASSED",
+      "test_suite": "tests/test_phase3_sse_reconnect.py",
+      "tests_passed": 3
+    },
+    "Gate D: History Replay & Fencing": {
+      "status": "PASSED",
+      "test_suites": [
+        "tests/test_phase3_event_history_replay.py",
+        "tests/test_phase3_attempt_snapshot_fencing.py"
+      ],
+      "tests_passed": 6
+    },
+    "Gate E: Real Execution Activity Stream": {
+      "status": "PASSED",
+      "test_suite": "tests/test_phase3_execution_activity_events.py",
+      "tests_passed": 2
+    },
+    "Gate F: No Fabricated Activity": {
+      "status": "PASSED",
+      "test_suite": "tests/test_phase3_no_fake_progress.py",
+      "tests_passed": 2
+    },
+    "Gate G: Controlled End-to-End Acceptance": {
+      "status": "PASSED",
+      "test_suite": "tests/test_phase3_controlled_e2e_mission.py",
+      "tests_passed": 1
+    },
+    "Gate H: Client Synchronization Races": {
+      "status": "PASSED",
+      "test_suite": "gui/test_snapshot_race.mjs",
+      "tests_passed": 5
+    },
+    "Gate I: Zero Regression Locked Baseline": {
+      "status": "PASSED",
+      "test_suites": "Phase 1 & Phase 2 test suites",
+      "tests_passed": 81
+    }
+  },
+  "verification_summary": {
+    "phase3_tests_total": 18,
+    "phase3_tests_passed": 18,
+    "phase1_phase2_regression_tests_total": 81,
+    "phase1_phase2_regression_tests_passed": 81,
+    "client_sync_race_tests_total": 5,
+    "client_sync_race_tests_passed": 5,
+    "frontend_build_exit_code": 0
+  }
+}

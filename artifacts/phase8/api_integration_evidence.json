@@ -1,0 +1,25 @@
+{
+  "phase": "Phase 8",
+  "component": "api_integration",
+  "verification_timestamp": "2026-10-13T13:22:00Z",
+  "endpoints_audited": [
+    { "method": "GET", "path": "/api/health", "status": "VERIFIED" },
+    { "method": "GET", "path": "/api/workspaces", "status": "VERIFIED" },
+    { "method": "POST", "path": "/api/workspaces/select", "status": "VERIFIED" },
+    { "method": "POST", "path": "/api/workspaces/pick-folder", "status": "VERIFIED" },
+    { "method": "DELETE", "path": "/api/workspaces/recent", "status": "VERIFIED" },
+    { "method": "GET", "path": "/api/sessions", "status": "VERIFIED" },
+    { "method": "POST", "path": "/api/missions", "status": "VERIFIED" },
+    { "method": "GET", "path": "/api/missions/{mission_id}", "status": "VERIFIED" },
+    { "method": "GET", "path": "/api/missions/{mission_id}/events", "status": "VERIFIED" },
+    { "method": "POST", "path": "/api/missions/{mission_id}/pause", "status": "VERIFIED" },
+    { "method": "POST", "path": "/api/missions/{mission_id}/stop", "status": "VERIFIED" },
+    { "method": "POST", "path": "/api/missions/{mission_id}/resume", "status": "VERIFIED" },
+    { "method": "GET", "path": "/api/missions/{mission_id}/resume-preview", "status": "VERIFIED" },
+    { "method": "GET", "path": "/api/missions/{mission_id}/diffs", "status": "VERIFIED" },
+    { "method": "GET", "path": "/api/missions/{mission_id}/checks", "status": "VERIFIED" },
+    { "method": "GET", "path": "/api/network/status", "status": "VERIFIED" },
+    { "method": "POST", "path": "/api/network/recover", "status": "VERIFIED" }
+  ],
+  "verdict": "PASS"
+}

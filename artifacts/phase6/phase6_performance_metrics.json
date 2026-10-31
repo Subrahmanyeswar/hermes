@@ -1,0 +1,13 @@
+{
+  "phase": "Phase 6",
+  "benchmarks": {
+    "circuit_breaker_fast_failure_ms": 0.0280,
+    "retry_coordinator_direct_dispatch_ms": 0.1307,
+    "http_client_pool_acquisition_ms": 0.0450,
+    "streaming_completion_validation_overhead_ms": 0.0380
+  },
+  "concurrency_impact": {
+    "client_isolation": "verified - request cancellation on task A leaves shared pool open for task B",
+    "route_isolation": "verified - tripping route A does not trip route B"
+  }
+}

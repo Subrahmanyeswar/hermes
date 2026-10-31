@@ -155,7 +155,7 @@ Phase 5 conducted the final, non-invasive preflight audit of HERMES immediately 
 | **P09** | Ollama Availability | `127.0.0.1:11434` reachable | Server online, responsive | **PASS** |
 | **P10** | T1 Model Availability | `deepseek-r1:8b` loaded | Online, active | **PASS** |
 | **P11** | T2 Model Availability | `qwen3:8b` loaded | Online, active | **PASS** |
-| **P12** | T3 Status / Accounting | Truthful recording (no fake \$0) | `NOT_AVAILABLE` (Credit 402) | **NOT_AVAILABLE** |
+| **P12** | T3 Status / Accounting | Truthful recording (no fake $0) | `NOT_AVAILABLE` (Credit 402) | **NOT_AVAILABLE** |
 | **P13** | GPU Availability | NVIDIA GPU visible to runtime | RTX 3050 Laptop GPU detected | **PASS** |
 | **P14** | VRAM Capacity | Sufficient VRAM for 8B models | 6144 MB total VRAM | **PASS** |
 | **P15** | Thermal / Power State | Preflight temperature nominal | 58 °C (Nominal) | **PASS** |

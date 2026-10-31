@@ -217,7 +217,7 @@ class WebsiteFastPathClassifier:
             # If user asks for custom copy or specific functional logic, model is required for content
             custom_indicators = [
                 "course", "calculator", "quiz", "game", "tracker", "dashboard",
-                "custom", "specific", "interactive", "edupath", "feature",
+                "custom", "specific", "interactive", "feature",
                 "love", "anime", "genz", "animation", "animations", "aesthetic",
                 "theme", "portfolio", "creative"
             ]

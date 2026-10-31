@@ -42,6 +42,7 @@ class ApprovalStore:
         fingerprint: Optional[str] = None,
         path_prefix: Optional[str] = None,
         session_id: Optional[str] = None,
+        mission_id: Optional[str] = None,
         granted_by: str = "user",
         max_uses: int = 1,
         ttl_seconds: Optional[float] = None,
@@ -57,6 +58,7 @@ class ApprovalStore:
             tool_name=tool_name,
             path_prefix=path_prefix,
             session_id=session_id,
+            mission_id=mission_id,
             granted_by=granted_by,
             created_at=time.time(),
             expires_at=expires_at,
@@ -101,6 +103,11 @@ class ApprovalStore:
         for grant in list(self._grants.values()):
             if not grant.can_apply():
                 continue
+
+            # Mission isolation check: if grant is bound to a mission, it cannot authorize another mission
+            if grant.mission_id is not None and getattr(action, "mission_id", None) is not None:
+                if grant.mission_id != action.mission_id:
+                    continue
             
             # Check expiration
             if grant.expires_at is not None and now > grant.expires_at:
@@ -144,7 +151,24 @@ class ApprovalStore:
     def get_pending_requests(self) -> List[ApprovalRequest]:
         """List all requests awaiting user response."""
         now = time.time()
-        return [r for r in self._requests.values() if not r.resolved and (r.expires_at is None or now < r.expires_at)]
+        return [
+            r for r in self._requests.values()
+            if not r.resolved and r.status == "PENDING" and (r.expires_at is None or now < r.expires_at)
+        ]
+
+    def cancel_requests_for_mission(self, mission_id: str, reason: str = "Mission terminated") -> int:
+        """Cancel and invalidate all pending approval requests bound to mission_id."""
+        count = 0
+        now = time.time()
+        for req in self._requests.values():
+            if getattr(req, "mission_id", None) == mission_id and not req.resolved:
+                req.resolved = True
+                req.resolved_at = now
+                req.approved = False
+                req.status = "CANCELLED"
+                count += 1
+                logger.info("Cancelled pending approval %s for mission %s: %s", req.request_id, mission_id, reason)
+        return count
 
     def resolve_request(
         self,
@@ -180,6 +204,7 @@ class ApprovalStore:
             fingerprint=request.action.action_fingerprint,
             path_prefix=path_prefix,
             session_id=request.session_id,
+            mission_id=getattr(request, "mission_id", None),
             granted_by=resolved_by,
             max_uses=max_uses if scope != ApprovalScope.ONCE else 1,
             ttl_seconds=ttl_seconds,

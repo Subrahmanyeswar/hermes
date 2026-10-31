@@ -1,0 +1,303 @@
+{
+  "phase": 8,
+  "audit_name": "Phase 8 Final Fingerprint Reconciliation and Evidence-Only Lock Audit",
+  "audit_status": "PASS",
+  "final_decision": "CLOSED_AND_LOCKED",
+  "timestamp": "2026-10-22T11:16:30Z",
+  "canonical_environment": {
+    "python_executable": "C:\\Users\\SUBBU\\Downloads\\hermes\\venv\\Scripts\\python.exe",
+    "python_version": "3.12.0",
+    "git_branch": "hermes-2.x",
+    "canonical_skills_root": "C:\\Users\\SUBBU\\Downloads\\hermes\\skills"
+  },
+  "canonical_model_stack": {
+    "tier1": {
+      "provider": "nvidia_nim",
+      "model": "z-ai/glm-5.3-flash",
+      "endpoint": "https://integrate.api.nvidia.com/v1"
+    },
+    "tier2": {
+      "provider": "ollama",
+      "model": "gpt-oss:120b-cloud"
+    },
+    "tier3": {
+      "provider": "ollama",
+      "model": "nemotron-3-ultra:cloud"
+    }
+  },
+  "skill_counts": {
+    "phase6_skills": 13,
+    "phase7_skills": 7,
+    "phase8_skills": 3,
+    "total_active_skills": 23
+  },
+  "deferred_technologies": [
+    {
+      "name": "node-rest-api",
+      "decision": "DEFERRED",
+      "justification": "No Node runtime backend exists in HERMES; tooling in gui/ is strictly for Vite/TypeScript client packaging."
+    },
+    {
+      "name": "prisma-migrations",
+      "decision": "DEFERRED",
+      "justification": "HERMES persistence stack uses native SQLite3 + WAL with custom transaction journaling (core/persistence/); Prisma is not part of the active stack."
+    }
+  ],
+  "skills_inventory": [
+    {
+      "name": "auto-docs",
+      "manifest_path": "skills/auto-docs/SKILL.md",
+      "originating_phase": "Phase 6",
+      "line_count": 38,
+      "sha256": "30b03bdd98708a5e70e8c0830815e5eacfce154248ebf3140394af4e9d92b3b5",
+      "expected_baseline_sha256": "30b03bdd98708a5e70e8c0830815e5eacfce154248ebf3140394af4e9d92b3b5",
+      "match": true,
+      "tool_contract_status": "VERIFIED_PLATFORM_CORE"
+    },
+    {
+      "name": "bash-scripting",
+      "manifest_path": "skills/bash-scripting/SKILL.md",
+      "originating_phase": "Phase 6",
+      "line_count": 40,
+      "sha256": "349a6e9e56664e7131ece41f6a613872a330607004e5f38b4e84d36b796f61da",
+      "expected_baseline_sha256": "349a6e9e56664e7131ece41f6a613872a330607004e5f38b4e84d36b796f61da",
+      "match": true,
+      "tool_contract_status": "VERIFIED_PLATFORM_CORE"
+    },
+    {
+      "name": "code-review",
+      "manifest_path": "skills/code-review/SKILL.md",
+      "originating_phase": "Phase 6",
+      "line_count": 52,
+      "sha256": "366f65f1487ef4656b774260a5e57bbc447ae89038352b3a8407db0c102cedc6",
+      "expected_baseline_sha256": "366f65f1487ef4656b774260a5e57bbc447ae89038352b3a8407db0c102cedc6",
+      "match": true,
+      "tool_contract_status": "VERIFIED_PLATFORM_CORE"
+    },
+    {
+      "name": "database-design",
+      "manifest_path": "skills/database-design/SKILL.md",
+      "originating_phase": "Phase 6",
+      "line_count": 45,
+      "sha256": "9c0d83615495968fdf5eebec0628266b7671b1e343b980e5efa695ac84b435d4",
+      "expected_baseline_sha256": "9c0d83615495968fdf5eebec0628266b7671b1e343b980e5efa695ac84b435d4",
+      "match": true,
+      "tool_contract_status": "VERIFIED_PLATFORM_CORE"
+    },
+    {
+      "name": "debugging",
+      "manifest_path": "skills/debugging/SKILL.md",
+      "originating_phase": "Phase 6",
+      "line_count": 34,
+      "sha256": "33f855c7f5e69d592dbe2bf94501cd4ecde18bdbe612db88238132fc9513c33d",
+      "expected_baseline_sha256": "33f855c7f5e69d592dbe2bf94501cd4ecde18bdbe612db88238132fc9513c33d",
+      "match": true,
+      "tool_contract_status": "VERIFIED_PLATFORM_CORE"
+    },
+    {
+      "name": "flask-rest-api",
+      "manifest_path": "skills/flask-rest-api/SKILL.md",
+      "originating_phase": "Phase 6",
+      "line_count": 50,
+      "sha256": "c0e571ac656b591bb88f8b31032f34eb4e2102ac22bfc3805a90b2165a19efec",
+      "expected_baseline_sha256": "c0e571ac656b591bb88f8b31032f34eb4e2102ac22bfc3805a90b2165a19efec",
+      "match": true,
+      "tool_contract_status": "VERIFIED_PLATFORM_CORE"
+    },
+    {
+      "name": "git-workflow",
+      "manifest_path": "skills/git-workflow/SKILL.md",
+      "originating_phase": "Phase 6",
+      "line_count": 31,
+      "sha256": "1d34fd7c11f839287a274320be997c96addebbd801366b7e0753d8a02c84e466",
+      "expected_baseline_sha256": "1d34fd7c11f839287a274320be997c96addebbd801366b7e0753d8a02c84e466",
+      "match": true,
+      "tool_contract_status": "VERIFIED_PLATFORM_CORE"
+    },
+    {
+      "name": "pytest-generation",
+      "manifest_path": "skills/pytest-generation/SKILL.md",
+      "originating_phase": "Phase 6",
+      "line_count": 40,
+      "sha256": "1ae695a71f67fb25dac00caaa13483f773a217c33f6e244631190219cd099973",
+      "expected_baseline_sha256": "1ae695a71f67fb25dac00caaa13483f773a217c33f6e244631190219cd099973",
+      "match": true,
+      "tool_contract_status": "VERIFIED_PLATFORM_CORE"
+    },
+    {
+      "name": "react-frontend",
+      "manifest_path": "skills/react-frontend/SKILL.md",
+      "originating_phase": "Phase 6",
+      "line_count": 39,
+      "sha256": "37600e2281f941a1079c161ac1a840e83bc98d0891fc1c5c10b70f2e17dd8eb8",
+      "expected_baseline_sha256": "37600e2281f941a1079c161ac1a840e83bc98d0891fc1c5c10b70f2e17dd8eb8",
+      "match": true,
+      "tool_contract_status": "VERIFIED_PLATFORM_CORE"
+    },
+    {
+      "name": "refactoring",
+      "manifest_path": "skills/refactoring/SKILL.md",
+      "originating_phase": "Phase 6",
+      "line_count": 35,
+      "sha256": "26597860b40f588ba578b3192e8634afbd16b4ca0b101d0fc0abde770e1f1bf6",
+      "expected_baseline_sha256": "26597860b40f588ba578b3192e8634afbd16b4ca0b101d0fc0abde770e1f1bf6",
+      "match": true,
+      "tool_contract_status": "VERIFIED_PLATFORM_CORE"
+    },
+    {
+      "name": "screenshot-to-code",
+      "manifest_path": "skills/screenshot-to-code/SKILL.md",
+      "originating_phase": "Phase 6",
+      "line_count": 35,
+      "sha256": "f37cd8ff58fb2fd4ff815e94bcdc531c37e83c3c3e4739fe4e691d5d8e0c1119",
+      "expected_baseline_sha256": "f37cd8ff58fb2fd4ff815e94bcdc531c37e83c3c3e4739fe4e691d5d8e0c1119",
+      "match": true,
+      "tool_contract_status": "VERIFIED_PLATFORM_CORE"
+    },
+    {
+      "name": "security-audit",
+      "manifest_path": "skills/security-audit/SKILL.md",
+      "originating_phase": "Phase 6",
+      "line_count": 44,
+      "sha256": "01928d7716a3fb4122c9266acd507bdf777ed0faf5377e1a04460680340b4ac5",
+      "expected_baseline_sha256": "01928d7716a3fb4122c9266acd507bdf777ed0faf5377e1a04460680340b4ac5",
+      "match": true,
+      "tool_contract_status": "VERIFIED_PLATFORM_CORE"
+    },
+    {
+      "name": "vanilla-web",
+      "manifest_path": "skills/vanilla-web/SKILL.md",
+      "originating_phase": "Phase 6",
+      "line_count": 36,
+      "sha256": "3aef624d12f159d15dfc18d9a21c6f3b4cb8fadbdc9ed7dd6387a4cdd71d67a4",
+      "expected_baseline_sha256": "3aef624d12f159d15dfc18d9a21c6f3b4cb8fadbdc9ed7dd6387a4cdd71d67a4",
+      "match": true,
+      "tool_contract_status": "VERIFIED_PLATFORM_CORE"
+    },
+    {
+      "name": "design-engineering",
+      "manifest_path": "skills/design-engineering/SKILL.md",
+      "originating_phase": "Phase 7",
+      "line_count": 85,
+      "sha256": "e5c9d636ebcc8a4609c6b20d825a94d822b550d3067fc7fb585fde421ae89e6f",
+      "expected_baseline_sha256": "e5c9d636ebcc8a4609c6b20d825a94d822b550d3067fc7fb585fde421ae89e6f",
+      "match": true,
+      "tool_contract_status": "VERIFIED_CATALOG_COMPLIANT"
+    },
+    {
+      "name": "design-system",
+      "manifest_path": "skills/design-system/SKILL.md",
+      "originating_phase": "Phase 7",
+      "line_count": 100,
+      "sha256": "957067f2e19a916146f52dc6976c9a9e77563f8d9a708550d9f06dcefc128f46",
+      "expected_baseline_sha256": "957067f2e19a916146f52dc6976c9a9e77563f8d9a708550d9f06dcefc128f46",
+      "match": true,
+      "tool_contract_status": "VERIFIED_CATALOG_COMPLIANT"
+    },
+    {
+      "name": "react-best-practices",
+      "manifest_path": "skills/react-best-practices/SKILL.md",
+      "originating_phase": "Phase 7",
+      "line_count": 95,
+      "sha256": "588a38b1111b33ccbf2ffbcdc173a369e3a59db7769c14f1ef8a5d7a3b72ccd4",
+      "expected_baseline_sha256": "588a38b1111b33ccbf2ffbcdc173a369e3a59db7769c14f1ef8a5d7a3b72ccd4",
+      "match": true,
+      "tool_contract_status": "VERIFIED_CATALOG_COMPLIANT"
+    },
+    {
+      "name": "react-composition-patterns",
+      "manifest_path": "skills/react-composition-patterns/SKILL.md",
+      "originating_phase": "Phase 7",
+      "line_count": 138,
+      "sha256": "f72bf349032c75513f91d990b3de768f755a4c9d3556912186143dbc8651f5de",
+      "expected_baseline_sha256": "f72bf349032c75513f91d990b3de768f755a4c9d3556912186143dbc8651f5de",
+      "match": true,
+      "tool_contract_status": "VERIFIED_CATALOG_COMPLIANT"
+    },
+    {
+      "name": "shadcn-ui",
+      "manifest_path": "skills/shadcn-ui/SKILL.md",
+      "originating_phase": "Phase 7",
+      "line_count": 71,
+      "sha256": "086365c26c2c401e202022a61e3a31454744731ef7dcb1728b3d6d4d5ffef052",
+      "expected_baseline_sha256": "086365c26c2c401e202022a61e3a31454744731ef7dcb1728b3d6d4d5ffef052",
+      "match": true,
+      "tool_contract_status": "VERIFIED_CATALOG_COMPLIANT"
+    },
+    {
+      "name": "taste-design",
+      "manifest_path": "skills/taste-design/SKILL.md",
+      "originating_phase": "Phase 7",
+      "line_count": 63,
+      "sha256": "bc407b04879cd628f9234e17ea9be5d647cc031c883ec03f0245e6e0f3434070",
+      "expected_baseline_sha256": "bc407b04879cd628f9234e17ea9be5d647cc031c883ec03f0245e6e0f3434070",
+      "match": true,
+      "tool_contract_status": "VERIFIED_CATALOG_COMPLIANT"
+    },
+    {
+      "name": "web-design-guidelines",
+      "manifest_path": "skills/web-design-guidelines/SKILL.md",
+      "originating_phase": "Phase 7",
+      "line_count": 69,
+      "sha256": "a6dccd9c0215eef665c4b0280c0e466c8a595ddd793668920a0e284dee65cb9b",
+      "expected_baseline_sha256": "a6dccd9c0215eef665c4b0280c0e466c8a595ddd793668920a0e284dee65cb9b",
+      "match": true,
+      "tool_contract_status": "VERIFIED_CATALOG_COMPLIANT"
+    },
+    {
+      "name": "fastapi-backend",
+      "manifest_path": "skills/fastapi-backend/SKILL.md",
+      "originating_phase": "Phase 8",
+      "line_count": 142,
+      "sha256": "0d889a288d7dfc8d45e00ed371f36077311e12df8d88abbab8cb748a50b01b07",
+      "expected_baseline_sha256": "NEW_SKILL_PHASE_8",
+      "match": true,
+      "tool_contract_status": "VERIFIED_CATALOG_COMPLIANT"
+    },
+    {
+      "name": "software-architecture",
+      "manifest_path": "skills/software-architecture/SKILL.md",
+      "originating_phase": "Phase 8",
+      "line_count": 104,
+      "sha256": "f10ccba9ad6ef16146776bb4e525a265ae06c99f075816e4f001d4c6742b60c2",
+      "expected_baseline_sha256": "NEW_SKILL_PHASE_8",
+      "match": true,
+      "tool_contract_status": "VERIFIED_CATALOG_COMPLIANT"
+    },
+    {
+      "name": "project-context",
+      "manifest_path": "skills/project-context/SKILL.md",
+      "originating_phase": "Phase 8",
+      "line_count": 91,
+      "sha256": "03cf9366eb7d19dc0ae55fcd2c2a0ce44200d310c8e54488c17f969e9bfa882a",
+      "expected_baseline_sha256": "NEW_SKILL_PHASE_8",
+      "match": true,
+      "tool_contract_status": "VERIFIED_CATALOG_COMPLIANT"
+    }
+  ],
+  "verification_battery_audit": {
+    "scope": "TARGETED_VERIFICATION_BATTERY",
+    "unexecuted_suites_distinction": "The targeted battery covers all Phase 8 unit/integration suites, Phase 6 & Phase 7 skill routing suites, Project Intelligence, and Phase 5 completion gates. The broad, repository-wide unexecuted suite (containing historical multi-minute soak tests, Prompt 18 chaos tests, and phase-wide crash tests) was deliberately not re-run during this focused evidence audit.",
+    "executed_phase8_dedicated_tests": {
+      "test_phase8_fastapi_skill.py": 5,
+      "test_phase8_software_architecture_skill.py": 4,
+      "test_phase8_project_context_skill.py": 5,
+      "test_phase8_skills_integration.py": 6,
+      "total_passed": 20
+    },
+    "executed_targeted_regression_tests": {
+      "test_phase6_skill_registry_routing.py": 26,
+      "test_phase7_frontend_skills.py": 10,
+      "test_phase7_visual_design_skills.py": 7,
+      "test_phase7_advanced_visual_skills.py": 6,
+      "test_project_intelligence.py": 20,
+      "test_phase5_contract_creation.py": 3,
+      "test_phase5_contract_verification.py": 3,
+      "test_phase5_line_count_policy.py": 3,
+      "test_phase5_completion_gate.py": 7,
+      "test_phase5_behavioral_completion_integration.py": 5,
+      "total_passed": 90
+    },
+    "total_executed_and_verified": 110
+  }
+}

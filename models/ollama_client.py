@@ -5,15 +5,19 @@
 
 from __future__ import annotations
 
+import os
+import shutil
 import time
+import re
 import uuid
+import asyncio
 from typing import Any, Optional, Union
 
 import httpx
 from loguru import logger
 
 from models.provider import ModelProvider, NormalizedModelResponse
-from config.model_config import MODEL_KEEP_ALIVE, MODEL_TIMEOUT_SECONDS
+from config.model_config import MODEL_KEEP_ALIVE, MODEL_TIMEOUT_SECONDS, HEALTH_CHECK_TIMEOUT
 
 # ---------------------------------------------------------------------------
 # Custom exception types
@@ -44,13 +48,11 @@ def normalize_ollama_payload(data: Any) -> str:
     thinking_text = str(thinking).strip() if thinking is not None and isinstance(thinking, str) else ""
 
     if thinking_text and resp_text:
-        if "<think>" in thinking_text:
-            return f"{thinking_text}\n{resp_text}"
-        return f"<think>\n{thinking_text}\n</think>\n{resp_text}"
+        clean_think = re.sub(r'</?think>', '', thinking_text).strip()
+        return f"<think>\n{clean_think}\n</think>\n{resp_text}"
     elif thinking_text and not resp_text:
-        if "<think>" in thinking_text:
-            return thinking_text
-        return f"<think>\n{thinking_text}\n</think>"
+        clean_think = re.sub(r'</?think>', '', thinking_text).strip()
+        return f"<think>\n{clean_think}\n</think>"
     elif resp_text:
         return str(data.get("response", ""))
     else:
@@ -62,6 +64,32 @@ def normalize_ollama_payload(data: Any) -> str:
 # ---------------------------------------------------------------------------
 
 _SHARED_OLLAMA_CLIENT: Optional[OllamaClient] = None
+_SHARED_TIER2_SEMAPHORE: Optional[asyncio.Semaphore] = None
+_OLLAMA_STARTUP_LOCK: Optional[asyncio.Lock] = None
+_OWNED_OLLAMA_PROCESS: Optional[Any] = None
+_LAST_RECOVERY_ATTEMPT: float = 0.0
+
+
+def get_tier2_semaphore() -> asyncio.Semaphore:
+    """Return process-wide single-request semaphore (concurrency=1) for Tier 2."""
+    global _SHARED_TIER2_SEMAPHORE
+    if _SHARED_TIER2_SEMAPHORE is None:
+        _SHARED_TIER2_SEMAPHORE = asyncio.Semaphore(1)
+    return _SHARED_TIER2_SEMAPHORE
+
+
+def reset_tier2_semaphore(concurrency: int = 1) -> asyncio.Semaphore:
+    """Reset the process-wide Tier 2 semaphore (for tests or isolation)."""
+    global _SHARED_TIER2_SEMAPHORE
+    _SHARED_TIER2_SEMAPHORE = asyncio.Semaphore(concurrency)
+    return _SHARED_TIER2_SEMAPHORE
+
+
+def _get_startup_lock() -> asyncio.Lock:
+    global _OLLAMA_STARTUP_LOCK
+    if _OLLAMA_STARTUP_LOCK is None:
+        _OLLAMA_STARTUP_LOCK = asyncio.Lock()
+    return _OLLAMA_STARTUP_LOCK
 
 
 def get_shared_ollama_client() -> OllamaClient:
@@ -87,9 +115,10 @@ class OllamaClient(ModelProvider):
 
     def __init__(
         self,
-        base_url: str = "http://localhost:11434",
+        base_url: str = "http://127.0.0.1:11434",
         timeout_seconds: int = MODEL_TIMEOUT_SECONDS,
         num_ctx: int = 4096,
+        semaphore: Optional[asyncio.Semaphore] = None,
     ) -> None:
         """Store connection configuration; initialize persistent connection pool."""
         self.base_url: str = base_url.rstrip("/")
@@ -98,15 +127,99 @@ class OllamaClient(ModelProvider):
         self.last_raw_response: Optional[dict[str, Any]] = None
         self._async_client: Optional[httpx.AsyncClient] = None
         self._last_loaded_model: Optional[str] = None
+        self._semaphore: Optional[asyncio.Semaphore] = semaphore
+
+    def get_semaphore(self) -> asyncio.Semaphore:
+        """Return the single-request concurrency semaphore for Tier 2."""
+        if self._semaphore is not None:
+            return self._semaphore
+        return get_tier2_semaphore()
 
     async def _get_client(self) -> httpx.AsyncClient:
         """Return or create a reusable persistent async HTTP client with connection pooling."""
-        if self._async_client is None or self._async_client.is_closed:
-            self._async_client = httpx.AsyncClient(
-                timeout=httpx.Timeout(self.timeout_seconds),
-                limits=httpx.Limits(max_keepalive_connections=10, max_connections=20),
-            )
-        return self._async_client
+        from core.transport.client_manager import transport_client_manager
+        return await transport_client_manager.get_client(
+            base_url=self.base_url,
+            connect_timeout=3.0,
+            read_timeout=float(self.timeout_seconds),
+            write_timeout=15.0,
+            pool_timeout=10.0,
+        )
+
+    async def _ensure_local_server_running(self) -> bool:
+        """
+        Attempt to spawn or recover local ollama serve safely and idempotently.
+        Guarantees concurrency isolation, listener ownership checks, and bounded startup.
+        """
+        global _OWNED_OLLAMA_PROCESS, _LAST_RECOVERY_ATTEMPT
+        import shutil, subprocess
+
+        lock = _get_startup_lock()
+        async with lock:
+            # 1. Check service readiness first
+            try:
+                c = await self._get_client()
+                r = await c.get(f"{self.base_url}/api/tags", timeout=1.0)
+                if r.status_code == 200:
+                    return True
+            except Exception:
+                pass
+
+            # 2. Check if binary is available
+            ollama_bin = shutil.which("ollama") or r"C:\Users\SUBBU\AppData\Local\Programs\Ollama\ollama.exe"
+            if not os.path.exists(ollama_bin):
+                return False
+
+            # 3. Check debounce cooldown (min 5s between recovery attempts)
+            now = time.monotonic()
+            if now - _LAST_RECOVERY_ATTEMPT < 5.0:
+                for _ in range(6):
+                    await asyncio.sleep(0.5)
+                    try:
+                        c = await self._get_client()
+                        r = await c.get(f"{self.base_url}/api/tags", timeout=1.0)
+                        if r.status_code == 200:
+                            return True
+                    except Exception:
+                        pass
+                return False
+
+            _LAST_RECOVERY_ATTEMPT = now
+            t0 = time.monotonic()
+
+            # 4. If we own an existing child process that is unresponsive, safely terminate our owned process
+            if _OWNED_OLLAMA_PROCESS is not None:
+                try:
+                    if _OWNED_OLLAMA_PROCESS.poll() is None:
+                        logger.warning("OllamaClient: Terminating hung owned Ollama child process...")
+                        _OWNED_OLLAMA_PROCESS.terminate()
+                        _OWNED_OLLAMA_PROCESS.wait(timeout=2.0)
+                except Exception as e:
+                    logger.debug(f"OllamaClient: Owned process termination error: {e}")
+                _OWNED_OLLAMA_PROCESS = None
+
+            # 5. Launch single managed background instance
+            try:
+                logger.info(f"OllamaClient: Launching local Ollama server via {ollama_bin}...")
+                _OWNED_OLLAMA_PROCESS = subprocess.Popen(
+                    [ollama_bin, "serve"],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                )
+                for _ in range(12):
+                    await asyncio.sleep(0.5)
+                    try:
+                        c = await self._get_client()
+                        r = await c.get(f"{self.base_url}/api/tags", timeout=1.0)
+                        if r.status_code == 200:
+                            dur = time.monotonic() - t0
+                            logger.info(f"OllamaClient: Local Ollama server successfully started in {dur:.2f}s.")
+                            return True
+                    except Exception:
+                        pass
+            except Exception as e:
+                logger.warning(f"OllamaClient: Failed to start Ollama server: {e}")
+            return False
 
     async def aclose(self) -> None:
         """Close the persistent async HTTP client."""
@@ -207,9 +320,16 @@ class OllamaClient(ModelProvider):
             "options": options,
         }
         if think is not None:
-            body["think"] = think
+            if isinstance(think, (int, float)) and not isinstance(think, bool):
+                logger.warning("OllamaClient: Ignoring unsupported numeric think={}; must be boolean or valid string.", think)
+            else:
+                body["think"] = think
         elif "think" in kwargs:
-            body["think"] = kwargs["think"]
+            raw_think = kwargs["think"]
+            if isinstance(raw_think, (int, float)) and not isinstance(raw_think, bool):
+                logger.warning("OllamaClient: Ignoring unsupported numeric think={}; must be boolean or valid string.", raw_think)
+            else:
+                body["think"] = raw_think
 
         if format is not None:
             body["format"] = format
@@ -228,33 +348,103 @@ class OllamaClient(ModelProvider):
         task_id = kwargs.get("task_id")
         stage = kwargs.get("stage", "Tier 2 Verification")
 
-        start: float = time.perf_counter()
-        client = await self._get_client()
+        to_seconds = float(kwargs.get("timeout_seconds") or self.timeout_seconds)
+        start_monotonic = time.monotonic()
+        deadline = start_monotonic + to_seconds
+
+        sem = self.get_semaphore()
+        acquired = False
+        remaining_to_acquire = deadline - time.monotonic()
+        if remaining_to_acquire <= 0:
+            self._record_telemetry_failure(
+                model, prompt, system, keep_alive, temperature, num_ctx, start_monotonic,
+                timed_out=True, error=f"Ollama request timed out after {to_seconds}s waiting for execution slot",
+                request_id=request_id, mission_id=mission_id, task_id=task_id, stage=stage
+            )
+            raise OllamaTimeoutError(
+                f"Ollama request timed out after {to_seconds}s waiting for execution slot"
+            )
 
         try:
-            try:
-                response: httpx.Response = await client.post(url, json=body)
-            except httpx.TimeoutException as exc:
+            await asyncio.wait_for(sem.acquire(), timeout=remaining_to_acquire)
+            acquired = True
+        except (asyncio.TimeoutError, TimeoutError) as exc:
+            self._record_telemetry_failure(
+                model, prompt, system, keep_alive, temperature, num_ctx, start_monotonic,
+                timed_out=True, error=f"Ollama request timed out after {to_seconds}s waiting for execution slot",
+                request_id=request_id, mission_id=mission_id, task_id=task_id, stage=stage
+            )
+            raise OllamaTimeoutError(
+                f"Ollama request timed out after {to_seconds}s waiting for execution slot"
+            ) from exc
+
+        start: float = time.perf_counter()
+        try:
+            remaining_inference_seconds = deadline - time.monotonic()
+            if remaining_inference_seconds <= 0:
                 self._record_telemetry_failure(
-                    model, prompt, system, keep_alive, temperature, num_ctx, start, timed_out=True, error=str(exc),
+                    model, prompt, system, keep_alive, temperature, num_ctx, start_monotonic,
+                    timed_out=True, error=f"Ollama request timed out: exceeded its {to_seconds}s total deadline",
                     request_id=request_id, mission_id=mission_id, task_id=task_id, stage=stage
                 )
                 raise OllamaTimeoutError(
-                    f"Ollama request timed out after {self.timeout_seconds}s"
-                ) from exc
-            except httpx.ConnectError as exc:
+                    f"Ollama request timed out: exceeded its {to_seconds}s total deadline"
+                )
+
+            client = await self._get_client()
+
+            timeout_scope = asyncio.timeout(remaining_inference_seconds)
+            try:
+                async with timeout_scope:
+                    try:
+                        response: httpx.Response = await client.post(
+                            url, json=body, timeout=httpx.Timeout(remaining_inference_seconds)
+                        )
+                    except httpx.ConnectError as exc:
+                        if "127.0.0.1" in self.base_url or "localhost" in self.base_url:
+                            if await self._ensure_local_server_running():
+                                retry_remaining = deadline - time.monotonic()
+                                if retry_remaining > 0:
+                                    try:
+                                        response = await client.post(
+                                            url, json=body, timeout=httpx.Timeout(retry_remaining)
+                                        )
+                                        exc = None
+                                    except Exception as retry_exc:
+                                        exc = retry_exc
+                        if exc is not None:
+                            self._record_telemetry_failure(
+                                model, prompt, system, keep_alive, temperature, num_ctx, start, timed_out=False, error=str(exc),
+                                request_id=request_id, mission_id=mission_id, task_id=task_id, stage=stage
+                            )
+                            raise OllamaConnectionError(
+                                f"Could not connect to Ollama at {self.base_url}. "
+                                "Is the Ollama server running?"
+                            ) from exc
+
+                    elapsed: float = time.perf_counter() - start
+                    data: dict[str, Any] = response.json()
+                    self.last_raw_response = data
+            except TimeoutError as exc:
+                if timeout_scope.expired():
+                    self._record_telemetry_failure(
+                        model, prompt, system, keep_alive, temperature, num_ctx, start_monotonic, timed_out=True,
+                        error=f"Ollama request timed out: exceeded its {to_seconds}s total deadline",
+                        request_id=request_id, mission_id=mission_id, task_id=task_id, stage=stage
+                    )
+                    raise OllamaTimeoutError(
+                        f"Ollama request timed out: exceeded its {to_seconds}s total deadline"
+                    ) from exc
+                raise
+            except httpx.TimeoutException as exc:
                 self._record_telemetry_failure(
-                    model, prompt, system, keep_alive, temperature, num_ctx, start, timed_out=False, error=str(exc),
+                    model, prompt, system, keep_alive, temperature, num_ctx, start_monotonic, timed_out=True,
+                    error="Ollama HTTP operation timed out",
                     request_id=request_id, mission_id=mission_id, task_id=task_id, stage=stage
                 )
-                raise OllamaConnectionError(
-                    f"Could not connect to Ollama at {self.base_url}. "
-                    "Is the Ollama server running?"
+                raise OllamaTimeoutError(
+                    f"Ollama request timed out after {to_seconds}s"
                 ) from exc
-
-            elapsed: float = time.perf_counter() - start
-            data: dict[str, Any] = response.json()
-            self.last_raw_response = data
 
             if "error" in data:
                 self._record_telemetry_failure(
@@ -327,6 +517,8 @@ class OllamaClient(ModelProvider):
                 success=True
             )
         finally:
+            if acquired:
+                sem.release()
             model_residency_manager.release_model(model, is_foreground=is_foreground)
 
     def _record_telemetry_success(
@@ -508,30 +700,34 @@ class OllamaClient(ModelProvider):
                 mc.execution_mode = target_req.execution_mode
                 target_req.model_calls.append(mc)
 
-    async def is_running(self) -> bool:
+    async def is_running(self, timeout: Optional[float] = None) -> bool:
         """Return True if Ollama responds with HTTP 200, False for any error.
 
         Never raises; safe to use as a startup health check.
+        Uses fast HEALTH_CHECK_TIMEOUT (default 2.5s) instead of model execution timeout.
         """
         url: str = f"{self.base_url}/api/tags"
+        check_timeout = timeout if timeout is not None else HEALTH_CHECK_TIMEOUT
         try:
             async with httpx.AsyncClient(
-                timeout=httpx.Timeout(self.timeout_seconds)
+                timeout=httpx.Timeout(check_timeout)
             ) as client:
                 response: httpx.Response = await client.get(url)
             return response.status_code == 200
         except Exception:  # noqa: BLE001 — intentionally broad: method must never raise
             return False
 
-    async def list_models(self) -> list[str]:
+    async def list_models(self, timeout: Optional[float] = None) -> list[str]:
         """Return a list of locally available Ollama model name strings.
 
         Returns an empty list on any error; never raises.
+        Uses fast HEALTH_CHECK_TIMEOUT (default 2.5s) instead of model execution timeout.
         """
         url: str = f"{self.base_url}/api/tags"
+        check_timeout = timeout if timeout is not None else HEALTH_CHECK_TIMEOUT
         try:
             async with httpx.AsyncClient(
-                timeout=httpx.Timeout(self.timeout_seconds)
+                timeout=httpx.Timeout(check_timeout)
             ) as client:
                 response: httpx.Response = await client.get(url)
             data: dict[str, Any] = response.json()

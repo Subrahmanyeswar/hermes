@@ -1,0 +1,34 @@
+{
+  "stage": "7",
+  "configured_budgets": {
+    "max_turns": 25,
+    "max_consecutive_failures": 5,
+    "max_wall_time_seconds": 180.0,
+    "circuit_breaker_first_token_timeout_threshold": 2
+  },
+  "model_tiers_evaluated": [
+    {
+      "tier": 1,
+      "provider": "nvidia_nim",
+      "model": "z-ai/glm-5.3-flash"
+    },
+    {
+      "tier": 2,
+      "provider": "ollama",
+      "model": "gpt-oss:120b-cloud"
+    },
+    {
+      "tier": 3,
+      "provider": "ollama",
+      "model": "nemotron-3-ultra"
+    }
+  ],
+  "fault_injection_results": {
+    "turn_budget_enforcement": "PASS",
+    "consecutive_failure_exhaustion": "PASS",
+    "t1_timeout_failover_to_t2": "PASS",
+    "t1_t2_t3_all_exhausted_raises_cleanly": "PASS",
+    "circuit_breaker_adaptive_routing": "PASS",
+    "prerequisite_failure_blocks_completion": "PASS"
+  }
+}

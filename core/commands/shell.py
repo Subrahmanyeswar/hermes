@@ -142,9 +142,11 @@ class ShellExecutor:
         timed_out = False
         cancelled = False
 
-        env = os.environ.copy()
-        env["PYTHONIOENCODING"] = "utf-8"
-        env["PYTHONUNBUFFERED"] = "1"
+        from core.runtime_identity import get_canonical_subprocess_env
+        env = get_canonical_subprocess_env({
+            "PYTHONIOENCODING": "utf-8",
+            "PYTHONUNBUFFERED": "1",
+        })
 
         proc = None
         try:

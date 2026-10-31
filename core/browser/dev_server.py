@@ -28,13 +28,15 @@ class DevServerInfo:
     name: str
     port: int
     url: str
-    process: subprocess.Popen
     workspace_dir: Path
+    process: Optional[subprocess.Popen] = None
     started_at: float = 0.0
 
     @property
     def is_alive(self) -> bool:
-        return self.process is not None and self.process.poll() is None
+        if self.process is None:
+            return True
+        return self.process.poll() is None
 
 
 class DevServerManager:
@@ -51,6 +53,25 @@ class DevServerManager:
             s.bind(("127.0.0.1", 0))
             return s.getsockname()[1]
 
+    def get_server_for_workspace(self, directory: Path | str) -> Optional[DevServerInfo]:
+        """Return active dev server strictly matching the requested workspace directory."""
+        dir_path = Path(directory).resolve()
+        for s in self._servers.values():
+            if s.is_alive and s.workspace_dir == dir_path:
+                return s
+        return None
+
+    def stop_stale_servers_not_matching(self, current_workspace: Path | str) -> int:
+        """Terminate any dev server serving a workspace other than current_workspace."""
+        curr_path = Path(current_workspace).resolve()
+        stopped = 0
+        for name, s in list(self._servers.items()):
+            if s.workspace_dir != curr_path:
+                logger.info(f"DevServerManager: stopping non-matching server '{name}' serving {s.workspace_dir}")
+                self.stop_server(name)
+                stopped += 1
+        return stopped
+
     async def start_static_server(
         self,
         directory: Path | str,
@@ -66,9 +87,40 @@ class DevServerManager:
         if not dir_path.exists():
             raise FileNotFoundError(f"Static directory '{dir_path}' does not exist")
 
+        # Fast reuse: if server with this name is already active for this directory, reuse immediately
+        existing = self._servers.get(name)
+        if existing and existing.is_alive:
+            if existing.workspace_dir == dir_path:
+                logger.info(f"Dev server '{name}' reused at {existing.url} (PID {existing.process.pid if existing.process else 'ext'})")
+                return existing
+            else:
+                logger.info(f"Stopping stale dev server '{name}' for directory change to {dir_path}")
+                self.stop_server(name)
+
+        # Check if specified port is already serving
+        if port is not None:
+            try:
+                async with httpx.AsyncClient(timeout=0.8) as client:
+                    r = await client.get(f"http://{self.default_host}:{port}")
+                    if r.status_code in (200, 404):
+                        logger.info(f"DevServerManager: attaching to existing server on port {port} for {dir_path}")
+                        info = DevServerInfo(
+                            name=name,
+                            port=port,
+                            url=f"http://{self.default_host}:{port}",
+                            process=None,
+                            workspace_dir=dir_path,
+                            started_at=time.time(),
+                        )
+                        self._servers[name] = info
+                        return info
+            except Exception:
+                pass
+
         assigned_port = port or self.find_free_port()
+        from core.runtime_identity import get_canonical_python_executable, get_canonical_subprocess_env
         cmd = [
-            sys.executable,
+            get_canonical_python_executable(),
             "-m",
             "http.server",
             str(assigned_port),
@@ -80,6 +132,7 @@ class DevServerManager:
 
         process = subprocess.Popen(
             cmd,
+            env=get_canonical_subprocess_env(),
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
         )

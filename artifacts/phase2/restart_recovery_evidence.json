@@ -1,0 +1,31 @@
+{
+  "test_suite": "tests/test_phase2_durable_persistence.py",
+  "scenarios_verified": [
+    "test_scenario_b_sequence_monotonicity_across_restart",
+    "test_scenario_c_snapshot_persistence_and_replay_reconstruction",
+    "test_scenario_g_process_restart_recovery_state",
+    "test_scenario_l_phase1_lifecycle_preservation"
+  ],
+  "restart_invariants": {
+    "execution_active_reset_to_false": true,
+    "recovery_required_set_to_true": true,
+    "unsolicited_duplicate_task_execution": false,
+    "state_store_rehydrated_from_snapshot_and_journal_tail": true,
+    "monotonic_sequence_generator_strictly_increasing": true
+  },
+  "simulation_summary": {
+    "mission_id": "m_restart_g",
+    "pre_restart_state": {
+      "status": "RUNNING",
+      "execution_active": true,
+      "recovery_required": false
+    },
+    "post_restart_state": {
+      "status": "RUNNING",
+      "execution_active": false,
+      "recovery_required": true,
+      "active_background_tasks": 0,
+      "tasks_restored": ["t_wip"]
+    }
+  }
+}

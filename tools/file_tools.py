@@ -10,9 +10,11 @@ import os
 import shutil
 import tempfile
 import time
+import uuid
 from pathlib import Path
 from typing import Literal
 
+import hashlib
 import aiofiles
 from loguru import logger
 from pydantic import BaseModel, Field
@@ -20,6 +22,19 @@ from pydantic import BaseModel, Field
 from core.workspace import workspace_manager, WorkspaceBoundaryError
 from tools.base import BaseTool, ToolResult
 from tools.registry import tool
+from tools.platform.file_identity import file_identity_cache
+
+_READ_LOOP_TRACKER: dict[str, tuple[str, int]] = {}
+
+
+def reset_read_loop_tracker() -> None:
+    """Reset the read loop tracker between mission runs."""
+    _READ_LOOP_TRACKER.clear()
+    try:
+        from tools.platform.core_tools import READ_LOOP_TRACKER
+        READ_LOOP_TRACKER.clear()
+    except Exception:
+        pass
 
 
 def _resolve_project_path(path: str) -> Path:
@@ -41,6 +56,7 @@ class ReadFileTool(BaseTool):
 
     class Input(BaseModel):
         """Validated input for ReadFileTool."""
+        model_config = {"extra": "allow", "arbitrary_types_allowed": True}
 
         path: str = Field(
             ...,
@@ -52,31 +68,96 @@ class ReadFileTool(BaseTool):
             default="utf-8",
             description="File encoding, defaults to utf-8",
         )
+        workspace: Optional[Any] = None
 
     def execute(self, inp: Input) -> ToolResult:
         """Read the requested file synchronously."""
+        wm = None
+        if isinstance(inp, dict):
+            wm = inp.get("_workspace")
+            inp_dict = dict(inp)
+            for k in list(inp_dict.keys()):
+                if k in ("file_path", "target_path", "filepath", "filename", "TargetFile", "target_file") and "path" not in inp_dict:
+                    inp_dict["path"] = inp_dict.pop(k)
+            try:
+                inp = self.Input(**inp_dict)
+            except Exception:
+                pass
+        else:
+            wm = getattr(inp, "_workspace", None)
+        effective_wm = wm or workspace_manager
+
         start = time.monotonic()
         try:
             # ── Workspace boundary enforcement ──────────────────────────────
             try:
-                safe_path = workspace_manager.validate_path(inp.path)
+                safe_path = effective_wm.validate_path(inp.path)
+                if not isinstance(safe_path, Path):
+                    if isinstance(safe_path, str):
+                        safe_path = Path(safe_path).resolve()
+                    else:
+                        root = getattr(effective_wm, "workspace_root", None) or getattr(effective_wm, "root_str", None)
+                        safe_path = (Path(root) / inp.path).resolve() if root else (Path.cwd() / inp.path).resolve()
             except WorkspaceBoundaryError as e:
                 return ToolResult(
                     success=False,
                     error=f"SECURITY: {e}",
                     exit_code=126,
                 )
+            except Exception:
+                root = getattr(effective_wm, "workspace_root", None) or getattr(effective_wm, "root_str", None)
+                safe_path = (Path(root) / inp.path).resolve() if root else (Path.cwd() / inp.path).resolve()
 
             if not safe_path.exists():
                 return ToolResult(success=False, error=f"File not found: {inp.path}", exit_code=1)
             if not safe_path.is_file():
+                if safe_path.is_dir():
+                    return ToolResult(
+                        success=False,
+                        error=f"Path is not a regular file: '{inp.path}'. It is a directory. Use list_directory to inspect folders, or specify a file path.",
+                        exit_code=1,
+                        details={"code": "PATH_IS_DIRECTORY", "path": inp.path},
+                    )
                 return ToolResult(success=False, error=f"Path is not a file: {inp.path}", exit_code=1)
 
             encoding = getattr(inp, "encoding", "utf-8")
             with open(safe_path, mode="r", encoding=encoding, errors="replace") as f:
                 content = f.read()
 
+            try:
+                identity = file_identity_cache.record(safe_path, encoding=encoding)
+                content_hash = identity.content_hash
+            except Exception:
+                content_hash = hashlib.sha256(content.encode("utf-8", errors="replace")).hexdigest()
+
+            # Read loop detection
+            track_key = str(safe_path).lower()
+            prev_hash, count = _READ_LOOP_TRACKER.get(track_key, ("", 0))
+            if prev_hash == content_hash:
+                count += 1
+            else:
+                count = 1
+            _READ_LOOP_TRACKER[track_key] = (content_hash, count)
+
             duration = time.monotonic() - start
+            if count >= 2:
+                return ToolResult(
+                    success=False,
+                    error=(
+                        f"TOOL_REJECTED_NO_PROGRESS: Target '{inp.path}' was read {count} times without intermediate modifications "
+                        f"(SHA-256 {content_hash[:8]} unchanged). Re-reading without modifications is forbidden. "
+                        "Proceed immediately to creating missing files using fs.write, modifying code using fs.edit, or running tests."
+                    ),
+                    exit_code=1,
+                    duration_seconds=duration,
+                    details={
+                        "code": "TOOL_REJECTED_NO_PROGRESS",
+                        "path": str(inp.path),
+                        "read_count": count,
+                        "hash": content_hash,
+                    },
+                )
+
             logger.debug(f"read_file: {inp.path} | {len(content)} chars | {duration:.3f}s")
             return ToolResult(success=True, output=content, exit_code=0, duration_seconds=duration)
         except PermissionError:
@@ -88,21 +169,52 @@ class ReadFileTool(BaseTool):
 
     async def execute_async(self, inp: Input) -> ToolResult:
         """Async file read using aiofiles with workspace boundary enforcement."""
+        wm = None
+        if isinstance(inp, dict):
+            wm = inp.get("_workspace")
+            inp_dict = dict(inp)
+            for k in list(inp_dict.keys()):
+                if k in ("file_path", "target_path", "filepath", "filename", "TargetFile", "target_file") and "path" not in inp_dict:
+                    inp_dict["path"] = inp_dict.pop(k)
+            try:
+                inp = self.Input(**inp_dict)
+            except Exception:
+                pass
+        else:
+            wm = getattr(inp, "_workspace", None)
+        effective_wm = wm or workspace_manager
+
         start = time.monotonic()
         try:
             # ── Workspace boundary enforcement ──────────────────────────────
             try:
-                safe_path = workspace_manager.validate_path(inp.path)
+                safe_path = effective_wm.validate_path(inp.path)
+                if not isinstance(safe_path, Path):
+                    if isinstance(safe_path, str):
+                        safe_path = Path(safe_path).resolve()
+                    else:
+                        root = getattr(effective_wm, "workspace_root", None) or getattr(effective_wm, "root_str", None)
+                        safe_path = (Path(root) / inp.path).resolve() if root else (Path.cwd() / inp.path).resolve()
             except WorkspaceBoundaryError as e:
                 return ToolResult(
                     success=False,
                     error=f"SECURITY: {e}",
                     exit_code=126,
                 )
+            except Exception:
+                root = getattr(effective_wm, "workspace_root", None) or getattr(effective_wm, "root_str", None)
+                safe_path = (Path(root) / inp.path).resolve() if root else (Path.cwd() / inp.path).resolve()
 
             if not safe_path.exists():
                 return ToolResult(success=False, error=f"File not found: {inp.path}", exit_code=1)
             if not safe_path.is_file():
+                if safe_path.is_dir():
+                    return ToolResult(
+                        success=False,
+                        error=f"Path is not a regular file: '{inp.path}'. It is a directory. Use list_directory to inspect folders, or specify a file path.",
+                        exit_code=1,
+                        details={"code": "PATH_IS_DIRECTORY", "path": inp.path},
+                    )
                 return ToolResult(success=False, error=f"Path is not a file: {inp.path}", exit_code=1)
 
             encoding = getattr(inp, "encoding", "utf-8")
@@ -110,7 +222,39 @@ class ReadFileTool(BaseTool):
                                       encoding=encoding, errors='replace') as f:
                 content = await f.read()
 
+            try:
+                identity = file_identity_cache.record(safe_path, encoding=encoding)
+                content_hash = identity.content_hash
+            except Exception:
+                content_hash = hashlib.sha256(content.encode("utf-8", errors="replace")).hexdigest()
+
+            track_key = str(safe_path).lower()
+            prev_hash, count = _READ_LOOP_TRACKER.get(track_key, ("", 0))
+            if prev_hash == content_hash:
+                count += 1
+            else:
+                count = 1
+            _READ_LOOP_TRACKER[track_key] = (content_hash, count)
+
             duration = time.monotonic() - start
+            if count >= 2:
+                return ToolResult(
+                    success=False,
+                    error=(
+                        f"TOOL_REJECTED_NO_PROGRESS: Target '{inp.path}' was read {count} times without intermediate modifications "
+                        f"(SHA-256 {content_hash[:8]} unchanged). Re-reading without modifications is forbidden. "
+                        "Proceed immediately to creating missing files using fs.write, modifying code using fs.edit, or running tests."
+                    ),
+                    exit_code=1,
+                    duration_seconds=duration,
+                    details={
+                        "code": "TOOL_REJECTED_NO_PROGRESS",
+                        "path": str(inp.path),
+                        "read_count": count,
+                        "hash": content_hash,
+                    },
+                )
+
             logger.debug(f"read_file: {inp.path} | {len(content)} chars | {duration:.3f}s")
             return ToolResult(success=True, output=content, exit_code=0, duration_seconds=duration)
         except PermissionError:
@@ -121,16 +265,53 @@ class ReadFileTool(BaseTool):
             return ToolResult(success=False, error=str(e), exit_code=1)
 
 
-def _clean_code_content(content: str) -> str:
-    """Clean accidental markdown code fences from file content without mutating valid whitespace."""
-    if content.startswith("```"):
-        lines = content.split("\n")
-        if lines[0].startswith("```"):
+def _clean_code_content(content: str, path_str: str = "") -> str:
+    """Clean accidental markdown code fences, JSON envelopes, and stack contamination from file content."""
+    if not isinstance(content, str):
+        return content
+
+    text = content.strip()
+    # Check if entire content was wrapped in accidental JSON envelope
+    if (text.startswith("{") and text.endswith("}")) and ('"content"' in text or '"code"' in text):
+        try:
+            import json as _json
+            parsed = _json.loads(text)
+            if isinstance(parsed, dict):
+                if "content" in parsed and isinstance(parsed["content"], str):
+                    text = parsed["content"].strip()
+                elif "code" in parsed and isinstance(parsed["code"], str):
+                    text = parsed["code"].strip()
+                elif "parameters" in parsed and isinstance(parsed["parameters"], dict):
+                    p = parsed["parameters"]
+                    if "content" in p and isinstance(p["content"], str):
+                        text = p["content"].strip()
+        except Exception:
+            pass
+
+    # Strip markdown code fences if wrapped
+    if text.startswith("```"):
+        lines = text.split("\n")
+        if lines and lines[0].startswith("```"):
             lines = lines[1:]
         if lines and lines[-1].strip() == "```":
             lines = lines[:-1]
-        return "\n".join(lines)
-    return content
+        text = "\n".join(lines)
+
+    # Sanitize framework contamination if ArchitectureLock is active
+    if path_str:
+        try:
+            from core.architecture_lock import ArchitectureLock
+            arch = ArchitectureLock.get_current()
+            if arch is not None:
+                text = arch.sanitize_file_content(path_str, text)
+        except Exception:
+            pass
+
+    # Preserve trailing newline if original content ended with a newline
+    if content.endswith("\n") and not text.endswith("\n"):
+        text = text + "\n"
+
+    return text
 
 
 @tool(
@@ -145,32 +326,157 @@ class WriteFileTool(BaseTool):
 
     class Input(BaseModel):
         """Validated input for WriteFileTool."""
+        model_config = {"extra": "allow", "arbitrary_types_allowed": True}
 
         path: str = Field(..., min_length=1, max_length=500)
         content: str = Field(..., max_length=500_000)
-        mode: Literal["overwrite", "append"] = "overwrite"
+        mode: Literal["create", "overwrite", "append"] = "create"
+        workspace: Optional[Any] = None
 
     def execute(self, inp: Input) -> ToolResult:
         """Write content to the requested file synchronously with workspace boundary enforcement."""
+        wm = None
+        if isinstance(inp, dict):
+            wm = inp.get("_workspace") or inp.get("workspace")
+            inp_dict = dict(inp)
+            for k in list(inp_dict.keys()):
+                if k in ("file_path", "target_path", "filepath", "filename", "TargetFile", "target_file") and "path" not in inp_dict:
+                    inp_dict["path"] = inp_dict.pop(k)
+                elif k in ("code", "text", "body", "code_content", "CodeContent", "file_content") and "content" not in inp_dict:
+                    inp_dict["content"] = inp_dict.pop(k)
+            try:
+                inp = self.Input(**inp_dict)
+            except Exception:
+                pass
+        else:
+            wm = getattr(inp, "_workspace", None) or getattr(inp, "workspace", None)
+        effective_wm = wm or workspace_manager
+
+        norm_path = str(inp.path).replace("\\", "/").strip("./").lower()
+        if norm_path in ("three.js", "three"):
+            return ToolResult(
+                success=False,
+                error=(
+                    "FAKE_DEPENDENCY_PROHIBITED: Cannot write root-level 'Three.js' file as a substitute for the library. "
+                    "Install 'three' as an npm package in package.json and import it via 'import * as THREE from \"three\"' in main.js."
+                ),
+                exit_code=1,
+                details={"code": "FAKE_DEPENDENCY_PROHIBITED", "path": inp.path},
+            )
+
+        import re as _re
         start = time.monotonic()
         try:
             # ── Workspace boundary enforcement ──────────────────────────────
             try:
-                safe_path = workspace_manager.validate_path(inp.path)
+                safe_path = effective_wm.validate_path(inp.path)
             except WorkspaceBoundaryError as e:
                 return ToolResult(success=False, error=f"SECURITY: {e}", exit_code=126)
 
-            safe_path.parent.mkdir(parents=True, exist_ok=True)
-            file_mode = "w" if inp.mode == "overwrite" else "a"
-            to_write = _clean_code_content(inp.content)
+            # Duplicate logical artifact detection (Part B & Part H)
+            if "generated_projects" in inp.path.lower():
+                clean_rel = _re.sub(r"^generated_projects/[^/]+/", "", inp.path, flags=_re.IGNORECASE)
+                try:
+                    cand = workspace_manager.validate_path(clean_rel) if workspace_manager.is_locked else (Path.cwd() / clean_rel).resolve()
+                    if cand.exists() and (cand != safe_path or inp.path.lower() != clean_rel.lower()):
+                        return ToolResult(
+                            success=False,
+                            error=f"DUPLICATE_LOGICAL_ARTIFACT: Ambiguous path '{inp.path}' conflicts with canonical root file '{clean_rel}'. Operate directly on '{clean_rel}'.",
+                            exit_code=1,
+                            details={"code": "DUPLICATE_LOGICAL_ARTIFACT", "path": inp.path, "canonical_path": clean_rel},
+                        )
+                except Exception:
+                    pass
 
-            with open(safe_path, mode=file_mode, encoding="utf-8", newline="") as f:
-                f.write(to_write)
+            to_write = _clean_code_content(inp.content, path_str=inp.path)
+
+            # Comprehensive code completeness validation for implementation files (Section 4)
+            try:
+                from core.code_completeness import validate_implementation_completeness
+                is_complete, completeness_err = validate_implementation_completeness(to_write, inp.path)
+                if not is_complete and completeness_err:
+                    return ToolResult(
+                        success=False,
+                        error=completeness_err,
+                        exit_code=1,
+                        details={"code": "INCOMPLETE_IMPLEMENTATION_REJECTED", "path": inp.path},
+                    )
+            except Exception as comp_exc:
+                pass
+
+            content_bytes = to_write.encode("utf-8")
+            new_hash = hashlib.sha256(content_bytes).hexdigest()
+
+            # Check existing file semantics
+            if safe_path.exists() and safe_path.is_file():
+                existing_bytes = safe_path.read_bytes()
+                existing_hash = hashlib.sha256(existing_bytes).hexdigest()
+
+                # CASE 2: Identical content -> UNCHANGED (no filesystem mutation)
+                if existing_hash == new_hash:
+                    file_identity_cache.record(safe_path, encoding="utf-8")
+                    duration = time.monotonic() - start
+                    return ToolResult(
+                        success=True,
+                        output=f"UNCHANGED: File '{inp.path}' already exists with identical content (sha256: {new_hash[:8]}). No mutation performed.",
+                        exit_code=0,
+                        duration_seconds=duration,
+                        details={"code": "UNCHANGED", "status": "UNCHANGED", "path": inp.path, "sha256": new_hash},
+                    )
+
+                # CASE 3: File exists and differs
+                if inp.mode == "create":
+                    _READ_LOOP_TRACKER.pop(str(safe_path).lower(), None)
+                    return ToolResult(
+                        success=False,
+                        error=f"ALREADY_EXISTS: File '{inp.path}' already exists with different content. Read the file with read_file first and use edit_file for surgical modifications, or specify mode='overwrite'.",
+                        exit_code=1,
+                        details={"code": "ALREADY_EXISTS", "path": inp.path},
+                    )
+
+            # CASE 1 or controlled overwrite/append
+            safe_path.parent.mkdir(parents=True, exist_ok=True)
+            if inp.mode == "append":
+                with open(safe_path, mode="a", encoding="utf-8", newline="") as f:
+                    f.write(to_write)
+            else:
+                tmp_target = safe_path.with_name(f".{safe_path.name}.tmp_{uuid.uuid4().hex[:8]}")
+                try:
+                    with open(tmp_target, mode="w", encoding="utf-8", newline="") as f:
+                        f.write(to_write)
+                    max_attempts = 5
+                    for attempt in range(max_attempts):
+                        try:
+                            os.replace(tmp_target, safe_path)
+                            break
+                        except (PermissionError, OSError) as e:
+                            if attempt == max_attempts - 1:
+                                raise e
+                            time.sleep(0.02)
+                finally:
+                    if tmp_target.exists():
+                        try:
+                            tmp_target.unlink()
+                        except Exception:
+                            pass
+
+            try:
+                file_identity_cache.record(safe_path, encoding="utf-8")
+            except Exception:
+                pass
+
+            # Strict post-write filesystem verification
+            if not safe_path.exists() or not safe_path.is_file():
+                return ToolResult(
+                    success=False,
+                    error=f"FILESYSTEM_VERIFICATION_FAILED: Target file '{inp.path}' does not exist on disk after write.",
+                    exit_code=1,
+                    details={"code": "WRITE_VERIFICATION_FAILED", "path": inp.path},
+                )
 
             duration = time.monotonic() - start
-
-            # Refresh workspace index — new file detected
             workspace_manager.refresh_index()
+            _READ_LOOP_TRACKER.clear()
 
             logger.debug(f"write_file: {inp.path} | {len(to_write)} chars | {inp.mode} | {duration:.3f}s")
             return ToolResult(
@@ -186,30 +492,147 @@ class WriteFileTool(BaseTool):
 
     async def execute_async(self, inp: Input) -> ToolResult:
         """Write content to the requested file with workspace boundary enforcement."""
+        wm = None
+        if isinstance(inp, dict):
+            wm = inp.get("_workspace")
+            try:
+                inp = self.Input(**inp)
+            except Exception:
+                pass
+        else:
+            wm = getattr(inp, "_workspace", None)
+        effective_wm = wm or workspace_manager
+
+        norm_path = str(inp.path).replace("\\", "/").strip("./").lower()
+        if norm_path in ("three.js", "three"):
+            return ToolResult(
+                success=False,
+                error=(
+                    "FAKE_DEPENDENCY_PROHIBITED: Cannot write root-level 'Three.js' file as a substitute for the library. "
+                    "Install 'three' as an npm package in package.json and import it via 'import * as THREE from \"three\"' in main.js."
+                ),
+                exit_code=1,
+                details={"code": "FAKE_DEPENDENCY_PROHIBITED", "path": inp.path},
+            )
+
+        import re as _re
         start = time.monotonic()
         try:
             # ── Workspace boundary enforcement ──────────────────────────────
             try:
-                safe_path = workspace_manager.validate_path(inp.path)
+                safe_path = effective_wm.validate_path(inp.path)
             except WorkspaceBoundaryError as e:
                 return ToolResult(success=False, error=f"SECURITY: {e}", exit_code=126)
 
-            safe_path.parent.mkdir(parents=True, exist_ok=True)
-            file_mode = "w" if inp.mode == "overwrite" else "a"
-            to_write = _clean_code_content(inp.content)
+            # Duplicate logical artifact detection (Part B & Part H)
+            if "generated_projects" in inp.path.lower():
+                clean_rel = _re.sub(r"^generated_projects/[^/]+/", "", inp.path, flags=_re.IGNORECASE)
+                try:
+                    cand = workspace_manager.validate_path(clean_rel) if workspace_manager.is_locked else (Path.cwd() / clean_rel).resolve()
+                    if cand.exists() and (cand != safe_path or inp.path.lower() != clean_rel.lower()):
+                        return ToolResult(
+                            success=False,
+                            error=f"DUPLICATE_LOGICAL_ARTIFACT: Ambiguous path '{inp.path}' conflicts with canonical root file '{clean_rel}'. Operate directly on '{clean_rel}'.",
+                            exit_code=1,
+                            details={"code": "DUPLICATE_LOGICAL_ARTIFACT", "path": inp.path, "canonical_path": clean_rel},
+                        )
+                except Exception:
+                    pass
 
-            async with aiofiles.open(str(safe_path), mode=file_mode, encoding="utf-8", newline="") as f:
-                await f.write(to_write)
+            to_write = _clean_code_content(inp.content, path_str=inp.path)
+
+            # Comprehensive code completeness validation for implementation files (Section 4)
+            try:
+                from core.code_completeness import validate_implementation_completeness
+                is_complete, completeness_err = validate_implementation_completeness(to_write, inp.path)
+                if not is_complete and completeness_err:
+                    return ToolResult(
+                        success=False,
+                        error=completeness_err,
+                        exit_code=1,
+                        details={"code": "INCOMPLETE_IMPLEMENTATION_REJECTED", "path": inp.path},
+                    )
+            except Exception as comp_exc:
+                pass
+
+            content_bytes = to_write.encode("utf-8")
+            new_hash = hashlib.sha256(content_bytes).hexdigest()
+
+            # Check existing file semantics
+            if safe_path.exists() and safe_path.is_file():
+                existing_bytes = safe_path.read_bytes()
+                existing_hash = hashlib.sha256(existing_bytes).hexdigest()
+
+                # CASE 2: Identical content -> UNCHANGED
+                if existing_hash == new_hash:
+                    file_identity_cache.record(safe_path, encoding="utf-8")
+                    duration = time.monotonic() - start
+                    return ToolResult(
+                        success=True,
+                        output=f"UNCHANGED: File '{inp.path}' already exists with identical content (sha256: {new_hash[:8]}). No mutation performed.",
+                        exit_code=0,
+                        duration_seconds=duration,
+                        details={"code": "UNCHANGED", "status": "UNCHANGED", "path": inp.path, "sha256": new_hash},
+                    )
+
+                # CASE 3: File exists and differs
+                if inp.mode == "create":
+                    _READ_LOOP_TRACKER.pop(str(safe_path).lower(), None)
+                    return ToolResult(
+                        success=False,
+                        error=f"ALREADY_EXISTS: File '{inp.path}' already exists with different content. Read the file with read_file first and use edit_file for surgical modifications, or specify mode='overwrite'.",
+                        exit_code=1,
+                        details={"code": "ALREADY_EXISTS", "path": inp.path},
+                    )
+
+            # CASE 1 or controlled overwrite/append
+            safe_path.parent.mkdir(parents=True, exist_ok=True)
+            if inp.mode == "append":
+                async with aiofiles.open(str(safe_path), mode="a", encoding="utf-8", newline="") as f:
+                    await f.write(to_write)
+            else:
+                tmp_target = safe_path.with_name(f".{safe_path.name}.tmp_{uuid.uuid4().hex[:8]}")
+                try:
+                    async with aiofiles.open(str(tmp_target), mode="w", encoding="utf-8", newline="") as f:
+                        await f.write(to_write)
+                    max_attempts = 5
+                    for attempt in range(max_attempts):
+                        try:
+                            os.replace(tmp_target, safe_path)
+                            break
+                        except (PermissionError, OSError) as e:
+                            if attempt == max_attempts - 1:
+                                raise e
+                            await asyncio.sleep(0.02)
+                finally:
+                    if tmp_target.exists():
+                        try:
+                            tmp_target.unlink()
+                        except Exception:
+                            pass
+
+            try:
+                file_identity_cache.record(safe_path, encoding="utf-8")
+            except Exception:
+                pass
+
+            # Strict post-write filesystem verification
+            if not safe_path.exists() or not safe_path.is_file():
+                return ToolResult(
+                    success=False,
+                    error=f"FILESYSTEM_VERIFICATION_FAILED: Target file '{inp.path}' does not exist on disk after write.",
+                    exit_code=1,
+                    details={"code": "WRITE_VERIFICATION_FAILED", "path": inp.path},
+                )
 
             duration = time.monotonic() - start
-
-            # Refresh workspace index — new file detected
             workspace_manager.refresh_index()
+            _READ_LOOP_TRACKER.clear()
 
-            logger.debug(f"write_file: {inp.path} | {len(inp.content)} chars | {inp.mode} | {duration:.3f}s")
+            logger.debug(f"write_file: {inp.path} | {len(to_write)} chars | {inp.mode} | {duration:.3f}s")
             return ToolResult(
                 success=True,
-                output=f"Written {len(inp.content)} characters to {safe_path}",
+                output=f"Written {len(to_write)} characters to {safe_path}",
                 exit_code=0,
                 duration_seconds=duration,
             )
@@ -483,6 +906,7 @@ class AppendFileTool(BaseTool):
                 f.write(inp.content)
             duration = time.monotonic() - start
             workspace_manager.refresh_index()
+            _READ_LOOP_TRACKER.clear()
             logger.debug(f"append_file: {inp.path} | appended {len(inp.content)} chars")
             return ToolResult(success=True, output=f"Appended {len(inp.content)} characters to {inp.path}", exit_code=0, duration_seconds=duration)
         except Exception as e:
@@ -503,6 +927,7 @@ class AppendFileTool(BaseTool):
                 await f.write(inp.content)
             duration = time.monotonic() - start
             workspace_manager.refresh_index()
+            _READ_LOOP_TRACKER.clear()
             logger.debug(f"append_file: {inp.path} | appended {len(inp.content)} chars")
             return ToolResult(success=True, output=f"Appended {len(inp.content)} characters to {inp.path}", exit_code=0, duration_seconds=duration)
         except Exception as e:

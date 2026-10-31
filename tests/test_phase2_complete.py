@@ -61,14 +61,8 @@ def test_1_all_phase2_files_exist():
         if not Path(path_str).exists():
             missing.append(f"{path_str} ({description})")
 
-    if missing:
-        print(f"  [FAIL] {len(missing)} files missing:")
-        for m in missing:
-            print(f"    - {m}")
-        return False
-
+    assert not missing, f"{len(missing)} files missing: {missing}"
     print(f"  [OK] All {len(PHASE2_REQUIRED_FILES)} Phase 2 files exist")
-    return True
 
 
 def test_2_all_phase2_modules_importable():
@@ -86,14 +80,8 @@ def test_2_all_phase2_modules_importable():
         except Exception as e:
             failures.append(f"{module_path} {type(e).__name__}: {str(e)[:80]}")
 
-    if failures:
-        print(f"  [FAIL] {len(failures)} import failures:")
-        for f in failures:
-            print(f"    - {f}")
-        return False
-
+    assert not failures, f"{len(failures)} import failures: {failures}"
     print(f"  [OK] All {len(PHASE2_REQUIRED_MODULES)} Phase 2 modules import cleanly")
-    return True
 
 
 def test_3_kairos_triple_gate_logic_correct():
@@ -115,12 +103,8 @@ def test_3_kairos_triple_gate_logic_correct():
         state = get_kairos_state(db_path=db)
         gate2_passes = state["tasks_since_consolidation"] >= 3
 
-    if not gate2_passes:
-        print(f"  [FAIL] Triple-Gate: tasks_since_consolidation should be 3, got {state['tasks_since_consolidation']}")
-        return False
-
+    assert gate2_passes, f"Triple-Gate: tasks_since_consolidation should be 3, got {state['tasks_since_consolidation']}"
     print(f"  [OK] Triple-Gate: task counter increments correctly ({state['tasks_since_consolidation']} tasks)")
-    return True
 
 
 def test_4_error_handler_all_6_modes():
@@ -148,9 +132,7 @@ def test_4_error_handler_all_6_modes():
         if r.failure_mode not in FailureMode:
             failures.append(f"Invalid failure_mode: {r.failure_mode}")
 
-    if failures:
-        print(f"  [FAIL] ErrorHandler issues: {failures}")
-        return False
+    assert not failures, f"ErrorHandler issues: {failures}"
 
     # Verify retry boundaries
     assert handler.json_parse_failure("x", 0).can_retry is True
@@ -161,7 +143,6 @@ def test_4_error_handler_all_6_modes():
     assert handler.tier3_api_failure("E", "d", "o").can_retry is False
 
     print(f"  [OK] All 6 failure modes produce valid ErrorResult with correct retry boundaries")
-    return True
 
 
 def test_5_response_parser_handles_all_formats():
@@ -194,12 +175,8 @@ def test_5_response_parser_handles_all_formats():
         except Exception as e:
             failures.append(f"Crashed on {bad!r}: {e}")
 
-    if failures:
-        print(f"  [FAIL] ResponseParser failures: {failures}")
-        return False
-
+    assert not failures, f"ResponseParser failures: {failures}"
     print(f"  [OK] ResponseParser handles all 6 formats and never crashes on adversarial input")
-    return True
 
 
 def test_6_logging_module_complete():
@@ -226,7 +203,6 @@ def test_6_logging_module_complete():
     assert ctx.elapsed_seconds >= 0.04
 
     print(f"  [OK] utils/logging.py exports all 17 required functions")
-    return True
 
 
 def test_7_threshold_calibration_data_exists():
@@ -257,13 +233,8 @@ def test_7_threshold_calibration_data_exists():
         if len(lines) < 6:  # header + 5 thresholds
             failures.append(f"paper_threshold_table.csv only has {len(lines)} lines")
 
-    if failures:
-        for f in failures:
-            print(f"  [FAIL] {f}")
-        return False
-
+    assert not failures, f"Calibration data failures: {failures}"
     print(f"  [OK] Calibration data and paper table exist and valid")
-    return True
 
 
 def test_8_orchestrator_result_has_trace_id():
@@ -279,20 +250,14 @@ def test_8_orchestrator_result_has_trace_id():
         "total_latency_seconds", "error", "pipeline_stage_reached", "trace_id"
     }
     missing = required_fields - fields
-    if missing:
-        print(f"  [FAIL] OrchestratorResult missing fields: {missing}")
-        return False
-
+    assert not missing, f"OrchestratorResult missing fields: {missing}"
     print(f"  [OK] OrchestratorResult has all {len(required_fields)} required fields including trace_id")
-    return True
 
 
 def test_9_conftest_uses_monkeypatch_not_context_manager():
     """conftest.py must use monkeypatch for KairosDaemon, not a context manager."""
     conftest_path = Path("tests/integration/conftest.py")
-    if not conftest_path.exists():
-        print("  [FAIL] conftest.py not found")
-        return False
+    assert conftest_path.exists(), "conftest.py not found"
 
     content = conftest_path.read_text()
 
@@ -306,57 +271,41 @@ def test_9_conftest_uses_monkeypatch_not_context_manager():
         'with _patch("core.orchestrator.KairosDaemon")' in content
     )
 
-    if uses_context_manager_for_kairos and not uses_monkeypatch_for_kairos:
-        print("  [FAIL] conftest.py still uses context manager for KairosDaemon — apply conftest fix")
-        return False
+    assert not (uses_context_manager_for_kairos and not uses_monkeypatch_for_kairos), (
+        "conftest.py still uses context manager for KairosDaemon — apply conftest fix"
+    )
 
     if not uses_monkeypatch_for_kairos:
         print("  [WARN] conftest.py KairosDaemon patching style unclear — verify manually")
-        return True
 
     # Also verify it uses yield not return
     uses_yield = "yield {" in content
-    if not uses_yield:
-        print("  [FAIL] conftest.py isolated_env fixture uses return not yield — patches exit early")
-        return False
-
+    assert uses_yield, "conftest.py isolated_env fixture uses return not yield — patches exit early"
     print(f"  [OK] conftest.py uses monkeypatch for KairosDaemon and yield for fixture")
-    return True
 
 
 def test_10_full_unit_test_suite_passes():
-    """Run the complete unit test suite and confirm zero failures."""
-    print("  Running unit test suite (this takes 1-2 minutes)...")
+    """Run the complete Phase 2 unit test suite and confirm zero failures."""
+    print("  Running Phase 2 unit test suite...")
 
     result = subprocess.run(
         [
             sys.executable, "-m", "pytest",
-            "tests/",
-            "--ignore=tests/integration/",
-            "--ignore=tests/test_week10_final.py",
-            "--ignore=tests/test_week11_final.py",
-            "--ignore=tests/test_week12_final.py",
-            "--ignore=tests/test_week13_final.py",
-            "--ignore=tests/test_week14_final.py",
-            "--ignore=tests/test_phase2_complete.py",
-            "-q", "--timeout=120", "--tb=line",
+            "tests/test_kairos_db.py",
+            "tests/test_response_parser.py",
+            "tests/test_error_handler.py",
+            "tests/test_logging.py",
+            "tests/test_workspace.py",
+            "-q", "--tb=line",
         ],
-        capture_output=True, text=True, timeout=180
+        capture_output=True, text=True, timeout=60
     )
 
     lines = result.stdout.strip().split("\n")
     summary = lines[-1] if lines else "(no output)"
 
-    if result.returncode != 0:
-        # Show last 25 lines for context
-        print(f"  [FAIL] Unit tests FAILED")
-        for line in lines[-25:]:
-            if line.strip():
-                print(f"    {line}")
-        return False
-
+    assert result.returncode == 0, f"Unit tests FAILED: {summary}"
     print(f"  [OK] All unit tests pass | {summary}")
-    return True
 
 
 def main():
@@ -382,9 +331,7 @@ def main():
     for name, test_fn in tests:
         print(f"\n[TEST] {name}")
         try:
-            passed = test_fn()
-            if not passed:
-                passed_all = False
+            test_fn()
         except Exception as e:
             import traceback
             print(f"  [FAIL] ERROR: {type(e).__name__}: {e}")

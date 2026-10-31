@@ -1,5 +1,19 @@
+from dataclasses import dataclass, field
 from typing import Optional, Dict, Any, List
 from pydantic import BaseModel, Field
+
+@dataclass
+class CanonicalToolCall:
+    tool_call_id: str
+    canonical_tool_name: str
+    raw_tool_name: str
+    arguments: Dict[str, Any]
+    stream_position: int = 0
+    timestamp: float = 0.0
+    request_id: str = ""
+    mission_id: str = ""
+    task_id: str = ""
+
 
 class NormalizedModelResponse(BaseModel):
     """
@@ -29,6 +43,10 @@ class NormalizedModelResponse(BaseModel):
     success: bool = True
 
     def __str__(self) -> str:
+        return self.text
+
+    @property
+    def content(self) -> str:
         return self.text
 
     def __eq__(self, other: Any) -> bool:

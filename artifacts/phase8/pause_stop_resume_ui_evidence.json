@@ -1,0 +1,33 @@
+{
+  "phase": "Phase 8",
+  "component": "mission_controls_ui",
+  "verification_timestamp": "2026-10-13T13:22:00Z",
+  "controls": {
+    "pause": {
+      "endpoint": "POST /api/missions/{mission_id}/pause",
+      "model": "PauseMissionResponse",
+      "event_emitted": "MISSION_PAUSED",
+      "state_transition": "RUNNING -> PAUSED",
+      "in_flight_guard": "isPausing flag disables duplicate submissions",
+      "status": "PASS"
+    },
+    "stop": {
+      "endpoint": "POST /api/missions/{mission_id}/stop",
+      "model": "StopMissionResponse",
+      "event_emitted": "MISSION_CANCELLED",
+      "state_transition": "ACTIVE -> CANCELLED/STOPPED",
+      "in_flight_guard": "isStopping flag disables duplicate submissions",
+      "status": "PASS"
+    },
+    "resume": {
+      "endpoint": "POST /api/missions/{mission_id}/resume",
+      "model": "ResumeMissionResponse",
+      "event_emitted": "MISSION_RESUMED",
+      "live_unpause": "Preserves run_id and attempt_number for in-flight tasks",
+      "cold_continuation": "Reconciles Phase 5 checkpoint and resumes first unfinished task",
+      "in_flight_guard": "isResuming flag disables duplicate submissions",
+      "status": "PASS"
+    }
+  },
+  "verdict": "PASS"
+}

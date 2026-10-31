@@ -72,6 +72,27 @@ class LatencyNoiseTracker:
     time_in_tests: float = 0.0
     time_in_evaluator: float = 0.0
     time_total: float = 0.0
+    agent_duration: float = 0.0
+    infra_noise_duration: float = 0.0
+
+    def record_step(self, step_name: str, duration: float, is_infra_noise: bool = False) -> None:
+        """Record step duration separating infrastructure noise from agent reasoning."""
+        if is_infra_noise:
+            self.infra_noise_duration += duration
+        else:
+            self.agent_duration += duration
+        self.time_total += duration
+
+    def get_summary(self) -> Dict[str, float]:
+        """Return noise separation summary."""
+        total = self.agent_duration + self.infra_noise_duration
+        ratio = (self.infra_noise_duration / total) if total > 0 else 0.0
+        return {
+            "agent_duration": round(self.agent_duration, 3),
+            "infra_noise_duration": round(self.infra_noise_duration, 3),
+            "infra_noise_ratio": round(ratio, 3),
+            "total_duration": round(total, 3),
+        }
 
     def to_dict(self) -> Dict[str, float]:
         return {
@@ -82,4 +103,6 @@ class LatencyNoiseTracker:
             "time_in_tests": round(self.time_in_tests, 3),
             "time_in_evaluator": round(self.time_in_evaluator, 3),
             "time_total": round(self.time_total, 3),
+            "agent_duration": round(self.agent_duration, 3),
+            "infra_noise_duration": round(self.infra_noise_duration, 3),
         }

@@ -288,15 +288,29 @@ class SubagentManager:
     ) -> SubagentResult:
         """Execute the child runner and handle lifecycle events and teardown."""
         start_time = time.time()
-        await self.governor.acquire_slot()
+        max_run = effective_budget.max_runtime_seconds if (effective_budget and effective_budget.max_runtime_seconds > 0) else None
+        deadline = (start_time + max_run) if max_run is not None else None
 
+        slot_acquired = False
         try:
+            if deadline is not None:
+                rem_wait = deadline - time.time()
+                if rem_wait <= 0:
+                    raise asyncio.TimeoutError(f"Subagent runtime budget exhausted before acquiring slot ({max_run}s)")
+                await self.governor.acquire_slot(timeout=rem_wait)
+            else:
+                await self.governor.acquire_slot()
+            slot_acquired = True
+
             # Execute runner
             if runner_coro_fn:
+                rem_run = (deadline - time.time()) if deadline is not None else None
+                if rem_run is not None and rem_run <= 0:
+                    raise asyncio.TimeoutError(f"Subagent runtime budget exhausted while waiting in queue ({max_run}s)")
                 # Wrap with timeout
                 result = await asyncio.wait_for(
                     runner_coro_fn(prompt_context, token),
-                    timeout=effective_budget.max_runtime_seconds,
+                    timeout=rem_run if rem_run is not None else max_run,
                 )
             else:
                 # Simulated / Default bounded execution
@@ -436,7 +450,8 @@ class SubagentManager:
             )
 
         finally:
-            self.governor.release_slot()
+            if slot_acquired:
+                self.governor.release_slot()
             self.governor.unregister_agent(agent_id)
             self._cancellation_tokens.pop(agent_id, None)
             self.background_mgr.cleanup_child_bound_jobs(agent_id)

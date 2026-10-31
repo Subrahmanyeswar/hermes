@@ -49,6 +49,16 @@ class StorageCorrupt(PersistenceError):
     pass
 
 
+class ToolPersistenceError(PersistenceError):
+    """Raised when an operation intent or result cannot be durably committed."""
+    pass
+
+
+class OperationAlreadyCommittedError(ToolPersistenceError):
+    """Raised when an identical operation_id has already been committed."""
+    pass
+
+
 class WorkspaceConflict(PersistenceError):
     """Unresolvable workspace collision during resume, rewind, or fork."""
     pass
@@ -90,6 +100,50 @@ class JobRecoveryFailure(PersistenceError):
 
 
 # ── Enums ─────────────────────────────────────────────────────────────────────
+
+class OperationStatus(str, Enum):
+    PREPARED = "PREPARED"
+    INTENT_COMMITTED = "INTENT_COMMITTED"
+    EXECUTING = "EXECUTING"
+    RESULT_COMMITTED = "RESULT_COMMITTED"
+    FAILED = "FAILED"
+    OUTCOME_UNKNOWN = "OUTCOME_UNKNOWN"
+    REQUIRES_RECONCILIATION = "REQUIRES_RECONCILIATION"
+
+
+@dataclass
+class OperationRecord:
+    """Authoritative record of a tool operation under write-ahead intent protocol."""
+    operation_id: str
+    mission_id: str
+    tool_name: str
+    status: OperationStatus
+    intent_seq: int = 0
+    result_seq: Optional[int] = None
+    task_id: Optional[str] = None
+    turn_id: Optional[str] = None
+    run_id: Optional[str] = None
+    attempt_number: int = 1
+    session_id: Optional[str] = None
+    target_path: Optional[str] = None
+    workspace_root: str = ""
+    arguments_summary: str = ""
+    arguments_json: str = "{}"
+    prior_hash: Optional[str] = None
+    post_hash: Optional[str] = None
+    exit_code: Optional[int] = None
+    output_summary: Optional[str] = None
+    error_message: Optional[str] = None
+    duration_seconds: Optional[float] = None
+    side_effects: Dict[str, Any] = field(default_factory=dict)
+    created_at: float = field(default_factory=time.time)
+    committed_at: Optional[float] = None
+
+    def to_dict(self) -> Dict[str, Any]:
+        d = asdict(self)
+        d["status"] = self.status.value
+        return d
+
 
 class SessionStatus(str, Enum):
     CREATED = "CREATED"
@@ -318,6 +372,8 @@ class CheckpointManifest:
     session_id: str
     mission_id: str
     sequence: int
+    run_id: Optional[str] = None
+    attempt_number: int = 1
     parent_checkpoint_id: Optional[str] = None
     reason: CheckpointReason = CheckpointReason.MANUAL
     trigger: CheckpointTrigger = CheckpointTrigger.SYSTEM
@@ -343,6 +399,8 @@ class CheckpointManifest:
             "session_id": self.session_id,
             "mission_id": self.mission_id,
             "sequence": self.sequence,
+            "run_id": self.run_id,
+            "attempt_number": self.attempt_number,
             "parent_checkpoint_id": self.parent_checkpoint_id,
             "reason": self.reason.value,
             "trigger": self.trigger.value,
@@ -370,6 +428,8 @@ class CheckpointManifest:
             session_id=data["session_id"],
             mission_id=data.get("mission_id", ""),
             sequence=data.get("sequence", 0),
+            run_id=data.get("run_id"),
+            attempt_number=data.get("attempt_number", 1),
             parent_checkpoint_id=data.get("parent_checkpoint_id"),
             reason=CheckpointReason(data.get("reason", CheckpointReason.MANUAL.value)),
             trigger=CheckpointTrigger(data.get("trigger", CheckpointTrigger.SYSTEM.value)),

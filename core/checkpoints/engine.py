@@ -144,6 +144,23 @@ class CheckpointEngine:
         manifest_json = json.dumps(manifest_dict, sort_keys=True)
         chk.manifest_hash = hashlib.sha256(manifest_json.encode("utf-8")).hexdigest()
 
+        # Ensure session record exists in SQLiteDatabase to satisfy foreign key constraint
+        if session_id:
+            try:
+                sess_row = self.db.get_session(session_id)
+                if not sess_row:
+                    from core.persistence.models import SessionStatus
+                    self.db.save_session(
+                        session_id=session_id,
+                        mission_id=mission_id,
+                        workspace_root=str(self.workspace_root),
+                        status=SessionStatus.RUNNING,
+                        created_at=now,
+                        updated_at=now,
+                    )
+            except Exception:
+                pass
+
         # 6. Commit to database
         final_json = json.dumps(chk.to_dict(), indent=2, sort_keys=True)
         self.db.save_checkpoint(
@@ -158,6 +175,22 @@ class CheckpointEngine:
             manifest_json=final_json,
             parent_checkpoint_id=parent_checkpoint_id,
         )
+        if self.event_bus and hasattr(self.event_bus, "get_database") and self.event_bus.get_database():
+            try:
+                self.event_bus.get_database().save_checkpoint(
+                    checkpoint_id=checkpoint_id,
+                    session_id=session_id,
+                    sequence=seq,
+                    reason=reason,
+                    trigger=trigger,
+                    created_at=now,
+                    state_hash=state_hash,
+                    manifest_hash=chk.manifest_hash,
+                    manifest_json=final_json,
+                    parent_checkpoint_id=parent_checkpoint_id,
+                )
+            except Exception as bus_db_exc:
+                logger.debug(f"CheckpointEngine: canonical DB sync notice: {bus_db_exc}")
 
         # 7. Write atomic file manifest copy for human inspectability
         chk_folder = self.checkpoints_dir / checkpoint_id

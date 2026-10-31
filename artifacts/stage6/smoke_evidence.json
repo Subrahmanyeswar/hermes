@@ -1,0 +1,40 @@
+{
+  "stage": "6",
+  "timestamp": 1792341267.7327547,
+  "server_url": "http://127.0.0.1:8765",
+  "scenarios": {
+    "scenario_a": {
+      "verdict": "PASS",
+      "created_files": [
+        "math_utils.py",
+        "test_math.py"
+      ],
+      "pytest_exit_code": 0
+    },
+    "scenario_b": {
+      "verdict": "PASS",
+      "modified_files": [
+        "greeting.py"
+      ],
+      "diff_additions": 1,
+      "diff_deletions": 1
+    },
+    "scenario_c": {
+      "verdict": "PASS",
+      "status": "FAILED",
+      "pytest_exit_code": 1
+    },
+    "scenario_e": {
+      "verdict": "PASS",
+      "status": "CANCELLED",
+      "security_denial_verified": true
+    }
+  },
+  "screenshots": {
+    "scenario_a": "C:\\Users\\SUBBU\\Downloads\\hermes\\artifacts\\stage6\\01_scenario_a_creation.png",
+    "scenario_b": "C:\\Users\\SUBBU\\Downloads\\hermes\\artifacts\\stage6\\02_scenario_b_diff.png",
+    "scenario_c": "C:\\Users\\SUBBU\\Downloads\\hermes\\artifacts\\stage6\\03_scenario_c_failure.png",
+    "scenario_e": "C:\\Users\\SUBBU\\Downloads\\hermes\\artifacts\\stage6\\04_scenario_e_cancellation_and_denial.png"
+  },
+  "overall_verdict": "PASS"
+}

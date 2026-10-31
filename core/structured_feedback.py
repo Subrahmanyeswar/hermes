@@ -1,4 +1,4 @@
-﻿# core/structured_feedback.py
+# core/structured_feedback.py
 """
 HERMES Structured Feedback System
 Based on: Self-Refine (Madaan et al., NeurIPS 2023) and
@@ -244,10 +244,11 @@ class StructuredFeedbackGenerator:
         """Run Python's own AST parser — true ground truth for syntax."""
         try:
             ast.parse(content)
-            # Also try running with sys.executable -c to catch import-level errors
+            from core.runtime_identity import get_canonical_python_executable, get_canonical_subprocess_env
             result = subprocess.run(
-                [sys.executable, "-c", f"import ast; ast.parse(open(r'{p}', encoding='utf-8').read())"],
-                capture_output=True, text=True, timeout=timeout
+                [get_canonical_python_executable(), "-c", f"import ast; ast.parse(open(r'{p}', encoding='utf-8').read())"],
+                capture_output=True, text=True, timeout=timeout,
+                env=get_canonical_subprocess_env(),
             )
             if result.returncode == 0:
                 return DimensionScore(

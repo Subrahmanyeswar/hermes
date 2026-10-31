@@ -1,0 +1,32 @@
+{
+  "scenarios": [
+    {
+      "scenario": "Corrupted state blob payload",
+      "mechanism": "Overwriting blob bytes in CAS directory with invalid data",
+      "expected_outcome": "CheckpointEngine.verify_checkpoint_integrity() returns False",
+      "observed_outcome": "Returns False cleanly without unhandled exception",
+      "passed": true
+    },
+    {
+      "scenario": "Missing file blob",
+      "mechanism": "Deleting referenced workspace file blob from disk",
+      "expected_outcome": "CheckpointEngine.verify_checkpoint_integrity() returns False",
+      "observed_outcome": "Returns False cleanly",
+      "passed": true
+    },
+    {
+      "scenario": "Corrupted SQLite snapshot JSON",
+      "mechanism": "Inserting malformed JSON into snapshots table",
+      "expected_outcome": "RuntimeAdapter.get_mission_snapshot handles deserialization failure gracefully with warning",
+      "observed_outcome": "Handled cleanly without process crash",
+      "passed": true
+    },
+    {
+      "scenario": "Cross-mission event corruption",
+      "mechanism": "Dispatching event with mismatched mission_id or stale run_id",
+      "expected_outcome": "StateReducer ignores event; state version preserved without regression",
+      "observed_outcome": "State remains unchanged and coherent",
+      "passed": true
+    }
+  ]
+}

@@ -15,34 +15,44 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
+from enum import Enum
 from pathlib import Path
 from typing import Optional
 from loguru import logger
 
 
-# ── Quality thresholds ────────────────────────────────────────────────────────
+# ── Quality thresholds & State ───────────────────────────────────────────────
+
+class ArtifactQualityState(str, Enum):
+    MISSING = "MISSING"               # File does not exist on disk
+    EXISTS = "EXISTS"                 # File exists, but is empty or trivial stub
+    VALID = "VALID"                   # File has valid structure/syntax
+    FUNCTIONAL = "FUNCTIONAL"         # Real logic / styles / interactivity present
+    MEETS_REQUEST = "MEETS_REQUEST"   # Meets task requirements without stubs or placeholders
+
 
 # Minimum file sizes (bytes) for implementation files to be considered non-trivial
 MIN_SIZES: dict[str, int] = {
-    ".html":  300,     # Meaningful HTML must have structure + content
-    ".css":   100,     # Real CSS
-    ".js":    50,      # Real JS
-    ".jsx":   100,     # React component
-    ".tsx":   100,
-    ".ts":    50,
-    ".py":    40,      # Python module (small function file)
-    ".vue":   100,
+    ".html":  500,     # Meaningful HTML must have structure + content + components
+    ".css":   250,     # Real CSS layout and rules
+    ".js":    200,     # Real JS functions and logic
+    ".jsx":   250,     # React component
+    ".tsx":   250,
+    ".ts":    200,
+    ".py":    150,     # Python module
+    ".vue":   200,
     ".txt":   10,
     ".md":    10,
-    ".json":  10,
+    ".json":  20,
 }
 
-# Placeholder patterns — if these dominate a file, it is not implemented
+# Placeholder patterns — if these exist, file contains stubbed/unimplemented content
 PLACEHOLDER_PATTERNS: list[str] = [
-    r"<!-- TODO",
-    r"# TODO",
-    r"// TODO",
-    r"placeholder",
+    r"<!--\s*TODO",
+    r"#\s*TODO",
+    r"//\s*TODO",
+    r"/\*\s*TODO",
+    r"\bplaceholder(?!\s*=)\b",
     r"lorem ipsum",
     r"your content here",
     r"add content here",
@@ -51,7 +61,12 @@ PLACEHOLDER_PATTERNS: list[str] = [
     r"\[content\]",
     r"sample text",
     r"example text",
-    r"dummy",
+    r"\bdummy\b",
+    r"welcome to our website",
+    r"let\s+state\s*=\s*\{\}\s*;?",
+    r"const\s+state\s*=\s*\{\}\s*;?",
+    r"//\s*add\s+(?:more|your)\s+code",
+    r"//\s*implement\s+(?:later|here)",
 ]
 
 # Keywords that indicate meaningful website implementation
@@ -60,6 +75,7 @@ WEB_IMPLEMENTATION_SIGNALS: list[str] = [
     "animation", "transition", "addEventListener",
     "useState", "useEffect", "props", "return (",
     "function ", "const ", "import ", "export ",
+    "document.getElementById", "document.querySelector",
 ]
 
 
@@ -73,8 +89,9 @@ class FileQualityResult:
     is_trivial: bool
     has_placeholders: bool
     implementation_signals: int
+    state: ArtifactQualityState = ArtifactQualityState.EXISTS
     issues: list[str] = field(default_factory=list)
-    verdict: str = "UNKNOWN"   # "GOOD", "SHALLOW", "EMPTY", "MISSING"
+    verdict: str = "UNKNOWN"   # "GOOD", "SHALLOW", "EMPTY", "MISSING", "NEEDS_IMPROVEMENT"
 
     @property
     def is_acceptable(self) -> bool:
@@ -198,8 +215,13 @@ class QualityVerifier:
             task_title="Final Project Verification",
         )
 
-        root = Path(project_root)
-        if not root.exists():
+        root = Path(project_root) if project_root else None
+        if not root or not root.exists():
+            from core.workspace import workspace_manager
+            if workspace_manager.is_locked and workspace_manager.workspace_root:
+                root = Path(workspace_manager.workspace_root)
+
+        if not root or not root.exists():
             result.overall_verdict = "EMPTY"
             result.improvement_suggestions = [
                 f"Project root {project_root} does not exist — "
@@ -210,12 +232,12 @@ class QualityVerifier:
         # Check all files in project
         all_files = self._find_implementation_files(root)
         for f_path in all_files:
-            file_result = self._check_file(f_path)
+            file_result = self._check_file(f_path, root=root)
             result.file_results.append(file_result)
 
         # Check acceptance criteria
-        result.requirements_checked = acceptance_criteria
-        all_content = self._read_all_content(all_files)
+        result.requirements_checked = acceptance_criteria.copy()
+        all_content = self._read_all_content(all_files, root=root)
 
         for criterion in acceptance_criteria:
             if self._requirement_satisfied(criterion, all_content, all_files):
@@ -223,12 +245,178 @@ class QualityVerifier:
             else:
                 result.requirements_missing.append(criterion)
 
+        # Check referenced assets in HTML files
+        missing_assets = []
+        for f_path in all_files:
+            if f_path.endswith(".html"):
+                try:
+                    hp = root / f_path if not Path(f_path).is_absolute() else Path(f_path)
+                    htext = hp.read_text(encoding="utf-8", errors="replace")
+                    for m in re.findall(r'<link[^>]+rel=["\']stylesheet["\'][^>]+href=["\']([^"\']+)["\']', htext, re.IGNORECASE):
+                        if not m.startswith(("http:", "https:", "//", "data:")):
+                            clean_href = m.split("?")[0].split("#")[0]
+                            lp = (root / clean_href).resolve() if not Path(clean_href).is_absolute() else Path(clean_href)
+                            if not lp.exists() or lp.stat().st_size <= 10:
+                                missing_assets.append(clean_href)
+                    for m in re.findall(r'<script[^>]+src=["\']([^"\']+)["\']', htext, re.IGNORECASE):
+                        if not m.startswith(("http:", "https:", "//", "data:")):
+                            clean_src = m.split("?")[0].split("#")[0]
+                            lp = (root / clean_src).resolve() if not Path(clean_src).is_absolute() else Path(clean_src)
+                            if not lp.exists() or lp.stat().st_size <= 10:
+                                missing_assets.append(clean_src)
+                except Exception:
+                    pass
+
+        if missing_assets:
+            req_name = f"All referenced assets exist on disk (missing: {', '.join(set(missing_assets))})"
+            result.requirements_checked.append(req_name)
+            result.requirements_missing.append(req_name)
+
         result.overall_verdict = self._determine_verdict(result)
         if result.needs_improvement:
             result.improvement_suggestions = self._build_suggestions(result)
             result.repair_prompt = self._build_repair_prompt(
                 user_prompt, result
             )
+
+        return result
+
+    def verify_task_scoped(
+        self,
+        task_id: str,
+        task_title: str,
+        task_description: str,
+        task_index: int,
+        total_tasks: int,
+        project_root: str,
+    ) -> TaskQualityResult:
+        """
+        Verify task-scoped quality for the canonical milestones of an application:
+        - Task 1: Scaffolding (files exist, skeleton valid)
+        - Task 2: HTML markup (semantic layout: header, nav, event board section, footer)
+        - Task 3: CSS (stylesheet exists, flex/grid, card styles, buttons, responsive rules)
+        - Task 4: JS logic (domain data model, rendering logic, event listeners)
+        - Task 5: Search/filter (filter by category, search input, dynamic update)
+        - Task 6: End-to-end (all files connected, links valid, no stubs)
+        """
+        result = TaskQualityResult(task_id=task_id, task_title=task_title)
+        root = Path(project_root) if project_root else None
+        if not root or not root.exists():
+            from core.workspace import workspace_manager
+            if workspace_manager.is_locked and workspace_manager.workspace_root:
+                root = Path(workspace_manager.workspace_root)
+
+        if not root or not root.exists():
+            result.overall_verdict = "EMPTY"
+            result.improvement_suggestions.append("Project root does not exist.")
+            result.repair_prompt = f"REPAIR: Project root {project_root} does not exist. Create the required workspace files."
+            return result
+
+        impl_files = self._find_implementation_files(root)
+        for f in impl_files:
+            result.file_results.append(self._check_file(f, root=root))
+
+        all_content = self._read_all_content(impl_files, root=root)
+        html_files = [f for f in impl_files if f.endswith(".html")]
+        css_files = [f for f in impl_files if f.endswith(".css")]
+        js_files = [f for f in impl_files if f.endswith(".js")]
+
+        # Extract linked assets referenced in HTML files
+        linked_css = []
+        linked_js = []
+        for hf in html_files:
+            try:
+                hp = root / hf if not Path(hf).is_absolute() else Path(hf)
+                htext = hp.read_text(encoding="utf-8", errors="replace")
+                for m in re.findall(r'<link[^>]+rel=["\']stylesheet["\'][^>]+href=["\']([^"\']+)["\']', htext, re.IGNORECASE):
+                    if not m.startswith(("http:", "https:", "//", "data:")):
+                        clean_href = m.split("?")[0].split("#")[0]
+                        linked_css.append(clean_href)
+                for m in re.findall(r'<script[^>]+src=["\']([^"\']+)["\']', htext, re.IGNORECASE):
+                    if not m.startswith(("http:", "https:", "//", "data:")):
+                        clean_src = m.split("?")[0].split("#")[0]
+                        linked_js.append(clean_src)
+            except Exception:
+                pass
+
+        all_linked_css_exist = True
+        for lc in linked_css:
+            lp = (root / lc).resolve() if not Path(lc).is_absolute() else Path(lc)
+            if not lp.exists() or lp.stat().st_size <= 10:
+                all_linked_css_exist = False
+                break
+
+        all_linked_js_exist = True
+        for lj in linked_js:
+            lp = (root / lj).resolve() if not Path(lj).is_absolute() else Path(lj)
+            if not lp.exists() or lp.stat().st_size <= 10:
+                all_linked_js_exist = False
+                break
+
+        requires_css_file = bool(linked_css) or any(k in task_title.lower() for k in [".css", "css/", "stylesheet"])
+        requires_js_file = bool(linked_js) or any(k in task_title.lower() for k in [".js", "js/", "script", "app.js"])
+
+        scoped_reqs = []
+        # Task 1: Scaffolding
+        if task_index == 1 or "scaffold" in task_title.lower() or "setup" in task_title.lower():
+            scoped_reqs = [
+                ("At least one implementation file", len(impl_files) >= 1),
+                ("Valid project structure", any(f.exists and not f.is_trivial for f in result.file_results)),
+            ]
+        # Task 2: HTML
+        elif task_index == 2 or "html" in task_title.lower() or "markup" in task_title.lower() or "structure" in task_title.lower():
+            scoped_reqs = [
+                ("HTML file exists", len(html_files) >= 1),
+                ("Semantic HTML header/nav/container", any(k in all_content.lower() for k in ("<header", "<nav", "<main", "<section", "id=\"events", "class=\"event"))),
+                ("Non-trivial HTML without stubs", any(f.extension == ".html" and not f.is_trivial and not f.has_placeholders for f in result.file_results)),
+            ]
+        # Task 3: CSS
+        elif task_index == 3 or "css" in task_title.lower() or "style" in task_title.lower():
+            scoped_reqs = [
+                ("CSS stylesheet exists", (len(css_files) >= 1 and all_linked_css_exist) if requires_css_file else (len(css_files) >= 1 or "<style" in all_content.lower())),
+                ("CSS flex or grid layout", any(k in all_content.lower() for k in ("display: flex", "display:flex", "display: grid", "display:grid"))),
+                ("Responsive media queries or cards", any(k in all_content.lower() for k in ("@media", ".event-card", ".card", "border-radius"))),
+            ]
+        # Task 4: JS
+        elif task_index == 4 or "javascript" in task_title.lower() or "logic" in task_title.lower() or "model" in task_title.lower():
+            scoped_reqs = [
+                ("JavaScript exists", (len(js_files) >= 1 and all_linked_js_exist) if requires_js_file else (len(js_files) >= 1 or "<script" in all_content.lower())),
+                ("Data array / domain objects", any(k in all_content.lower() for k in ("events", "event", "items", "item", "transactions", "products", "tasks", "records", "data", "entries", "title", "date", "category", "name", "id"))),
+                ("DOM render or event listeners", any(k in all_content.lower() for k in ("addeventlistener", "innerhtml", "createelement", "appendchild"))),
+            ]
+        # Task 5: Search / Filter
+        elif task_index == 5 or "search" in task_title.lower() or "filter" in task_title.lower():
+            scoped_reqs = [
+                ("Search input or filter controls", any(k in all_content.lower() for k in ("filter", "search", "category", "input"))),
+                ("Dynamic filtering logic", any(k in all_content.lower() for k in (".filter(", "tolowercase()", "includes(", "addeventlistener(\"input\"", "addeventlistener(\"change\""))),
+            ]
+        # Task 6 / Default: E2E Verification
+        else:
+            scoped_reqs = [
+                ("HTML exists with non-trivial markup", len(html_files) >= 1 and any(f.extension == ".html" and not f.is_trivial for f in result.file_results)),
+                ("CSS styling present", (len(css_files) >= 1 and all_linked_css_exist) if requires_css_file else (len(css_files) >= 1 or "<style" in all_content.lower())),
+                ("JavaScript functionality present", (len(js_files) >= 1 and all_linked_js_exist) if requires_js_file else (len(js_files) >= 1 or "<script" in all_content.lower())),
+                ("Linked assets resolved on disk", all_linked_css_exist and all_linked_js_exist),
+                ("No unresolved placeholders", not any(f.has_placeholders for f in result.file_results)),
+            ]
+
+        for req_name, satisfied in scoped_reqs:
+            result.requirements_checked.append(req_name)
+            if satisfied:
+                result.requirements_met.append(req_name)
+            else:
+                result.requirements_missing.append(req_name)
+
+        if not result.requirements_missing:
+            result.overall_verdict = "COMPLETE"
+        elif len(result.requirements_met) >= len(result.requirements_checked) // 2:
+            result.overall_verdict = "NEEDS_IMPROVEMENT"
+        else:
+            result.overall_verdict = "SHALLOW"
+
+        if result.needs_improvement:
+            result.improvement_suggestions = self._build_suggestions(result)
+            result.repair_prompt = self._build_repair_prompt(task_description, result)
 
         return result
 
@@ -262,6 +450,7 @@ class QualityVerifier:
         )
 
         if not p.exists():
+            result.state = ArtifactQualityState.MISSING
             result.verdict = "MISSING"
             result.issues.append(f"File does not exist: {f_path}")
             return result
@@ -269,6 +458,7 @@ class QualityVerifier:
         result.size_bytes = p.stat().st_size
 
         if result.size_bytes == 0:
+            result.state = ArtifactQualityState.EXISTS
             result.verdict = "EMPTY"
             result.issues.append(f"File is empty: {f_path}")
             return result
@@ -277,6 +467,7 @@ class QualityVerifier:
         min_size = MIN_SIZES.get(ext, 10)
         if result.size_bytes < min_size:
             result.is_trivial = True
+            result.state = ArtifactQualityState.EXISTS
             result.issues.append(
                 f"File is too small ({result.size_bytes} bytes, "
                 f"minimum {min_size} for {ext})"
@@ -294,44 +485,74 @@ class QualityVerifier:
         for pattern in PLACEHOLDER_PATTERNS:
             if re.search(pattern, content, re.IGNORECASE):
                 placeholder_count += 1
-        if placeholder_count >= 2:
+        if placeholder_count >= 1:
             result.has_placeholders = True
             result.issues.append(
-                f"File contains {placeholder_count} placeholder patterns"
+                f"File contains {placeholder_count} placeholder pattern(s)"
             )
 
         # Implementation signal count
         for signal in WEB_IMPLEMENTATION_SIGNALS:
             result.implementation_signals += content.count(signal)
 
+        # Structural validity check
+        is_valid_structure = False
+        if ext == ".html":
+            is_valid_structure = "<!DOCTYPE" in content.upper() and ("<html" in content.lower() or "<body" in content.lower())
+        elif ext == ".css":
+            is_valid_structure = "{" in content and "}" in content and ":" in content
+        elif ext in (".js", ".ts", ".jsx", ".tsx"):
+            is_valid_structure = ("function" in content or "const " in content or "let " in content or "=>" in content)
+        elif ext == ".py":
+            is_valid_structure = "def " in content or "class " in content or "import " in content
+        else:
+            is_valid_structure = len(content.strip()) > 0
+
+        # State determination
+        if not result.is_trivial and is_valid_structure:
+            if result.implementation_signals >= 3 and not result.has_placeholders:
+                result.state = ArtifactQualityState.MEETS_REQUEST
+            elif result.implementation_signals >= 1:
+                result.state = ArtifactQualityState.FUNCTIONAL
+            else:
+                result.state = ArtifactQualityState.VALID
+        else:
+            result.state = ArtifactQualityState.EXISTS
+
         # Determine verdict
-        if result.is_trivial and result.has_placeholders:
-            result.verdict = "SHALLOW"
-        elif result.is_trivial:
+        if result.is_trivial:
             result.verdict = "SHALLOW"
         elif result.has_placeholders:
             result.verdict = "NEEDS_IMPROVEMENT"
-        else:
+        elif result.state in (ArtifactQualityState.FUNCTIONAL, ArtifactQualityState.MEETS_REQUEST):
             result.verdict = "GOOD"
+        elif result.state == ArtifactQualityState.VALID:
+            result.verdict = "GOOD"
+        else:
+            result.verdict = "NEEDS_IMPROVEMENT"
 
         return result
 
     def _find_implementation_files(self, root: Path) -> list[str]:
         """Find all implementation files in a project directory."""
+        import os
         impl_extensions = {
             ".html", ".css", ".js", ".jsx", ".ts", ".tsx",
             ".py", ".vue", ".svelte",
         }
+        skip_dirs = {
+            "data", "benchmarks", "tests", "artifacts", "docs",
+            "venv", ".venv", "env", "node_modules", ".git",
+            "__pycache__", "dist", "build", ".pytest_cache",
+            "cache", ".cache", "sessions", "trajectories", "browser_profiles",
+        }
         files = []
-        for f in root.rglob("*"):
-            if (
-                f.is_file()
-                and f.suffix.lower() in impl_extensions
-                and "node_modules" not in str(f)
-                and ".git" not in str(f)
-                and "__pycache__" not in str(f)
-            ):
-                files.append(str(f))
+        for root_dir, dirs, filenames in os.walk(root):
+            dirs[:] = [d for d in dirs if d.lower() not in skip_dirs and not d.startswith(".")]
+            for f in filenames:
+                ext = Path(f).suffix.lower()
+                if ext in impl_extensions and not f.startswith("."):
+                    files.append(os.path.join(root_dir, f))
         return files
 
     # ── Requirement checks ────────────────────────────────────────────────────
@@ -450,7 +671,13 @@ class QualityVerifier:
 
         # Responsive
         if "responsive" in lower_req:
-            return "@media" in lower_content
+            return (
+                "@media" in lower_content
+                or "minmax(" in lower_content
+                or "auto-fit" in lower_content
+                or "auto-fill" in lower_content
+                or "flex-wrap" in lower_content
+            )
 
         # Tests
         if "test" in lower_req:
@@ -459,6 +686,11 @@ class QualityVerifier:
                 if "test" in Path(f).name.lower() or "spec" in Path(f).name.lower()
             ]
             return len(test_files) > 0
+
+        # HTML / Markup
+        if "html" in lower_req or "markup" in lower_req:
+            html_files = [f for f in all_files if Path(f).suffix == ".html"]
+            return len(html_files) > 0 or "<html" in lower_content or "<body" in lower_content
 
         # CSS
         if "css" in lower_req or "styling" in lower_req:
@@ -571,7 +803,27 @@ class QualityVerifier:
             f"  - {r}" for r in result.requirements_missing[:6]
         )
 
-        return f"""QUALITY REVIEW FAILED — REPAIR REQUIRED
+        has_missing_files = (
+            result.overall_verdict in ("EMPTY", "MISSING")
+            or any("exists" in r.lower() for r in result.requirements_missing)
+            or any("empty" in s.lower() or "missing" in s.lower() for s in result.improvement_suggestions)
+        )
+
+        if has_missing_files:
+            action_directive = (
+                "1. ACTION REQUIRED: Invoke write_file immediately to create the missing implementation file(s).\n"
+                "2. Do NOT run list_directory or read-only exploration tools. The target file is missing and must be written now.\n"
+                "3. Write the complete, working production-grade code in one pass.\n"
+                "4. Every required feature must have real, working logic — no stubs, TODOs, or placeholder text."
+            )
+        else:
+            action_directive = (
+                "1. ACTION REQUIRED: Use write_file or edit_file to replace shallow or incomplete implementations.\n"
+                "2. Do NOT repeat directory listings. Focus directly on implementing the missing requirements.\n"
+                "3. Every required feature must have real, working code without placeholders or stubs."
+            )
+
+        return f"""QUALITY REVIEW FAILED — ACTION REQUIRED
 
 Original task: {original_task}
 
@@ -584,16 +836,8 @@ Issues found:
 Unsatisfied requirements:
 {missing_text}
 
-MANDATORY REPAIR INSTRUCTIONS:
-1. Do NOT start over from scratch. Inspect the existing files first.
-2. Use read_file to read each existing implementation file.
-3. Identify specifically what is missing or trivial.
-4. Use write_file to REPLACE shallow implementations with complete ones.
-5. Every required feature must have real, working code.
-6. Remove all placeholder content (TODO, lorem ipsum, etc.).
-7. Ensure every file meets minimum size: HTML 800+ bytes, CSS 400+ bytes,
-   JS/JSX 300+ bytes.
-8. After fixing, the implementation must satisfy all requirements above.
-
-Do not stop until every requirement above is satisfied.
+MANDATORY ACTION DIRECTIVES:
+{action_directive}
+5. Ensure every file meets quality thresholds: HTML 800+ bytes, CSS 400+ bytes, JS 300+ bytes.
+6. Verify your output satisfies every requirement above before finishing.
 """

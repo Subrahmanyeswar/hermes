@@ -19,15 +19,22 @@
 from __future__ import annotations
 
 import ast
+import contextvars
 import fnmatch
 import hashlib
 import json
 import os
+import re
+import sys
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Any
 from loguru import logger
+
+
+# ── Context-bound workspace for concurrent missions ─────────────────────────
+CURRENT_WORKSPACE: contextvars.ContextVar[Optional[Any]] = contextvars.ContextVar("CURRENT_WORKSPACE", default=None)
 
 
 # ── Ignore patterns (never index these) ──────────────────────────────────────
@@ -36,8 +43,11 @@ IGNORE_PATTERNS: list[str] = [
     "*.pyc", "*.pyo", "*.pyd", ".DS_Store", "*.egg-info", "dist",
     "build", ".pytest_cache", ".mypy_cache", "*.min.js", "*.min.css",
     ".next", ".nuxt", "target", "*.lock", "package-lock.json",
-    "artifacts",
+    "artifacts", ".hermes", "cache", ".cache",
+    "sessions", "trajectories", "browser_profiles", "*.sqlite*", "*.db",
+    "*.log", "*.zip", "*.gz", "*.tar",
 ]
+
 
 # ── Hard limits to protect the context window ────────────────────────────────
 MAX_SKELETON_LINES: int = 60       # Maximum lines in the folder tree output
@@ -96,6 +106,128 @@ class WorkspaceIndex:
         return [f for f in self.files.values() if q in f.relative_path.lower()]
 
 
+def canonicalize_workspace_path(path: str | Path, ws_root: Path) -> Path:
+    """
+    Canonicalize an arbitrary model-generated path to a safe, canonical Path
+    inside ws_root. Handles:
+    - Redundant workspace directory prefix (e.g. 'hermes_phase3b_live_qualification/search.html' -> 'search.html')
+    - Redundant nested workspace paths (e.g. 'ws/ws/search.html' -> 'search.html')
+    - 'generated_projects/' or 'generated_projects/<name>/' prefixes
+    - Windows leading slashes ('/search.html' or '\\search.html' -> 'search.html')
+    - Preserves legitimate subdirectories ('assets/images/logo.svg', 'css/styles.css')
+    """
+    ws_root = ws_root.resolve()
+    ws_name = ws_root.name
+    is_win = os.name == "nt" or sys.platform == "win32"
+
+    def _match(a: str, b: str) -> bool:
+        return a.lower() == b.lower() if is_win else a == b
+
+    raw_str = str(path).strip()
+    # Strip root-relative leading slashes like '/search.html' or '\search.html' unless Windows drive path
+    if (raw_str.startswith("/") or raw_str.startswith("\\")) and not (len(raw_str) > 2 and raw_str[1] == ":"):
+        raw_str = raw_str.lstrip("/\\")
+
+    p = Path(raw_str)
+
+    if p.is_absolute() or p.anchor:
+        cand = p.resolve()
+        # Case A: Inside ws_root already
+        try:
+            rel = cand.relative_to(ws_root)
+            parts = list(rel.parts)
+            while parts and _match(parts[0], ws_name):
+                parts.pop(0)
+            clean_rel = Path(*parts) if parts else Path(".")
+            return (ws_root / clean_rel).resolve()
+        except ValueError:
+            # Case B: Absolute path with matching ws_name in its parts
+            cand_parts = cand.parts
+            matching_indices = [i for i, part in enumerate(cand_parts) if _match(part, ws_name)]
+            if matching_indices:
+                last_idx = matching_indices[-1]
+                sub_parts = list(cand_parts[last_idx + 1:])
+                while sub_parts and _match(sub_parts[0], ws_name):
+                    sub_parts.pop(0)
+                clean_rel = Path(*sub_parts) if sub_parts else Path(".")
+                return (ws_root / clean_rel).resolve()
+            raise WorkspaceBoundaryError(
+                f"Path '{path}' is outside workspace boundary '{ws_root}'"
+            )
+
+    # Relative path handling
+    parts = list(p.parts)
+    while parts and parts[0] == ".":
+        parts.pop(0)
+
+    # Strip redundant 'generated_projects' prefix if present
+    if parts and _match(parts[0], "generated_projects"):
+        parts.pop(0)
+
+    # Strip leading ws_name occurrences
+    while parts and _match(parts[0], ws_name):
+        parts.pop(0)
+
+    clean_rel = Path(*parts) if parts else Path(".")
+    candidate = (ws_root / clean_rel).resolve()
+
+    try:
+        candidate.relative_to(ws_root)
+    except ValueError as e:
+        raise WorkspaceBoundaryError(
+            f"Path '{path}' escapes workspace boundary '{ws_root}': {e}"
+        )
+    return candidate
+
+
+@dataclass(frozen=True)
+class MissionWorkspace:
+    """
+    Authoritative, immutable workspace representation for a mission.
+    Resolved exactly once at mission startup and propagated across the runtime.
+    The model cannot redefine it.
+    All reads, writes, commands, verification, repair, and artifact discoveries
+    resolve against this workspace.
+    """
+    root: Path
+
+    def __post_init__(self):
+        object.__setattr__(self, "root", Path(self.root).resolve())
+
+    @property
+    def root_str(self) -> str:
+        return str(self.root)
+
+    @property
+    def name(self) -> str:
+        return self.root.name
+
+    def validate_path(self, path: str | Path) -> Path:
+        """
+        Validate and canonicalize path against workspace boundary with workspace prefix deduplication.
+        Prevents C:\\...\\ws\\ws\\... nesting, generated_projects/ redundancy, and Windows slash issues.
+        """
+        return canonicalize_workspace_path(path, self.root)
+
+    def find_artifact(self, name_or_path: str) -> Optional[Path]:
+        """Find an existing artifact anywhere within the workspace root."""
+        p = Path(name_or_path)
+        try:
+            direct = self.validate_path(name_or_path)
+            if direct.exists() and direct.is_file():
+                return direct
+        except Exception:
+            pass
+
+        try:
+            for match in self.root.rglob(p.name):
+                if match.is_file() and not any(part.startswith(".") for part in match.parts):
+                    return match
+        except Exception:
+            pass
+        return None
+
+
 class WorkspaceManager:
     """
     The workspace boundary enforcer and codebase intelligence layer for HERMES.
@@ -109,26 +241,57 @@ class WorkspaceManager:
     """
 
     def __init__(self) -> None:
-        self.workspace_root: Optional[Path] = None
-        self.index: Optional[WorkspaceIndex] = None
+        self._workspace_root: Optional[Path] = None
+        self._index: Optional[WorkspaceIndex] = None
         self._locked: bool = False
+        self._mission_workspace: Optional[MissionWorkspace] = None
+
+    @property
+    def workspace_root(self) -> Optional[Path]:
+        scoped = CURRENT_WORKSPACE.get()
+        if scoped is not None and scoped is not self:
+            return getattr(scoped, "workspace_root", getattr(scoped, "root", None))
+        return self._workspace_root
+
+    @workspace_root.setter
+    def workspace_root(self, val: Optional[Path]) -> None:
+        self._workspace_root = val
+
+    @property
+    def index(self) -> Optional[WorkspaceIndex]:
+        scoped = CURRENT_WORKSPACE.get()
+        if scoped is not None and scoped is not self:
+            return getattr(scoped, "index", self._index)
+        return self._index
+
+    @index.setter
+    def index(self, val: Optional[WorkspaceIndex]) -> None:
+        self._index = val
 
     # ── Locking ───────────────────────────────────────────────────────────────
 
-    def lock(self, path: str) -> None:
+    def lock(self, path: str, create: bool = True) -> None:
         """
         Lock the workspace to the given directory.
-        Resolves symlinks, validates existence, builds initial index.
-        Raises: ValueError if path does not exist or is not a directory.
+        Resolves symlinks, validates existence (or creates if create=True), builds initial index.
+        Raises: ValueError if path is not a directory or cannot be created.
         """
         resolved = Path(path).resolve()
         if not resolved.exists():
-            raise ValueError(f"Workspace path does not exist: {path}")
+            if create:
+                try:
+                    resolved.mkdir(parents=True, exist_ok=True)
+                    logger.info(f"WorkspaceManager: created greenfield workspace directory {resolved}")
+                except Exception as mkdir_err:
+                    raise ValueError(f"Could not create workspace directory '{path}': {mkdir_err}")
+            else:
+                raise ValueError(f"Workspace path does not exist: {path}")
         if not resolved.is_dir():
             raise ValueError(f"Workspace path is not a directory: {path}")
 
         self.workspace_root = resolved
         self._locked = True
+        self._mission_workspace = MissionWorkspace(resolved)
         logger.info(f"WorkspaceManager: locked to {self.workspace_root}")
         self._build_index()
 
@@ -141,20 +304,37 @@ class WorkspaceManager:
         self._locked = False
         self.workspace_root = None
         self.index = None
+        self._mission_workspace = None
 
     @property
     def is_locked(self) -> bool:
-        return self._locked and self.workspace_root is not None
+        scoped = CURRENT_WORKSPACE.get()
+        if scoped is not None and scoped is not self:
+            return getattr(scoped, "is_locked", True if getattr(scoped, "root", None) else False)
+        return self._locked and self._workspace_root is not None
 
     @property
     def root_str(self) -> str:
-        if self.workspace_root is None:
+        scoped = CURRENT_WORKSPACE.get()
+        if scoped is not None and scoped is not self:
+            return getattr(scoped, "root_str", str(getattr(scoped, "root", os.getcwd())))
+        if self._workspace_root is None:
             return os.getcwd()
-        return str(self.workspace_root)
+        return str(self._workspace_root)
+
+    def get_mission_workspace(self) -> Optional[MissionWorkspace]:
+        """Return the authoritative MissionWorkspace if locked."""
+        scoped = CURRENT_WORKSPACE.get()
+        if scoped is not None and scoped is not self:
+            if hasattr(scoped, "get_mission_workspace"):
+                return scoped.get_mission_workspace()
+            if isinstance(scoped, MissionWorkspace):
+                return scoped
+        return self._mission_workspace
 
     # ── Path validation (security boundary) ──────────────────────────────────
 
-    def validate_path(self, path: str) -> Path:
+    def validate_path(self, path: str | Path) -> Path:
         """
         Validate that a path is within the workspace boundary.
         This is the security enforcement layer — called by every tool
@@ -163,28 +343,28 @@ class WorkspaceManager:
         Returns: absolute Path if valid.
         Raises:  WorkspaceBoundaryError if path escapes workspace_root.
         """
+        scoped = CURRENT_WORKSPACE.get()
+        if scoped is not None and scoped is not self:
+            return scoped.validate_path(path)
+
         if not self.is_locked:
             # If not locked, resolve relative to cwd
             return Path(path).resolve()
 
-        # Resolve the path relative to workspace_root
-        try:
-            if Path(path).is_absolute():
-                candidate = Path(path).resolve()
-            else:
-                candidate = (self.workspace_root / path).resolve()
+        if self._mission_workspace is not None:
+            return self._mission_workspace.validate_path(path)
 
-            # Check containment — candidate must be inside workspace_root
-            candidate.relative_to(self.workspace_root)
-        except (ValueError, OSError) as e:
-            raise WorkspaceBoundaryError(
-                f"Path '{path}' is invalid or outside workspace boundary '{self.workspace_root}': {e}"
-            )
-
-        return candidate
+        # Fallback to direct resolution via canonicalize_workspace_path
+        if self._workspace_root is not None:
+            return canonicalize_workspace_path(path, self._workspace_root)
+        return Path(path).resolve()
 
     def is_path_safe(self, path: str) -> tuple[bool, str]:
         """Non-raising version of validate_path. Returns (safe, reason)."""
+        scoped = CURRENT_WORKSPACE.get()
+        if scoped is not None and scoped is not self:
+            if hasattr(scoped, "is_path_safe"):
+                return scoped.is_path_safe(path)
         try:
             self.validate_path(path)
             return True, "path is within workspace boundary"
@@ -195,11 +375,15 @@ class WorkspaceManager:
 
     def _should_ignore(self, path: Path) -> bool:
         """Check if a path matches any ignore pattern."""
-        for pattern in IGNORE_PATTERNS:
-            if fnmatch.fnmatch(path.name, pattern):
-                return True
-            if path.name == pattern:
-                return True
+        try:
+            rel = path.relative_to(self.workspace_root) if self.workspace_root else path
+            parts = rel.parts
+        except Exception:
+            parts = (path.name,)
+        for part in parts:
+            for pattern in IGNORE_PATTERNS:
+                if fnmatch.fnmatch(part, pattern) or part == pattern:
+                    return True
         return False
 
     def _build_index(self) -> None:
@@ -437,7 +621,7 @@ class WorkspaceManager:
         Maximum MAX_SKELETON_LINES lines. Prioritises source files over build artifacts.
 
         Example output:
-            EduPath/
+            my_project/
             ├── src/
             │   ├── components/
             │   │   ├── Auth.jsx
@@ -609,3 +793,4 @@ class WorkspaceBoundaryError(Exception):
 # ── Module-level singleton ────────────────────────────────────────────────────
 # Every module that needs workspace access imports this instance.
 workspace_manager = WorkspaceManager()
+global_workspace = workspace_manager

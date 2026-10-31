@@ -1,0 +1,36 @@
+{
+  "phase": "Phase 7",
+  "base_branch": "hermes-2.x",
+  "created_files": [
+    "core/network/__init__.py",
+    "core/network/connectivity.py",
+    "core/network/coordinator.py",
+    "tests/test_phase7_network_recovery.py",
+    "artifacts/phase7/connectivity_architecture_audit.md",
+    "artifacts/phase7/acceptance_report.md",
+    "artifacts/phase7/phase7_test_results.json",
+    "artifacts/phase7/changed_files_inventory.json"
+  ],
+  "modified_files": [
+    "core/runtime_state/models.py",
+    "core/runtime_state/events.py",
+    "core/runtime_state/reducer.py",
+    "core/agent_loop/loop.py",
+    "core/server/models.py",
+    "core/server/app.py",
+    "core/server/runtime_adapter.py",
+    "core/persistence/database.py",
+    "core/persistence/recovery.py",
+    "gui/src/types.ts",
+    "gui/src/api.ts",
+    "gui/src/components/TopBar.tsx",
+    "gui/src/App.tsx"
+  ],
+  "protected_files_verified": [
+    {
+      "path": "HEREMES (things to do later).txt",
+      "preserved": true,
+      "unmodified": true
+    }
+  ]
+}

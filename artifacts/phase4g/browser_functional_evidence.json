@@ -1,0 +1,153 @@
+{
+  "simple": {
+    "app_key": "simple",
+    "app_name": "Personal Expense Tracker",
+    "flows": {
+      "initial_rows": 7,
+      "post_add_rows": 8,
+      "row_added_verified": true,
+      "initial_balance": "$3,642.11",
+      "post_balance": "$3,576.61",
+      "balance_updated_verified": true,
+      "category_filtered_rows": 2,
+      "reload_persisted_verified": true
+    },
+    "viewports": {
+      "desktop": {
+        "width": 1280,
+        "height": 800,
+        "scrollWidth": 1265,
+        "innerWidth": 1280,
+        "overflow_px": 0,
+        "responsive_pass": true,
+        "screenshot_path": "C:\\Users\\SUBBU\\Downloads\\hermes\\artifacts\\phase4g\\screenshots\\simple_desktop.png",
+        "screenshot_captured": true,
+        "screenshot_bytes": 73268
+      },
+      "tablet": {
+        "width": 768,
+        "height": 1024,
+        "scrollWidth": 768,
+        "innerWidth": 768,
+        "overflow_px": 0,
+        "responsive_pass": true,
+        "screenshot_path": "C:\\Users\\SUBBU\\Downloads\\hermes\\artifacts\\phase4g\\screenshots\\simple_tablet.png",
+        "screenshot_captured": true,
+        "screenshot_bytes": 62157
+      },
+      "mobile": {
+        "width": 375,
+        "height": 667,
+        "scrollWidth": 375,
+        "innerWidth": 375,
+        "overflow_px": 0,
+        "responsive_pass": true,
+        "screenshot_path": "C:\\Users\\SUBBU\\Downloads\\hermes\\artifacts\\phase4g\\screenshots\\simple_mobile.png",
+        "screenshot_captured": true,
+        "screenshot_bytes": 23153
+      }
+    },
+    "console_errors": [],
+    "overall_success": true
+  },
+  "medium": {
+    "app_key": "medium",
+    "app_name": "Inventory & Stock Management Console",
+    "flows": {
+      "initial_items": 9,
+      "stock_incremented_verified": true,
+      "search_filtering_verified": true,
+      "product_added_verified": true,
+      "reload_persisted_verified": true,
+      "kpi_skus_initial": "9",
+      "kpi_skus_post": "10"
+    },
+    "viewports": {
+      "desktop": {
+        "width": 1280,
+        "height": 800,
+        "scrollWidth": 1265,
+        "innerWidth": 1280,
+        "overflow_px": 0,
+        "responsive_pass": true,
+        "screenshot_path": "C:\\Users\\SUBBU\\Downloads\\hermes\\artifacts\\phase4g\\screenshots\\medium_desktop.png",
+        "screenshot_captured": true,
+        "screenshot_bytes": 73321
+      },
+      "tablet": {
+        "width": 768,
+        "height": 1024,
+        "scrollWidth": 768,
+        "innerWidth": 768,
+        "overflow_px": 0,
+        "responsive_pass": true,
+        "screenshot_path": "C:\\Users\\SUBBU\\Downloads\\hermes\\artifacts\\phase4g\\screenshots\\medium_tablet.png",
+        "screenshot_captured": true,
+        "screenshot_bytes": 69228
+      },
+      "mobile": {
+        "width": 375,
+        "height": 667,
+        "scrollWidth": 465,
+        "innerWidth": 465,
+        "overflow_px": 0,
+        "responsive_pass": true,
+        "screenshot_path": "C:\\Users\\SUBBU\\Downloads\\hermes\\artifacts\\phase4g\\screenshots\\medium_mobile.png",
+        "screenshot_captured": true,
+        "screenshot_bytes": 19245
+      }
+    },
+    "console_errors": [],
+    "overall_success": true
+  },
+  "complex": {
+    "app_key": "complex",
+    "app_name": "Developer Portfolio & Tech Showcase",
+    "flows": {
+      "initial_projects_count": 5,
+      "aiml_filtered_count": 1,
+      "filtering_verified": true,
+      "all_projects_restored": true,
+      "modal_opened_verified": true,
+      "modal_title": "Personal Blog Platform",
+      "modal_closed_verified": true
+    },
+    "viewports": {
+      "desktop": {
+        "width": 1280,
+        "height": 800,
+        "scrollWidth": 1265,
+        "innerWidth": 1280,
+        "overflow_px": 0,
+        "responsive_pass": true,
+        "screenshot_path": "C:\\Users\\SUBBU\\Downloads\\hermes\\artifacts\\phase4g\\screenshots\\complex_desktop.png",
+        "screenshot_captured": true,
+        "screenshot_bytes": 70246
+      },
+      "tablet": {
+        "width": 768,
+        "height": 1024,
+        "scrollWidth": 768,
+        "innerWidth": 768,
+        "overflow_px": 0,
+        "responsive_pass": true,
+        "screenshot_path": "C:\\Users\\SUBBU\\Downloads\\hermes\\artifacts\\phase4g\\screenshots\\complex_tablet.png",
+        "screenshot_captured": true,
+        "screenshot_bytes": 60344
+      },
+      "mobile": {
+        "width": 375,
+        "height": 667,
+        "scrollWidth": 375,
+        "innerWidth": 375,
+        "overflow_px": 0,
+        "responsive_pass": true,
+        "screenshot_path": "C:\\Users\\SUBBU\\Downloads\\hermes\\artifacts\\phase4g\\screenshots\\complex_mobile.png",
+        "screenshot_captured": true,
+        "screenshot_bytes": 30913
+      }
+    },
+    "console_errors": [],
+    "overall_success": true
+  }
+}

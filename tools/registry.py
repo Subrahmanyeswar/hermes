@@ -78,17 +78,81 @@ def tool(
 
 TOOL_ALIASES: dict[str, str] = {
     "list_dir": "list_directory",
+    "list_files": "list_directory",
+    "dir": "list_directory",
+    "ls": "list_directory",
+    "fs.write": "write_file",
+    "fs_write": "write_file",
+    "fs.read": "read_file",
+    "fs_read": "read_file",
+    "fs.edit": "write_file",
+    "fs_edit": "write_file",
+    "create_file": "write_file",
+    "write": "write_file",
+    "edit_file": "write_file",
+    "str_replace_editor": "write_file",
+    "file_editor": "write_file",
+    "read": "read_file",
+    "view_file": "read_file",
+    "write_files": "write_files_batch",
+    "batch_write": "write_files_batch",
+    "shell.bash": "bash_exec",
+    "shell_bash": "bash_exec",
+    "bash": "bash_exec",
+    "exec": "bash_exec",
+    "shell": "bash_exec",
+    "terminal": "bash_exec",
+    "run_command": "bash_exec",
+    "run_tests": "run_tests",
+    "search_files": "search_files",
+    "file_search": "search_files",
+    "grep": "search_files",
+    "search.glob": "list_directory",
+    "search_glob": "list_directory",
+    "search.grep": "search_files",
+    "search_grep": "search_files",
+    "task.todo": "todo",
+    "task_todo": "todo",
+    "user.ask": "ask_user",
+    "user_ask": "ask_user",
+    "search_web": "web_search",
+    "search.web": "web_search",
+    "fetch_web": "web_fetch",
+    "fetch.web": "web_fetch",
+    "crawl_web": "web_crawl",
+    "crawl.web": "web_crawl",
+    "search_images": "image_search",
+    "search.image": "image_search",
+    "search_image": "image_search",
+    "fetch_image": "download_image",
+    "download_images": "download_image",
+    "save_image": "download_image",
+    "deep_research": "deep_web_research",
+    "web_research": "deep_web_research",
+    "browser_navigate": "browser_open_preview",
+    "browser_preview": "browser_open_preview",
+    "browser_inspect": "browser_inspect_page",
+    "browser_type": "browser_fill",
+    "browser_console": "browser_get_console_errors",
+    "browser_console_errors": "browser_get_console_errors",
+    "browser_network": "browser_get_network_failures",
+    "browser_network_failures": "browser_get_network_failures",
 }
 
 
 def _ensure_tools_loaded() -> None:
-    if not _REGISTRY:
+    if not _REGISTRY or "browser_open_preview" not in _REGISTRY:
         import sys
         import importlib
         for mod_name in [
             "tools.file_tools",
             "tools.shell_tools",
             "tools.network_tools",
+            "tools.web_search_tools",
+            "tools.web_fetch_tools",
+            "tools.web_crawl_tools",
+            "tools.image_asset_tools",
+            "tools.browser_tools",
             "tools.git_tools",
             "tools.memory_tools",
             "tools.export_tools",
@@ -97,13 +161,13 @@ def _ensure_tools_loaded() -> None:
             if mod_name in sys.modules:
                 try:
                     importlib.reload(sys.modules[mod_name])
-                except Exception:
-                    pass
+                except Exception as exc:
+                    logger.warning(f"Failed to reload tool module '{mod_name}': {exc}")
             else:
                 try:
                     importlib.import_module(mod_name)
-                except Exception:
-                    pass
+                except Exception as exc:
+                    logger.warning(f"Failed to import tool module '{mod_name}': {exc}")
 
 
 # ---------------------------------------------------------------------------
@@ -111,11 +175,33 @@ def _ensure_tools_loaded() -> None:
 # ---------------------------------------------------------------------------
 
 
+def get_canonical_tool_name(name: str | None) -> str | None:
+    """Return the canonical tool name registered under *name* or its alias.
+    Returns None if the tool is not registered.
+    """
+    if not name or not isinstance(name, str):
+        return None
+    _ensure_tools_loaded()
+    cleaned = name.strip()
+    canonical = TOOL_ALIASES.get(cleaned, cleaned)
+    if canonical in _REGISTRY:
+        return canonical
+    try:
+        from tools.platform.catalog import tool_catalog
+        resolved = tool_catalog.resolve_name(cleaned)
+        if resolved:
+            return resolved
+    except Exception:
+        pass
+    return None
+
+
 def get_tool(name: str) -> type[BaseTool] | None:
     """Return the tool class registered under *name*, resolving aliases if needed."""
-    _ensure_tools_loaded()
-    canonical_name = TOOL_ALIASES.get(name, name)
-    return _REGISTRY.get(canonical_name)
+    canonical_name = get_canonical_tool_name(name)
+    if canonical_name:
+        return _REGISTRY.get(canonical_name)
+    return None
 
 
 def list_tools() -> list[str]:

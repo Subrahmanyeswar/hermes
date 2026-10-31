@@ -1,0 +1,76 @@
+{
+  "canonical_skills_root": "C:\\Users\\SUBBU\\Downloads\\hermes\\skills",
+  "total_production_skills": 13,
+  "skill_hashes": {
+    "auto-docs": "30b03bdd98708a5e70e8c0830815e5eacfce154248ebf3140394af4e9d92b3b5",
+    "bash-scripting": "349a6e9e56664e7131ece41f6a613872a330607004e5f38b4e84d36b796f61da",
+    "code-review": "366f65f1487ef4656b774260a5e57bbc447ae89038352b3a8407db0c102cedc6",
+    "database-design": "9c0d83615495968fdf5eebec0628266b7671b1e343b980e5efa695ac84b435d4",
+    "debugging": "33f855c7f5e69d592dbe2bf94501cd4ecde18bdbe612db88238132fc9513c33d",
+    "flask-rest-api": "c0e571ac656b591bb88f8b31032f34eb4e2102ac22bfc3805a90b2165a19efec",
+    "git-workflow": "1d34fd7c11f839287a274320be997c96addebbd801366b7e0753d8a02c84e466",
+    "pytest-generation": "1ae695a71f67fb25dac00caaa13483f773a217c33f6e244631190219cd099973",
+    "react-frontend": "37600e2281f941a1079c161ac1a840e83bc98d0891fc1c5c10b70f2e17dd8eb8",
+    "refactoring": "26597860b40f588ba578b3192e8634afbd16b4ca0b101d0fc0abde770e1f1bf6",
+    "screenshot-to-code": "f37cd8ff58fb2fd4ff815e94bcdc531c37e83c3c3e4739fe4e691d5d8e0c1119",
+    "security-audit": "01928d7716a3fb4122c9266acd507bdf777ed0faf5377e1a04460680340b4ac5",
+    "vanilla-web": "3aef624d12f159d15dfc18d9a21c6f3b4cb8fadbdc9ed7dd6387a4cdd71d67a4"
+  },
+  "scenario_a_selection": [
+    "vanilla-web"
+  ],
+  "scenario_b_selection": [
+    "screenshot-to-code",
+    "vanilla-web"
+  ],
+  "project_intelligence_snapshot_canonical_root": "C:\\Users\\SUBBU\\Downloads\\hermes\\skills",
+  "review_and_hardening_summary": {
+    "fake_tools_removed": [
+      "read_image",
+      "git_init",
+      "git_add_commit",
+      "git_push",
+      "run_tests",
+      "run_python",
+      "write_file"
+    ],
+    "real_platform_tools_integrated": [
+      "fs.read",
+      "fs.write",
+      "fs.edit",
+      "shell.bash",
+      "search.glob",
+      "search.regex",
+      "web.fetch",
+      "browser.navigate"
+    ],
+    "arbitrary_thresholds_removed": [
+      "refactoring: >20 lines or >3 params functions",
+      "database-design: arbitrary 3NF enforcement without read/write load context",
+      "security-audit: arbitrary 5-line threshold"
+    ],
+    "safety_guardrails_added": [
+      "git-workflow: prohibited destructive git commands (reset --hard, clean, checkout -f, push --force)",
+      "git-workflow: explicit inspection first, single-file staging, mandatory operator authorization",
+      "security-audit: non-destructive read-only audits, no direct payload injection"
+    ],
+    "lazy_reference_files_added": [
+      "skills/database-design/references/schema_patterns.md",
+      "skills/git-workflow/references/safety_rules.md",
+      "skills/security-audit/references/owasp_checklist.md"
+    ]
+  },
+  "test_summary": {
+    "phase6_suite": 26,
+    "project_intelligence_suite": 20,
+    "phase5_regression": 42,
+    "phase11_contract_regression": 36,
+    "phase1_regression": 26,
+    "phase2_regression": 65,
+    "phase3_regression": 66,
+    "phase4_regression": 37,
+    "gui_acceptance": 5,
+    "total_unique_passed": 323,
+    "frontend_build_status": "SUCCESS (exit code 0)"
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "phase": "Phase 8",
+  "component": "network_recovery_ui",
+  "verification_timestamp": "2026-10-13T13:22:00Z",
+  "waiting_reasons_supported": [
+    "INTERNET_LOSS",
+    "PROVIDER_RATE_LIMIT",
+    "PROVIDER_OUTAGE",
+    "RECOVERY_BLOCKED",
+    "CIRCUIT_OPEN"
+  ],
+  "ui_presentation": {
+    "top_bar_status": "WAITING (<reason>) pill with warning styling",
+    "composer_placeholder": "Displays truthful wait explanation and provides Stop/Resume controls",
+    "right_pane_outcome": "Execution Waiting / Recovery diagnostic card with detailed reason",
+    "backend_offline_banner": "Displays connection warning without clearing existing mission snapshot"
+  },
+  "endpoints": {
+    "get_network_status": "GET /api/network/status",
+    "trigger_network_recover": "POST /api/network/recover"
+  },
+  "verdict": "PASS"
+}

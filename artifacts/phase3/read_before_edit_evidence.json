@@ -1,0 +1,39 @@
+{
+  "phase": "Phase 3: Read-Before-Edit Enforcement",
+  "generated_at": "2026-10-12T21:24:00+05:30",
+  "evidence": [
+    {
+      "step": 1,
+      "description": "Attempt fs.edit without prior inspection",
+      "target": "config.ini",
+      "inspected_before_edit": false,
+      "outcome": "REJECTED",
+      "error_code": "READ_BEFORE_EDIT_REQUIRED",
+      "message": "READ_BEFORE_EDIT_REQUIRED: File 'config.ini' has not been read in the current session."
+    },
+    {
+      "step": 2,
+      "description": "Inspect file with fs.read",
+      "target": "config.ini",
+      "recorded_hash": "a1b2c3d4e5f6...",
+      "cache_status": "RECORDED"
+    },
+    {
+      "step": 3,
+      "description": "Execute fs.edit after inspection",
+      "target": "config.ini",
+      "inspected_before_edit": true,
+      "outcome": "ALLOWED_AND_SUCCEEDED",
+      "exit_code": 0
+    },
+    {
+      "step": 4,
+      "description": "Simulate external modification behind agent back",
+      "target": "stale_target.py",
+      "external_modification_detected": true,
+      "outcome": "REJECTED_STALE",
+      "error_code": "FILE_CHANGED_SINCE_READ",
+      "message": "FILE_CHANGED_SINCE_READ: File was modified externally since it was last inspected."
+    }
+  ]
+}

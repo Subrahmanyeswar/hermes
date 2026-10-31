@@ -1,0 +1,44 @@
+{
+  "stage": "6.2",
+  "timestamp": 1791702121.3141341,
+  "model_configured": "z-ai/glm-5.3-flash (NVIDIA NIM)",
+  "canonical_python": "C:\\Users\\SUBBU\\Downloads\\hermes\\venv\\Scripts\\python.exe",
+  "scenarios": {
+    "live_read_only_fulfillment": {
+      "mission_id": "m_72fecdf0",
+      "prompt": "Inspect README.md and report its primary heading and description without modifying any files.",
+      "terminal_status": "COMPLETED",
+      "delivered_output": "The README has already been read. Here's the report:\n\n**Primary heading:** `# Project Antigravity Architecture`\n\n**Description:** \"This system provides autonomous agent engineering with strict safety gates.\"\n\nNo files were modified \u2014 the inspection was read-only, so the goal is complete.",
+      "heading_fulfilled": true,
+      "description_fulfilled": true,
+      "sha256_manifest_before": {
+        "README.md": "1157c23c217237af3bcc1eeb18d29a6ac1a801fad87a28807715b40a0e26d8a2"
+      },
+      "sha256_manifest_after": {
+        "README.md": "1157c23c217237af3bcc1eeb18d29a6ac1a801fad87a28807715b40a0e26d8a2"
+      },
+      "manifest_immutable": true,
+      "diff_additions": 0,
+      "diff_deletions": 0,
+      "child_verification_executable": "C:\\Users\\SUBBU\\Downloads\\hermes\\venv\\Scripts\\python.exe",
+      "child_verification_exit_code": 0,
+      "child_verification_output": "VERIFICATION_SUBPROCESS_SUCCESS",
+      "verdict": "PASS"
+    }
+  },
+  "screenshots": {
+    "prompt_submitted": "C:\\Users\\SUBBU\\Downloads\\hermes\\artifacts\\stage6_2\\01_browser_prompt_submitted.png",
+    "outcome_tab": "C:\\Users\\SUBBU\\Downloads\\hermes\\artifacts\\stage6_2\\02_browser_outcome_with_response.png",
+    "checks_tab": "C:\\Users\\SUBBU\\Downloads\\hermes\\artifacts\\stage6_2\\03_browser_checks_tab.png",
+    "changes_tab": "C:\\Users\\SUBBU\\Downloads\\hermes\\artifacts\\stage6_2\\04_browser_changes_tab.png"
+  },
+  "manifests": {
+    "sha256_before": {
+      "README.md": "1157c23c217237af3bcc1eeb18d29a6ac1a801fad87a28807715b40a0e26d8a2"
+    },
+    "sha256_after": {
+      "README.md": "1157c23c217237af3bcc1eeb18d29a6ac1a801fad87a28807715b40a0e26d8a2"
+    }
+  },
+  "overall_verdict": "PASS"
+}

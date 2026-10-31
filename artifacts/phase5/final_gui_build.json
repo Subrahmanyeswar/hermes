@@ -1,0 +1,18 @@
+{
+  "timestamp": "2026-10-12T22:33:17+05:30",
+  "command": "npm --prefix gui run build",
+  "exit_code": 0,
+  "build_tool": "vite v5.4.21",
+  "compiler": "tsc (TypeScript 5.x)",
+  "duration_seconds": 1.82,
+  "modules_transformed": 1601,
+  "output_assets": {
+    "index.html": { "size_kb": 0.63, "gzip_kb": 0.43 },
+    "dist/assets/index-Bljey2Z_.css": { "size_kb": 1.16, "gzip_kb": 0.64 },
+    "dist/assets/index-ocQNyxlg.js": { "size_kb": 210.06, "gzip_kb": 59.68 }
+  },
+  "diagnostics": {
+    "type_errors": 0,
+    "syntax_errors": 0
+  }
+}

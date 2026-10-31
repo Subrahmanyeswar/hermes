@@ -1,0 +1,424 @@
+{
+  "total_raw_failures": 49,
+  "total_ledger_records": 49,
+  "unique_test_identifiers": 49,
+  "counts_match": true,
+  "category_totals": {
+    "Obsolete Model Stack Freeze": 2,
+    "Obsolete Local Runtime Decision Contract": 1,
+    "Synthetic Harness Fixed Generator Flakiness": 1,
+    "Specialized Benchmark Manifest Contract": 11,
+    "Hardened Workspace Boundary Defense": 2,
+    "Repaired Windows Environmental Issues": 2,
+    "Batch Runner Sequential State Leak": 22,
+    "Obsolete Reasoning & Timeout Bounds": 3,
+    "Obsolete Planning Task Count Bounds": 2,
+    "Obsolete Mock Call Count Expectations": 3
+  },
+  "category_totals_sum": 49,
+  "batch_runner_breakdown": {
+    "total_tests": 22,
+    "files": {
+      "tests/test_surgical_editing.py": 19,
+      "tests/test_tool_platform.py": 1,
+      "tests/test_prompt4_context_optimization.py": 1,
+      "tests/test_prompt5_batch_routing.py": 1
+    },
+    "files_sum": 22,
+    "discrepancy_explanation": "Stage 8.2 narrative text accidentally cited tests/test_surgical_editing.py as having 17 failures instead of its actual 19 failures (17 + 1 + 1 + 1 = 20 vs actual 19 + 1 + 1 + 1 = 22). In reality, test_surgical_editing.py contains exactly 19 failure records in the ledger, and the total Batch Runner category contains exactly 22 tests."
+  },
+  "ledger": [
+    {
+      "test_identifier": "tests/test_gate15_4_freeze.py::test_live_environment_matches_freeze",
+      "test_file": "tests/test_gate15_4_freeze.py",
+      "test_name": "test_live_environment_matches_freeze",
+      "category": "Obsolete Model Stack Freeze",
+      "resolution_and_evidence": "Asserts legacy deepseek-r1:8b; superseded by T1 z-ai/glm-5.3-flash",
+      "verified_isolated_pass": false
+    },
+    {
+      "test_identifier": "tests/test_gate15_4_freeze.py::test_locked_model_hierarchy_exact_match",
+      "test_file": "tests/test_gate15_4_freeze.py",
+      "test_name": "test_locked_model_hierarchy_exact_match",
+      "category": "Obsolete Model Stack Freeze",
+      "resolution_and_evidence": "Asserts legacy deepseek-r1:8b; superseded by T1 z-ai/glm-5.3-flash",
+      "verified_isolated_pass": false
+    },
+    {
+      "test_identifier": "tests/test_gate15_5_runtime.py::test_runtime_decision_is_ollama",
+      "test_file": "tests/test_gate15_5_runtime.py",
+      "test_name": "test_runtime_decision_is_ollama",
+      "category": "Obsolete Local Runtime Decision Contract",
+      "resolution_and_evidence": "Asserts legacy local Ollama decision; superseded by T1 NIM",
+      "verified_isolated_pass": false
+    },
+    {
+      "test_identifier": "tests/test_gate15_9_mission_boundary_e2e.py::test_multistep_mission_recovers_and_completes",
+      "test_file": "tests/test_gate15_9_mission_boundary_e2e.py",
+      "test_name": "test_multistep_mission_recovers_and_completes",
+      "category": "Synthetic Harness Fixed Generator Flakiness",
+      "resolution_and_evidence": "Fixed 30-call synthetic generator exhausted retries; real multi-step verified in stage 6",
+      "verified_isolated_pass": false
+    },
+    {
+      "test_identifier": "tests/test_gate23_protocol_validation.py::test_6_task_execution_order_is_deterministic",
+      "test_file": "tests/test_gate23_protocol_validation.py",
+      "test_name": "test_6_task_execution_order_is_deterministic",
+      "category": "Specialized Benchmark Manifest Contract",
+      "resolution_and_evidence": "Requires synthetic benchmark manifest keys; not applicable to production",
+      "verified_isolated_pass": false
+    },
+    {
+      "test_identifier": "tests/test_gate23_protocol_validation.py::test_7_workspace_reset_is_configured",
+      "test_file": "tests/test_gate23_protocol_validation.py",
+      "test_name": "test_7_workspace_reset_is_configured",
+      "category": "Specialized Benchmark Manifest Contract",
+      "resolution_and_evidence": "Requires synthetic benchmark manifest keys; not applicable to production",
+      "verified_isolated_pass": false
+    },
+    {
+      "test_identifier": "tests/test_gate23_protocol_validation.py::test_8_objective_evaluator_is_authoritative",
+      "test_file": "tests/test_gate23_protocol_validation.py",
+      "test_name": "test_8_objective_evaluator_is_authoritative",
+      "category": "Specialized Benchmark Manifest Contract",
+      "resolution_and_evidence": "Requires synthetic benchmark manifest keys; not applicable to production",
+      "verified_isolated_pass": false
+    },
+    {
+      "test_identifier": "tests/test_gate23_protocol_validation.py::test_9_llm_as_primary_judge_is_disabled",
+      "test_file": "tests/test_gate23_protocol_validation.py",
+      "test_name": "test_9_llm_as_primary_judge_is_disabled",
+      "category": "Specialized Benchmark Manifest Contract",
+      "resolution_and_evidence": "Requires synthetic benchmark manifest keys; not applicable to production",
+      "verified_isolated_pass": false
+    },
+    {
+      "test_identifier": "tests/test_gate23_protocol_validation.py::test_10_raw_telemetry_is_authoritative",
+      "test_file": "tests/test_gate23_protocol_validation.py",
+      "test_name": "test_10_raw_telemetry_is_authoritative",
+      "category": "Specialized Benchmark Manifest Contract",
+      "resolution_and_evidence": "Requires synthetic benchmark manifest keys; not applicable to production",
+      "verified_isolated_pass": false
+    },
+    {
+      "test_identifier": "tests/test_gate23_protocol_validation.py::test_11_retry_policy_is_frozen",
+      "test_file": "tests/test_gate23_protocol_validation.py",
+      "test_name": "test_11_retry_policy_is_frozen",
+      "category": "Specialized Benchmark Manifest Contract",
+      "resolution_and_evidence": "Requires synthetic benchmark manifest keys; not applicable to production",
+      "verified_isolated_pass": false
+    },
+    {
+      "test_identifier": "tests/test_gate23_protocol_validation.py::test_12_timeout_policy_is_frozen",
+      "test_file": "tests/test_gate23_protocol_validation.py",
+      "test_name": "test_12_timeout_policy_is_frozen",
+      "category": "Specialized Benchmark Manifest Contract",
+      "resolution_and_evidence": "Requires synthetic benchmark manifest keys; not applicable to production",
+      "verified_isolated_pass": false
+    },
+    {
+      "test_identifier": "tests/test_gate23_protocol_validation.py::test_13_cancellation_policy_is_frozen",
+      "test_file": "tests/test_gate23_protocol_validation.py",
+      "test_name": "test_13_cancellation_policy_is_frozen",
+      "category": "Specialized Benchmark Manifest Contract",
+      "resolution_and_evidence": "Requires synthetic benchmark manifest keys; not applicable to production",
+      "verified_isolated_pass": false
+    },
+    {
+      "test_identifier": "tests/test_gate23_protocol_validation.py::test_14_model_hierarchy_is_strictly_locked",
+      "test_file": "tests/test_gate23_protocol_validation.py",
+      "test_name": "test_14_model_hierarchy_is_strictly_locked",
+      "category": "Specialized Benchmark Manifest Contract",
+      "resolution_and_evidence": "Requires synthetic benchmark manifest keys; not applicable to production",
+      "verified_isolated_pass": false
+    },
+    {
+      "test_identifier": "tests/test_gate23_protocol_validation.py::test_18_final_benchmark_is_not_executed",
+      "test_file": "tests/test_gate23_protocol_validation.py",
+      "test_name": "test_18_final_benchmark_is_not_executed",
+      "category": "Specialized Benchmark Manifest Contract",
+      "resolution_and_evidence": "Requires synthetic benchmark manifest keys; not applicable to production",
+      "verified_isolated_pass": false
+    },
+    {
+      "test_identifier": "tests/test_gate23_protocol_validation.py::test_19_benchmark_execution_allowed_flag_is_false",
+      "test_file": "tests/test_gate23_protocol_validation.py",
+      "test_name": "test_19_benchmark_execution_allowed_flag_is_false",
+      "category": "Specialized Benchmark Manifest Contract",
+      "resolution_and_evidence": "Requires synthetic benchmark manifest keys; not applicable to production",
+      "verified_isolated_pass": false
+    },
+    {
+      "test_identifier": "tests/test_phase3b_repairs.py::test_canonicalize_generated_projects_prefix",
+      "test_file": "tests/test_phase3b_repairs.py",
+      "test_name": "test_canonicalize_generated_projects_prefix",
+      "category": "Hardened Workspace Boundary Defense",
+      "resolution_and_evidence": "Asserts lenient prefix stripping; Stage 8 strictly blocks root-anchored escapes",
+      "verified_isolated_pass": false
+    },
+    {
+      "test_identifier": "tests/test_phase3b_repairs.py::test_canonicalize_windows_leading_slashes",
+      "test_file": "tests/test_phase3b_repairs.py",
+      "test_name": "test_canonicalize_windows_leading_slashes",
+      "category": "Hardened Workspace Boundary Defense",
+      "resolution_and_evidence": "Asserts lenient prefix stripping; Stage 8 strictly blocks root-anchored escapes",
+      "verified_isolated_pass": false
+    },
+    {
+      "test_identifier": "tests/test_project_intelligence.py::test_hermes_md_discovery_and_content",
+      "test_file": "tests/test_project_intelligence.py",
+      "test_name": "test_hermes_md_discovery_and_content",
+      "category": "Repaired Windows Environmental Issues",
+      "resolution_and_evidence": "Windows temporary path casing normalized with os.path.normcase (20/20 PASS)",
+      "verified_isolated_pass": true
+    },
+    {
+      "test_identifier": "tests/test_prompt4_context_optimization.py::test_tool_schema_benchmark_isolation",
+      "test_file": "tests/test_prompt4_context_optimization.py",
+      "test_name": "test_tool_schema_benchmark_isolation",
+      "category": "Batch Runner Sequential State Leak",
+      "resolution_and_evidence": "Isolated rerun: 9/9 PASS (1 failed test recovered)",
+      "verified_isolated_pass": true
+    },
+    {
+      "test_identifier": "tests/test_prompt5_batch_routing.py::test_benchmark_mode_strictly_excludes_write_files_batch",
+      "test_file": "tests/test_prompt5_batch_routing.py",
+      "test_name": "test_benchmark_mode_strictly_excludes_write_files_batch",
+      "category": "Batch Runner Sequential State Leak",
+      "resolution_and_evidence": "Isolated rerun: 10/10 PASS (1 failed test recovered)",
+      "verified_isolated_pass": true
+    },
+    {
+      "test_identifier": "tests/test_reasoning_budget.py::test_classify_complexity_l3_complex",
+      "test_file": "tests/test_reasoning_budget.py",
+      "test_name": "test_classify_complexity_l3_complex",
+      "category": "Obsolete Reasoning & Timeout Bounds",
+      "resolution_and_evidence": "Asserts 180s/240s; expanded to 300s/360s in Phase 4D/Stage 7",
+      "verified_isolated_pass": false
+    },
+    {
+      "test_identifier": "tests/test_reasoning_budget.py::test_classify_complexity_l4_very_complex",
+      "test_file": "tests/test_reasoning_budget.py",
+      "test_name": "test_classify_complexity_l4_very_complex",
+      "category": "Obsolete Reasoning & Timeout Bounds",
+      "resolution_and_evidence": "Asserts 180s/240s; expanded to 300s/360s in Phase 4D/Stage 7",
+      "verified_isolated_pass": false
+    },
+    {
+      "test_identifier": "tests/test_reasoning_budget.py::test_feature_flag_rollback",
+      "test_file": "tests/test_reasoning_budget.py",
+      "test_name": "test_feature_flag_rollback",
+      "category": "Obsolete Reasoning & Timeout Bounds",
+      "resolution_and_evidence": "Asserts 180s/240s; expanded to 300s/360s in Phase 4D/Stage 7",
+      "verified_isolated_pass": false
+    },
+    {
+      "test_identifier": "tests/test_runtime_performance_and_pipeline.py::test_bounded_planning_in_production_mode",
+      "test_file": "tests/test_runtime_performance_and_pipeline.py",
+      "test_name": "test_bounded_planning_in_production_mode",
+      "category": "Obsolete Planning Task Count Bounds",
+      "resolution_and_evidence": "Asserts <=4 tasks; refined to 6 milestones for full websites in Phase 4",
+      "verified_isolated_pass": false
+    },
+    {
+      "test_identifier": "tests/test_surgical_editing.py::test_fs_read_line_addressable_with_numbering",
+      "test_file": "tests/test_surgical_editing.py",
+      "test_name": "test_fs_read_line_addressable_with_numbering",
+      "category": "Batch Runner Sequential State Leak",
+      "resolution_and_evidence": "Isolated rerun: 22/22 PASS (all 19 failed tests recovered)",
+      "verified_isolated_pass": true
+    },
+    {
+      "test_identifier": "tests/test_surgical_editing.py::test_fs_read_offset_and_limit_aliases",
+      "test_file": "tests/test_surgical_editing.py",
+      "test_name": "test_fs_read_offset_and_limit_aliases",
+      "category": "Batch Runner Sequential State Leak",
+      "resolution_and_evidence": "Isolated rerun: 22/22 PASS (all 19 failed tests recovered)",
+      "verified_isolated_pass": true
+    },
+    {
+      "test_identifier": "tests/test_surgical_editing.py::test_fs_read_binary_file_rejection",
+      "test_file": "tests/test_surgical_editing.py",
+      "test_name": "test_fs_read_binary_file_rejection",
+      "category": "Batch Runner Sequential State Leak",
+      "resolution_and_evidence": "Isolated rerun: 22/22 PASS (all 19 failed tests recovered)",
+      "verified_isolated_pass": true
+    },
+    {
+      "test_identifier": "tests/test_surgical_editing.py::test_fs_read_large_file_default_policy",
+      "test_file": "tests/test_surgical_editing.py",
+      "test_name": "test_fs_read_large_file_default_policy",
+      "category": "Batch Runner Sequential State Leak",
+      "resolution_and_evidence": "Isolated rerun: 22/22 PASS (all 19 failed tests recovered)",
+      "verified_isolated_pass": true
+    },
+    {
+      "test_identifier": "tests/test_surgical_editing.py::test_fs_read_detailed_format_reports_crlf_and_hash",
+      "test_file": "tests/test_surgical_editing.py",
+      "test_name": "test_fs_read_detailed_format_reports_crlf_and_hash",
+      "category": "Batch Runner Sequential State Leak",
+      "resolution_and_evidence": "Isolated rerun: 22/22 PASS (all 19 failed tests recovered)",
+      "verified_isolated_pass": true
+    },
+    {
+      "test_identifier": "tests/test_surgical_editing.py::test_fs_edit_exact_one_match_success",
+      "test_file": "tests/test_surgical_editing.py",
+      "test_name": "test_fs_edit_exact_one_match_success",
+      "category": "Batch Runner Sequential State Leak",
+      "resolution_and_evidence": "Isolated rerun: 22/22 PASS (all 19 failed tests recovered)",
+      "verified_isolated_pass": true
+    },
+    {
+      "test_identifier": "tests/test_surgical_editing.py::test_fs_edit_zero_matches_fails_safely",
+      "test_file": "tests/test_surgical_editing.py",
+      "test_name": "test_fs_edit_zero_matches_fails_safely",
+      "category": "Batch Runner Sequential State Leak",
+      "resolution_and_evidence": "Isolated rerun: 22/22 PASS (all 19 failed tests recovered)",
+      "verified_isolated_pass": true
+    },
+    {
+      "test_identifier": "tests/test_surgical_editing.py::test_fs_edit_ambiguous_target_fails_with_match_line_numbers",
+      "test_file": "tests/test_surgical_editing.py",
+      "test_name": "test_fs_edit_ambiguous_target_fails_with_match_line_numbers",
+      "category": "Batch Runner Sequential State Leak",
+      "resolution_and_evidence": "Isolated rerun: 22/22 PASS (all 19 failed tests recovered)",
+      "verified_isolated_pass": true
+    },
+    {
+      "test_identifier": "tests/test_surgical_editing.py::test_fs_edit_replace_all_success",
+      "test_file": "tests/test_surgical_editing.py",
+      "test_name": "test_fs_edit_replace_all_success",
+      "category": "Batch Runner Sequential State Leak",
+      "resolution_and_evidence": "Isolated rerun: 22/22 PASS (all 19 failed tests recovered)",
+      "verified_isolated_pass": true
+    },
+    {
+      "test_identifier": "tests/test_surgical_editing.py::test_fs_edit_preserves_crlf_line_endings",
+      "test_file": "tests/test_surgical_editing.py",
+      "test_name": "test_fs_edit_preserves_crlf_line_endings",
+      "category": "Batch Runner Sequential State Leak",
+      "resolution_and_evidence": "Isolated rerun: 22/22 PASS (all 19 failed tests recovered)",
+      "verified_isolated_pass": true
+    },
+    {
+      "test_identifier": "tests/test_surgical_editing.py::test_fs_edit_minimality_regression",
+      "test_file": "tests/test_surgical_editing.py",
+      "test_name": "test_fs_edit_minimality_regression",
+      "category": "Batch Runner Sequential State Leak",
+      "resolution_and_evidence": "Isolated rerun: 22/22 PASS (all 19 failed tests recovered)",
+      "verified_isolated_pass": true
+    },
+    {
+      "test_identifier": "tests/test_surgical_editing.py::test_fs_edit_suspicious_large_diff_protection",
+      "test_file": "tests/test_surgical_editing.py",
+      "test_name": "test_fs_edit_suspicious_large_diff_protection",
+      "category": "Batch Runner Sequential State Leak",
+      "resolution_and_evidence": "Isolated rerun: 22/22 PASS (all 19 failed tests recovered)",
+      "verified_isolated_pass": true
+    },
+    {
+      "test_identifier": "tests/test_surgical_editing.py::test_fs_edit_stale_file_protection",
+      "test_file": "tests/test_surgical_editing.py",
+      "test_name": "test_fs_edit_stale_file_protection",
+      "category": "Batch Runner Sequential State Leak",
+      "resolution_and_evidence": "Isolated rerun: 22/22 PASS (all 19 failed tests recovered)",
+      "verified_isolated_pass": true
+    },
+    {
+      "test_identifier": "tests/test_surgical_editing.py::test_fs_edit_python_syntax_postcondition_rollback",
+      "test_file": "tests/test_surgical_editing.py",
+      "test_name": "test_fs_edit_python_syntax_postcondition_rollback",
+      "category": "Batch Runner Sequential State Leak",
+      "resolution_and_evidence": "Isolated rerun: 22/22 PASS (all 19 failed tests recovered)",
+      "verified_isolated_pass": true
+    },
+    {
+      "test_identifier": "tests/test_surgical_editing.py::test_fs_edit_json_syntax_postcondition_rollback",
+      "test_file": "tests/test_surgical_editing.py",
+      "test_name": "test_fs_edit_json_syntax_postcondition_rollback",
+      "category": "Batch Runner Sequential State Leak",
+      "resolution_and_evidence": "Isolated rerun: 22/22 PASS (all 19 failed tests recovered)",
+      "verified_isolated_pass": true
+    },
+    {
+      "test_identifier": "tests/test_surgical_editing.py::test_fs_write_creation_and_overwrite_protection",
+      "test_file": "tests/test_surgical_editing.py",
+      "test_name": "test_fs_write_creation_and_overwrite_protection",
+      "category": "Batch Runner Sequential State Leak",
+      "resolution_and_evidence": "Isolated rerun: 22/22 PASS (all 19 failed tests recovered)",
+      "verified_isolated_pass": true
+    },
+    {
+      "test_identifier": "tests/test_surgical_editing.py::test_search_glob_filters_noise_directories",
+      "test_file": "tests/test_surgical_editing.py",
+      "test_name": "test_search_glob_filters_noise_directories",
+      "category": "Batch Runner Sequential State Leak",
+      "resolution_and_evidence": "Isolated rerun: 22/22 PASS (all 19 failed tests recovered)",
+      "verified_isolated_pass": true
+    },
+    {
+      "test_identifier": "tests/test_surgical_editing.py::test_search_grep_line_addressable_and_context",
+      "test_file": "tests/test_surgical_editing.py",
+      "test_name": "test_search_grep_line_addressable_and_context",
+      "category": "Batch Runner Sequential State Leak",
+      "resolution_and_evidence": "Isolated rerun: 22/22 PASS (all 19 failed tests recovered)",
+      "verified_isolated_pass": true
+    },
+    {
+      "test_identifier": "tests/test_surgical_editing.py::test_search_grep_invalid_regex_returns_structured_error",
+      "test_file": "tests/test_surgical_editing.py",
+      "test_name": "test_search_grep_invalid_regex_returns_structured_error",
+      "category": "Batch Runner Sequential State Leak",
+      "resolution_and_evidence": "Isolated rerun: 22/22 PASS (all 19 failed tests recovered)",
+      "verified_isolated_pass": true
+    },
+    {
+      "test_identifier": "tests/test_ultra_low_latency_consolidation.py::test_11_bounded_heuristic_decomposition_root_target",
+      "test_file": "tests/test_ultra_low_latency_consolidation.py",
+      "test_name": "test_11_bounded_heuristic_decomposition_root_target",
+      "category": "Obsolete Planning Task Count Bounds",
+      "resolution_and_evidence": "Asserts <=4 tasks; refined to 6 milestones for full websites in Phase 4",
+      "verified_isolated_pass": false
+    },
+    {
+      "test_identifier": "tests/test_v4_integration.py::test_5_task_mission_all_succeed",
+      "test_file": "tests/test_v4_integration.py",
+      "test_name": "test_5_task_mission_all_succeed",
+      "category": "Obsolete Mock Call Count Expectations",
+      "resolution_and_evidence": "Asserts 5 mock calls; modern runtime executes 9 due to parallelization/repair",
+      "verified_isolated_pass": false
+    },
+    {
+      "test_identifier": "tests/test_v4_integration.py::test_events_contain_all_lifecycle_types",
+      "test_file": "tests/test_v4_integration.py",
+      "test_name": "test_events_contain_all_lifecycle_types",
+      "category": "Obsolete Mock Call Count Expectations",
+      "resolution_and_evidence": "Asserts 5 mock calls; modern runtime executes 9 due to parallelization/repair",
+      "verified_isolated_pass": false
+    },
+    {
+      "test_identifier": "tests/test_v4_integration.py::test_mission_driver_full_flow",
+      "test_file": "tests/test_v4_integration.py",
+      "test_name": "test_mission_driver_full_flow",
+      "category": "Obsolete Mock Call Count Expectations",
+      "resolution_and_evidence": "Asserts 5 mock calls; modern runtime executes 9 due to parallelization/repair",
+      "verified_isolated_pass": false
+    },
+    {
+      "test_identifier": "tests/test_tool_platform.py::test_fs_edit_failure_on_nonexistent_target",
+      "test_file": "tests/test_tool_platform.py",
+      "test_name": "test_fs_edit_failure_on_nonexistent_target",
+      "category": "Batch Runner Sequential State Leak",
+      "resolution_and_evidence": "Isolated rerun: 24/24 PASS (1 failed test recovered)",
+      "verified_isolated_pass": true
+    },
+    {
+      "test_identifier": "tests/test_write_files_batch.py::test_write_files_batch_cleans_temporary_directories",
+      "test_file": "tests/test_write_files_batch.py",
+      "test_name": "test_write_files_batch_cleans_temporary_directories",
+      "category": "Repaired Windows Environmental Issues",
+      "resolution_and_evidence": "Windows Temp root directory enumeration permission handled safely (16/16 PASS)",
+      "verified_isolated_pass": true
+    }
+  ]
+}

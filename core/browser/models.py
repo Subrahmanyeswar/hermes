@@ -24,15 +24,39 @@ class Viewport:
 
     @classmethod
     def desktop(cls) -> Viewport:
-        return cls(width=1280, height=800, is_mobile=False)
+        return cls(width=1280, height=720, is_mobile=False)
+
+    @classmethod
+    def desktop_large(cls) -> Viewport:
+        return cls(width=1440, height=900, is_mobile=False)
 
     @classmethod
     def tablet(cls) -> Viewport:
         return cls(width=768, height=1024, is_mobile=False)
 
     @classmethod
+    def tablet_landscape(cls) -> Viewport:
+        return cls(width=1024, height=768, is_mobile=False)
+
+    @classmethod
     def mobile(cls) -> Viewport:
-        return cls(width=375, height=667, device_scale_factor=2.0, is_mobile=True)
+        return cls(width=375, height=812, device_scale_factor=1.0, is_mobile=True)
+
+    @classmethod
+    def mobile_iphone12(cls) -> Viewport:
+        return cls(width=390, height=844, device_scale_factor=1.0, is_mobile=True)
+
+    @classmethod
+    def standard_matrix(cls) -> List[Viewport]:
+        """Return the 6 canonical qualification viewports."""
+        return [
+            cls(width=1440, height=900, is_mobile=False),
+            cls(width=1280, height=720, is_mobile=False),
+            cls(width=1024, height=768, is_mobile=False),
+            cls(width=768, height=1024, is_mobile=False),
+            cls(width=390, height=844, is_mobile=True),
+            cls(width=375, height=812, is_mobile=True),
+        ]
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -144,7 +168,7 @@ class InspectResult:
             "element_count": len(self.elements),
             "interactive_count": self.interactive_count,
             "visible_text_preview": self.visible_text[:300],
-            "elements": [e.to_dict() for e in self.elements[:50]],
+            "elements": [e.to_dict() if hasattr(e, "to_dict") else e for e in self.elements[:50]],
         }
 
 
@@ -217,3 +241,59 @@ class ActionResult:
             "duration": round(self.duration_seconds, 3),
             "error": self.error,
         }
+
+
+@dataclass
+class LayoutCheckResult:
+    """Detailed responsive layout check across viewports."""
+    passed: bool
+    total_viewports: int
+    failed_viewports: List[str] = field(default_factory=list)
+    viewports: Dict[str, Any] = field(default_factory=dict)
+    summary: str = ""
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "passed": self.passed,
+            "total_viewports": self.total_viewports,
+            "failed_viewports": self.failed_viewports,
+            "summary": self.summary,
+            "viewports": self.viewports,
+        }
+
+
+@dataclass
+class ImageIntegrityResult:
+    """Verification results for rendered image assets."""
+    passed: bool
+    total_images: int
+    loaded_images: int
+    broken_images: int
+    details: List[Dict[str, Any]] = field(default_factory=list)
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "passed": self.passed,
+            "total_images": self.total_images,
+            "loaded_images": self.loaded_images,
+            "broken_images": self.broken_images,
+            "details": self.details,
+        }
+
+
+@dataclass
+class AccessibilityAuditResult:
+    """Baseline accessibility and semantic structure evaluation."""
+    passed: bool
+    score: int
+    total_issues: int
+    issues: List[Dict[str, Any]] = field(default_factory=list)
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "passed": self.passed,
+            "score": self.score,
+            "total_issues": self.total_issues,
+            "issues": self.issues,
+        }
+

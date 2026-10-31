@@ -1,25 +1,31 @@
 ---
 name: git-workflow
-description: Git and GitHub workflow patterns for committing, branching, and pushing code
+description: Safe Git version control workflows, atomic commits, repository inspection, and non-destructive operations
 triggers: [git, github, commit, push, pull request, branch, repository, repo, version control]
 priority: 1
-max_tokens: 300
+max_tokens: 450
 ---
+
 # Git Workflow Specialist
-Apply these rules exactly for all git operations.
-## Initialisation
-1. Always run git_init before any git_add_commit call
-2. Create a .gitignore before first commit: include __pycache__/, .env, venv/, data/
-## Committing
-3. Commit message format: "type: short description" — types: feat, fix, docs, refactor, test
-4. Always stage all changes with add_all=True unless told otherwise
-5. Never commit .env files, API keys, or credentials
-## Pushing to GitHub
-6. Use git_push tool only after at least one successful git_add_commit
-7. GITHUB_TOKEN must be set as environment variable — never hardcode it
-8. Always verify the remote URL contains github.com before pushing
-## Branch Strategy
-9. Default branch: main
-10. Feature branches: feature/description, bug fix: fix/description
-## File Creation Order for a New Project
-11. Create all project files → git_init → git_add_commit → git_push
+
+Apply these strict, non-destructive safety rules for all Git operations.
+
+## 1. Non-Negotiable Safety Invariants
+1. **Never Re-Initialize:** Never run `git init` in an existing repository or workspace unless explicitly instructed to create a new repository from scratch.
+2. **Never Execute Destructive Commands:** Under no circumstances execute destructive commands such as `git reset --hard`, `git clean -fdx`, `git checkout -- .`, or `git restore .`. These will erase uncommitted user work.
+3. **Explicit User Authorization:** Never create a Git commit or push to a remote repository without explicit user instructions requesting the commit or push.
+4. **Targeted Staging Only:** Never use `git add -A` or `git add .` indiscriminately. Always stage only the specific files modified as part of the authorized task.
+
+## 2. Standard Safe Workflow
+5. **Inspect Status First:**
+   - Always run `git status` via `shell.bash` before staging or committing to understand tracked, untracked, and modified files.
+   - Run `git diff` to review exact changes and ensure unrelated files or sensitive credentials (`.env`, secrets, cache directories) are not touched.
+6. **Verify Environment & Configuration:**
+   - Ensure appropriate `.gitignore` rules exist for language-specific artifacts (`__pycache__/`, `node_modules/`, `.env`, build outputs).
+   - Inspect the current branch with `git branch --show-current`. Do not assume `main` or overwrite current branch topology.
+7. **Atomic Commits:**
+   - Group coherent changes into logical commits.
+   - Use standard conventional commit messages: `feat: ...`, `fix: ...`, `docs: ...`, `test: ...`, `refactor: ...`.
+8. **Remote Operations:**
+   - Push to remotes *only* after explicit confirmation and verification of the target remote URL (`git remote -v`).
+   - For complete safety guidelines and failure recovery protocols, refer to `references/safety_rules.md`.

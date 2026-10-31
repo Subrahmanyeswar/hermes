@@ -1,0 +1,65 @@
+{
+  "timestamp": "2026-10-09T15:36:22Z",
+  "screenshots": [
+    {
+      "filename": "app1_habits_desktop_1280x800.png",
+      "path": "C:\\Users\\SUBBU\\Downloads\\hermes\\artifacts\\phase4h\\screenshots\\app1_habits_desktop_1280x800.png",
+      "bytes": 139776,
+      "created": true
+    },
+    {
+      "filename": "app1_habits_interactive_checked.png",
+      "path": "C:\\Users\\SUBBU\\Downloads\\hermes\\artifacts\\phase4h\\screenshots\\app1_habits_interactive_checked.png",
+      "bytes": 140499,
+      "created": true
+    },
+    {
+      "filename": "app1_habits_interactive_modal.png",
+      "path": "C:\\Users\\SUBBU\\Downloads\\hermes\\artifacts\\phase4h\\screenshots\\app1_habits_interactive_modal.png",
+      "bytes": 110585,
+      "created": true
+    },
+    {
+      "filename": "app1_habits_mobile_375x667.png",
+      "path": "C:\\Users\\SUBBU\\Downloads\\hermes\\artifacts\\phase4h\\screenshots\\app1_habits_mobile_375x667.png",
+      "bytes": 24819,
+      "created": true
+    },
+    {
+      "filename": "app1_habits_tablet_768x1024.png",
+      "path": "C:\\Users\\SUBBU\\Downloads\\hermes\\artifacts\\phase4h\\screenshots\\app1_habits_tablet_768x1024.png",
+      "bytes": 112785,
+      "created": true
+    },
+    {
+      "filename": "app2_kanban_desktop_1280x800.png",
+      "path": "C:\\Users\\SUBBU\\Downloads\\hermes\\artifacts\\phase4h\\screenshots\\app2_kanban_desktop_1280x800.png",
+      "bytes": 89998,
+      "created": true
+    },
+    {
+      "filename": "app2_kanban_interactive_modal.png",
+      "path": "C:\\Users\\SUBBU\\Downloads\\hermes\\artifacts\\phase4h\\screenshots\\app2_kanban_interactive_modal.png",
+      "bytes": 105248,
+      "created": true
+    },
+    {
+      "filename": "app2_kanban_interactive_moved.png",
+      "path": "C:\\Users\\SUBBU\\Downloads\\hermes\\artifacts\\phase4h\\screenshots\\app2_kanban_interactive_moved.png",
+      "bytes": 84403,
+      "created": true
+    },
+    {
+      "filename": "app2_kanban_mobile_375x667.png",
+      "path": "C:\\Users\\SUBBU\\Downloads\\hermes\\artifacts\\phase4h\\screenshots\\app2_kanban_mobile_375x667.png",
+      "bytes": 24834,
+      "created": true
+    },
+    {
+      "filename": "app2_kanban_tablet_768x1024.png",
+      "path": "C:\\Users\\SUBBU\\Downloads\\hermes\\artifacts\\phase4h\\screenshots\\app2_kanban_tablet_768x1024.png",
+      "bytes": 58435,
+      "created": true
+    }
+  ]
+}

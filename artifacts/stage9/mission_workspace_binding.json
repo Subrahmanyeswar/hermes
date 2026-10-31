@@ -1,0 +1,22 @@
+{
+  "stage": "Stage 9",
+  "property": "Immutable Mission-to-Workspace Binding",
+  "tested_at": 1791795011.1469524,
+  "rules": [
+    "Each mission immutably records workspace_root at creation time.",
+    "Switching active workspaces in GUI does not alter existing mission boundaries.",
+    "Tool calls, file diffs, verification gates, and reviews execute strictly inside mission workspace."
+  ],
+  "scenarios_passed": [
+    "Scenario A: Initial project discovery and active project presentation",
+    "Scenario B: Native folder picker execution and safe cancellation",
+    "Scenario C: Selecting arbitrary local folder updates active project",
+    "Scenario D: Tasks created under Project A execute strictly in Project A",
+    "Scenario E: Switching to Project B before creating Task 2 executes in Project B",
+    "Scenario F: Project A's history, diffs, and verification remain untouched and bound to Project A",
+    "Scenario G: Selecting HERMES repository root flags protected warning",
+    "Scenario H: Invalid and non-existent folders rejected with 400",
+    "Scenario I: Removing from recent workspaces preserves disk content"
+  ],
+  "acceptance_verdict": "PASSED"
+}

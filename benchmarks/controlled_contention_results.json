@@ -1,0 +1,24 @@
+{
+  "request_1": {
+    "status": "COMPLETED",
+    "duration_seconds": 3.688,
+    "expected_duration": 2.0
+  },
+  "request_2_contended": {
+    "status": "TIMED_OUT",
+    "configured_timeout_seconds": 0.5,
+    "actual_duration_seconds": 0.532,
+    "deadline_respected": true,
+    "error": "Ollama request timed out after 0.5s waiting for execution slot"
+  },
+  "request_3_recovery": {
+    "status": "COMPLETED",
+    "duration_seconds": 0.125,
+    "immediate_acquisition": true
+  },
+  "semaphore_state": {
+    "concurrency_limit": 1,
+    "final_available_permits": 1,
+    "zero_leakage": true
+  }
+}

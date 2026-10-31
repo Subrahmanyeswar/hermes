@@ -55,8 +55,11 @@ class BlobStore:
         blob_id = hashlib.sha256(data).hexdigest()
         dest_path = self._blob_path(blob_id)
 
-        if dest_path.exists() and dest_path.stat().st_size == len(data):
-            return blob_id
+        try:
+            if dest_path.stat().st_size == len(data):
+                return blob_id
+        except FileNotFoundError:
+            pass
 
         dest_path.parent.mkdir(parents=True, exist_ok=True)
 

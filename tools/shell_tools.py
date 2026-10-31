@@ -9,6 +9,7 @@ import time
 import shlex
 import sys
 from pathlib import Path
+from typing import Optional
 
 from pydantic import BaseModel, Field
 
@@ -16,42 +17,334 @@ from core.workspace import workspace_manager
 from tools.base import BaseTool, ToolResult
 from tools.registry import tool
 from tools.security import check_all_gates
+import contextvars
 from loguru import logger
+import psutil
 
-# Global registry of active subprocesses for reliable termination during cancellation
+# Context variable tracking current mission ID in executing asyncio task/thread
+CURRENT_MISSION_ID: contextvars.ContextVar[Optional[str]] = contextvars.ContextVar("current_mission_id", default=None)
+
+# Registry of active subprocesses for reliable termination during cancellation.
+# Backward-compatible set[subprocess.Popen]
 ACTIVE_SUBPROCESSES: set[subprocess.Popen] = set()
 
+# Authoritative process-to-mission ownership mapping: proc -> mission_id
+PROCESS_MISSION_MAP: dict[subprocess.Popen, Optional[str]] = {}
 
-def terminate_active_subprocesses() -> int:
-    """Terminates all active subprocesses tracked during mission execution."""
+
+def register_active_subprocess(proc: subprocess.Popen, mission_id: Optional[str] = None) -> None:
+    """Register an active subprocess with optional mission ownership."""
+    effective_mission_id = mission_id if mission_id is not None else CURRENT_MISSION_ID.get()
+    ACTIVE_SUBPROCESSES.add(proc)
+    PROCESS_MISSION_MAP[proc] = effective_mission_id
+
+
+def unregister_active_subprocess(proc: subprocess.Popen) -> None:
+    """Unregister an active subprocess."""
+    ACTIVE_SUBPROCESSES.discard(proc)
+    PROCESS_MISSION_MAP.pop(proc, None)
+
+
+def terminate_active_subprocesses(mission_id: Optional[str] = None) -> int:
+    """
+    Terminates active subprocesses tracked during mission execution.
+    If mission_id is provided, only terminates subprocesses owned by that mission.
+    If mission_id is None, terminates all tracked subprocesses.
+    Safely terminates child process trees on Windows before killing parent.
+    """
     count = 0
+    targets = []
     for proc in list(ACTIVE_SUBPROCESSES):
+        owner = PROCESS_MISSION_MAP.get(proc)
+        if mission_id is None or owner == mission_id:
+            targets.append(proc)
+
+    for proc in targets:
         try:
+            pid = proc.pid
+            # 1. Terminate descendant processes first (process tree cleanup)
+            try:
+                parent_ps = psutil.Process(pid)
+                children = parent_ps.children(recursive=True)
+                for child in children:
+                    try:
+                        child.terminate()
+                    except (psutil.NoSuchProcess, psutil.AccessDenied):
+                        pass
+                # Wait briefly for children to terminate
+                gone, alive = psutil.wait_procs(children, timeout=1.0)
+                for surviving in alive:
+                    try:
+                        surviving.kill()
+                    except (psutil.NoSuchProcess, psutil.AccessDenied):
+                        pass
+            except (psutil.NoSuchProcess, psutil.AccessDenied, Exception):
+                pass
+
+            # 2. Terminate the main tracked process
             if proc.poll() is None:
                 proc.terminate()
                 try:
                     proc.wait(timeout=1.5)
                 except subprocess.TimeoutExpired:
                     proc.kill()
+                if os.name == "nt" and proc.poll() is None:
+                    try:
+                        subprocess.run(["taskkill", "/F", "/T", "/PID", str(pid)], capture_output=True, timeout=1.0)
+                    except Exception:
+                        pass
                 count += 1
         except Exception as e:
             logger.debug(f"Error terminating subprocess {getattr(proc, 'pid', 'unknown')}: {e}")
         finally:
-            ACTIVE_SUBPROCESSES.discard(proc)
+            unregister_active_subprocess(proc)
+
     return count
 
 
-def _command_for_platform(command: str) -> str:
-    """Translate minimal POSIX shell commands needed for Windows compatibility."""
+def _split_compound_command(cmd: str) -> list[tuple[str, str]]:
+    """
+    Tokenizes a command string into a list of (subcommand, operator) pairs.
+    Handles quotes (single and double) so && or ; inside quotes are not treated as operators.
+    Operators recognized: '&&', '||', '|', '&', ';'
+    Ignores '&' if it is part of a file descriptor redirection like '2>&1' or '>&'.
+    """
+    tokens = []
+    current = []
+    in_single = False
+    in_double = False
+    i = 0
+    n = len(cmd)
+
+    while i < n:
+        c = cmd[i]
+        if c == "'" and not in_double:
+            in_single = not in_single
+            current.append(c)
+            i += 1
+        elif c == '"' and not in_single:
+            in_double = not in_double
+            current.append(c)
+            i += 1
+        elif not in_single and not in_double:
+            # Check 2-char operators first: '&&', '||'
+            op2 = cmd[i:i+2]
+            if op2 in ('&&', '||'):
+                tokens.append((''.join(current).strip(), op2))
+                current = []
+                i += 2
+                continue
+
+            # Check file descriptor redirect like 2>&1 or >&2
+            if c == '&' and i > 0 and cmd[i-1] == '>':
+                current.append(c)
+                i += 1
+                continue
+
+            # Check 1-char operators: '|', '&', ';'
+            if c in ('|', '&', ';'):
+                tokens.append((''.join(current).strip(), c))
+                current = []
+                i += 1
+                continue
+
+            current.append(c)
+            i += 1
+        else:
+            current.append(c)
+            i += 1
+
+    if current or not tokens:
+        tokens.append((''.join(current).strip(), ''))
+
+    return tokens
+
+
+def _translate_single_command(command: str, py: str, cwd: Optional[Path] = None) -> str:
+    """Translate an atomic command into platform-appropriate syntax."""
     stripped_command = command.strip()
-    if sys.platform == "win32" or Path("C:/Windows").exists():
+    if not stripped_command:
+        return ""
+
+    # Global POSIX redirection normalization
+    stripped_command = stripped_command.replace("/dev/null", "NUL")
+
+    # 1. Normalize python / python3 / pytest invocations to canonical venv python
+    if stripped_command.startswith("python "):
+        stripped_command = f'"{py}" ' + stripped_command[7:]
+    elif stripped_command == "python":
+        stripped_command = f'"{py}"'
+    elif stripped_command.startswith("python3 "):
+        stripped_command = f'"{py}" ' + stripped_command[8:]
+    elif stripped_command == "python3":
+        stripped_command = f'"{py}"'
+    elif stripped_command.startswith("pytest "):
+        stripped_command = f'"{py}" -m pytest ' + stripped_command[7:]
+    elif stripped_command == "pytest":
+        stripped_command = f'"{py}" -m pytest'
+
+    # 2. Windows specific builtins
+    is_windows = sys.platform == "win32" or Path("C:/Windows").exists()
+    if is_windows:
         if stripped_command == "pwd":
-            return 'python -c "import os; print(os.getcwd())"'
-        if stripped_command.startswith("sleep "):
+            return f'"{py}" -c "import os; print(os.getcwd())"'
+
+        try:
+            parts = shlex.split(stripped_command, posix=False)
+        except Exception:
             parts = stripped_command.split()
-            if len(parts) == 2 and parts[1].isdigit():
-                return f'python -c "import time; time.sleep({parts[1]})"'
-    return command
+
+        if parts:
+            lead = parts[0].strip('"\'')
+
+            if lead == "pwd":
+                return f'"{py}" -c "import os; print(os.getcwd())"'
+
+            if lead == "ls":
+                # Translate ls commands (e.g. ls -1, ls -la, ls) into canonical python directory listing
+                non_flags = [p.strip('"\'') for p in parts[1:] if not p.strip('"\'').startswith("-")]
+                target = non_flags[0] if non_flags else "."
+                target_esc = target.replace('"', '\\"')
+                py_code = "import os, sys; p = sys.argv[1] if len(sys.argv) > 1 else '.'; (print('\\n'.join(sorted(os.listdir(p)))) if os.path.isdir(p) else (print(p) if os.path.exists(p) else (print('ls: cannot access ' + p + ': No such file or directory', file=sys.stderr), sys.exit(1))))"
+                return f'"{py}" -c "{py_code}" "{target_esc}"'
+
+            if lead == "cat" and len(parts) > 1:
+                target = parts[1].strip('"\'')
+                target_esc = target.replace('"', '\\"')
+                py_code = "import os, sys; p=sys.argv[1]; (sys.stdout.write(open(p, 'r', encoding='utf-8', errors='replace').read()) if os.path.exists(p) else (print('cat: ' + p + ': No such file or directory', file=sys.stderr), sys.exit(1)))"
+                return f'"{py}" -c "{py_code}" "{target_esc}"'
+
+            if lead == "head":
+                n_lines = 10
+                if len(parts) > 1:
+                    arg = parts[1].strip('"\'')
+                    if arg.startswith("-") and arg[1:].isdigit():
+                        n_lines = int(arg[1:])
+                    elif arg == "-n" and len(parts) > 2 and parts[2].strip('"\'').isdigit():
+                        n_lines = int(parts[2].strip('"\''))
+                py_code = f"import sys; [sys.stdout.write(l) for _, l in zip(range({n_lines}), sys.stdin)]"
+                return f'"{py}" -c "{py_code}"'
+
+            if lead == "tail":
+                n_lines = 10
+                if len(parts) > 1:
+                    arg = parts[1].strip('"\'')
+                    if arg.startswith("-") and arg[1:].isdigit():
+                        n_lines = int(arg[1:])
+                    elif arg == "-n" and len(parts) > 2 and parts[2].strip('"\'').isdigit():
+                        n_lines = int(parts[2].strip('"\''))
+                py_code = f"import sys, collections; sys.stdout.writelines(collections.deque(sys.stdin, {n_lines}))"
+                return f'"{py}" -c "{py_code}"'
+
+            if lead == "wc":
+                flags = [p.strip('"\'') for p in parts[1:] if p.strip('"\'').startswith("-")]
+                targets = [p.strip('"\'') for p in parts[1:] if not p.strip('"\'').startswith("-")]
+                flags_str = "".join(f.lstrip("-") for f in flags) or "l"
+                targets_str = " ".join(f'"{t.replace(chr(34), chr(92) + chr(34))}"' for t in targets)
+                py_code = (
+                    "import sys, os; flags = sys.argv[1]; targets = sys.argv[2:]; "
+                    "lines_o = 'l' in flags; words_o = 'w' in flags; bytes_o = 'c' in flags; def_m = not (lines_o or words_o or bytes_o); "
+                    "fmt = lambda l, w, c, n='': ' '.join(([str(l)] if (lines_o or def_m) else []) + ([str(w)] if (words_o or def_m) else []) + ([str(c)] if (bytes_o or def_m) else []) + ([n] if n else [])); "
+                    "data = sys.stdin.buffer.read() if not targets else b''; "
+                    "sys.stdout.write(fmt(data.count(b'\\n'), len(data.split()), len(data)) + '\\n') if not targets else "
+                    "[sys.stdout.write(fmt(open(t, 'rb').read().count(b'\\n'), len(open(t, 'rb').read().split()), len(open(t, 'rb').read()), t) + '\\n') "
+                    "if os.path.exists(t) else sys.stderr.write('wc: ' + t + ': No such file or directory\\n') for t in targets]"
+                )
+                return f'"{py}" -c "{py_code}" "{flags_str}" {targets_str}'.strip()
+
+            if lead == "which" and len(parts) > 1:
+                target = parts[1].strip('"\'')
+                if target in ("python", "python3"):
+                    return f'"{py}" -c "import sys; print(sys.executable)"'
+                return f"where {target}"
+
+            if lead == "sleep" and len(parts) > 1 and parts[1].isdigit():
+                return f'"{py}" -c "import time; time.sleep({parts[1]})"'
+
+            if lead == "mkdir" and "-p" in [p.strip('"\'') for p in parts[1:]]:
+                targets = [p.strip('"\'') for p in parts[1:] if p.strip('"\'') != "-p"]
+                target = targets[0] if targets else "."
+                target_esc = target.replace('"', '\\"')
+                return f'"{py}" -c "import os, sys; os.makedirs(sys.argv[1], exist_ok=True)" "{target_esc}"'
+
+            if lead == "touch" and len(parts) > 1:
+                target = parts[1].strip('"\'')
+                target_esc = target.replace('"', '\\"')
+                return f'"{py}" -c "import pathlib, sys; pathlib.Path(sys.argv[1]).touch(exist_ok=True)" "{target_esc}"'
+
+            if lead == "rm":
+                # Translate rm / rm -f / rm -rf into cross-platform Python unlinking
+                flags = [p.strip('"\'') for p in parts[1:] if p.strip('"\'').startswith("-")]
+                targets = [p.strip('"\'') for p in parts[1:] if not p.strip('"\'').startswith("-")]
+                is_recursive = any("r" in f.lower() for f in flags)
+                is_force = any("f" in f.lower() for f in flags)
+                py_code = (
+                    f"import os, sys, shutil; targets = sys.argv[1:]; force = {is_force}; recursive = {is_recursive}; "
+                    "[((shutil.rmtree(t) if (os.path.isdir(t) and recursive) else os.rmdir(t) if os.path.isdir(t) else os.remove(t)) "
+                    "if os.path.exists(t) else (sys.exit(1) if not force else None)) for t in targets]"
+                )
+                args_str = " ".join(f'"{t.replace(chr(34), chr(92) + chr(34))}"' for t in targets)
+                return f'"{py}" -c "{py_code}" {args_str}'
+
+    # 3. If cwd or workspace_manager has an active directory, normalize redundant directory prefix
+    try:
+        from core.workspace import workspace_manager
+        ws_dir = cwd or (Path(workspace_manager.workspace_root) if workspace_manager.is_locked and workspace_manager.workspace_root else None)
+        if ws_dir and ws_dir.exists():
+            ws_name = ws_dir.name
+            for sep in ("/", "\\"):
+                prefix = f"{ws_name}{sep}"
+                if prefix in stripped_command:
+                    tokens = stripped_command.split()
+                    new_tokens = []
+                    for tok in tokens:
+                        unquoted = tok.strip("\"'")
+                        if unquoted.startswith(prefix):
+                            rel_sub = unquoted[len(prefix):]
+                            if not (ws_dir / unquoted).exists() and (ws_dir / rel_sub).exists():
+                                tok = tok.replace(prefix, "", 1)
+                        new_tokens.append(tok)
+                    stripped_command = " ".join(new_tokens)
+    except Exception:
+        pass
+
+    return stripped_command
+
+
+def _command_for_platform(command: str, cwd: Optional[Path] = None) -> str:
+    """Translate compound POSIX shell commands and python calls using canonical python."""
+    stripped_command = command.strip()
+    if not stripped_command:
+        return ""
+
+    from core.runtime_identity import get_canonical_python_executable
+    py = get_canonical_python_executable()
+
+    # Split compound commands (&&, ||, |, &, ;) while respecting quotes and redirects
+    pairs = _split_compound_command(stripped_command)
+
+    # If single atomic command without operators, fastpath
+    if len(pairs) == 1 and not pairs[0][1]:
+        return _translate_single_command(pairs[0][0], py, cwd=cwd)
+
+    # Translate each sub-command and reconnect with operator
+    translated_pairs = []
+    is_windows = sys.platform == "win32" or Path("C:/Windows").exists()
+    for subcmd, op in pairs:
+        t_sub = _translate_single_command(subcmd, py, cwd=cwd)
+        # On Windows cmd.exe, ';' maps to '&' for sequential execution
+        norm_op = ('&' if (op == ';' and is_windows) else op)
+        translated_pairs.append((t_sub, norm_op))
+
+    result = ""
+    for sub, op in translated_pairs:
+        if result:
+            result += " "
+        result += sub
+        if op:
+            result += f" {op}"
+
+    return result
 
 
 @tool(
@@ -99,6 +392,7 @@ class BashExecTool(BaseTool):
             )
 
         # Force working directory to workspace root for security
+        from core.workspace import workspace_manager
         cwd = workspace_manager.workspace_root or Path.cwd()
         if inp.working_dir and inp.working_dir != ".":
             target_dir = Path(inp.working_dir)
@@ -110,17 +404,79 @@ class BashExecTool(BaseTool):
             work_dir = Path(cwd).resolve()
 
         if not work_dir.exists():
-            return ToolResult(
-                success=False,
-                output="",
-                error=f"Working directory does not exist: {inp.working_dir}",
-                exit_code=1,
-            )
+            if workspace_manager.is_locked and workspace_manager.workspace_root and (
+                work_dir == workspace_manager.workspace_root or
+                workspace_manager.workspace_root in work_dir.parents
+            ):
+                try:
+                    work_dir.mkdir(parents=True, exist_ok=True)
+                    logger.info(f"ShellTools: bootstrapped greenfield workspace directory {work_dir}")
+                except Exception as mkdir_err:
+                    return ToolResult(
+                        success=False,
+                        output="",
+                        error=f"Failed to bootstrap working directory {work_dir}: {mkdir_err}",
+                        exit_code=1,
+                    )
+            else:
+                return ToolResult(
+                    success=False,
+                    output="",
+                    error=f"Working directory does not exist: {inp.working_dir}",
+                    exit_code=1,
+                )
 
         start_time = time.monotonic()
+
+        # Intercept persistent HTTP dev server commands to prevent blocking the agent loop
+        cmd_clean = inp.command.strip().lower()
+        if "http.server" in cmd_clean:
+            import re
+            from core.browser.dev_server import DevServerManager
+            from tools.browser_tools import _run_async
+
+            # Parse optional port e.g. python -m http.server 8000
+            port_match = re.search(r"http\.server\s+(\d+)", inp.command, re.IGNORECASE)
+            assigned_port = int(port_match.group(1)) if port_match else None
+
+            try:
+                dev_mgr = DevServerManager()
+                # Terminate any non-matching stale servers first
+                dev_mgr.stop_stale_servers_not_matching(work_dir)
+                server_info = _run_async(
+                    dev_mgr.start_static_server(
+                        directory=work_dir,
+                        name=f"managed_{work_dir.name}",
+                        port=assigned_port,
+                        timeout=10.0,
+                    )
+                )
+                duration = time.monotonic() - start_time
+                pid_str = f"PID {server_info.process.pid}" if server_info.process else "active"
+                return ToolResult(
+                    success=True,
+                    output=(
+                        f"Managed development server started in background: {server_info.url}/ "
+                        f"({pid_str}) serving {work_dir}. "
+                        f"Server is verified ready. Use browser_open_preview to view."
+                    ),
+                    duration_seconds=duration,
+                    exit_code=0,
+                )
+            except Exception as srv_err:
+                logger.error(f"Failed to start managed background server: {srv_err}")
+                return ToolResult(
+                    success=False,
+                    output="",
+                    error=f"Failed to start managed background server: {srv_err}",
+                    exit_code=1,
+                    duration_seconds=time.monotonic() - start_time,
+                )
+
         proc = None
         try:
             command_to_run = _command_for_platform(inp.command)
+            from core.runtime_identity import get_canonical_subprocess_env
             proc = subprocess.Popen(
                 command_to_run,
                 shell=True,
@@ -128,16 +484,31 @@ class BashExecTool(BaseTool):
                 stderr=subprocess.PIPE,
                 text=True,
                 cwd=str(work_dir),
-                env={**os.environ, "PWD": str(work_dir)},
+                env=get_canonical_subprocess_env({"PWD": str(work_dir)}),
                 stdin=subprocess.DEVNULL,
             )
-            ACTIVE_SUBPROCESSES.add(proc)
+            mid = getattr(inp, "_mission_id", None) or CURRENT_MISSION_ID.get()
+            register_active_subprocess(proc, mission_id=mid)
             stdout, stderr = proc.communicate(timeout=inp.timeout_seconds)
             duration = time.monotonic() - start_time
             exit_code = proc.returncode
         except subprocess.TimeoutExpired:
             if proc:
-                proc.kill()
+                try:
+                    p = psutil.Process(proc.pid)
+                    children = p.children(recursive=True)
+                    for child in children:
+                        try:
+                            child.kill()
+                        except Exception:
+                            pass
+                except Exception:
+                    pass
+                try:
+                    proc.kill()
+                    proc.wait(timeout=1.0)
+                except Exception:
+                    pass
             duration = time.monotonic() - start_time
             return ToolResult(
                 success=False,
@@ -157,7 +528,7 @@ class BashExecTool(BaseTool):
             )
         finally:
             if proc:
-                ACTIVE_SUBPROCESSES.discard(proc)
+                unregister_active_subprocess(proc)
 
         combined_output = stdout
         if stderr:
@@ -170,13 +541,26 @@ class BashExecTool(BaseTool):
             f"bash_exec | exit={exit_code} | duration={duration:.2f}s | "
             f"cmd={inp.command[:60]!r}"
         )
+        details = {
+            "command": inp.command,
+            "cmd_to_run": command_to_run,
+            "cwd": str(work_dir),
+            "pid": getattr(proc, "pid", None),
+            "exit_code": exit_code,
+            "duration_seconds": duration,
+            "timed_out": False,
+            "stdout_chars": len(stdout),
+            "stderr_chars": len(stderr),
+        }
         return ToolResult(
             success=success,
             output=combined_output,
             error=stderr if not success else None,
             exit_code=exit_code,
             duration_seconds=duration,
+            details=details,
         )
+
 
 
 @tool(
@@ -228,15 +612,33 @@ class RunPythonTool(BaseTool):
 
         work_dir = Path(inp.working_dir).resolve()
         if not work_dir.exists():
-            return ToolResult(
-                success=False,
-                output="",
-                error=f"Working directory does not exist: {inp.working_dir}",
-                exit_code=1,
-            )
+            from core.workspace import workspace_manager
+            if workspace_manager.is_locked and workspace_manager.workspace_root and (
+                work_dir == workspace_manager.workspace_root or
+                workspace_manager.workspace_root in work_dir.parents
+            ):
+                try:
+                    work_dir.mkdir(parents=True, exist_ok=True)
+                    logger.info(f"ShellTools: bootstrapped greenfield workspace directory {work_dir}")
+                except Exception as mkdir_err:
+                    return ToolResult(
+                        success=False,
+                        output="",
+                        error=f"Failed to bootstrap working directory {work_dir}: {mkdir_err}",
+                        exit_code=1,
+                    )
+            else:
+                return ToolResult(
+                    success=False,
+                    output="",
+                    error=f"Working directory does not exist: {inp.working_dir}",
+                    exit_code=1,
+                )
 
+        from core.runtime_identity import get_canonical_python_executable, get_canonical_subprocess_env
+        canonical_py = get_canonical_python_executable()
         args_str = " ".join(shlex.quote(a) for a in inp.args)
-        command = f"{sys.executable} {shlex.quote(str(file_path))} {args_str}".strip()
+        command = f'"{canonical_py}" {shlex.quote(str(file_path))} {args_str}'.strip()
         passed, reason = check_all_gates(command)
         if not passed:
             logger.warning(
@@ -250,18 +652,25 @@ class RunPythonTool(BaseTool):
             )
 
         start_time = time.monotonic()
+        proc = None
         try:
-            cmd_list = [sys.executable, str(file_path)] + inp.args
-            result = subprocess.run(
+            cmd_list = [canonical_py, str(file_path)] + inp.args
+            proc = subprocess.Popen(
                 cmd_list,
-                capture_output=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
                 text=True,
                 cwd=str(work_dir),
-                timeout=inp.timeout_seconds,
+                env=get_canonical_subprocess_env(),
                 stdin=subprocess.DEVNULL,
             )
+            register_active_subprocess(proc)
+            stdout, stderr = proc.communicate(timeout=inp.timeout_seconds)
             duration = time.monotonic() - start_time
+            result_returncode = proc.returncode
         except subprocess.TimeoutExpired:
+            if proc:
+                proc.kill()
             duration = time.monotonic() - start_time
             return ToolResult(
                 success=False,
@@ -279,23 +688,26 @@ class RunPythonTool(BaseTool):
                 exit_code=1,
                 duration_seconds=duration,
             )
+        finally:
+            if proc:
+                unregister_active_subprocess(proc)
 
-        combined_output = result.stdout
-        if result.stderr:
+        combined_output = stdout
+        if stderr:
             combined_output += (
-                f"\n[STDERR]:\n{result.stderr}" if result.stdout else result.stderr
+                f"\n[STDERR]:\n{stderr}" if stdout else stderr
             )
 
-        success = result.returncode == 0
+        success = result_returncode == 0
         logger.info(
-            f"run_python | exit={result.returncode} | duration={duration:.2f}s | "
+            f"run_python | exit={result_returncode} | duration={duration:.2f}s | "
             f"file={inp.file_path[:60]!r}"
         )
         return ToolResult(
             success=success,
             output=combined_output,
-            error=result.stderr if not success else None,
-            exit_code=result.returncode,
+            error=stderr if not success else None,
+            exit_code=result_returncode,
             duration_seconds=duration,
         )
 
@@ -333,8 +745,10 @@ class RunTestsTool(BaseTool):
                 exit_code=1,
             )
 
+        from core.runtime_identity import get_canonical_python_executable, get_canonical_subprocess_env
+        canonical_py = get_canonical_python_executable()
         flags = "-v" if inp.verbose else ""
-        command = f"{sys.executable} -m pytest {shlex.quote(inp.test_path)} {flags}".strip()
+        command = f'"{canonical_py}" -m pytest {shlex.quote(inp.test_path)} {flags}'.strip()
         passed, reason = check_all_gates(command)
         if not passed:
             logger.warning(
@@ -348,21 +762,26 @@ class RunTestsTool(BaseTool):
             )
 
         start_time = time.monotonic()
+        proc = None
         try:
-            import shutil
-            base_cmd = ["uv", "run", "pytest"] if shutil.which("uv") else [sys.executable, "-m", "pytest"]
-            cmd_list = base_cmd + [inp.test_path] + (
+            cmd_list = [canonical_py, "-m", "pytest", inp.test_path] + (
                 ["-v"] if inp.verbose else []
             )
-            result = subprocess.run(
+            proc = subprocess.Popen(
                 cmd_list,
-                capture_output=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
                 text=True,
-                timeout=inp.timeout_seconds,
+                env=get_canonical_subprocess_env(),
                 stdin=subprocess.DEVNULL,
             )
+            register_active_subprocess(proc)
+            stdout, stderr = proc.communicate(timeout=inp.timeout_seconds)
             duration = time.monotonic() - start_time
+            result_returncode = proc.returncode
         except subprocess.TimeoutExpired:
+            if proc:
+                proc.kill()
             duration = time.monotonic() - start_time
             return ToolResult(
                 success=False,
@@ -380,28 +799,31 @@ class RunTestsTool(BaseTool):
                 exit_code=1,
                 duration_seconds=duration,
             )
+        finally:
+            if proc:
+                unregister_active_subprocess(proc)
 
-        combined_output = result.stdout
-        if result.stderr:
+        combined_output = stdout
+        if stderr:
             combined_output += (
-                f"\n[STDERR]:\n{result.stderr}" if result.stdout else result.stderr
+                f"\n[STDERR]:\n{stderr}" if stdout else stderr
             )
 
         summary_line = ""
-        for line in result.stdout.split("\n"):
+        for line in stdout.split("\n"):
             if "passed" in line or "failed" in line or "error" in line:
                 summary_line = line.strip()
                 break
 
-        success = result.returncode == 0
+        success = result_returncode == 0
         logger.info(
-            f"run_tests | exit={result.returncode} | duration={duration:.2f}s | "
+            f"run_tests | exit={result_returncode} | duration={duration:.2f}s | "
             f"summary={summary_line!r}"
         )
         return ToolResult(
             success=success,
             output=combined_output,
-            error=result.stderr if not success else None,
-            exit_code=result.returncode,
+            error=stderr if not success else None,
+            exit_code=result_returncode,
             duration_seconds=duration,
         )

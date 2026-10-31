@@ -1,0 +1,154 @@
+[
+  {
+    "task_id": "baseline_a",
+    "task_name": "Baseline A \u2014 Multi-page website",
+    "prompt": "Build a multi-page informational website with common navigation, shared styling, page-specific content, and working internal links.",
+    "complexity": "SIMPLE",
+    "fast_path_candidate": true,
+    "fast_path_reason": "eligible_simple_website_request",
+    "fast_path_model_required": true,
+    "exit_code": 1,
+    "elapsed_seconds": 551.55,
+    "files_analysis": {
+      "files": {
+        "about.html": {
+          "size_bytes": 1557,
+          "lines": 44,
+          "sha256": "9bfc3a718b37",
+          "content_preview": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n  <meta charset=\"UTF-8\">\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n  <title>Abo"
+        },
+        "index.html": {
+          "size_bytes": 2091,
+          "lines": 60,
+          "sha256": "f0b6b3b5768d",
+          "content_preview": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n  <meta charset=\"UTF-8\">\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n  <title>Hom"
+        },
+        "styles.css": {
+          "size_bytes": 2674,
+          "lines": 123,
+          "sha256": "46b1c6c92656",
+          "content_preview": ":root {\n  --primary: #2c5f8a;\n  --accent: #e8a33d;\n  --bg: #f7f9fb;\n  --text: #2b2f36;\n  --muted: #6b7280;\n  --card: #ffffff;\n}\n\n* { margin: 0; paddin"
+        },
+        ".artifacts/missions/m_9f498306/progress.json": {
+          "size_bytes": 830,
+          "lines": 25,
+          "sha256": "ac1fd5facebe",
+          "content_preview": "{\n  \"goal\": {\n    \"id\": \"goal_m_9f498306\",\n    \"title\": \"Build a multi-page informational website with common navigat\",\n    \"status\": \"ACTIVE\",\n    \"u"
+        }
+      },
+      "total_files": 4,
+      "total_bytes": 7152,
+      "total_lines": 252
+    },
+    "alignment_analysis": {
+      "defect_count": 4,
+      "defects": [
+        "Dead link in about.html: 'contact.html' points to missing file 'contact.html'",
+        "Dead link in index.html: 'contact.html' points to missing file 'contact.html'",
+        "Dead link in about.html: 'services.html' points to missing file 'services.html'",
+        "Dead link in index.html: 'services.html' points to missing file 'services.html'"
+      ],
+      "html_ids_count": 0,
+      "html_classes_count": 12,
+      "html_files_count": 2,
+      "css_files_count": 1,
+      "js_files_count": 0
+    },
+    "behavioral_verifier": {
+      "passed": false,
+      "tech_stack": "vanilla_web",
+      "issues": [
+        "No JavaScript file found in workspace root",
+        "No interactive controls (button, input, form, select) found in HTML",
+        "JavaScript contains no event listeners or interaction handlers",
+        "JavaScript does not perform dynamic DOM rendering or state display"
+      ],
+      "features_detected": [
+        "css_styles",
+        "linked_css:styles.css"
+      ]
+    }
+  },
+  {
+    "task_id": "baseline_b",
+    "task_name": "Baseline B \u2014 Dashboard application",
+    "prompt": "Build a realistic administrative dashboard with a data table, filtering/search, forms, modal interactions, state changes, and responsive layout.",
+    "complexity": "SIMPLE",
+    "fast_path_candidate": false,
+    "fast_path_reason": "no_website_intent_detected",
+    "fast_path_model_required": true,
+    "exit_code": 1,
+    "elapsed_seconds": 24.69,
+    "files_analysis": {
+      "files": {
+        ".artifacts/missions/m_abeadc13/progress.json": {
+          "size_bytes": 827,
+          "lines": 25,
+          "sha256": "e688a502d4c6",
+          "content_preview": "{\n  \"goal\": {\n    \"id\": \"goal_m_abeadc13\",\n    \"title\": \"Build a realistic administrative dashboard with a data table\",\n    \"status\": \"ACTIVE\",\n    \"u"
+        }
+      },
+      "total_files": 1,
+      "total_bytes": 827,
+      "total_lines": 25
+    },
+    "alignment_analysis": {
+      "defect_count": 0,
+      "defects": [],
+      "html_ids_count": 0,
+      "html_classes_count": 0,
+      "html_files_count": 0,
+      "css_files_count": 0,
+      "js_files_count": 0
+    },
+    "behavioral_verifier": {
+      "passed": false,
+      "tech_stack": "generic",
+      "issues": [
+        "No files created in workspace root"
+      ],
+      "features_detected": []
+    }
+  },
+  {
+    "task_id": "baseline_c",
+    "task_name": "Baseline C \u2014 Animated landing page",
+    "prompt": "Build a polished landing page with structured sections, consistent typography, visual depth, responsive styling, and meaningful motion.",
+    "complexity": "SIMPLE",
+    "fast_path_candidate": true,
+    "fast_path_reason": "eligible_simple_website_request",
+    "fast_path_model_required": false,
+    "exit_code": 1,
+    "elapsed_seconds": 24.05,
+    "files_analysis": {
+      "files": {
+        ".artifacts/missions/m_6eadef0a/progress.json": {
+          "size_bytes": 815,
+          "lines": 25,
+          "sha256": "0efe1d070461",
+          "content_preview": "{\n  \"goal\": {\n    \"id\": \"goal_m_6eadef0a\",\n    \"title\": \"Build a polished landing page with structured sections, cons\",\n    \"status\": \"ACTIVE\",\n    \"u"
+        }
+      },
+      "total_files": 1,
+      "total_bytes": 815,
+      "total_lines": 25
+    },
+    "alignment_analysis": {
+      "defect_count": 0,
+      "defects": [],
+      "html_ids_count": 0,
+      "html_classes_count": 0,
+      "html_files_count": 0,
+      "css_files_count": 0,
+      "js_files_count": 0
+    },
+    "behavioral_verifier": {
+      "passed": false,
+      "tech_stack": "generic",
+      "issues": [
+        "No files created in workspace root"
+      ],
+      "features_detected": []
+    }
+  }
+]

@@ -45,26 +45,122 @@ from pydantic import BaseModel, Field
 from core.workspace import workspace_manager, WorkspaceBoundaryError
 from tools.base import BaseTool, ToolResult
 from tools.security import check_all_gates
-from tools.shell_tools import ACTIVE_SUBPROCESSES, _command_for_platform
+from tools.shell_tools import (
+    ACTIVE_SUBPROCESSES,
+    _command_for_platform,
+    register_active_subprocess,
+    unregister_active_subprocess,
+)
 from tools.platform.specs import ResponseFormat
 from tools.platform.output import OutputShaper, output_store
 from tools.platform.file_identity import file_identity_cache, FileIdentity
 from tools.platform.errors import ToolError, ToolErrorCode, ErrorGuidance
+from dataclasses import dataclass
+
+
+@dataclass
+class ManifestEntry:
+    path: str
+    absolute_path: str
+    sha256: str
+    size_bytes: int
+    modified_at: float
+    mission_id: str = ""
+    project_root: str = ""
+    relative_path: str = ""
+
+
+class ArtifactManifest:
+    """Authoritative manifest tracking all artifacts created or verified in workspace."""
+    _entries: Dict[str, ManifestEntry] = {}
+
+    @classmethod
+    def record(
+        cls,
+        path_str: str,
+        safe_path: Path,
+        sha256_hash: str,
+        size: int,
+        mission_id: str = "",
+        project_root: str = "",
+    ) -> ManifestEntry:
+        from core.workspace import workspace_manager
+        p_root = project_root or (workspace_manager.root_str if workspace_manager and workspace_manager.is_locked else str(safe_path.parent))
+        try:
+            rel_path = str(safe_path.relative_to(Path(p_root)))
+        except (ValueError, Exception):
+            rel_path = path_str
+
+        entry = ManifestEntry(
+            path=path_str,
+            absolute_path=str(safe_path),
+            sha256=sha256_hash,
+            size_bytes=size,
+            modified_at=time.time(),
+            mission_id=mission_id,
+            project_root=p_root,
+            relative_path=rel_path,
+        )
+        cls._entries[str(safe_path)] = entry
+        return entry
+
+    @classmethod
+    def get(cls, path_or_str: str | Path) -> Optional[ManifestEntry]:
+        return cls._entries.get(str(path_or_str))
+
+    @classmethod
+    def get_by_project(cls, project_root: str) -> List[ManifestEntry]:
+        p_norm = str(Path(project_root).resolve())
+        return [
+            e for e in cls._entries.values()
+            if str(Path(e.project_root).resolve()) == p_norm
+        ]
+
+    @classmethod
+    def get_all(cls) -> List[ManifestEntry]:
+        return list(cls._entries.values())
+
+    @classmethod
+    def clear(cls) -> None:
+        cls._entries.clear()
+
+
+READ_LOOP_TRACKER: Dict[str, Tuple[str, int]] = {}  # safe_path_str -> (content_hash, count)
 
 
 def _resolve_safe_path(data: Dict[str, Any], path_str: str) -> Path:
     """Resolve path against active or global workspace manager."""
-    wm = data.get("_workspace") or workspace_manager
-    if wm and wm.is_locked:
-        return wm.validate_path(path_str)
+    wm = data.get("_workspace") or data.get("workspace") or workspace_manager
+    if wm and getattr(wm, "is_locked", False):
+        try:
+            res = wm.validate_path(path_str)
+            if isinstance(res, Path):
+                return res
+            if isinstance(res, str):
+                return Path(res).resolve()
+        except Exception:
+            pass
+    if wm:
+        root = getattr(wm, "root_str", None) or getattr(wm, "root_path", None) or getattr(wm, "workspace_root", None)
+        if root:
+            p = Path(path_str)
+            if not p.is_absolute():
+                return (Path(root) / p).resolve()
+            return p.resolve()
     return (Path.cwd() / path_str).resolve() if not Path(path_str).is_absolute() else Path(path_str).resolve()
 
 
 def _get_workspace_root(data: Dict[str, Any]) -> Path:
     """Retrieve resolved workspace root directory."""
-    wm = data.get("_workspace") or workspace_manager
-    if wm and wm.is_locked:
-        return Path(wm.root_str).resolve()
+    wm = data.get("_workspace") or data.get("workspace") or workspace_manager
+    if wm and getattr(wm, "is_locked", False):
+        root = getattr(wm, "root_str", None) or getattr(wm, "root_path", None) or getattr(wm, "workspace_root", None)
+        if root:
+            return Path(root).resolve()
+    if wm:
+        root = getattr(wm, "root_str", None) or getattr(wm, "root_path", None) or getattr(wm, "workspace_root", None)
+        if root:
+            return Path(root).resolve()
     return Path.cwd().resolve()
 
 
@@ -169,6 +265,13 @@ class FSReadTool(BaseTool):
             )
 
         if not safe_path.is_file():
+            if safe_path.is_dir():
+                return ToolResult(
+                    success=False,
+                    error=f"Path is not a regular file: '{path_str}'. It is a directory. Use search.glob or list_directory to list directory contents.",
+                    exit_code=1,
+                    details={"code": "PATH_IS_DIRECTORY", "path": path_str},
+                )
             return ToolResult(
                 success=False,
                 error=f"Path is not a regular file: '{path_str}'. Use search.glob to list directory contents.",
@@ -261,6 +364,40 @@ class FSReadTool(BaseTool):
                 )
             output_text = body
 
+        # Check read loop tracker
+        raw_hash = identity.content_hash
+        track_key = str(safe_path)
+        if track_key in READ_LOOP_TRACKER:
+            prev_hash, read_count = READ_LOOP_TRACKER[track_key]
+            if prev_hash == raw_hash:
+                read_count += 1
+                READ_LOOP_TRACKER[track_key] = (raw_hash, read_count)
+            else:
+                READ_LOOP_TRACKER[track_key] = (raw_hash, 1)
+                read_count = 1
+        else:
+            READ_LOOP_TRACKER[track_key] = (raw_hash, 1)
+            read_count = 1
+
+        if read_count >= 2:
+            duration = time.monotonic() - start_t
+            return ToolResult(
+                success=False,
+                error=(
+                    f"TOOL_REJECTED_NO_PROGRESS: Target '{path_str}' was read {read_count} times without intermediate modifications "
+                    f"(SHA-256 {raw_hash[:8]} unchanged). Re-reading without modifications is forbidden. "
+                    "Proceed immediately to creating missing files using fs.write, modifying code using fs.edit, or running tests."
+                ),
+                exit_code=1,
+                duration_seconds=duration,
+                details={
+                    "code": "TOOL_REJECTED_NO_PROGRESS",
+                    "path": path_str,
+                    "read_count": read_count,
+                    "hash": raw_hash,
+                },
+            )
+
         duration = time.monotonic() - start_t
         return ToolResult(
             success=True,
@@ -299,23 +436,83 @@ class FSEditTool(BaseTool):
     def execute(self, inp: Any) -> ToolResult:
         start_t = time.monotonic()
         data = inp if isinstance(inp, dict) else (inp.model_dump() if hasattr(inp, "model_dump") else inp.dict())
-        path_str = data.get("path", "")
-        old_string = data.get("old_string") if data.get("old_string") is not None else data.get("old_text")
-        new_string = data.get("new_string") if data.get("new_string") is not None else data.get("new_text")
+        path_str = (
+            data.get("path")
+            or data.get("file_path")
+            or data.get("file")
+            or data.get("target_path")
+            or data.get("target_file")
+            or ""
+        )
+        old_string = (
+            data.get("old_string")
+            if data.get("old_string") is not None
+            else (
+                data.get("old_text")
+                if data.get("old_text") is not None
+                else (
+                    data.get("old_str")
+                    if data.get("old_str") is not None
+                    else (
+                        data.get("find")
+                        if data.get("find") is not None
+                        else (
+                            data.get("search")
+                            if data.get("search") is not None
+                            else data.get("target")
+                        )
+                    )
+                )
+            )
+        )
+        new_string = (
+            data.get("new_string")
+            if data.get("new_string") is not None
+            else (
+                data.get("new_text")
+                if data.get("new_text") is not None
+                else (
+                    data.get("new_str")
+                    if data.get("new_str") is not None
+                    else (
+                        data.get("replace")
+                        if data.get("replace") is not None
+                        else (
+                            data.get("replacement")
+                            if data.get("replacement") is not None
+                            else data.get("content")
+                        )
+                    )
+                )
+            )
+        )
         expected = data.get("expected_occurrences", 1)
         replace_all = data.get("replace_all", False)
         allow_large_diff = data.get("allow_large_diff", False)
         fmt = ResponseFormat(data.get("response_format", "normal"))
 
-        if old_string is None:
+        if not old_string:
             return ToolResult(
                 success=False,
-                error="old_string (or old_text) parameter is required.",
+                error="old_string (or old_text) parameter must be a non-empty string.",
                 exit_code=1,
                 details={"code": ToolErrorCode.INVALID_ARGUMENT.value},
             )
         if new_string is None:
             new_string = ""
+
+        # Reject fake root dependency files such as 'Three.js'
+        norm_path = path_str.replace("\\", "/").strip("./").lower()
+        if norm_path in ("three.js", "three"):
+            return ToolResult(
+                success=False,
+                error=(
+                    "FAKE_DEPENDENCY_PROHIBITED: Cannot write root-level 'Three.js' file as a substitute for the library. "
+                    "Install 'three' as an npm package in package.json and import it via 'import * as THREE from \"three\"' in main.js."
+                ),
+                exit_code=1,
+                details={"code": "FAKE_DEPENDENCY_PROHIBITED", "path": path_str},
+            )
 
         try:
             safe_path = _resolve_safe_path(data, path_str)
@@ -342,14 +539,25 @@ class FSEditTool(BaseTool):
                 details={"code": ToolErrorCode.EDIT_PATH_INVALID.value, "path": path_str},
             )
 
-        # 1. Stale File Protection (Verify freshness against last read)
+        # 1. Read-before-edit verification (Part G & TEST 7)
+        require_read = data.get("require_read")
+        if require_read or (require_read is not False and (workspace_manager.is_locked or data.get("mission_id") or data.get("_strict_read"))):
+            if not file_identity_cache.has_been_read(safe_path):
+                return ToolResult(
+                    success=False,
+                    error=f"READ_BEFORE_EDIT_REQUIRED: File '{path_str}' has not been read in the current session. You must inspect the file with fs.read before calling fs.edit.",
+                    exit_code=1,
+                    details={"code": "READ_BEFORE_EDIT_REQUIRED", "path": path_str},
+                )
+
+        # 2. Stale File Protection (Verify freshness against last read)
         is_fresh, stale_reason = file_identity_cache.check_freshness(safe_path)
         if not is_fresh:
             return ToolResult(
                 success=False,
-                error=f"EDIT_FILE_CHANGED: {stale_reason} Use 'fs.read' to inspect the updated content before retrying.",
+                error=f"FILE_CHANGED_SINCE_READ (EDIT_FILE_CHANGED): {stale_reason} Use 'fs.read' to inspect the updated content before retrying.",
                 exit_code=1,
-                details={"code": ToolErrorCode.EDIT_FILE_CHANGED.value, "reason": stale_reason},
+                details={"code": ToolErrorCode.EDIT_FILE_CHANGED.value, "error_type": "FILE_CHANGED_SINCE_READ", "reason": stale_reason},
             )
 
         # 2. Read current content and inspect newline style
@@ -371,10 +579,65 @@ class FSEditTool(BaseTool):
         # 3. Exact string matching validation
         count = current_content.count(old_string)
         if count == 0:
+            if newline_style == "\r\n" and "\r\n" not in old_string:
+                alt_old = old_string.replace("\n", "\r\n")
+                if current_content.count(alt_old) > 0:
+                    old_string = alt_old
+                    count = current_content.count(old_string)
+            elif newline_style == "\n" and "\r\n" in old_string:
+                alt_old = old_string.replace("\r\n", "\n")
+                if current_content.count(alt_old) > 0:
+                    old_string = alt_old
+                    count = current_content.count(old_string)
+
+        if count == 0:
+            # Check if user/LLM copied line numbers from fs.read (e.g., "    1 | def foo():")
+            import re
+            cleaned_old = re.sub(r"(?m)^\s*\d+\s*\|\s?", "", old_string)
+            if cleaned_old != old_string and current_content.count(cleaned_old) > 0:
+                old_string = cleaned_old
+                count = current_content.count(old_string)
+                cleaned_new = re.sub(r"(?m)^\s*\d+\s*\|\s?", "", new_string)
+                if cleaned_new != new_string:
+                    new_string = cleaned_new
+
+        if count == 0 and "\\n" in old_string:
+            unescaped_old = old_string.replace("\\n", "\n").replace("\\t", "\t")
+            if current_content.count(unescaped_old) > 0:
+                old_string = unescaped_old
+                count = current_content.count(old_string)
+            elif newline_style == "\r\n":
+                crlf_unescaped = unescaped_old.replace("\n", "\r\n")
+                if current_content.count(crlf_unescaped) > 0:
+                    old_string = crlf_unescaped
+                    count = current_content.count(old_string)
+            if count > 0 and "\\n" in new_string:
+                new_string = new_string.replace("\\n", newline_style).replace("\\t", "\t")
+
+        if count == 0:
+            stripped_old = old_string.strip()
+            if stripped_old and current_content.count(stripped_old) == 1:
+                old_string = stripped_old
+                count = 1
+
+        # If file is a tiny placeholder stub (< 150 chars) and new_string is substantial, replace placeholder stub
+        if count == 0 and len(current_content.strip()) < 150 and len(new_string.strip()) > 50:
+            stub_indicators = ("logic here", "todo", "placeholder", "skeleton", "add the", "pass", "...")
+            if any(ind in current_content.lower() for ind in stub_indicators) or len(current_content.splitlines()) <= 2:
+                old_string = current_content
+                count = 1
+
+        if count == 0:
             guidance = ErrorGuidance.format_guidance(ToolErrorCode.EDIT_TARGET_NOT_FOUND, self.name, {"path": path_str})
+            preview = "\n".join(f"{i+1}: {l}" for i, l in enumerate(current_content.splitlines()[:15]))
             return ToolResult(
                 success=False,
-                error=f"EDIT_TARGET_NOT_FOUND: old_text not found in '{path_str}' (old_string was not present). {guidance}",
+                error=(
+                    f"EDIT_TARGET_NOT_FOUND: old_text not found in '{path_str}' (old_string was not present).\n"
+                    f"Current content of '{path_str}':\n{preview}\n{guidance}\n"
+                    f"CRITICAL: Do NOT attempt fs.edit again on '{path_str}' if old_string does not match! "
+                    f"Use 'fs.write' to write the entire file with complete content directly."
+                ),
                 exit_code=1,
                 details={"code": ToolErrorCode.EDIT_TARGET_NOT_FOUND.value, "path": path_str},
             )
@@ -385,13 +648,14 @@ class FSEditTool(BaseTool):
             # Find line numbers of all matches for diagnostic guidance
             matches_lines: List[int] = []
             start_pos = 0
+            step = max(len(old_string), 1)
             while True:
                 pos = current_content.find(old_string, start_pos)
                 if pos == -1:
                     break
                 line_no = current_content[:pos].count("\n") + 1
                 matches_lines.append(line_no)
-                start_pos = pos + len(old_string)
+                start_pos = pos + step
 
             code = ToolErrorCode.EDIT_TARGET_NOT_UNIQUE if expected == 1 else ToolErrorCode.EDIT_EXPECTED_COUNT_MISMATCH
             guidance = ErrorGuidance.format_guidance(code, self.name, {"count": count, "lines": matches_lines, "expected": expected})
@@ -519,8 +783,17 @@ class FSEditTool(BaseTool):
                 )
 
 
-        # Update file identity cache
+        # Update file identity cache, clear read loop tracker, and record manifest
         file_identity_cache.record(safe_path, encoding=encoding)
+        READ_LOOP_TRACKER.clear()
+        import hashlib
+        ArtifactManifest.record(
+            path_str,
+            safe_path,
+            hashlib.sha256(updated_content.encode(encoding)).hexdigest(),
+            len(updated_content.encode(encoding)),
+            mission_id=data.get("mission_id") or data.get("_mission_id", ""),
+        )
 
         duration = time.monotonic() - start_t
         chars_delta = len(normalized_new) * target_replace_count - len(old_string) * target_replace_count
@@ -571,6 +844,96 @@ class FSWriteTool(BaseTool):
         content = data.get("content", "")
         create_parents = data.get("create_parents", True)
         allow_overwrite = data.get("allow_overwrite", True)
+        # Clean literal escaped newlines if model emitted literal '\n'
+        if isinstance(content, str):
+            if content.endswith(r"\n"):
+                content = content[:-2] + "\n"
+            elif "\n" not in content and r"\n" in content:
+                content = content.replace(r"\n", "\n")
+
+            # Tool boundary defense: unwrap accidental outer JSON envelope if passed as content
+            c_strip = content.strip()
+            if (c_strip.startswith("{") and c_strip.endswith("}")) and ('"content"' in c_strip or '"code"' in c_strip):
+                try:
+                    import json as _json
+                    parsed = _json.loads(c_strip)
+                    if isinstance(parsed, dict):
+                        if "content" in parsed and isinstance(parsed["content"], str):
+                            content = parsed["content"]
+                        elif "code" in parsed and isinstance(parsed["code"], str):
+                            content = parsed["code"]
+                        elif "parameters" in parsed and isinstance(parsed["parameters"], dict):
+                            p = parsed["parameters"]
+                            if "content" in p and isinstance(p["content"], str):
+                                content = p["content"]
+                except Exception:
+                    pass
+
+            # Tool boundary defense: strip markdown code blocks if model wrapped file content
+            c_strip = content.strip()
+            if c_strip.startswith("```"):
+                lines = c_strip.split("\n")
+                if lines and lines[0].startswith("```"):
+                    lines = lines[1:]
+                if lines and lines[-1].strip() == "```":
+                    lines = lines[:-1]
+                content = "\n".join(lines)
+
+            # Architecture Lock: sanitize framework contamination
+            try:
+                from core.architecture_lock import ArchitectureLock
+                arch = ArchitectureLock.get_current()
+                if arch is not None:
+                    content = arch.sanitize_file_content(path_str, content)
+            except Exception:
+                pass
+
+            # Anti-placeholder / anti-ellipsis defense: reject abbreviation stubs
+            c_strip = content.strip()
+            if c_strip in (
+                "/* ... */", "// ...", "# ...", "...",
+                "/* rest of code unchanged */", "// rest of code unchanged",
+                "/* full content here */", "// full content here",
+                "/* existing code here */", "// existing code here",
+                "<!-- ... -->",
+            ):
+                return ToolResult(
+                    success=False,
+                    error=(
+                        "PLACEHOLDER_WRITE_REJECTED: Overwriting a file with an ellipsis or abbreviation comment "
+                        f"('{c_strip}') is forbidden. Provide the complete file content if writing."
+                    ),
+                    exit_code=1,
+                    details={"code": ToolErrorCode.INVALID_ARGUMENT.value, "path": path_str},
+                )
+
+        # Reject fake root dependency files such as 'Three.js'
+        norm_path = path_str.replace("\\", "/").strip("./").lower()
+        if norm_path in ("three.js", "three"):
+            return ToolResult(
+                success=False,
+                error=(
+                    "FAKE_DEPENDENCY_PROHIBITED: Cannot write root-level 'Three.js' file as a substitute for the library. "
+                    "Install 'three' as an npm package in package.json and import it via 'import * as THREE from \"three\"' in main.js."
+                ),
+                exit_code=1,
+                details={"code": "FAKE_DEPENDENCY_PROHIBITED", "path": path_str},
+            )
+
+        if isinstance(content, str):
+            # Comprehensive code completeness validation for implementation files (Section 4)
+            try:
+                from core.code_completeness import validate_implementation_completeness
+                is_complete, completeness_err = validate_implementation_completeness(content, path_str)
+                if not is_complete and completeness_err:
+                    return ToolResult(
+                        success=False,
+                        error=completeness_err,
+                        exit_code=1,
+                        details={"code": "INCOMPLETE_IMPLEMENTATION_REJECTED", "path": path_str},
+                    )
+            except Exception as comp_exc:
+                logger.warning(f"FSWriteTool: completeness validation exception: {comp_exc}")
 
         try:
             safe_path = _resolve_safe_path(data, path_str)
@@ -582,13 +945,61 @@ class FSWriteTool(BaseTool):
                 details={"code": ToolErrorCode.PATH_OUTSIDE_WORKSPACE.value, "path": path_str},
             )
 
+        # Duplicate logical artifact detection (Part B, Part H, & TEST 5)
+        if "generated_projects" in path_str.lower():
+            clean_rel = re.sub(r"^generated_projects/[^/]+/", "", path_str, flags=re.IGNORECASE)
+            try:
+                ws_root = _get_workspace_root(data)
+                cand = ws_root / clean_rel
+                if cand.exists() and cand != safe_path:
+                    return ToolResult(
+                        success=False,
+                        error=f"DUPLICATE_LOGICAL_ARTIFACT: Ambiguous path '{path_str}' conflicts with canonical root file '{clean_rel}'. Operate directly on '{clean_rel}'.",
+                        exit_code=1,
+                        details={"code": "DUPLICATE_LOGICAL_ARTIFACT", "path": path_str, "canonical_path": clean_rel},
+                    )
+            except Exception:
+                pass
+
+        import hashlib
+        content_bytes = content.encode("utf-8")
+        content_hash = hashlib.sha256(content_bytes).hexdigest()
+
+        # Idempotent write: if file already exists with identical content, return UNCHANGED
+        if safe_path.exists() and safe_path.is_file():
+            try:
+                existing_bytes = safe_path.read_bytes()
+                existing_hash = hashlib.sha256(existing_bytes).hexdigest()
+                if existing_hash == content_hash:
+                    file_identity_cache.record(safe_path, encoding="utf-8")
+                    READ_LOOP_TRACKER.clear()
+                    ArtifactManifest.record(
+                        path_str,
+                        safe_path,
+                        content_hash,
+                        len(content_bytes),
+                        mission_id=data.get("mission_id") or data.get("_mission_id", ""),
+                    )
+                    READ_LOOP_TRACKER.clear()
+                    duration = time.monotonic() - start_t
+                    line_count = len(content.splitlines())
+                    return ToolResult(
+                        success=True,
+                        output=f"UNCHANGED (NOOP_ALREADY_MATCHES): Content of '{path_str}' already matches exactly (sha256: {content_hash[:8]}).",
+                        exit_code=0,
+                        duration_seconds=duration,
+                        details={"code": "UNCHANGED", "status": "UNCHANGED", "noop": True, "sha256": content_hash, "lines": line_count},
+                    )
+            except Exception:
+                pass
+
         if safe_path.exists() and not allow_overwrite:
             guidance = ErrorGuidance.format_guidance(ToolErrorCode.FILE_EXISTS_OVERWRITE_REQUIRED, self.name, {"path": path_str})
             return ToolResult(
                 success=False,
-                error=f"FILE_EXISTS_OVERWRITE_REQUIRED: File '{path_str}' already exists.\n{guidance}",
+                error=f"ALREADY_EXISTS (FILE_EXISTS_OVERWRITE_REQUIRED): File '{path_str}' already exists.\n{guidance}",
                 exit_code=1,
-                details={"code": ToolErrorCode.FILE_EXISTS_OVERWRITE_REQUIRED.value, "path": path_str},
+                details={"code": "ALREADY_EXISTS", "legacy_code": ToolErrorCode.FILE_EXISTS_OVERWRITE_REQUIRED.value, "path": path_str},
             )
 
         try:
@@ -597,20 +1008,38 @@ class FSWriteTool(BaseTool):
 
             # Atomic write via tempfile in same directory
             with tempfile.NamedTemporaryFile("wb", dir=safe_path.parent, delete=False) as tf:
-                tf.write(content.encode("utf-8"))
+                tf.write(content_bytes)
                 tf.flush()
                 os.fsync(tf.fileno())
                 tmp_path = Path(tf.name)
             tmp_path.replace(safe_path)
 
-            # Record file identity
-            file_identity_cache.record(safe_path, encoding="utf-8")
+            # Strict post-write filesystem verification
+            if not safe_path.exists() or not safe_path.is_file():
+                return ToolResult(
+                    success=False,
+                    error=f"FILESYSTEM_VERIFICATION_FAILED: File '{path_str}' does not exist on disk after write.",
+                    exit_code=1,
+                    details={"code": "WRITE_VERIFICATION_FAILED", "path": path_str},
+                )
 
+            # Record file identity, clear read loop tracker, and record manifest
+            file_identity_cache.record(safe_path, encoding="utf-8")
+            READ_LOOP_TRACKER.clear()
+            ArtifactManifest.record(
+                path_str,
+                safe_path,
+                content_hash,
+                len(content_bytes),
+                mission_id=data.get("mission_id") or data.get("_mission_id", ""),
+            )
+
+            READ_LOOP_TRACKER.clear()
             duration = time.monotonic() - start_t
             line_count = len(content.splitlines())
             return ToolResult(
                 success=True,
-                output=f"Successfully wrote {len(content)} bytes ({line_count} lines) to '{path_str}'.",
+                output=f"Successfully wrote {len(content_bytes)} bytes ({line_count} lines) to '{path_str}'.",
                 exit_code=0,
                 duration_seconds=duration,
             )
@@ -662,28 +1091,40 @@ class ShellBashTool(BaseTool):
 
         # 2. Resolve working directory
         try:
-            cwd_path = workspace_manager.validate_path(working_dir) if workspace_manager.is_locked else Path(working_dir).resolve()
+            wm = data.get("_workspace") or workspace_manager
+            cwd_path = wm.validate_path(working_dir) if (wm and wm.is_locked) else Path(working_dir).resolve()
             if not cwd_path.exists() or not cwd_path.is_dir():
-                return ToolResult(success=False, error=f"Working directory does not exist: {working_dir}", exit_code=1)
+                if wm and wm.is_locked and wm.workspace_root and (
+                    cwd_path == wm.workspace_root or wm.workspace_root in cwd_path.parents
+                ):
+                    try:
+                        cwd_path.mkdir(parents=True, exist_ok=True)
+                    except Exception:
+                        return ToolResult(success=False, error=f"Working directory does not exist: {working_dir}", exit_code=1)
+                else:
+                    return ToolResult(success=False, error=f"Working directory does not exist: {working_dir}", exit_code=1)
         except WorkspaceBoundaryError as e:
             return ToolResult(success=False, error=f"SECURITY: {e}", exit_code=126)
 
         # 3. Platform adaptation
-        cmd_to_run = _command_for_platform(command)
+        cmd_to_run = _command_for_platform(command, cwd=cwd_path)
+
 
         # 4. Subprocess execution with process tracking
         try:
+            from core.runtime_identity import get_canonical_subprocess_env
             proc = subprocess.Popen(
                 cmd_to_run,
                 shell=True,
                 cwd=str(cwd_path),
+                env=get_canonical_subprocess_env({"PWD": str(cwd_path)}),
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
                 encoding="utf-8",
                 errors="replace",
             )
-            ACTIVE_SUBPROCESSES.add(proc)
+            register_active_subprocess(proc)
             try:
                 stdout, stderr = proc.communicate(timeout=timeout_seconds)
             except subprocess.TimeoutExpired:
@@ -696,8 +1137,9 @@ class ShellBashTool(BaseTool):
                     duration_seconds=time.monotonic() - start_t,
                 )
             finally:
-                ACTIVE_SUBPROCESSES.discard(proc)
+                unregister_active_subprocess(proc)
 
+            READ_LOOP_TRACKER.clear()
             duration = time.monotonic() - start_t
             exit_code = proc.returncode
 
@@ -712,16 +1154,34 @@ class ShellBashTool(BaseTool):
             )
 
             success = (exit_code == 0)
+            details = {
+                "command": command,
+                "cmd_to_run": cmd_to_run,
+                "cwd": str(cwd_path),
+                "pid": getattr(proc, "pid", None),
+                "exit_code": exit_code,
+                "duration_seconds": duration,
+                "timed_out": False,
+                "stdout_chars": len(stdout),
+                "stderr_chars": len(stderr),
+            }
             return ToolResult(
                 success=success,
                 output=shaped.to_observation_text(),
                 error=f"Command failed with exit code {exit_code}" if not success else None,
                 exit_code=exit_code,
                 duration_seconds=duration,
+                details=details,
             )
 
         except Exception as e:
-            return ToolResult(success=False, error=f"Subprocess execution error: {e}", exit_code=1)
+            return ToolResult(
+                success=False,
+                error=f"Subprocess execution error: {e}",
+                exit_code=1,
+                details={"command": command, "error": str(e), "timed_out": False},
+            )
+
 
 
 # ─────────────────────────────────────────────────────────────────────────────

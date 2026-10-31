@@ -1,0 +1,117 @@
+{
+  "timestamp": "2026-10-09T15:36:22Z",
+  "phase": "4H",
+  "apps": {
+    "app1_habits": {
+      "app_key": "app1_habits",
+      "app_name": "StreakFlow Habit Tracker Dashboard",
+      "flows": {
+        "initial_cards": 5,
+        "initial_completed": "3",
+        "checkin_verified": true,
+        "modal_opened": true,
+        "habit_added": true,
+        "post_add_cards": 6,
+        "filter_verified": true,
+        "persistence_verified": true,
+        "zero_console_errors": true
+      },
+      "viewports": {
+        "desktop_1280x800": {
+          "width": 1280,
+          "height": 800,
+          "scrollWidth": 1265,
+          "innerWidth": 1280,
+          "overflow_px": 0,
+          "responsive_pass": true,
+          "screenshot_path": "C:\\Users\\SUBBU\\Downloads\\hermes\\artifacts\\phase4h\\screenshots\\app1_habits_desktop_1280x800.png",
+          "screenshot_captured": true,
+          "bytes": 139776
+        },
+        "tablet_768x1024": {
+          "width": 768,
+          "height": 1024,
+          "scrollWidth": 768,
+          "innerWidth": 768,
+          "overflow_px": 0,
+          "responsive_pass": true,
+          "screenshot_path": "C:\\Users\\SUBBU\\Downloads\\hermes\\artifacts\\phase4h\\screenshots\\app1_habits_tablet_768x1024.png",
+          "screenshot_captured": true,
+          "bytes": 112785
+        },
+        "mobile_375x667": {
+          "width": 375,
+          "height": 667,
+          "scrollWidth": 375,
+          "innerWidth": 375,
+          "overflow_px": 0,
+          "responsive_pass": true,
+          "screenshot_path": "C:\\Users\\SUBBU\\Downloads\\hermes\\artifacts\\phase4h\\screenshots\\app1_habits_mobile_375x667.png",
+          "screenshot_captured": true,
+          "bytes": 24819
+        }
+      },
+      "console_errors": [],
+      "overall_success": true
+    },
+    "app2_kanban": {
+      "app_key": "app2_kanban",
+      "app_name": "KanbanFlow Agile Task Management Console",
+      "flows": {
+        "initial_total": 6,
+        "initial_todo": 2,
+        "initial_progress": 2,
+        "move_verified": true,
+        "modal_opened": true,
+        "task_added": true,
+        "post_add_total": 7,
+        "filter_verified": true,
+        "persistence_verified": true,
+        "zero_console_errors": true
+      },
+      "viewports": {
+        "desktop_1280x800": {
+          "width": 1280,
+          "height": 800,
+          "scrollWidth": 1265,
+          "innerWidth": 1280,
+          "overflow_px": 0,
+          "responsive_pass": true,
+          "screenshot_path": "C:\\Users\\SUBBU\\Downloads\\hermes\\artifacts\\phase4h\\screenshots\\app2_kanban_desktop_1280x800.png",
+          "screenshot_captured": true,
+          "bytes": 89998
+        },
+        "tablet_768x1024": {
+          "width": 768,
+          "height": 1024,
+          "scrollWidth": 768,
+          "innerWidth": 768,
+          "overflow_px": 0,
+          "responsive_pass": true,
+          "screenshot_path": "C:\\Users\\SUBBU\\Downloads\\hermes\\artifacts\\phase4h\\screenshots\\app2_kanban_tablet_768x1024.png",
+          "screenshot_captured": true,
+          "bytes": 58435
+        },
+        "mobile_375x667": {
+          "width": 375,
+          "height": 667,
+          "scrollWidth": 375,
+          "innerWidth": 375,
+          "overflow_px": 0,
+          "responsive_pass": true,
+          "screenshot_path": "C:\\Users\\SUBBU\\Downloads\\hermes\\artifacts\\phase4h\\screenshots\\app2_kanban_mobile_375x667.png",
+          "screenshot_captured": true,
+          "bytes": 24834
+        }
+      },
+      "console_errors": [],
+      "overall_success": true
+    }
+  },
+  "summary": {
+    "all_apps_passed": true,
+    "total_viewports_tested": 6,
+    "zero_console_errors_across_all": true,
+    "persistence_verified_across_all": true
+  }
+}

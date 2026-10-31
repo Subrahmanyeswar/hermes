@@ -31,37 +31,45 @@ class DecisionInterpreter:
         Interpret model response into an AgentDecision.
         Accepts NormalizedModelResponse, dict, or raw text.
         """
-        raw_text = getattr(response, "text", str(response) if response is not None else "").strip()
+        raw_val = getattr(response, "text", None) or getattr(response, "content", None)
+        if raw_val is not None and not hasattr(raw_val, "assert_called"):
+            raw_text = str(raw_val).strip()
+        else:
+            raw_text = ""
         # Redact hidden chain of thought for decision processing
         clean_text = re.sub(r"<think>.*?</think>", "", raw_text, flags=re.DOTALL).strip()
 
         # ── 1. Check Native Tool Calls (OpenAI/NIM format) ───────────────────
         tool_calls = getattr(response, "tool_calls", None)
         if tool_calls and isinstance(tool_calls, list) and len(tool_calls) > 0:
-            primary_call = tool_calls[0]
-            call_id = primary_call.get("id") or primary_call.get("tool_call_id")
-            fn = primary_call.get("function", {})
-            name = fn.get("name") or primary_call.get("name") or primary_call.get("tool")
-            args_raw = fn.get("arguments") or primary_call.get("arguments") or primary_call.get("parameters", {})
-            
-            if isinstance(args_raw, str):
-                try:
-                    args = json.loads(args_raw)
-                except Exception:
-                    args = {"raw_arguments": args_raw}
-            elif isinstance(args_raw, dict):
-                args = args_raw
-            else:
-                args = {}
+            parsed_calls = []
+            for tc in tool_calls:
+                call_id = tc.get("id") or tc.get("tool_call_id")
+                fn = tc.get("function", {})
+                name = fn.get("name") or tc.get("name") or tc.get("tool")
+                args_raw = fn.get("arguments") or tc.get("arguments") or tc.get("parameters", {})
+                if isinstance(args_raw, str):
+                    try:
+                        args = json.loads(args_raw)
+                    except Exception:
+                        args = {"raw_arguments": args_raw}
+                elif isinstance(args_raw, dict):
+                    args = args_raw
+                else:
+                    args = {}
+                parsed_calls.append({"id": call_id, "name": name, "arguments": args})
 
-            return self._classify_tool_call(
-                tool_name=name,
-                arguments=args,
-                tool_call_id=call_id,
+            primary_call = parsed_calls[0]
+            dec = self._classify_tool_call(
+                tool_name=primary_call["name"],
+                arguments=primary_call["arguments"],
+                tool_call_id=primary_call["id"],
                 reasoning=clean_text,
                 turn_id=turn_id,
                 raw_text=raw_text
             )
+            dec.tool_calls = parsed_calls
+            return dec
 
         # ── 2. Parse Text / JSON via ResponseParser ──────────────────────────
         parsed_result = self._parser.parse(response)
@@ -92,6 +100,17 @@ class DecisionInterpreter:
             )
 
         # ── 3. Parse Failure: Evaluate if conversational or invalid ──────────
+        # Check if the output contains a malformed/partial tool JSON attempt
+        if getattr(parsed_result, "has_json_fragment", False) or clean_text.startswith("{") or '"tool"' in clean_text or "'tool'" in clean_text:
+            failure_reason = getattr(parsed_result, "failure_reason", "Malformed or incomplete tool JSON")
+            logger.warning(f"DecisionInterpreter: malformed tool JSON detected | reason={failure_reason}")
+            return AgentDecision(
+                decision_type=AgentDecisionType.INVALID,
+                reasoning=f"Invalid or malformed tool JSON: {failure_reason}. Please emit valid JSON matching the tool schema.",
+                raw_text=raw_text,
+                turn_id=turn_id
+            )
+
         if getattr(parsed_result, "is_plain_text", False) or len(clean_text) > 0:
             # Check if this plain text represents an answer, question, or completion
             return self._classify_text_response(
@@ -215,7 +234,8 @@ class DecisionInterpreter:
         completion_cues = (
             "task complete", "mission complete", "i have completed", "everything is implemented",
             "all requirements are satisfied", "here is the completed", "build is complete",
-            "the implementation is done", "all done"
+            "the implementation is done", "all done", "created and verified", "is created", "has been created",
+            "completed and verified", "successfully created", "is complete", "are complete", "done.", "finished.",
         )
         if any(cue in lower for cue in completion_cues):
             return AgentDecision(
@@ -228,7 +248,7 @@ class DecisionInterpreter:
 
         # General conversational response or thought continuation
         return AgentDecision(
-            decision_type=AgentDecisionType.COMPLETE,
+            decision_type=AgentDecisionType.CONTINUE_REASONING,
             explanation=text,
             reasoning=reasoning,
             turn_id=turn_id,

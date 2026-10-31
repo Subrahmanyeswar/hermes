@@ -194,7 +194,9 @@ class BoundedExecutor:
             coro_or_func = task.func(*task.args, **task.kwargs)
             if asyncio.iscoroutine(coro_or_func):
                 if task.timeout_seconds:
-                    res = await asyncio.wait_for(coro_or_func, timeout=task.timeout_seconds)
+                    elapsed_wait = time.perf_counter() - submission_time
+                    rem_to = max(0.001, task.timeout_seconds - elapsed_wait)
+                    res = await asyncio.wait_for(coro_or_func, timeout=rem_to)
                 else:
                     res = await coro_or_func
             else:

@@ -1,0 +1,123 @@
+{
+  "timestamp": "2026-10-11T21:01:30+05:30",
+  "python_executable": "C:\\Users\\SUBBU\\Downloads\\hermes\\venv\\Scripts\\python.exe",
+  "scenarios": [
+    {
+      "scenario": "A",
+      "name": "Simultaneous Independent Missions",
+      "test_name": "test_scenario_a_simultaneous_independent_missions",
+      "status": "PASSED",
+      "missions": [
+        {
+          "mission_id": "m_scen_a_1",
+          "workspace_root": "ws_a",
+          "output_file": "a_output.txt",
+          "cross_contamination_detected": false,
+          "outcome": "COMPLETED"
+        },
+        {
+          "mission_id": "m_scen_a_2",
+          "workspace_root": "ws_b",
+          "output_file": "b_output.txt",
+          "cross_contamination_detected": false,
+          "outcome": "COMPLETED"
+        }
+      ],
+      "verification": {
+        "workspaces_isolated": true,
+        "event_streams_isolated": true,
+        "state_snapshots_isolated": true
+      }
+    },
+    {
+      "scenario": "B",
+      "name": "Cancel One Mission While the Other Continues",
+      "test_name": "test_scenario_b_cancel_one_mission_while_other_continues",
+      "status": "PASSED",
+      "missions": [
+        {
+          "mission_id": "m_scen_b_cancel",
+          "cancelled": true,
+          "subprocess_killed": true
+        },
+        {
+          "mission_id": "m_scen_b_continue",
+          "cancelled": false,
+          "subprocess_alive": true,
+          "continued_uninterrupted": true
+        }
+      ],
+      "verification": {
+        "scoped_termination_verified": true,
+        "unrelated_subprocess_preserved": true
+      }
+    },
+    {
+      "scenario": "C",
+      "name": "One Mission Times Out While Another Completes",
+      "test_name": "test_scenario_c_one_mission_times_out_while_another_completes",
+      "status": "PASSED",
+      "missions": [
+        {
+          "mission_id": "m_scen_c_a",
+          "max_wall_time_seconds": 0.5,
+          "outcome": "FAILED",
+          "error": "Max wall time exceeded (0.5s > 0.5s)",
+          "approval_request_invalidated": true
+        },
+        {
+          "mission_id": "m_scen_c_b",
+          "max_wall_time_seconds": 5.0,
+          "outcome": "COMPLETED",
+          "approval_request_preserved_during_active": true
+        }
+      ],
+      "verification": {
+        "deadline_isolation_verified": true,
+        "approval_invalidation_scoped": true
+      }
+    },
+    {
+      "scenario": "D",
+      "name": "Process-Tree Cleanup and Isolation",
+      "test_name": "test_scenario_d_process_tree_cleanup_and_isolation",
+      "status": "PASSED",
+      "missions": [
+        {
+          "mission_id": "m_scen_d_tree",
+          "parent_and_child_tree_terminated": true
+        },
+        {
+          "mission_id": "m_other_mission",
+          "unrelated_process_intact": true
+        }
+      ],
+      "verification": {
+        "recursive_tree_kill_verified": true,
+        "no_collateral_damage": true
+      }
+    },
+    {
+      "scenario": "E",
+      "name": "Approvals and Event Isolation",
+      "test_name": "test_scenario_e_approvals_and_event_isolation",
+      "status": "PASSED",
+      "verification": {
+        "grant_mission_binding_enforced": true,
+        "cross_mission_matching_rejected": true,
+        "cancellation_scoping_verified": true
+      }
+    },
+    {
+      "scenario": "F",
+      "name": "Concurrent Deadline and Cancellation Races",
+      "test_name": "test_scenario_f_concurrent_deadline_and_cancellation_races",
+      "status": "PASSED",
+      "verification": {
+        "terminal_state_idempotence_verified": true,
+        "late_event_resurrection_prevented": true,
+        "multiple_cleanup_calls_safe": true
+      }
+    }
+  ]
+}

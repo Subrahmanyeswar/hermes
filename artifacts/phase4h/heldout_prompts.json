@@ -1,0 +1,202 @@
+[
+  {
+    "id": "TRIVIAL-01",
+    "family": "A",
+    "prompt": "Write a python script math_utils.py that computes the greatest common divisor and least common multiple of two integers.",
+    "domain": "algorithms",
+    "expected_complexity": "TRIVIAL",
+    "rationale": "Single standalone file performing pure mathematical calculations with no external dependencies or state."
+  },
+  {
+    "id": "TRIVIAL-02",
+    "family": "A",
+    "prompt": "Create a command line utility count_words.py that reads a text file path from argv[1] and outputs the total word count.",
+    "domain": "cli/text",
+    "expected_complexity": "TRIVIAL",
+    "rationale": "Single-file CLI script with basic argument parsing and file reading."
+  },
+  {
+    "id": "TRIVIAL-03",
+    "family": "A",
+    "prompt": "Implement a python function in date_helpers.py to calculate the number of business days between two dates.",
+    "domain": "datetime/utility",
+    "expected_complexity": "TRIVIAL",
+    "rationale": "Single file utility helper function."
+  },
+  {
+    "id": "TRIVIAL-04",
+    "family": "A",
+    "prompt": "Create a single file script csv_to_json.py to convert a CSV file to a formatted JSON array.",
+    "domain": "data/conversion",
+    "expected_complexity": "TRIVIAL",
+    "rationale": "Single file conversion utility script with standard library."
+  },
+  {
+    "id": "TRIVIAL-05",
+    "family": "A",
+    "prompt": "Write a standalone script ping_probe.py that checks HTTP status 200 of a URL and exits with code 0 or 1.",
+    "domain": "networking",
+    "expected_complexity": "TRIVIAL",
+    "rationale": "Single file health probe script with exit code status."
+  },
+  {
+    "id": "SIMPLE-01",
+    "family": "B",
+    "prompt": "Build a responsive personal habit streak tracker with categories, daily check-in toggles, streak count badges, and localStorage persistence.",
+    "domain": "web/productivity",
+    "expected_complexity": "SIMPLE",
+    "rationale": "Single-tier client-side application with HTML/CSS/JS, interactive DOM components, and local browser persistence."
+  },
+  {
+    "id": "SIMPLE-02",
+    "family": "B",
+    "prompt": "Create an audio sample library browser with waveform visual placeholders, tag filtering, playback controls, and persistent favorites in localStorage.",
+    "domain": "web/media",
+    "expected_complexity": "SIMPLE",
+    "rationale": "Client-side frontend application with media controls, tags, and local persistence."
+  },
+  {
+    "id": "SIMPLE-03",
+    "family": "B",
+    "prompt": "Build a workout logging dashboard with exercise sets/reps input, volume calculation cards, filter by muscle group, and localStorage state.",
+    "domain": "web/health",
+    "expected_complexity": "SIMPLE",
+    "rationale": "Frontend dashboard with form inputs, KPI summary cards, filtering, and localStorage."
+  },
+  {
+    "id": "SIMPLE-04",
+    "family": "B",
+    "prompt": "Design a currency exchange calculator dashboard with rate conversion table, currency pair selectors, historical rate mock chart, and localStorage.",
+    "domain": "web/finance",
+    "expected_complexity": "SIMPLE",
+    "rationale": "Client-side financial calculator dashboard with currency conversion table and persistent settings."
+  },
+  {
+    "id": "SIMPLE-05",
+    "family": "B",
+    "prompt": "Build an interactive markdown note-taking app with live preview side-by-side, note category tags, note deletion, and localStorage.",
+    "domain": "web/notes",
+    "expected_complexity": "SIMPLE",
+    "rationale": "Client-side web app with split-pane layout, note management, and browser persistence."
+  },
+  {
+    "id": "MEDIUM-01",
+    "family": "C",
+    "prompt": "Build a Flask REST API with SQLite database, models and routes for managing hospital patient appointments, doctor availability, and appointment status.",
+    "domain": "backend/healthcare",
+    "expected_complexity": "MEDIUM",
+    "rationale": "Multi-endpoint backend web service with database models, CRUD operations, relationships, and SQLite persistence."
+  },
+  {
+    "id": "MEDIUM-02",
+    "family": "C",
+    "prompt": "Create a FastAPI backend service with SQLite database for customer support tickets with status transitions, priority filtering, and input validation schemas.",
+    "domain": "backend/crm",
+    "expected_complexity": "MEDIUM",
+    "rationale": "Async REST API with request validation models, relational database storage, and status transition logic."
+  },
+  {
+    "id": "MEDIUM-03",
+    "family": "C",
+    "prompt": "Build a Python REST API service with SQLite database storage for a warehouse inventory system with SKU batch tracking, bin locations, and audit logs.",
+    "domain": "backend/logistics",
+    "expected_complexity": "MEDIUM",
+    "rationale": "Backend service managing multi-entity inventory records, transactions, and relational queries."
+  },
+  {
+    "id": "MEDIUM-04",
+    "family": "C",
+    "prompt": "Create a Flask CRUD application with database models and routes for managing course enrollments, student records, and grade assignments.",
+    "domain": "backend/education",
+    "expected_complexity": "MEDIUM",
+    "rationale": "Relational backend service with multiple models, routing logic, validation, and database storage."
+  },
+  {
+    "id": "MEDIUM-05",
+    "family": "C",
+    "prompt": "Build a backend API service with SQLite database for tracking software deployment releases, environment flags, and rollback history.",
+    "domain": "backend/devops",
+    "expected_complexity": "MEDIUM",
+    "rationale": "Structured backend service with status tracking, history logs, schema definitions, and REST endpoints."
+  },
+  {
+    "id": "COMPLEX-01",
+    "family": "D",
+    "prompt": "Build a full-stack platform with OAuth authentication, JWT tokens, database migrations, background worker queue, and payment webhooks.",
+    "domain": "fullstack/auth",
+    "expected_complexity": "COMPLEX",
+    "rationale": "Multi-tier system requiring authentication middleware, token lifecycles, schema migrations, asynchronous workers, and external webhooks."
+  },
+  {
+    "id": "COMPLEX-02",
+    "family": "D",
+    "prompt": "Implement a multi-tier collaborative document system with JWT authorization, role-based access control, revision history database migrations, and Celery tasks.",
+    "domain": "fullstack/collab",
+    "expected_complexity": "COMPLEX",
+    "rationale": "Complex multi-tier platform with RBAC, database migrations, asynchronous job workers, and versioning."
+  },
+  {
+    "id": "COMPLEX-03",
+    "family": "D",
+    "prompt": "Build a SaaS billing platform with Stripe integration, webhook signature validation, subscription state transitions, and background worker email notifications.",
+    "domain": "fullstack/billing",
+    "expected_complexity": "COMPLEX",
+    "rationale": "Platform with third-party payment integration, webhook security, state machine transitions, and background queues."
+  },
+  {
+    "id": "COMPLEX-04",
+    "family": "D",
+    "prompt": "Create an enterprise asset management platform with multi-factor authentication, database migrations, Celery worker asset depreciation calculations, and audit logging.",
+    "domain": "fullstack/enterprise",
+    "expected_complexity": "COMPLEX",
+    "rationale": "Enterprise architecture with auth security, scheduled calculation workers, database migrations, and audit trails."
+  },
+  {
+    "id": "COMPLEX-05",
+    "family": "D",
+    "prompt": "Build an e-commerce platform with OAuth login, shopping cart session persistence, database migrations, order processing worker, and Stripe payments.",
+    "domain": "fullstack/ecommerce",
+    "expected_complexity": "COMPLEX",
+    "rationale": "Multi-component commercial system with authentication, background processing, database migrations, and payment gateways."
+  },
+  {
+    "id": "LARGE-01",
+    "family": "E",
+    "prompt": "Design a microservices architecture with Kafka event bus, gRPC communication, service discovery, and Kubernetes deployment manifests.",
+    "domain": "distributed/microservices",
+    "expected_complexity": "LARGE",
+    "rationale": "Distributed multi-service architecture with asynchronous event streaming, RPC contracts, service discovery, and container orchestration."
+  },
+  {
+    "id": "LARGE-02",
+    "family": "E",
+    "prompt": "Build a high-throughput IoT telemetry ingestion pipeline with distributed Kafka streaming, TimescaleDB storage, Redis caching, and Kubernetes deployment.",
+    "domain": "distributed/iot",
+    "expected_complexity": "LARGE",
+    "rationale": "High-scale distributed streaming data pipeline with streaming bus, time-series storage, caching layer, and Kubernetes orchestration."
+  },
+  {
+    "id": "LARGE-03",
+    "family": "E",
+    "prompt": "Implement an event-driven architecture with Kafka message routing, distributed saga transaction coordinator, and microservice container deployment.",
+    "domain": "distributed/saga",
+    "expected_complexity": "LARGE",
+    "rationale": "Distributed event-driven system with distributed saga compensation logic, broker routing, and container orchestration."
+  },
+  {
+    "id": "LARGE-04",
+    "family": "E",
+    "prompt": "Design a distributed logging and metrics monorepo platform with microservices, OpenTelemetry collectors, Kafka log ingestion, and Kubernetes orchestration.",
+    "domain": "distributed/observability",
+    "expected_complexity": "LARGE",
+    "rationale": "Monorepo distributed system with telemetry collection, distributed ingestion, multiple microservices, and orchestration."
+  },
+  {
+    "id": "LARGE-05",
+    "family": "E",
+    "prompt": "Build a distributed financial ledger system with Kafka partition streams, replicated database nodes, consensus transaction validation, and Kubernetes cluster configuration.",
+    "domain": "distributed/fintech",
+    "expected_complexity": "LARGE",
+    "rationale": "Distributed consensus and partitioned ledger architecture with multi-node replication and Kubernetes infrastructure."
+  }
+]

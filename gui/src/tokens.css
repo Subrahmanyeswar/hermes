@@ -1,0 +1,201 @@
+/* HERMES Design Tokens — Orchid Lilac & Forest Green */
+:root {
+  --bg-main: #DEBAD6;
+  --bg-chrome: #E7CDE1;
+  --bg-surface: #F3E6F0;
+  --bg-selected: #D6AECE;
+
+  --color-forest: #005437;
+  --color-forest-hover: #00422B;
+  --text-main: #003D28;
+  --text-secondary: #1F5A44;
+  --border-subtle: rgba(0, 61, 40, 0.15);
+  --border-focus: #005437;
+
+  --bg-verified: #C5E6D3;
+  --text-verified: #004D2E;
+  --bg-failure: #F2D3CF;
+  --text-failure: #9C3030;
+  --border-failure: rgba(156, 48, 48, 0.25);
+
+  --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, "Cascadia Code", Menlo, Monaco, Consolas, monospace;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body, #root {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+  font-family: var(--font-family);
+  background-color: var(--bg-main);
+  color: var(--text-main);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Typography Helpers */
+.mono {
+  font-family: var(--font-mono);
+}
+
+/* Transitions */
+.transition-fast {
+  transition: all 150ms ease-in-out;
+}
+
+.transition-panel {
+  transition: all 200ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 61, 40, 0.2);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 61, 40, 0.35);
+}
+
+/* ── Mobile Responsive Layout ── */
+.app-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+  max-width: 100vw;
+}
+
+.main-shell {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+  width: 100%;
+}
+
+.left-pane-container {
+  width: 300px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.center-pane-container {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.right-pane-container {
+  width: 380px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.mobile-nav-bar {
+  display: none;
+}
+
+.topbar-desktop-only {
+  display: inline-block;
+}
+
+.topbar-path-btn {
+  max-width: 360px;
+}
+
+@media (max-width: 900px) {
+  .mobile-nav-bar {
+    display: flex;
+    background-color: var(--bg-chrome);
+    border-bottom: 1px solid var(--border-subtle);
+    padding: 6px 8px;
+    gap: 6px;
+    user-select: none;
+    flex-shrink: 0;
+    width: 100%;
+  }
+
+  .mobile-nav-item {
+    flex: 1;
+    padding: 7px 4px;
+    border: none;
+    background: transparent;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    cursor: pointer;
+  }
+
+  .mobile-nav-item.active {
+    background: var(--bg-surface);
+    color: var(--color-forest);
+    font-weight: 700;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+  }
+
+  .topbar-desktop-only {
+    display: none !important;
+  }
+
+  .topbar-path-btn {
+    max-width: 100px !important;
+  }
+
+  .left-pane-container {
+    width: 100% !important;
+    display: none !important;
+    border-right: none !important;
+  }
+  .left-pane-container.mobile-active {
+    display: flex !important;
+  }
+
+  .center-pane-container {
+    width: 100% !important;
+    display: none !important;
+  }
+  .center-pane-container.mobile-active {
+    display: flex !important;
+  }
+
+  .right-pane-container {
+    width: 100% !important;
+    display: none !important;
+    border-left: none !important;
+  }
+  .right-pane-container.mobile-active {
+    display: flex !important;
+  }
+
+  .topbar-container {
+    padding: 0 8px !important;
+    gap: 6px !important;
+  }
+}

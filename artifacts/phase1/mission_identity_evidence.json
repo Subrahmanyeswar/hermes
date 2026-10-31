@@ -1,0 +1,55 @@
+{
+  "phase": "Phase 1 - Canonical Mission Lifecycle and Run Control",
+  "generated_at": 1791809450.0,
+  "identity_contracts": {
+    "mission_id": {
+      "definition": "Authoritative stable identifier for the entire logical mission lifecycle.",
+      "format": "m_[hex8] (e.g., m_3f8a12c4) or caller-provided stable id.",
+      "lifespan": "Spans all runs, attempts, pauses, resumes, and terminal states of the mission."
+    },
+    "run_id": {
+      "definition": "Unique per-execution invocation identifier.",
+      "format": "run_[attempt]_[hex8] (e.g., run_1_a8f9c2d1).",
+      "lifespan": "Scoped strictly to a single execution run attempt. Fresh run_id generated on each restart or retry."
+    },
+    "attempt_number": {
+      "definition": "Monotonically increasing integer tracking run attempts.",
+      "start_value": 1,
+      "monotonicity_rule": "attempt_{n+1} >= attempt_{n}. Re-entrant attempts with stale numbers are rejected."
+    }
+  },
+  "subsystem_propagations": {
+    "MissionState": {
+      "module": "core.runtime_state.models",
+      "fields": ["mission_id", "run_id", "attempt_number", "status", "is_terminal"]
+    },
+    "HermesEvent": {
+      "module": "core.runtime_state.events",
+      "fields": ["event_type", "mission_id", "run_id", "attempt_number", "sequence", "payload"]
+    },
+    "StateReducer": {
+      "module": "core.runtime_state.reducer",
+      "enforcement": "Rejects events with event.run_id != state.mission.run_id and event.mission_id != state.mission.mission_id"
+    },
+    "Mission": {
+      "module": "core.mission_planner",
+      "fields": ["mission_id", "run_id", "attempt_number", "abort_event", "workspace_root"]
+    },
+    "AgentLoop": {
+      "module": "core.agent_loop.loop",
+      "fields": ["_mission_id", "_run_id", "_attempt_number", "abort_event"]
+    },
+    "MissionSnapshot": {
+      "module": "core.server.models",
+      "fields": ["mission_id", "run_id", "attempt_number", "status", "is_terminal", "workspace_root"]
+    },
+    "TypeScriptFrontend": {
+      "module": "gui/src/types.ts",
+      "interfaces": ["MissionSnapshot", "HermesEvent"]
+    }
+  },
+  "verification": {
+    "test_suite": "tests/test_phase1_mission_lifecycle.py::test_scenario_d_mission_identity_stability_and_run_correlation",
+    "verdict": "PASSED"
+  }
+}

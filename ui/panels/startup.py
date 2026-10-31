@@ -59,12 +59,16 @@ class StartupScreen(Screen):
     }
     #launch-btn {
         width: 100%;
+        height: 3;
+        content-align: center middle;
+        text-align: center;
         background: #22C55E;
-        color: black;
+        color: #000000;
         text-style: bold;
     }
     #launch-btn:hover {
         background: #16a34a;
+        color: #000000;
     }
     #status-ok { color: #22C55E; }
     #status-warn { color: #F59E0B; }
@@ -93,7 +97,7 @@ class StartupScreen(Screen):
                     placeholder=str(Path.cwd()),
                     id="workspace-input",
                 )
-                yield Button("[ LAUNCH HERMES ]", id="launch-btn")
+                yield Button(Text("[ LAUNCH HERMES ]"), id="launch-btn")
 
     def on_mount(self) -> None:
         self.run_worker(self._check_system_status(), exclusive=True, name="status-check")

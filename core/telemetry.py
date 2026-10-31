@@ -22,6 +22,7 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import re
 import shutil
 import subprocess
 import threading
@@ -35,6 +36,27 @@ from loguru import logger
 
 
 # ── System Resource Sampling Helper ──────────────────────────────────────────
+
+SECRET_KEY_PATTERN = re.compile(r"(?:api[-_]?key|token|auth|password|secret|bearer)", re.IGNORECASE)
+SECRET_VALUE_PATTERN = re.compile(r"(Bearer\s+[A-Za-z0-9._-]+|nvapi-[A-Za-z0-9_-]+|sk-[A-Za-z0-9_-]+)", re.IGNORECASE)
+
+def redact_telemetry_secrets(val: Any) -> Any:
+    """Recursively scrub authorization keys, tokens, and bearer secrets from telemetry objects."""
+    if isinstance(val, dict):
+        cleaned = {}
+        for k, v in val.items():
+            if isinstance(k, str) and SECRET_KEY_PATTERN.search(k):
+                cleaned[k] = "[REDACTED]"
+            else:
+                cleaned[k] = redact_telemetry_secrets(v)
+        return cleaned
+    elif isinstance(val, list):
+        return [redact_telemetry_secrets(item) for item in val]
+    elif isinstance(val, str):
+        if SECRET_VALUE_PATTERN.search(val):
+            return SECRET_VALUE_PATTERN.sub("[REDACTED]", val)
+        return val
+    return val
 
 def sample_system_resources() -> dict:
     """Sample CPU, RAM, and GPU/VRAM non-invasively."""
@@ -192,6 +214,11 @@ class ModelCallTelemetry:
     # Outcome
     success: bool = True
     retry_count: int = 0
+    attempt_index: int = 0
+    turn_index: Optional[int] = None
+    reasoning_effort: Optional[str] = None
+    finish_reason: Optional[str] = None
+    max_idle_interval_ms: float = 0.0
     timed_out: bool = False
     error: Optional[str] = None
     error_type: Optional[str] = None
@@ -202,6 +229,9 @@ class ModelCallTelemetry:
     gpu_vram_used_mb: float = 0.0
     gpu_util_percent: float = 0.0
     raw_timing_metadata: Dict[str, Any] = field(default_factory=dict)
+
+    def to_dict(self) -> dict:
+        return redact_telemetry_secrets(asdict(self))
 
 
 @dataclass
@@ -325,6 +355,14 @@ class RequestTelemetry:
     total_duration_ms: float = 0.0
     success: bool = False
     pipeline_stage_reached: int = 0
+
+    # Milestone timestamps
+    t_prompt_submitted: float = 0.0
+    t_first_model_requested: float = 0.0
+    t_first_model_response: float = 0.0
+    t_first_tool_available: float = 0.0
+    t_first_tool_dispatched: float = 0.0
+    t_first_fs_mutation: float = 0.0
     
     # Breakdown aggregates
     llm_calls_total: int = 0
@@ -427,8 +465,65 @@ class RequestTelemetry:
         if self.workspace:
             self.workspace_scan_ms = self.workspace.scan_duration_ms
 
+    def get_waterfall(self) -> Dict[str, Any]:
+        """
+        Request-level latency breakdown reconciling total wall-clock time
+        with zero mystery minutes.
+        """
+        total_accounted = (
+            self.workspace_scan_ms
+            + self.context_build_ms
+            + self.planning_ms
+            + self.tier1_ms
+            + self.tier2_ms
+            + self.tier3_ms
+            + self.tool_execution_ms
+            + self.verification_ms
+            + self.disagreement_routing_ms
+            + self.memory_update_ms
+            + self.repair_ms
+            + self.final_response_ms
+        )
+        total_ms = self.total_duration_ms or max(0.0, (time.perf_counter() - self.start_time_monotonic) * 1000.0)
+        overhead_ms = max(0.0, total_ms - total_accounted)
+
+        milestones = {}
+        if self.t_prompt_submitted > 0:
+            if self.t_first_model_requested > self.t_prompt_submitted:
+                milestones["prompt_to_first_model_req_ms"] = round((self.t_first_model_requested - self.t_prompt_submitted) * 1000.0, 2)
+            if self.t_first_model_response > self.t_first_model_requested:
+                milestones["model_req_to_first_model_resp_ms"] = round((self.t_first_model_response - self.t_first_model_requested) * 1000.0, 2)
+            if self.t_first_tool_available > self.t_first_model_response:
+                milestones["resp_to_first_tool_avail_ms"] = round((self.t_first_tool_available - self.t_first_model_response) * 1000.0, 2)
+            if self.t_first_tool_dispatched > self.t_first_tool_available:
+                milestones["tool_avail_to_dispatched_ms"] = round((self.t_first_tool_dispatched - self.t_first_tool_available) * 1000.0, 2)
+            if self.t_first_fs_mutation > self.t_first_tool_dispatched:
+                milestones["tool_dispatched_to_fs_mutation_ms"] = round((self.t_first_fs_mutation - self.t_first_tool_dispatched) * 1000.0, 2)
+
+        return {
+            "request_id": self.request_id,
+            "mission_id": self.mission_id,
+            "total_wall_clock_ms": round(total_ms, 2),
+            "total_accounted_ms": round(total_accounted, 2),
+            "unaccounted_overhead_ms": round(overhead_ms, 2),
+            "stage_breakdown_ms": {
+                "workspace_scan": round(self.workspace_scan_ms, 2),
+                "context_build": round(self.context_build_ms, 2),
+                "planning": round(self.planning_ms, 2),
+                "tier1_generation": round(self.tier1_ms, 2),
+                "tool_execution": round(self.tool_execution_ms, 2),
+                "tier2_verification": round(self.tier2_ms, 2),
+                "disagreement_routing": round(self.disagreement_routing_ms, 2),
+                "tier3_arbitration": round(self.tier3_ms, 2),
+                "memory_update": round(self.memory_update_ms, 2),
+                "repair": round(self.repair_ms, 2),
+                "final_response": round(self.final_response_ms, 2),
+            },
+            "milestone_intervals_ms": milestones,
+        }
+
     def to_dict(self) -> dict:
-        return asdict(self)
+        return redact_telemetry_secrets(asdict(self))
 
 
 # ── Telemetry Manager Singleton ───────────────────────────────────────────────
@@ -490,6 +585,30 @@ class TelemetryManager:
     def get_request(self, request_id: str) -> Optional[RequestTelemetry]:
         with self._global_lock:
             return self._active_requests.get(request_id)
+
+    def check_stalls(self, threshold_seconds: float = 30.0) -> List[Dict[str, Any]]:
+        """
+        Request lifecycle watchdog alerting on stall > threshold_seconds (default 30s).
+        Returns list of stall records.
+        """
+        now = time.perf_counter()
+        stalls = []
+        with self._global_lock:
+            for req_id, req in self._active_requests.items():
+                elapsed = now - req.start_time_monotonic
+                if elapsed > threshold_seconds:
+                    logger.warning(
+                        f"WATCHDOG: Request {req_id} stalled for {elapsed:.1f}s "
+                        f"(stage reached: {req.pipeline_stage_reached})"
+                    )
+                    stalls.append({
+                        "request_id": req_id,
+                        "mission_id": req.mission_id,
+                        "elapsed_seconds": round(elapsed, 2),
+                        "pipeline_stage": req.pipeline_stage_reached,
+                        "stalled": True,
+                    })
+        return stalls
 
     @contextmanager
     def span(self, name: str, request_id: str = "", stage_number: Optional[int] = None, task_id: str = "", parent_id: Optional[str] = None, **meta):
@@ -555,6 +674,20 @@ class TelemetryManager:
                         req.spans.append(s)
         except Exception as e:
             logger.debug(f"Telemetry record_span error: {e}")
+
+    def record_milestone(self, request_id: str, milestone_name: str, ts: Optional[float] = None) -> None:
+        """Record high-precision timestamp for key lifecycle milestones."""
+        if not self.enabled or not request_id:
+            return
+        t = ts if ts is not None else time.perf_counter()
+        try:
+            with self._global_lock:
+                req = self._active_requests.get(request_id)
+                if req and hasattr(req, milestone_name):
+                    if getattr(req, milestone_name, 0.0) == 0.0:
+                        setattr(req, milestone_name, t)
+        except Exception as e:
+            logger.debug(f"Telemetry record_milestone error: {e}")
 
     def record_model_call(self, model_telemetry: ModelCallTelemetry):
         """Record an LLM call telemetry entry."""

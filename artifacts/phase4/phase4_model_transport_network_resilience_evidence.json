@@ -1,0 +1,240 @@
+{
+  "phase": "Phase 4 - Model Transport and Network Resilience",
+  "status": "CLOSED_LOCKED",
+  "timestamp": "2026-10-21T14:48:30Z",
+  "environment": {
+    "repository_root": "C:\\Users\\SUBBU\\Downloads\\hermes",
+    "python_executable": "C:\\Users\\SUBBU\\Downloads\\hermes\\venv\\Scripts\\python.exe",
+    "python_version": "3.12.0",
+    "os": "Windows (win32)"
+  },
+  "model_stack": {
+    "tier1": {
+      "provider": "nvidia_nim",
+      "model": "z-ai/glm-5.3-flash",
+      "purpose": "Primary fast path execution and reasoning"
+    },
+    "tier2": {
+      "provider": "ollama",
+      "model": "gpt-oss:120b-cloud",
+      "purpose": "Secondary resilient fallback"
+    },
+    "tier3": {
+      "provider": "ollama",
+      "model": "nemotron-3-ultra:cloud",
+      "purpose": "Tertiary heavy cognitive fallback"
+    }
+  },
+  "timeout_configuration": {
+    "tier1_nvidia_nim": {
+      "connect_timeout_seconds": 5.0,
+      "first_token_timeout_seconds": 12.0,
+      "stream_idle_timeout_seconds": 8.0,
+      "overall_request_timeout_seconds": 60.0
+    },
+    "tier2_ollama_gpt120b": {
+      "connect_timeout_seconds": 8.0,
+      "first_token_timeout_seconds": 25.0,
+      "stream_idle_timeout_seconds": 15.0,
+      "overall_request_timeout_seconds": 120.0
+    },
+    "tier3_ollama_nemotron": {
+      "connect_timeout_seconds": 10.0,
+      "first_token_timeout_seconds": 35.0,
+      "stream_idle_timeout_seconds": 20.0,
+      "overall_request_timeout_seconds": 180.0
+    }
+  },
+  "retry_and_backoff_policy": {
+    "max_retries_per_tier": 3,
+    "initial_delay_seconds": 1.0,
+    "max_delay_seconds": 30.0,
+    "backoff_multiplier": 2.0,
+    "jitter_algorithm": "Full jitter (random between 0 and exponential delay)",
+    "retry_after_header_precedence": true,
+    "overall_retry_deadline_budget_enforced": true
+  },
+  "circuit_breaker_policy": {
+    "failure_threshold": 5,
+    "cooldown_period_seconds": 30.0,
+    "half_open_trial_budget": 1,
+    "cancellation_trips_breaker": false,
+    "user_stop_trips_breaker": false
+  },
+  "error_classification_matrix": {
+    "HTTP_400": "BAD_REQUEST (Non-retryable)",
+    "HTTP_401": "AUTHENTICATION (Non-retryable, immediate fail/wait)",
+    "HTTP_402": "BILLING (Non-retryable, immediate stop/wait)",
+    "HTTP_403": "PERMISSION / QUOTA_EXHAUSTED (Non-retryable, credential/plan error)",
+    "HTTP_404": "NOT_FOUND / MODEL_UNAVAILABLE (Non-retryable for this route)",
+    "HTTP_408": "TRANSIENT_TIMEOUT (Retryable with backoff)",
+    "HTTP_429_RATE_LIMIT": "RATE_LIMIT (Retryable with backoff or Retry-After header)",
+    "HTTP_429_QUOTA_EXCEEDED": "QUOTA_EXHAUSTED (Non-retryable, fails immediately to fallback or WAITING_FOR_PROVIDER)",
+    "HTTP_500": "SERVER_ERROR (Retryable within budget)",
+    "HTTP_502": "BAD_GATEWAY (Retryable within budget)",
+    "HTTP_503": "SERVICE_UNAVAILABLE (Retryable with backoff or Retry-After)",
+    "HTTP_504": "GATEWAY_TIMEOUT (Retryable within budget)",
+    "CONNECT_TIMEOUT": "CONNECT_TIMEOUT (Retryable, trips circuit breaker on persistent failure)",
+    "STREAM_IDLE_TIMEOUT": "STREAM_STALL (Retryable within budget, discards truncated tokens)",
+    "STREAM_INCOMPLETE": "STREAM_INCOMPLETE (Non-retryable for partial data, tokens discarded)",
+    "MALFORMED_TOOL_CALL": "TOOL_CALL_PARSE_ERROR (Non-retryable for stream payload, reparsed or rejected)"
+  },
+  "acceptance_scenarios": {
+    "Scenario_A_ConnectTimeout": {
+      "status": "PASSED",
+      "test_file": "tests/test_phase4_transport_timeouts.py",
+      "test_function": "test_scenario_a_connect_timeout_enforced"
+    },
+    "Scenario_B_FirstTokenDeadline": {
+      "status": "PASSED",
+      "test_file": "tests/test_phase4_transport_timeouts.py",
+      "test_function": "test_scenario_b_first_token_deadline_enforced"
+    },
+    "Scenario_C_MidstreamStall": {
+      "status": "PASSED",
+      "test_file": "tests/test_phase4_transport_timeouts.py",
+      "test_function": "test_scenario_c_midstream_stall_detection"
+    },
+    "Scenario_D_OverallRequestDeadline": {
+      "status": "PASSED",
+      "test_file": "tests/test_phase4_transport_timeouts.py",
+      "test_function": "test_scenario_d_overall_request_deadline_enforced"
+    },
+    "Scenario_E_TransientRetryBackoff": {
+      "status": "PASSED",
+      "test_file": "tests/test_phase4_retry_backoff.py",
+      "test_function": "test_scenario_e_transient_error_retry_and_backoff"
+    },
+    "Scenario_F_Http401NonRetryable": {
+      "status": "PASSED",
+      "test_file": "tests/test_phase4_transport_error_classification.py",
+      "test_function": "test_scenario_f_http_401_fails_immediately"
+    },
+    "Scenario_G_Http402_403Permanent": {
+      "status": "PASSED",
+      "test_file": "tests/test_phase4_transport_error_classification.py",
+      "test_function": "test_scenario_g_http_402_and_403_non_retryable"
+    },
+    "Scenario_H_Http429RateLimitVsQuota": {
+      "status": "PASSED",
+      "test_file": "tests/test_phase4_transport_error_classification.py",
+      "test_function": "test_scenario_h_rate_limit_vs_quota_exhausted_classification"
+    },
+    "Scenario_I_TruncatedStreamDiscarded": {
+      "status": "PASSED",
+      "test_file": "tests/test_phase4_stream_integrity.py",
+      "test_function": "test_scenario_i_truncated_stream_discarded"
+    },
+    "Scenario_J_MalformedToolCallJsonRejected": {
+      "status": "PASSED",
+      "test_file": "tests/test_phase4_stream_integrity.py",
+      "test_function": "test_scenario_j_malformed_tool_call_json_rejected"
+    },
+    "Scenario_K_CircuitBreakerStateTransitions": {
+      "status": "PASSED",
+      "test_file": "tests/test_phase4_circuit_breaker_fallback.py",
+      "test_function": "test_scenario_k_circuit_breaker_5_failures_open_and_half_open"
+    },
+    "Scenario_L_ExplicitTierFallback": {
+      "status": "PASSED",
+      "test_file": "tests/test_phase4_circuit_breaker_fallback.py",
+      "test_function": "test_scenario_l_explicit_tier1_to_tier2_fallback"
+    },
+    "Scenario_M_AllTiersFailingEntersWaitingForProvider": {
+      "status": "PASSED",
+      "test_file": "tests/test_phase4_network_waiting.py",
+      "test_function": "test_scenario_m_all_tiers_failing_enters_waiting_for_provider"
+    },
+    "Scenario_N_ProviderRecoveryWithoutWanToggle": {
+      "status": "PASSED",
+      "test_file": "tests/test_phase4_provider_recovery.py",
+      "test_function": "test_scenario_n_provider_recovery_without_global_wan_toggle"
+    },
+    "Scenario_O_UserStopWinsRecoveryRace": {
+      "status": "PASSED",
+      "test_file": "tests/test_phase4_provider_recovery.py",
+      "test_function": "test_scenario_o_user_stop_wins_recovery_race"
+    },
+    "Scenario_P_RecoveryFlapDeduplication": {
+      "status": "PASSED",
+      "test_file": "tests/test_phase4_provider_recovery.py",
+      "test_function": "test_scenario_p_recovery_flap_deduplication"
+    },
+    "Scenario_Q_ColdRestartRecoveryClassification": {
+      "status": "PASSED",
+      "test_file": "tests/test_phase4_transport_end_to_end.py",
+      "test_function": "test_scenario_q_cold_restart_recovery_classification"
+    },
+    "Scenario_R_RecoverableWorkspaceBlockerEntersWaitingForNetwork": {
+      "status": "PASSED",
+      "test_file": "tests/test_phase4_network_waiting.py",
+      "test_function": "test_scenario_r_recoverable_workspace_blocker_enters_waiting_for_network"
+    },
+    "Scenario_S_ProbingSecurityTlsValidation": {
+      "status": "PASSED",
+      "test_file": "tests/test_phase4_transport_end_to_end.py",
+      "test_function": "test_scenario_s_probing_security_tls_and_captive_portal"
+    },
+    "Scenario_T_ClientReuseAndPreservation": {
+      "status": "PASSED",
+      "test_file": "tests/test_phase4_client_lifecycle.py",
+      "test_function": "test_scenario_t_client_reuse_and_preservation"
+    },
+    "Scenario_U_NoDuplicateToolExecution": {
+      "status": "PASSED",
+      "test_file": "tests/test_phase4_transport_end_to_end.py",
+      "test_function": "test_scenario_u_no_duplicate_tool_execution_on_transport_retry"
+    },
+    "Scenario_V_RedactionOfCredentialsAndKeys": {
+      "status": "PASSED",
+      "test_file": "tests/test_phase4_transport_error_classification.py",
+      "test_function": "test_scenario_v_credential_and_key_redaction"
+    },
+    "Scenario_W_TruthfulEventsBroadcast": {
+      "status": "PASSED",
+      "test_file": "tests/test_phase4_transport_end_to_end.py",
+      "test_function": "test_scenario_w_truthful_events_persisted_before_broadcast"
+    }
+  },
+  "verification_results": {
+    "phase4_dedicated_suite": {
+      "tests_run": 29,
+      "tests_passed": 29,
+      "tests_failed": 0,
+      "pass_rate_pct": 100.0
+    },
+    "historical_transport_suites": {
+      "phase6_transport_hardening": "16/16 PASSED",
+      "phase7_network_recovery": "15/15 PASSED",
+      "phase10_network_provider_faults": "7/7 PASSED",
+      "tests_run": 38,
+      "tests_passed": 38,
+      "tests_failed": 0,
+      "pass_rate_pct": 100.0
+    },
+    "locked_baseline_regressions": {
+      "phase1_suite": "26/26 PASSED",
+      "phase2_suite": "65/65 PASSED",
+      "phase3_suite": "18/18 PASSED",
+      "tests_run": 109,
+      "tests_passed": 109,
+      "tests_failed": 0,
+      "pass_rate_pct": 100.0
+    },
+    "frontend_verification": {
+      "test_snapshot_race_mjs": "5/5 PASSED",
+      "gui_production_build": "PASSED (vite built in 6.17s, exit 0)"
+    }
+  },
+  "gate_sign_offs": {
+    "Gate_A_TimeoutPrecision": "SIGNED_OFF",
+    "Gate_B_ClassificationAccuracy": "SIGNED_OFF",
+    "Gate_C_StreamingIntegrity": "SIGNED_OFF",
+    "Gate_D_RetryAndCircuitBreakerDiscipline": "SIGNED_OFF",
+    "Gate_E_DurableWaitingSemantics": "SIGNED_OFF",
+    "Gate_F_AutonomousRecoveryHonesty": "SIGNED_OFF",
+    "Gate_G_ExecutionIdempotency": "SIGNED_OFF",
+    "Gate_H_SecurityAndCredentialSafety": "SIGNED_OFF",
+    "Gate_I_BaselineRegressionZeroDefects": "SIGNED_OFF"
+  }
+}

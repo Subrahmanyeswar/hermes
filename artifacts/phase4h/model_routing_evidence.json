@@ -1,0 +1,11 @@
+{
+  "initial_state": "HEALTHY",
+  "circuit_tripped": true,
+  "failure_count": 3,
+  "zero_wait_failover_tier": 2,
+  "zero_wait_verified": true,
+  "recovered": true,
+  "post_recovery_tier": 1,
+  "restored_t1_verified": true,
+  "all_routing_invariants_passed": true
+}

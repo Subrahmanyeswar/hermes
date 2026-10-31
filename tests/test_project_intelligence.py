@@ -92,7 +92,7 @@ def test_hermes_md_discovery_and_content(temp_workspace):
     assert loader.discover_path() == hermes_file
 
     instructions = loader.load()
-    assert instructions.path == str(hermes_file)
+    assert os.path.normcase(instructions.path) == os.path.normcase(str(hermes_file))
     assert instructions.content == content
     assert instructions.line_count == 3
     assert len(instructions.sha256_hash) == 64

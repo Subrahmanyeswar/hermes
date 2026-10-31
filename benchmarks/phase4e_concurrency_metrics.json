@@ -1,0 +1,16 @@
+{
+  "complexity_classification_latency_ms": 0.005721300025470555,
+  "uncompressed_task_count": 8,
+  "compressed_task_count": 4,
+  "mission_compression_ratio": 2.0,
+  "plan_latency_ms": 18.572700035292655,
+  "scheduling_median_ms": 0.031400006264448166,
+  "scheduling_p95_ms": 0.06120000034570694,
+  "concurrent_batch_size": 2,
+  "simulated_serial_seconds": 140.0,
+  "simulated_parallel_seconds": 102.0,
+  "simulated_speedup_factor": 1.3725490196078431,
+  "cached_context_prep_ms": 8.55470000533387,
+  "context_cache_hits": 1,
+  "verification_barrier_enforced": true
+}

@@ -1,0 +1,28 @@
+{
+  "stage": "Stage 5.1",
+  "timestamp": "2026-10-11 11:04:17",
+  "mission_id": "m_stage5_1_lifecycle_fixture",
+  "tests": {
+    "normal_launch_and_connection": {
+      "connected": true,
+      "has_hermes_branding": true,
+      "has_workspace": true,
+      "status": "PASS"
+    },
+    "refresh_no_duplicate_processes": {
+      "connected": true,
+      "process_count_before": 2,
+      "process_count_after": 2,
+      "no_duplicate_spawned": true,
+      "status": "PASS"
+    },
+    "backend_unavailability": {
+      "offline_state_detected": true,
+      "status": "PASS"
+    },
+    "reconnection_after_restart": {
+      "reconnected": true,
+      "status": "PASS"
+    }
+  }
+}

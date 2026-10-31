@@ -1,0 +1,67 @@
+{
+  "phase": "Phase 8",
+  "verification_timestamp": "2026-10-13T13:22:00Z",
+  "files_created_or_modified": [
+    {
+      "path": "core/server/models.py",
+      "action": "modified",
+      "summary": "Added PauseMissionResponse schema; added wait_reason, recovery_required, is_paused to MissionSnapshot."
+    },
+    {
+      "path": "core/server/runtime_adapter.py",
+      "action": "modified",
+      "summary": "Added MISSION_PAUSED event emission in request_pause(); added MISSION_RESUMED emission in resume_mission()."
+    },
+    {
+      "path": "core/server/app.py",
+      "action": "modified",
+      "summary": "Added POST /api/missions/{mission_id}/pause; added in-flight live unpause branch in /resume; updated snapshot with wait_reason, recovery_required, is_paused."
+    },
+    {
+      "path": "core/runtime_state/reducer.py",
+      "action": "modified",
+      "summary": "Populate state.mission.workspace_root from payload on MISSION_STARTED."
+    },
+    {
+      "path": "gui/src/types.ts",
+      "action": "modified",
+      "summary": "Added PauseMissionResponse interface; added wait_reason, recovery_required, is_paused fields to MissionSnapshot."
+    },
+    {
+      "path": "gui/src/api.ts",
+      "action": "modified",
+      "summary": "Added HermesApiClient.pauseMission(); added sequence gap detection in connectMissionEvents()."
+    },
+    {
+      "path": "gui/src/components/TopBar.tsx",
+      "action": "modified",
+      "summary": "Enhanced mission status badge to report PAUSED and WAITING reasons accurately."
+    },
+    {
+      "path": "gui/src/components/Composer.tsx",
+      "action": "modified",
+      "summary": "Added Pause, Resume, and Stop controls; added disabled in-flight guards; added waiting/paused placeholder status."
+    },
+    {
+      "path": "gui/src/components/RightPane.tsx",
+      "action": "modified",
+      "summary": "Added Execution Waiting / Recovery diagnosis card; added Pause, Resume, Stop buttons with in-flight guards."
+    },
+    {
+      "path": "gui/src/App.tsx",
+      "action": "modified",
+      "summary": "Integrated handlePauseMission, handleResumeMission, gap resync trigger, in-flight flags, and immutable mission workspace display."
+    },
+    {
+      "path": "tests/test_stage2_server_and_event_stream.py",
+      "action": "modified",
+      "summary": "Isolated test database fixture to prevent fallback to global disk state."
+    },
+    {
+      "path": "tests/test_phase8_gui_integration.py",
+      "action": "created",
+      "summary": "Dedicated 8-scenario acceptance suite for Phase 8 integration."
+    }
+  ],
+  "verdict": "PASS"
+}

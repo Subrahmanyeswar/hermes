@@ -24,14 +24,14 @@ from textual.widgets import Static, Button
 # ── 30 spinner verbs — exactly as specified in the master plan ────────
 
 SPINNER_VERBS: list[str] = [
-    "Cogitating",      "Ruminating",      "Deliberating",    "Tomfoolering",
-    "Wibbling",        "Prestidigitating","Discombobulating","Boondoggling",
-    "Shenaniganing",   "Contemplating",   "Reasoning",       "Analysing",
-    "Synthesising",    "Pontificating",   "Extrapolating",   "Hypothesising",
-    "Calculating",     "Processing",      "Deducing",        "Inferring",
-    "Contextualising", "Correlating",     "Distilling",      "Formulating",
-    "Constructing",    "Orchestrating",   "Coordinating",    "Evaluating",
-    "Pondering",       "Integrating",
+    "Cogitating", "Ruminating", "Deliberating", "Tomfoolering",
+    "Wibbling", "Prestidigitating", "Discombobulating", "Boondoggling",
+    "Shenaniganing", "Contemplating", "Reasoning", "Analysing",
+    "Synthesising", "Pontificating", "Extrapolating", "Hypothesising",
+    "Calculating", "Processing", "Deducing", "Inferring",
+    "Contextualising", "Correlating", "Distilling", "Formulating",
+    "Constructing", "Orchestrating", "Coordinating", "Evaluating",
+    "Pondering", "Integrating",
 ]
 
 _VERB_INTERVAL_SECONDS: float = 1.5
@@ -79,6 +79,7 @@ class StatusBar(Widget):
     tier1_model: reactive[str]   = reactive("GLM-5.3-Flash", layout=False)
     tier2_model: reactive[str]   = reactive("GPT-OSS",       layout=False)
     tier3_model: reactive[str]   = reactive("Nemotron", layout=False)
+    provider_health: reactive[str]= reactive("T1:HEALTHY", layout=False)
     workspace_name: reactive[str]= reactive("",         layout=False)
     framework: reactive[str]     = reactive("",         layout=False)
     uptime_seconds: reactive[int]= reactive(0,          layout=False)
@@ -174,6 +175,11 @@ class StatusBar(Widget):
             self.tier3_model = _format_model_badge(tier3)
         self._update_display()
 
+    def update_provider_health(self, status: str) -> None:
+        """Update provider health indicator: e.g. T1:HEALTHY, T1:OPEN, T1:PROBING, T2:FAILOVER, T3:ARBITRATION."""
+        self.provider_health = status
+        self._update_display()
+
     def update_log_line(self, log_entry: str) -> None:
         """Update the bottom log line with the latest pipeline event.
         Truncate to 120 characters for brevity.
@@ -186,13 +192,14 @@ class StatusBar(Widget):
     # ── Spinner management ────────────────────────────────────────────
 
     def _start_spinner(self) -> None:
-        """Start cycling through spinner verbs."""
+        """Start cycling spinner frame without overwriting actual backend verb."""
         if self._spinner_timer is not None:
-            return  # Already running
-        self.spinner_verb = _random_verb()
+            return
+        if not self.spinner_verb or self.spinner_verb == "Ready":
+            self.spinner_verb = "Working"
         self._spinner_timer = self.set_interval(
-            _VERB_INTERVAL_SECONDS,
-            self._cycle_verb
+            0.25,
+            self._update_display
         )
 
     def _stop_spinner(self) -> None:
@@ -201,15 +208,11 @@ class StatusBar(Widget):
             self._spinner_timer.stop()
             self._spinner_timer = None
         self.spinner_verb = "Ready"
+        self._update_display()
 
     def _cycle_verb(self) -> None:
-        """Pick a new random verb. Called by timer every 1.5 seconds."""
-        current = self.spinner_verb
-        new_verb = _random_verb()
-        # Avoid showing the same verb twice in a row
-        while new_verb == current and len(SPINNER_VERBS) > 1:
-            new_verb = _random_verb()
-        self.spinner_verb = new_verb
+        """Deprecated: retained for compatibility, does not overwrite backend verb."""
+        self._update_display()
 
     def _get_spinner_frame(self) -> str:
         """Rotating Braille spinner frame."""
@@ -232,8 +235,19 @@ class StatusBar(Widget):
         mc = mode_colours.get(self.mode, "white")
         t.append(f"[{self.mode.upper()}]", style=f"bold {mc}")
 
-        # Model indicators
-        if self.tier2_model:
+        # Model / Provider health indicators
+        if self.provider_health and self.provider_health != "T1:HEALTHY":
+            badge_styles = {
+                "T1:OPEN": "bold #EF4444",
+                "T1:DEGRADED": "bold #F59E0B",
+                "T1:PROBING": "bold #3B82F6",
+                "T1:RECOVERED": "bold #22C55E",
+                "T2:FAILOVER": "bold #F59E0B",
+                "T3:ARBITRATION": "bold #A855F7",
+            }
+            style = badge_styles.get(self.provider_health, "bold #F59E0B")
+            t.append(f"  [{self.provider_health}]", style=style)
+        elif self.tier2_model:
             t.append(f"  [T1:{self.tier1_model}+T2:{self.tier2_model}]", style="dim")
         else:
             t.append(f"  [T1:{self.tier1_model}]", style="dim")
@@ -262,7 +276,12 @@ class StatusBar(Widget):
 
         # Mission progress
         if self.mission_tasks and self.processing:
-            t.append(f"  [{self.mission_tasks}]", style="#4A90D9")
+            parts = self.mission_tasks.split("/")
+            if len(parts) == 2 and parts[0] == "0" and parts[1] != "0":
+                display_tasks = f"1/{parts[1]}"
+            else:
+                display_tasks = self.mission_tasks
+            t.append(f"  [Task {display_tasks}]", style="#4A90D9")
 
         t.append("  |  ", style="dim")
 

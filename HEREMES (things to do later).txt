@@ -11,10 +11,9 @@ HEREMES (things to do later)
 & "C:\Users\SUBBU\AppData\Local\Programs\Ollama\ollama.exe" serve
 
 cd C:\Users\SUBBU\Downloads\hermes
-venv\Scripts\activate
+.\venv\Scripts\Activate.ps1
 
 python main.py ui
-
 
 
 https://github.com/Subrahmanyeswar/hermes.git
@@ -22,13 +21,54 @@ dont leave anything push each and everything to GitHub
 
 
 
-
-
-okay bro then give me the very detailed prompt from the issues we found after prompt 8  
-
-lets also clear these issues and lets pass and lock this prompt 8
+just a wild guess 
+does adding vector db rag  things
+does it  make the overall hermes better
 
 
 
-exit code 0 or keep alive 0
-go back too lower models 
+how is this phase dont give new phase prompt just tell me about this 
+
+
+now consider the previous phase output and along with this phase and give me the detailed prompt and never forget python 3.12 and venv virtual env
+Non-negotiable rules for every phase
+These apply from the first Antigravity prompt to the final release.
+Environment
+
+The canonical Python interpreter is C:\Users\SUBBU\Downloads\hermes\venv\Scripts\python.exe, Python 3.12.0. All Python, pytest and Python subprocess work must use this virtual environment. No rebuilding the virtual environment or silently changing model configuration.
+
+
+
+Data safety
+
+No destructive Git operations, no resetting or clearing mission history, and no testing against the HERMES repository root as a mission workspace. Preserve .hermes, .artifacts, historical records and unrelated work.
+
+
+
+Truthful status
+
+Disk state, durable mission records and backend events govern the UI. No fake progress verbs, false completion, false successful Stop, or automatic replay of unsafe operations.
+
+
+
+Controlled change
+
+Each phase begins with an inspection, makes a bounded set of changes, runs focused tests, runs applicable regressions, and stops if its acceptance gate fails. The next phase doesn't hide unresolved defects from the previous one.
+
+
+
+
+
+
+Set-Location "C:\Users\SUBBU\Downloads\hermes"
+
+& ".\venv\Scripts\python.exe" -m core.server.launcher launch
+
+
+
+Invoke-RestMethod "http://127.0.0.1:8765/api/health" |
+    Format-List
+
+
+bro now on these issues by doing deep thinking and research find me the best solution and core logics give me your detailed prompt
+later dont say like can i give you this can i give you that like that give me everything and core logics to solve this issue in single shot give me the very very detailed prompt.....

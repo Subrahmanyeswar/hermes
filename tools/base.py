@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import abc
 from dataclasses import dataclass, field
+from typing import Any
 
 
 @dataclass
@@ -19,6 +20,13 @@ class ToolResult:
     exit_code: int = 0
     duration_seconds: float = 0.0
     details: dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
+
+    def __post_init__(self):
+        if self.metadata and not self.details:
+            self.details = self.metadata
+        elif self.details and not self.metadata:
+            self.metadata = self.details
 
     def __str__(self) -> str:
 

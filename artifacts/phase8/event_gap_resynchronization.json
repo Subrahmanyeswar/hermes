@@ -1,0 +1,13 @@
+{
+  "phase": "Phase 8",
+  "component": "event_gap_resynchronization",
+  "verification_timestamp": "2026-10-13T13:22:00Z",
+  "contract": "Sequence gap detection callback in SSE client triggering snapshot resynchronization",
+  "implementation": {
+    "api_client_gap_detection": "parsed.sequence > cursor + 1",
+    "on_gap_callback": "onGap(cursor + 1, parsed.sequence)",
+    "app_reaction": "refreshSnapshot(currentMissionId)",
+    "event_deduplication": "prev.some(e => e.sequence === event.sequence && e.event_id === event.event_id)"
+  },
+  "verdict": "PASS"
+}

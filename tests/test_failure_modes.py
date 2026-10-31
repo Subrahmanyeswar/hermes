@@ -64,6 +64,7 @@ def orch(mock_db):
         o._tier3 = o.claude
         o.claude.get_cost_summary = MagicMock(return_value={"total_spent": 0.0})
         o.verifier = mock_verifier.return_value
+        o.verification_gate.enabled = False
         yield o
 
 
@@ -122,7 +123,7 @@ class TestToolNotFound:
             result = await orch.run("test tool not found retry success")
             assert isinstance(result, OrchestratorResult)
             assert result.success is True
-            assert result.tool_name == "list_dir"
+            assert result.tool_name in ("list_dir", "list_directory")
             assert orch.ollama.generate.call_count >= 2
 
     async def test_tool_not_found_both_attempts_fail(self, orch):

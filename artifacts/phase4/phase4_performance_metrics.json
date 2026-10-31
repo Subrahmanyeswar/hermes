@@ -1,0 +1,20 @@
+{
+  "phase": "Phase 4",
+  "benchmarks": {
+    "stop_signaling_latency_ms": {
+      "budget_ms": 50.0,
+      "measured_ms": 0.04,
+      "verdict": "PASS"
+    },
+    "gui_build_time_s": {
+      "budget_s": 5.0,
+      "measured_s": 2.32,
+      "verdict": "PASS"
+    },
+    "test_suite_execution_s": {
+      "budget_s": 30.0,
+      "measured_s": 11.80,
+      "verdict": "PASS"
+    }
+  }
+}

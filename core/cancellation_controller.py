@@ -64,8 +64,8 @@ class CancellationController:
         if mission_id in self._cancellation_events:
             self._cancellation_events[mission_id].set()
 
-        # 3. Terminate all active mission-owned subprocesses
-        terminated_procs = terminate_active_subprocesses()
+        # 3. Terminate active mission-owned subprocesses
+        terminated_procs = terminate_active_subprocesses(mission_id=mission_id)
 
         # 4. Publish MISSION_CANCELLED to EventBus (locks ExecutionStateStore)
         cancel_event = HermesEvent(

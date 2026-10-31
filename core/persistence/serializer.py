@@ -37,12 +37,14 @@ from core.runtime_state.models import (
     SessionState,
     SessionStatus,
     EvidenceState,
+    EvidenceKind,
     CheckpointState,
     CheckpointStatus,
     RequirementState,
     RequirementStatus,
     RequirementPriority,
     RequirementCategory,
+    RequirementType,
     AcceptanceCheck,
     AcceptanceCheckStatus,
     AcceptanceLedger,
@@ -69,6 +71,9 @@ from core.runtime_state.models import (
     EscalationDecisionType,
     DisagreementClass,
 )
+from core.contracts.blueprint import ImplementationBlueprint
+from core.contracts.manifest import InterfaceManifest
+from core.contracts.rubric import QualityRubric
 
 
 def compute_state_hash(state_dict: Dict[str, Any]) -> str:
@@ -116,6 +121,8 @@ def deserialize_runtime_state(data: Dict[str, Any]) -> HermesRuntimeState:
     m_data = data.get("mission", {})
     mission = MissionState(
         mission_id=m_data.get("mission_id", "default"),
+        run_id=m_data.get("run_id"),
+        attempt_number=m_data.get("attempt_number", 1),
         request_id=m_data.get("request_id"),
         session_id=m_data.get("session_id", "sess_default"),
         status=MissionStatus(m_data.get("status", MissionStatus.CREATED.value)),
@@ -134,6 +141,8 @@ def deserialize_runtime_state(data: Dict[str, Any]) -> HermesRuntimeState:
         execution_mode=m_data.get("execution_mode", "auto"),
         workspace_root=m_data.get("workspace_root", ""),
         last_event_sequence=m_data.get("last_event_sequence", 0),
+        active_skills=m_data.get("active_skills", data.get("active_skills", [])),
+        skill_fingerprints=m_data.get("skill_fingerprints", data.get("skill_fingerprints", {})),
     )
 
     # 2. GoalState
@@ -237,6 +246,7 @@ def deserialize_runtime_state(data: Dict[str, Any]) -> HermesRuntimeState:
             rd,
             {
                 "category": RequirementCategory,
+                "requirement_type": RequirementType,
                 "priority": RequirementPriority,
                 "status": RequirementStatus,
             },
@@ -337,6 +347,16 @@ def deserialize_runtime_state(data: Dict[str, Any]) -> HermesRuntimeState:
             {"decision": EscalationDecisionType, "disagreement_class": DisagreementClass},
         )
 
+    # 17. Phase 11 Contracts
+    bp_data = data.get("blueprint")
+    blueprint = ImplementationBlueprint.from_dict(bp_data) if bp_data else None
+
+    im_data = data.get("interface_manifest")
+    interface_manifest = InterfaceManifest.from_dict(im_data) if im_data else None
+
+    qr_data = data.get("quality_rubric")
+    quality_rubric = QualityRubric.from_dict(qr_data) if qr_data else None
+
     # Assemble state
     state = HermesRuntimeState(
         mission=mission,
@@ -363,6 +383,11 @@ def deserialize_runtime_state(data: Dict[str, Any]) -> HermesRuntimeState:
         background_jobs=background_jobs,
         repairs=repairs,
         escalations=escalations,
+        blueprint=blueprint,
+        interface_manifest=interface_manifest,
+        quality_rubric=quality_rubric,
+        active_skills=data.get("active_skills", []),
+        skill_fingerprints=data.get("skill_fingerprints", {}),
         state_version=data.get("state_version", 0),
         last_event_sequence=data.get("last_event_sequence", 0),
         last_updated_at=data.get("last_updated_at", 0.0),

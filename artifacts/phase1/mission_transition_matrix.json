@@ -1,0 +1,80 @@
+{
+  "schema_version": "1.0.0",
+  "phase": "Phase 1 - Canonical Mission Lifecycle and Run Control",
+  "generated_at": 1791809400.0,
+  "mission_statuses": [
+    "CREATED",
+    "PLANNING",
+    "RUNNING",
+    "WAITING",
+    "PAUSED",
+    "COMPLETING",
+    "COMPLETED",
+    "FAILED",
+    "CANCELLED",
+    "ABORTED"
+  ],
+  "terminal_statuses": [
+    "COMPLETED",
+    "FAILED",
+    "CANCELLED",
+    "ABORTED"
+  ],
+  "transitions": {
+    "CREATED": {
+      "allowed": ["PLANNING", "RUNNING", "CANCELLED", "ABORTED"],
+      "forbidden": ["WAITING", "PAUSED", "COMPLETING", "COMPLETED", "FAILED"],
+      "terminal": false
+    },
+    "PLANNING": {
+      "allowed": ["RUNNING", "WAITING", "PAUSED", "FAILED", "CANCELLED", "ABORTED"],
+      "forbidden": ["CREATED", "COMPLETING", "COMPLETED"],
+      "terminal": false
+    },
+    "RUNNING": {
+      "allowed": ["WAITING", "PAUSED", "COMPLETING", "COMPLETED", "FAILED", "CANCELLED", "ABORTED"],
+      "forbidden": ["CREATED", "PLANNING"],
+      "terminal": false
+    },
+    "WAITING": {
+      "allowed": ["RUNNING", "PAUSED", "COMPLETING", "FAILED", "CANCELLED", "ABORTED"],
+      "forbidden": ["CREATED", "PLANNING", "COMPLETED"],
+      "terminal": false
+    },
+    "PAUSED": {
+      "allowed": ["RUNNING", "CANCELLED", "ABORTED"],
+      "forbidden": ["CREATED", "PLANNING", "WAITING", "COMPLETING", "COMPLETED", "FAILED"],
+      "terminal": false
+    },
+    "COMPLETING": {
+      "allowed": ["COMPLETED", "FAILED", "CANCELLED", "ABORTED"],
+      "forbidden": ["CREATED", "PLANNING", "RUNNING", "WAITING", "PAUSED"],
+      "terminal": false
+    },
+    "COMPLETED": {
+      "allowed": [],
+      "forbidden": ["CREATED", "PLANNING", "RUNNING", "WAITING", "PAUSED", "COMPLETING", "FAILED", "CANCELLED", "ABORTED"],
+      "terminal": true
+    },
+    "FAILED": {
+      "allowed": [],
+      "forbidden": ["CREATED", "PLANNING", "RUNNING", "WAITING", "PAUSED", "COMPLETING", "COMPLETED", "CANCELLED", "ABORTED"],
+      "terminal": true
+    },
+    "CANCELLED": {
+      "allowed": [],
+      "forbidden": ["CREATED", "PLANNING", "RUNNING", "WAITING", "PAUSED", "COMPLETING", "COMPLETED", "FAILED", "ABORTED"],
+      "terminal": true
+    },
+    "ABORTED": {
+      "allowed": [],
+      "forbidden": ["CREATED", "PLANNING", "RUNNING", "WAITING", "PAUSED", "COMPLETING", "COMPLETED", "FAILED", "CANCELLED"],
+      "terminal": true
+    }
+  },
+  "invariants": {
+    "terminal_immutability": "Once reaching COMPLETED, FAILED, CANCELLED, or ABORTED, state cannot transition to any status.",
+    "stale_sequence_rejection": "Events with sequence <= last_event_sequence are dropped by StateReducer.",
+    "identity_correlation": "Events with mismatched mission_id or run_id are dropped without state corruption."
+  }
+}

@@ -1,0 +1,67 @@
+{
+  "timestamp": "2026-10-13 21:17:06",
+  "python_executable": "C:\\Users\\SUBBU\\Downloads\\hermes\\venv\\Scripts\\python.exe",
+  "python_version": "3.12.0 (tags/v3.12.0:0fb18b0, Oct  2 2023, 13:03:39) [MSC v.1935 64 bit (AMD64)]",
+  "app_port": 8765,
+  "cdp_port": 9222,
+  "desktop_screenshot": "C:\\Users\\SUBBU\\Downloads\\hermes\\artifacts\\phase10\\browser_acceptance\\desktop_gui.png",
+  "mobile_screenshot": "C:\\Users\\SUBBU\\Downloads\\hermes\\artifacts\\phase10\\browser_acceptance\\mobile_gui.png",
+  "scenarios": {
+    "scenario_1_desktop_layout": {
+      "status": "PASS",
+      "bytes": 48805,
+      "root_present": true,
+      "project_count": 1
+    },
+    "scenario_2_mobile_responsiveness": {
+      "status": "PASS",
+      "scroll_width": 390,
+      "inner_width": 390,
+      "overflows": false,
+      "mobile_screenshot_bytes": 65265
+    },
+    "scenario_3_hub_project_switching": {
+      "status": "PASS",
+      "workspace": "C:\\Users\\SUBBU\\AppData\\Local\\Temp\\hermes_browser_ws_bdqijiow"
+    },
+    "scenario_4_new_task_initiation": {
+      "status": "PASS"
+    },
+    "scenario_5_gui_input_and_send_control": {
+      "status": "PASS",
+      "mission_id": "m_a72c7b06",
+      "submission_method": "GUI_TEXTAREA_AND_SEND_BUTTON"
+    },
+    "scenario_6_gui_pause_control": {
+      "status": "PASS",
+      "pause_pending": true,
+      "is_paused": false,
+      "interaction_method": "GUI_BUTTON_CLICK"
+    },
+    "scenario_7_gui_resume_control": {
+      "status": "PASS",
+      "status_after_resume": "RUNNING"
+    },
+    "scenario_8_gui_stop_control": {
+      "status": "PASS",
+      "terminal_status": "CANCELLED",
+      "interaction_method": "GUI_BUTTON_CLICK"
+    },
+    "scenario_9_post_terminal_rejection": {
+      "status": "PASS",
+      "status_code": 409,
+      "detail": "Cannot pause mission 'm_a72c7b06' because it has reached a terminal state."
+    },
+    "scenario_10_state_parity_and_truth": {
+      "status": "PASS",
+      "db_status": "CANCELLED",
+      "snapshot_status": "CANCELLED",
+      "workspace_parity": true
+    },
+    "scenario_11_tabs_and_error_audit": {
+      "status": "PASS",
+      "js_errors_count": 0
+    }
+  },
+  "overall_status": "PASS"
+}

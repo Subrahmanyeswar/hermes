@@ -1,0 +1,266 @@
+{
+  "benchmark": "phase4h_heldout_evaluation",
+  "total_cases": 25,
+  "total_correct": 25,
+  "overall_accuracy_pct": 100.0,
+  "avg_latency_us": 22.09,
+  "per_tier_accuracy": {
+    "TRIVIAL": 100.0,
+    "SIMPLE": 100.0,
+    "MEDIUM": 100.0,
+    "COMPLEX": 100.0,
+    "LARGE": 100.0
+  },
+  "predictions": [
+    {
+      "id": "TRIVIAL-01",
+      "family": "A",
+      "domain": "algorithms",
+      "prompt": "Write a python script math_utils.py that computes the greatest common divisor and least common multiple of two integers.",
+      "expected": "TRIVIAL",
+      "predicted": "TRIVIAL",
+      "is_correct": true,
+      "latency_us": 353.7
+    },
+    {
+      "id": "TRIVIAL-02",
+      "family": "A",
+      "domain": "cli/text",
+      "prompt": "Create a command line utility count_words.py that reads a text file path from argv[1] and outputs the total word count.",
+      "expected": "TRIVIAL",
+      "predicted": "TRIVIAL",
+      "is_correct": true,
+      "latency_us": 21.1
+    },
+    {
+      "id": "TRIVIAL-03",
+      "family": "A",
+      "domain": "datetime/utility",
+      "prompt": "Implement a python function in date_helpers.py to calculate the number of business days between two dates.",
+      "expected": "TRIVIAL",
+      "predicted": "TRIVIAL",
+      "is_correct": true,
+      "latency_us": 14.9
+    },
+    {
+      "id": "TRIVIAL-04",
+      "family": "A",
+      "domain": "data/conversion",
+      "prompt": "Create a single file script csv_to_json.py to convert a CSV file to a formatted JSON array.",
+      "expected": "TRIVIAL",
+      "predicted": "TRIVIAL",
+      "is_correct": true,
+      "latency_us": 13.4
+    },
+    {
+      "id": "TRIVIAL-05",
+      "family": "A",
+      "domain": "networking",
+      "prompt": "Write a standalone script ping_probe.py that checks HTTP status 200 of a URL and exits with code 0 or 1.",
+      "expected": "TRIVIAL",
+      "predicted": "TRIVIAL",
+      "is_correct": true,
+      "latency_us": 15.4
+    },
+    {
+      "id": "SIMPLE-01",
+      "family": "B",
+      "domain": "web/productivity",
+      "prompt": "Build a responsive personal habit streak tracker with categories, daily check-in toggles, streak count badges, and localStorage persistence.",
+      "expected": "SIMPLE",
+      "predicted": "SIMPLE",
+      "is_correct": true,
+      "latency_us": 14.7
+    },
+    {
+      "id": "SIMPLE-02",
+      "family": "B",
+      "domain": "web/media",
+      "prompt": "Create an audio sample library browser with waveform visual placeholders, tag filtering, playback controls, and persistent favorites in localStorage.",
+      "expected": "SIMPLE",
+      "predicted": "SIMPLE",
+      "is_correct": true,
+      "latency_us": 15.0
+    },
+    {
+      "id": "SIMPLE-03",
+      "family": "B",
+      "domain": "web/health",
+      "prompt": "Build a workout logging dashboard with exercise sets/reps input, volume calculation cards, filter by muscle group, and localStorage state.",
+      "expected": "SIMPLE",
+      "predicted": "SIMPLE",
+      "is_correct": true,
+      "latency_us": 13.8
+    },
+    {
+      "id": "SIMPLE-04",
+      "family": "B",
+      "domain": "web/finance",
+      "prompt": "Design a currency exchange calculator dashboard with rate conversion table, currency pair selectors, historical rate mock chart, and localStorage.",
+      "expected": "SIMPLE",
+      "predicted": "SIMPLE",
+      "is_correct": true,
+      "latency_us": 13.8
+    },
+    {
+      "id": "SIMPLE-05",
+      "family": "B",
+      "domain": "web/notes",
+      "prompt": "Build an interactive markdown note-taking app with live preview side-by-side, note category tags, note deletion, and localStorage.",
+      "expected": "SIMPLE",
+      "predicted": "SIMPLE",
+      "is_correct": true,
+      "latency_us": 13.7
+    },
+    {
+      "id": "MEDIUM-01",
+      "family": "C",
+      "domain": "backend/healthcare",
+      "prompt": "Build a Flask REST API with SQLite database, models and routes for managing hospital patient appointments, doctor availability, and appointment status.",
+      "expected": "MEDIUM",
+      "predicted": "MEDIUM",
+      "is_correct": true,
+      "latency_us": 7.4
+    },
+    {
+      "id": "MEDIUM-02",
+      "family": "C",
+      "domain": "backend/crm",
+      "prompt": "Create a FastAPI backend service with SQLite database for customer support tickets with status transitions, priority filtering, and input validation schemas.",
+      "expected": "MEDIUM",
+      "predicted": "MEDIUM",
+      "is_correct": true,
+      "latency_us": 6.4
+    },
+    {
+      "id": "MEDIUM-03",
+      "family": "C",
+      "domain": "backend/logistics",
+      "prompt": "Build a Python REST API service with SQLite database storage for a warehouse inventory system with SKU batch tracking, bin locations, and audit logs.",
+      "expected": "MEDIUM",
+      "predicted": "MEDIUM",
+      "is_correct": true,
+      "latency_us": 6.0
+    },
+    {
+      "id": "MEDIUM-04",
+      "family": "C",
+      "domain": "backend/education",
+      "prompt": "Create a Flask CRUD application with database models and routes for managing course enrollments, student records, and grade assignments.",
+      "expected": "MEDIUM",
+      "predicted": "MEDIUM",
+      "is_correct": true,
+      "latency_us": 6.4
+    },
+    {
+      "id": "MEDIUM-05",
+      "family": "C",
+      "domain": "backend/devops",
+      "prompt": "Build a backend API service with SQLite database for tracking software deployment releases, environment flags, and rollback history.",
+      "expected": "MEDIUM",
+      "predicted": "MEDIUM",
+      "is_correct": true,
+      "latency_us": 5.7
+    },
+    {
+      "id": "COMPLEX-01",
+      "family": "D",
+      "domain": "fullstack/auth",
+      "prompt": "Build a full-stack platform with OAuth authentication, JWT tokens, database migrations, background worker queue, and payment webhooks.",
+      "expected": "COMPLEX",
+      "predicted": "COMPLEX",
+      "is_correct": true,
+      "latency_us": 3.4
+    },
+    {
+      "id": "COMPLEX-02",
+      "family": "D",
+      "domain": "fullstack/collab",
+      "prompt": "Implement a multi-tier collaborative document system with JWT authorization, role-based access control, revision history database migrations, and Celery tasks.",
+      "expected": "COMPLEX",
+      "predicted": "COMPLEX",
+      "is_correct": true,
+      "latency_us": 3.9
+    },
+    {
+      "id": "COMPLEX-03",
+      "family": "D",
+      "domain": "fullstack/billing",
+      "prompt": "Build a SaaS billing platform with Stripe integration, webhook signature validation, subscription state transitions, and background worker email notifications.",
+      "expected": "COMPLEX",
+      "predicted": "COMPLEX",
+      "is_correct": true,
+      "latency_us": 4.7
+    },
+    {
+      "id": "COMPLEX-04",
+      "family": "D",
+      "domain": "fullstack/enterprise",
+      "prompt": "Create an enterprise asset management platform with multi-factor authentication, database migrations, Celery worker asset depreciation calculations, and audit logging.",
+      "expected": "COMPLEX",
+      "predicted": "COMPLEX",
+      "is_correct": true,
+      "latency_us": 4.4
+    },
+    {
+      "id": "COMPLEX-05",
+      "family": "D",
+      "domain": "fullstack/ecommerce",
+      "prompt": "Build an e-commerce platform with OAuth login, shopping cart session persistence, database migrations, order processing worker, and Stripe payments.",
+      "expected": "COMPLEX",
+      "predicted": "COMPLEX",
+      "is_correct": true,
+      "latency_us": 3.6
+    },
+    {
+      "id": "LARGE-01",
+      "family": "E",
+      "domain": "distributed/microservices",
+      "prompt": "Design a microservices architecture with Kafka event bus, gRPC communication, service discovery, and Kubernetes deployment manifests.",
+      "expected": "LARGE",
+      "predicted": "LARGE",
+      "is_correct": true,
+      "latency_us": 3.0
+    },
+    {
+      "id": "LARGE-02",
+      "family": "E",
+      "domain": "distributed/iot",
+      "prompt": "Build a high-throughput IoT telemetry ingestion pipeline with distributed Kafka streaming, TimescaleDB storage, Redis caching, and Kubernetes deployment.",
+      "expected": "LARGE",
+      "predicted": "LARGE",
+      "is_correct": true,
+      "latency_us": 2.2
+    },
+    {
+      "id": "LARGE-03",
+      "family": "E",
+      "domain": "distributed/saga",
+      "prompt": "Implement an event-driven architecture with Kafka message routing, distributed saga transaction coordinator, and microservice container deployment.",
+      "expected": "LARGE",
+      "predicted": "LARGE",
+      "is_correct": true,
+      "latency_us": 1.7
+    },
+    {
+      "id": "LARGE-04",
+      "family": "E",
+      "domain": "distributed/observability",
+      "prompt": "Design a distributed logging and metrics monorepo platform with microservices, OpenTelemetry collectors, Kafka log ingestion, and Kubernetes orchestration.",
+      "expected": "LARGE",
+      "predicted": "LARGE",
+      "is_correct": true,
+      "latency_us": 1.8
+    },
+    {
+      "id": "LARGE-05",
+      "family": "E",
+      "domain": "distributed/fintech",
+      "prompt": "Build a distributed financial ledger system with Kafka partition streams, replicated database nodes, consensus transaction validation, and Kubernetes cluster configuration.",
+      "expected": "LARGE",
+      "predicted": "LARGE",
+      "is_correct": true,
+      "latency_us": 2.1
+    }
+  ]
+}

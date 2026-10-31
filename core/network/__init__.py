@@ -25,6 +25,18 @@ from core.network.adapters import (
     classify_httpx_exception,
 )
 from core.network.supervisor import NetworkSupervisor
+from core.network.connectivity import (
+    ConnectivityStatus,
+    ConnectivityCondition,
+    ProbeResult,
+    ConnectivityStateSnapshot,
+    ConnectivityMonitor,
+    shared_connectivity_monitor,
+)
+from core.network.coordinator import (
+    NetworkRecoveryCoordinator,
+    shared_recovery_coordinator,
+)
 
 __all__ = [
     "DeadlineBudget",
@@ -47,4 +59,12 @@ __all__ = [
     "FakeProviderAdapter",
     "classify_httpx_exception",
     "NetworkSupervisor",
+    "ConnectivityStatus",
+    "ConnectivityCondition",
+    "ProbeResult",
+    "ConnectivityStateSnapshot",
+    "ConnectivityMonitor",
+    "shared_connectivity_monitor",
+    "NetworkRecoveryCoordinator",
+    "shared_recovery_coordinator",
 ]

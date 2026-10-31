@@ -1,0 +1,57 @@
+{
+  "evaluated_at": "2026-10-11T23:14:45+05:30",
+  "application": "HERMES",
+  "version": "1.0.0-rc1",
+  "verdict": "CONDITIONAL PASS",
+  "summary": "All local regression suites (85/85), core workspace & tool suites, frontend production builds, and Windows launch/stop lifecycles pass completely. Live cloud execution is conditionally BLOCKED due to absent provider credentials in the local test environment.",
+  "matrix": [
+    {
+      "dimension": "Regression Baseline (Stages 0-7.2)",
+      "target": "100% pass across 13 canonical suites",
+      "actual": "85/85 tests passed (17.40s)",
+      "status": "PASS"
+    },
+    {
+      "dimension": "Workspace Security & Path Enforcement",
+      "target": "Block all traversal, external anchor escapes, and subpath leaks",
+      "actual": "23/23 tests passed in test_workspace and test_tool_workspace_enforcement",
+      "status": "PASS"
+    },
+    {
+      "dimension": "Batch File Operations & Clean Content",
+      "target": "Atomic staging, backup, rollback, and correct newline preservation",
+      "actual": "16/16 tests passed in test_write_files_batch",
+      "status": "PASS"
+    },
+    {
+      "dimension": "Concurrent Mission Isolation",
+      "target": "Independent workspaces, scoped deadlines, scoped cancellation, approval isolation",
+      "actual": "6/6 tests passed in test_stage7_2_concurrent_isolation",
+      "status": "PASS"
+    },
+    {
+      "dimension": "Windows Server & Process Lifecycle",
+      "target": "Safe launch, health check, status check, clean stop, foreign PID protection",
+      "actual": "16/16 tests passed across test_stage5 and test_stage5_1; live uvicorn verified",
+      "status": "PASS"
+    },
+    {
+      "dimension": "GUI Frontend Build",
+      "target": "Clean TypeScript/Vite build producing dist/index.html",
+      "actual": "vite build succeeded with exit code 0 (3.90s)",
+      "status": "PASS"
+    },
+    {
+      "dimension": "Live Multi-Tier Model Integration",
+      "target": "Real end-to-end execution with T1/T2/T3 providers",
+      "actual": "Cloud API keys unset in local shell environment; not simulated",
+      "status": "BLOCKED"
+    },
+    {
+      "dimension": "User Documentation Integrity",
+      "target": "Accurate launch, stop, and troubleshooting instructions",
+      "actual": "OPERATOR_GUIDE.md updated with GUI PowerShell & CLI commands",
+      "status": "PASS"
+    }
+  ]
+}

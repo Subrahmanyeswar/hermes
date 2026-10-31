@@ -1,0 +1,42 @@
+{
+  "test_date": "2026-10-12T10:41:40+05:30",
+  "status": "PASS",
+  "launcher_script": "scripts/launch_gui.ps1",
+  "stopper_script": "scripts/stop_gui.ps1",
+  "python_cli": "python -m core.server.launcher",
+  "backend_status": {
+    "host": "127.0.0.1",
+    "port": 8765,
+    "health_endpoint": "http://127.0.0.1:8765/api/health",
+    "health_status_code": 200,
+    "version": "1.0.0-rc1",
+    "runtime_mode": "auto",
+    "model_stack": {
+      "tier1": "nvidia_nim / z-ai/glm-5.3-flash",
+      "tier2": "ollama / gpt-oss:120b-cloud",
+      "tier3": "ollama / nemotron-3-ultra:cloud"
+    }
+  },
+  "process_lifecycle": {
+    "started_cleanly": true,
+    "detected_by_launcher_status": true,
+    "pid_tracked": true,
+    "stopped_cleanly": true,
+    "pid_file_removed": true,
+    "port_released": true,
+    "foreign_process_protection_verified": true
+  },
+  "frontend_verification": {
+    "build_command": "npm run build in gui/",
+    "exit_code": 0,
+    "bundle_assets": [
+      "dist/index.html",
+      "dist/assets/index-Bljey2Z_.css",
+      "dist/assets/index-COWB10P5.js"
+    ]
+  },
+  "truthful_mission_handling": {
+    "unconfigured_or_blocked_credentials_do_not_fabricate_success": true,
+    "real_outcomes_reported_truthfully": true
+  }
+}

@@ -1,40 +1,50 @@
 ---
 name: flask-rest-api
-description: Expert patterns for building production-quality Flask REST APIs with SQLAlchemy and JWT
+description: Production-quality Flask REST API design, modular blueprints, input validation, and database integration
 triggers: [flask, rest api, api server, backend, crud api, flask app, web api, endpoints]
 priority: 1
-max_tokens: 350
+max_tokens: 450
 ---
 
 # Flask REST API Specialist
 
-You are an expert in Flask 3.x REST APIs. Apply every rule below without exception.
+Apply these design principles for building robust, maintainable Flask REST APIs.
 
-## Project Structure (always use this layout)
-1. `app/__init__.py` — Flask app factory, register blueprints here
-2. `app/models.py` — All SQLAlchemy models
-3. `app/routes/` — One file per resource (e.g. routes/users.py, routes/todos.py)
-4. `app/services.py` — All business logic lives here, never in routes
-5. `config.py` — Configuration class with DATABASE_URI, SECRET_KEY, JWT settings
-6. `run.py` — Entry point: `from app import create_app; app = create_app(); app.run()`
-7. `requirements.txt` — flask, flask-sqlalchemy, flask-jwt-extended, flask-cors
+## 1. Project Architecture & Factory Pattern
+1. Use the Application Factory pattern (`create_app(config_class=...)`) for testability and modularity, unless the project has an established structure.
+2. Group related endpoints into modular `Blueprint`s (e.g. `api/users.py`, `api/items.py`).
+3. Keep business logic in a dedicated service layer or model methods rather than bloating route handlers.
+4. Adapt to existing project file conventions rather than forcing an arbitrary directory layout.
 
-## Database Rules
-8. Use SQLAlchemy 2.0 syntax: `db.session.execute(select(Model).where(...))` — never `Model.query.*`
-9. Always define `__repr__` and `__tablename__` on every model
-10. Use `db.session.add()` + `db.session.commit()` for all writes
-11. Wrap all DB writes in try/except and call `db.session.rollback()` on error
+## 2. Request Handling & Validation
+5. Parse and validate JSON request payloads explicitly:
+   - Check content type (`request.is_json`).
+   - Validate presence and types of required fields; return HTTP 400 Bad Request with a clear message if validation fails.
+6. Use query parameters (`request.args`) for filtering, pagination, and sorting on `GET` endpoints.
+7. Return standard HTTP status codes:
+   - `200 OK`: Successful read or update.
+   - `201 Created`: Successful resource creation (include `Location` header or resource ID).
+   - `204 No Content`: Successful deletion.
+   - `400 Bad Request`: Invalid input or validation failure.
+   - `404 Not Found`: Resource does not exist.
+   - `500 Internal Server Error`: Unhandled server exception.
 
-## Authentication Rules
-12. Use `flask-jwt-extended`. Create access token with `create_access_token(identity=user.id)`
-13. Protect routes with `@jwt_required()` decorator
-14. Never implement JWT manually. Never use session cookies for APIs.
+## 3. Database & Transaction Safety
+8. Use modern SQLAlchemy 2.0 query patterns: `db.session.execute(select(Model).where(...))`.
+9. Wrap mutations in safe transactional blocks with automatic rollback on error:
+   ```python
+   try:
+       db.session.add(item)
+       db.session.commit()
+   except Exception:
+       db.session.rollback()
+       raise
+   ```
 
-## Route Rules
-15. Every route function needs: `@blueprint.route(...)`, type hints, docstring, try/except, explicit HTTP status code
-16. Return JSON only: `return jsonify({"key": "value"}), 200`
-17. Validate request JSON with `.get()` and return 400 if required fields are missing
+## 4. Authentication & Security (Conditional)
+10. Include authentication (JWT via `flask-jwt-extended`, API keys, or session tokens) *only* when the task or project explicitly requires authentication. Do not force auth dependencies on public/unauthenticated endpoints.
+11. Secure sensitive configuration (secret keys, database credentials) via environment variables or a configuration class, never hardcoded in source files.
 
-## File Creation Order (always follow this sequence)
-18. Write files in this order: requirements.txt → config.py → app/__init__.py → app/models.py → app/routes/*.py → run.py
-19. Use `write_file` tool once per file — never combine multiple files into one write_file call
+## 5. File Operations & Testing
+12. Use `fs.write` to create new route or model files, and `fs.edit` for surgical updates.
+13. Verify API behavior using pytest with Flask's test client (`app.test_client()`) via `shell.bash`.

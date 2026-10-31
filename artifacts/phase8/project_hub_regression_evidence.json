@@ -1,0 +1,18 @@
+{
+  "phase": "Phase 8",
+  "component": "project_hub_regression",
+  "verification_timestamp": "2026-10-13T13:22:00Z",
+  "stage9_scenarios_verified": [
+    { "scenario": "A: Initial project discovery", "status": "PASSED" },
+    { "scenario": "B: Native picker cancelled and selected", "status": "PASSED" },
+    { "scenario": "C: Select arbitrary local folder", "status": "PASSED" },
+    { "scenario": "D & E: Task workspace binding and switching", "status": "PASSED" },
+    { "scenario": "F: Immutable mission workspace snapshot", "status": "PASSED" },
+    { "scenario": "G: HERMES root protection flag", "status": "PASSED" },
+    { "scenario": "H: Invalid workspace path rejected", "status": "PASSED" },
+    { "scenario": "I: Remove recent workspace", "status": "PASSED" }
+  ],
+  "total_passed": 8,
+  "total_failed": 0,
+  "verdict": "PASS"
+}

@@ -28,9 +28,12 @@ IGNORE_PATTERNS = [
     "*.pyc", "*.pyo", "*.pyd", ".DS_Store", "*.egg-info", "dist",
     "build", ".pytest_cache", ".mypy_cache", "*.min.js", "*.min.css",
     ".next", ".nuxt", "target", "*.lock", "package-lock.json",
-    "artifacts",
+    "artifacts", ".hermes", "cache", ".cache",
+    "sessions", "trajectories", "browser_profiles", "*.sqlite*", "*.db",
+    "*.log", "*.zip", "*.gz", "*.tar",
 ]
 
+MAX_INDEX_FILES = 2000
 MAX_PARSE_FILE_SIZE = 500_000  # 500 KB limit for AST parsing
 DB_PATH = Path("hermes_workspace_index.db")
 
@@ -194,10 +197,16 @@ class WorkspaceIndexer:
     def incremental_updates_count(self) -> int:
         return self._incremental_updates_count
 
-    def _should_ignore(self, path: Path) -> bool:
-        for pattern in IGNORE_PATTERNS:
-            if fnmatch.fnmatch(path.name, pattern) or path.name == pattern:
-                return True
+    def _should_ignore(self, path: Path, root: Optional[Path] = None) -> bool:
+        try:
+            rel = path.relative_to(root) if root else path
+            parts = rel.parts
+        except Exception:
+            parts = (path.name,)
+        for part in parts:
+            for pattern in IGNORE_PATTERNS:
+                if fnmatch.fnmatch(part, pattern) or part == pattern:
+                    return True
         return False
 
     def _detect_language(self, ext: str) -> str:
@@ -329,10 +338,14 @@ class WorkspaceIndexer:
         total_size = 0
 
         for dirpath, dirnames, filenames in os.walk(root):
-            dirnames[:] = [d for d in dirnames if not self._should_ignore(Path(dirpath) / d)]
+            if len(files_to_index) >= MAX_INDEX_FILES:
+                break
+            dirnames[:] = [d for d in dirnames if not self._should_ignore(Path(dirpath) / d, root)]
             for fname in filenames:
+                if len(files_to_index) >= MAX_INDEX_FILES:
+                    break
                 fpath = Path(dirpath) / fname
-                if self._should_ignore(fpath):
+                if self._should_ignore(fpath, root):
                     continue
 
                 try:

@@ -55,11 +55,18 @@ class WorkspaceSnapshotter:
         self.ignored_dirs = ignored_dirs or DEFAULT_IGNORED_DIRS
         self.ignored_files = ignored_files or DEFAULT_IGNORED_FILES
 
-    def _is_safe_path(self, path: Path) -> bool:
-        """Verify resolved path stays strictly within workspace_root."""
+    def _is_safe_path(self, path: Path | str) -> bool:
+        """
+        Verify candidate path is strictly contained within workspace_root.
+        Enforces component-aware canonical containment, resolves symlinks, junctions,
+        and reparse points, handles case-insensitivity on Windows, and fails closed.
+        """
         try:
-            resolved = path.resolve()
-            return str(resolved).lower().startswith(str(self.workspace_root).lower())
+            p = Path(path)
+            if not p.is_absolute():
+                p = self.workspace_root / p
+            resolved = p.resolve()
+            return resolved.is_relative_to(self.workspace_root)
         except Exception:
             return False
 
@@ -76,9 +83,15 @@ class WorkspaceSnapshotter:
         total_bytes = 0
 
         if self.workspace_root.exists():
+            ws_root_str = str(self.workspace_root)
             for root, dirs, files in os.walk(self.workspace_root, topdown=True, followlinks=False):
-                # Filter out ignored directories in-place
-                dirs[:] = [d for d in dirs if d not in self.ignored_dirs]
+                # Filter out ignored directories, symlinks, and Windows directory junctions in-place
+                dirs[:] = [
+                    d for d in dirs
+                    if d not in self.ignored_dirs
+                    and not (Path(root) / d).is_symlink()
+                    and not getattr(Path(root) / d, "is_junction", lambda: False)()
+                ]
 
                 for file_name in files:
                     if file_name in self.ignored_files or file_name.endswith(".tmp"):
@@ -94,10 +107,17 @@ class WorkspaceSnapshotter:
                         stat = full_path.stat()
                         size = stat.st_size
                         mtime_ns = stat.st_mtime_ns
+                        rel_path = os.path.relpath(os.path.join(root, file_name), ws_root_str).replace("\\", "/")
 
-                        # Stream file into BlobStore (computes sha256 and dedups)
+                        # Stream file into BlobStore (computes authoritative sha256 and dedups)
                         blob_id = self.blob_store.put_file(full_path)
-                        rel_path = str(full_path.relative_to(self.workspace_root)).replace("\\", "/")
+
+                        # Concurrency check: verify file wasn't modified while reading
+                        stat_after = full_path.stat()
+                        if stat_after.st_mtime_ns != mtime_ns or stat_after.st_size != size:
+                            blob_id = self.blob_store.put_file(full_path)
+                            size = stat_after.st_size
+                            mtime_ns = stat_after.st_mtime_ns
 
                         change_type = FileChangeType.TRACKED
                         if prior_manifest:

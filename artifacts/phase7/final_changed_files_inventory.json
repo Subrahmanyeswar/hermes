@@ -1,0 +1,46 @@
+{
+  "phase": "Phase 7 — Internet-Loss Detection, Durable Waiting & Automatic Recovery",
+  "generated_at": "2026-10-13T11:08:15+05:30",
+  "inventory": [
+    {
+      "path": "core/network/connectivity.py",
+      "status": "HARDENED",
+      "description": "Connectivity monitor with HTTPS-only probe endpoints, default TLS verification, captive portal detection, body truncation (4KB), and hysteresis state tracking."
+    },
+    {
+      "path": "core/transport/circuit_breaker.py",
+      "status": "HARDENED",
+      "description": "Added listener callback framework on CircuitBreakerRegistry allowing downstream coordinators to be automatically notified when routes transition to CLOSED (recovered)."
+    },
+    {
+      "path": "core/network/coordinator.py",
+      "status": "HARDENED",
+      "description": "NetworkRecoveryCoordinator with automated zero-token provider recovery detection, circuit breaker listener subscription, safe recoverable blocker handling (_mark_mission_blocked), checkpoint fallback logic, and stop race prevention."
+    },
+    {
+      "path": "core/server/runtime_adapter.py",
+      "status": "HARDENED",
+      "description": "Added restore_persisted_missions logic classifying crashed RUNNING missions into WAITING_FOR_RECOVERY with interrupted_by_restart flag while safeguarding terminal/paused states; resilient workspace manager retrieval."
+    },
+    {
+      "path": "tests/test_phase7_network_recovery.py",
+      "status": "EXPANDED",
+      "description": "Full acceptance test suite expanded to 15 scenarios covering Sections A through J plus dedicated tests for provider recovery without WAN transition, recoverable blockers, startup classification, and HTTPS probe TLS/captive portal detection."
+    },
+    {
+      "path": "gui/src/components/NetworkRecoveryBanner.tsx",
+      "status": "NEW",
+      "description": "React banner component displaying connection state, waiting mission counts, and retry countdown with manual retry action."
+    },
+    {
+      "path": "gui/src/hooks/useNetworkRecovery.ts",
+      "status": "NEW",
+      "description": "React hook polling and subscribing to network status and coordinator auto-recovery state."
+    },
+    {
+      "path": "gui/src/types/network.ts",
+      "status": "NEW",
+      "description": "TypeScript type definitions for network status, coordinator state, and waiting mission items."
+    }
+  ]
+}

@@ -147,7 +147,7 @@ class IntentClassifier:
         # Add common aliases
         alias_map = {
             "flask": ["flask", "rest api", "api server", "backend", "fastapi"],
-            "react": ["react", "jsx", "component", "frontend", "next.js", "hooks"],
+            "react": ["react", "jsx", "next.js", "hooks", "reactjs"],
             "pytest": ["pytest", "unit test", "test suite", "testing", "test cases"],
             "debugging": ["debug", "fix", "error", "traceback", "broken", "exception"],
             "git": ["git", "github", "push", "commit", "pull request", "branch"],
@@ -155,9 +155,10 @@ class IntentClassifier:
             "database": ["database", "schema", "sqlite", "postgresql", "sql"],
             "refactoring": ["refactor", "clean", "improve", "restructure", "solid"],
             "bash": ["bash", "shell script", "linux", "terminal", "automation"],
-            "react-frontend": ["react", "frontend", "component", "tailwind", "ui"],
+            "react-frontend": ["react", "reactjs", "jsx", "tsx", "next.js"],
+            "vanilla-web": ["html", "css", "javascript", "vanilla", "website", "webpage", "web app", "landing page", "frontend", "ui"],
             "auto-docs": ["docs", "documentation", "readme", "docstring"],
-            "code-review": ["review", "check", "feedback", "code quality"],
+            "code-review": ["code review", "review", "pull request", "pr review", "code quality", "audit code"],
             "screenshot-to-code": ["screenshot", "image", "mockup", "design to code"],
         }
         for key, aliases in alias_map.items():
@@ -217,11 +218,31 @@ class IntentClassifier:
     def classify(self, prompt: str) -> list[str]:
         """Return up to two matching skill IDs for a user prompt."""
         start = time.monotonic()
-        # Use only the raw word list — negation windows are positionally correct
-        words = prompt.lower().split()
+        lower_prompt = prompt.lower()
+        words = lower_prompt.split()
+
+        # Suppress code-review if this is a creation/generation task unless explicitly requesting review
+        is_creation_task = any(
+            kw in words for kw in ["create", "write", "build", "generate", "make", "implement", "scaffold", "new"]
+        )
+        is_explicit_review = any(
+            phrase in lower_prompt for phrase in ["code review", "review this", "review my", "review the", "pull request", "pr review"]
+        )
+
+        try:
+            from core.architecture_lock import ArchitectureLock
+            arch_decision = ArchitectureLock.get_current()
+        except Exception:
+            arch_decision = None
 
         scored: list[tuple[SkillMeta, int]] = []
         for skill in self.skills:
+            if skill.skill_id == "code-review" and is_creation_task and not is_explicit_review:
+                continue
+
+            if arch_decision is not None and not arch_decision.is_skill_allowed(skill.skill_id):
+                continue
+
             count = sum(
                 1
                 for trigger in set(skill.triggers)

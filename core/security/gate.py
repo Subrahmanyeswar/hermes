@@ -24,6 +24,7 @@ from core.security.enums import (
     ContentTrust,
     DenialReasonCode,
     PermissionOutcome,
+    PromptInjectionStatus,
     RiskLevel,
 )
 from core.security.handoff_security import HandoffSecurityChecker
@@ -108,6 +109,8 @@ class SecurityGate:
             agent_id=subagent_context.agent_id if subagent_context else None,
             task_id=task_id,
         )
+        if mission_id:
+            action.mission_id = mission_id
 
         # 2. Check Subagent Security Ceiling if action proposed by a subagent
         if subagent_context:
@@ -180,6 +183,7 @@ class SecurityGate:
             # Create a pending approval request
             req = ApprovalRequest(
                 request_id=f"req_{uuid.uuid4().hex[:10]}",
+                mission_id=mission_id,
                 action=action,
                 assessment=risk,
                 required_scope=decision.required_scope,
@@ -304,3 +308,56 @@ class SecurityGate:
             )
 
         return assessment
+
+    def get_pending_requests(self) -> List[ApprovalRequest]:
+        """Return all pending approval requests from approval store."""
+        return self.approval_store.get_pending_requests()
+
+    def grant_approval(
+        self,
+        request_id: str,
+        scope: ApprovalScope = ApprovalScope.ONCE,
+        resolved_by: str = "user",
+    ) -> Optional[ApprovalGrant]:
+        """Resolve a pending request as approved and create an active grant."""
+        grant = self.approval_store.resolve_request(
+            request_id=request_id,
+            approved=True,
+            scope=scope,
+            resolved_by=resolved_by,
+        )
+        if grant:
+            self._emit("PERMISSION_GRANTED", {
+                "request_id": request_id,
+                "grant_id": grant.grant_id,
+                "tool_name": grant.tool_name,
+                "scope": grant.scope.value,
+            })
+        return grant
+
+    def deny_approval(
+        self,
+        request_id: str,
+        resolved_by: str = "user",
+    ) -> None:
+        """Resolve a pending request as denied."""
+        self.approval_store.resolve_request(
+            request_id=request_id,
+            approved=False,
+            resolved_by=resolved_by,
+        )
+        self._emit("PERMISSION_DENIED", {
+            "request_id": request_id,
+            "resolved_by": resolved_by,
+        })
+
+    def invalidate_mission_approvals(self, mission_id: str, reason: str = "Mission terminated") -> int:
+        """Invalidate all pending approval requests bound to mission_id."""
+        count = self.approval_store.cancel_requests_for_mission(mission_id, reason)
+        if count > 0:
+            self._emit("MISSION_APPROVALS_INVALIDATED", {
+                "mission_id": mission_id,
+                "count": count,
+                "reason": reason,
+            })
+        return count

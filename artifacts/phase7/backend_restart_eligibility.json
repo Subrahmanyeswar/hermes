@@ -1,0 +1,39 @@
+{
+  "target": "Target B: Backend Restart Classification & Eligibility",
+  "verified_at": "2026-10-13T11:18:25+05:30",
+  "status": "PASS",
+  "scenario_description": "On backend startup restore_persisted_missions(), interrupted active missions transition to WAITING_FOR_RECOVERY while user-stopped/cancelled missions remain protected.",
+  "classification_matrix": [
+    {
+      "pre_restart_state": "RUNNING (active during crash)",
+      "post_restart_status": "WAITING",
+      "post_restart_wait_reason": "WAITING_FOR_RECOVERY",
+      "interrupted_by_restart_flag": true,
+      "eligible_for_auto_resume": true
+    },
+    {
+      "pre_restart_state": "CANCELLED (user explicitly stopped/cancelled)",
+      "post_restart_status": "CANCELLED",
+      "post_restart_wait_reason": "NONE",
+      "eligible_for_auto_resume": false,
+      "fenced_reason": "Terminal or explicitly cancelled by user"
+    },
+    {
+      "pre_restart_state": "PAUSED",
+      "post_restart_status": "PAUSED",
+      "post_restart_wait_reason": "USER_PAUSED",
+      "eligible_for_auto_resume": false,
+      "fenced_reason": "Preserved in PAUSED state"
+    },
+    {
+      "pre_restart_state": "COMPLETED",
+      "post_restart_status": "COMPLETED",
+      "eligible_for_auto_resume": false,
+      "fenced_reason": "Terminal immutable state"
+    }
+  ],
+  "test_evidence": [
+    "tests/test_phase7_network_recovery.py::test_critical_d_backend_restart_classification_and_eligibility",
+    "tests/test_phase7_network_recovery.py::test_section_i_backend_restart_waiting_recovery"
+  ]
+}

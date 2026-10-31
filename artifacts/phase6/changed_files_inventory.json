@@ -1,0 +1,30 @@
+{
+  "phase": "Phase 6",
+  "base_branch": "hermes-2.x",
+  "base_commit": "031ad3cb7facaeb724d73f4278185d320d20593d",
+  "created_files": [
+    "core/transport/types.py",
+    "core/transport/client_manager.py",
+    "core/transport/stream_validator.py",
+    "core/transport/circuit_breaker.py",
+    "core/transport/retry_coordinator.py",
+    "tests/test_phase6_transport_hardening.py",
+    "artifacts/phase6/transport_audit.md",
+    "artifacts/phase6/acceptance_report.md",
+    "artifacts/phase6/phase6_test_results.json",
+    "artifacts/phase6/phase6_performance_metrics.json",
+    "artifacts/phase6/changed_files_inventory.json"
+  ],
+  "modified_files": [
+    "core/server/app.py",
+    "models/nvidia_client.py",
+    "models/ollama_client.py"
+  ],
+  "protected_files_verified": [
+    {
+      "path": "HEREMES (things to do later).txt",
+      "preserved": true,
+      "unmodified": true
+    }
+  ]
+}

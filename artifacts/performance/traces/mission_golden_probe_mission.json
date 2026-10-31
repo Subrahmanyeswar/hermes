@@ -1,19 +1,23 @@
 {
   "mission_id": "golden_probe_mission",
-  "execution_mode": "performance_baseline",
+  "execution_mode": "production",
   "mission": {
-    "start": "2026-09-19 23:49:37",
-    "end": "2026-09-19 23:49:37",
-    "duration_ms": 0.05,
-    "accounted_time_ms": 10.0,
-    "unaccounted_time_ms": 0.0
+    "start": "2026-10-22 12:57:35",
+    "end": "2026-10-22 12:57:35",
+    "duration_ms": 0.08,
+    "total_model_latency_ms": 0,
+    "total_tool_latency_ms": 0,
+    "total_verification_latency_ms": 0,
+    "local_hermes_overhead_ms": 0.0,
+    "accounted_time_ms": 0.0,
+    "unaccounted_time_ms": 0.08
   },
   "stages": [
     {
       "name": "Stage 1",
       "stage_number": 1,
-      "start": 260533.9243,
-      "end": 260533.9343,
+      "start": 316832.4004,
+      "end": 316832.4104,
       "duration_ms": 10.0,
       "success": true
     }

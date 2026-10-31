@@ -71,14 +71,26 @@ class TextSink(EventSink):
                 self._safe_write(self.stdout, sanitize_terminal_text(chunk, allow_newlines=True))
 
             elif et == "TOOL_STARTED":
-                tool = payload.get("tool_name", "tool")
-                self._safe_write(self.stderr, f"\n-> Executing tool: {tool}...\n")
+                tool = payload.get("tool_name")
+                if tool and str(tool).lower() not in ("none", "unknown", "unknown_tool", "unknown tool", "null", ""):
+                    self._safe_write(self.stderr, f"\n-> Executing tool: {tool}...\n")
 
-            elif et == "TOOL_COMPLETED":
-                tool = payload.get("tool_name", "tool")
-                exit_code = payload.get("exit_code", 0)
-                dur = payload.get("duration_seconds", 0.0)
-                self._safe_write(self.stderr, f"<- Tool {tool} completed (exit={exit_code}, {dur:.2f}s)\n")
+            elif et in ("TOOL_COMPLETED", "TOOL_FAILED"):
+                tool = payload.get("tool_name")
+                if tool and str(tool).lower() not in ("none", "unknown", "unknown_tool", "unknown tool", "null", ""):
+                    exit_code = payload.get("exit_code", 0)
+                    dur = payload.get("duration_seconds", 0.0)
+                    status_lbl = "completed" if et == "TOOL_COMPLETED" else "FAILED"
+                    err_info = ""
+                    if et == "TOOL_FAILED" and payload.get("error"):
+                        err_preview = str(payload.get("error")).strip().splitlines()[0][:120]
+                        err_info = f" - {err_preview}"
+                    self._safe_write(self.stderr, f"<- Tool {tool} {status_lbl} (exit={exit_code}, {dur:.2f}s){err_info}\n")
+
+            elif et == "ACTION_DENIED":
+                tool = payload.get("tool_name", "action")
+                reason = payload.get("reason", "Denied by policy")
+                self._safe_write(self.stderr, f"\n[DENIED] Action '{tool}': {reason}\n")
 
             elif et == "SECURITY_DENIED":
                 action = payload.get("action", "")

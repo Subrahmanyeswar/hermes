@@ -33,6 +33,7 @@ from core.commands.models import (
     CommandIntent,
     CommandOrigin,
     CommandResult,
+    CommandStatus,
     NormalPromptInput,
     PaletteTriggerInput,
     ParsedInput,
@@ -90,7 +91,7 @@ class ApplicationRuntime:
         # 1. Base Event and State Substrate
         self.event_bus = event_bus or global_event_bus
         self.state_store = state_store or global_state_store
-        self.workspace = WorkspaceManager()
+        self.workspace = global_workspace
         self.workspace.lock(str(self.workspace_root))
 
         # 2. Durable Persistence (Prompt 14)
@@ -164,7 +165,7 @@ class ApplicationRuntime:
         from core.orchestrator import Orchestrator
         self.orchestrator = Orchestrator(mode="auto", project="default")
         loop_config = AgentLoopConfig(
-            execution_mode="plan" if surface_mode == SurfaceMode.HEADLESS else "auto"
+            execution_mode="auto"
         )
         self.agent_loop = AgentLoop(
             orchestrator=self.orchestrator,
@@ -176,6 +177,11 @@ class ApplicationRuntime:
         )
 
         self._active_sink: Optional[EventSink] = None
+
+    def get_runtime_identity(self):
+        """Retrieve authoritative runtime identity for this running instance."""
+        from core.runtime_identity import detect_runtime_identity
+        return detect_runtime_identity(workspace_root=str(self.workspace_root))
 
     async def execute_input(
         self,
@@ -293,7 +299,6 @@ class ApplicationRuntime:
         )
 
         # Subscribe sink to event bus
-        subscription_id = None
         if sink:
             def _sink_callback(event: HermesEvent):
                 try:
@@ -301,7 +306,7 @@ class ApplicationRuntime:
                 except Exception:
                     pass
             try:
-                subscription_id = self.event_bus.subscribe("*", _sink_callback, subscriber_id="headless_sink")
+                self.event_bus.subscribe(_sink_callback)
             except Exception:
                 pass
 
@@ -339,9 +344,9 @@ class ApplicationRuntime:
             return 1
 
         finally:
-            if subscription_id and self.event_bus:
+            if sink and self.event_bus:
                 try:
-                    self.event_bus.unsubscribe(subscription_id)
+                    self.event_bus.unsubscribe(_sink_callback)
                 except Exception:
                     pass
 
@@ -349,9 +354,14 @@ class ApplicationRuntime:
         """Gracefully flush runtime state to Prompt 14 persistent session database."""
         try:
             if self.session_manager:
-                self.session_manager.save_session_state(
+                sess = self.session_manager.get_session(self.session_id)
+                if not sess:
+                    m_id = state.mission.mission_id if hasattr(state, "mission") and state.mission else "default"
+                    sess = self.session_manager.create_session(mission_id=m_id)
+                    self.session_id = sess.session_id
+                self.session_manager.create_checkpoint(
                     session_id=self.session_id,
-                    state=state,
+                    runtime_state=state,
                 )
         except Exception as e:
             logger.warning(f"Persistence flush warning: {e}")

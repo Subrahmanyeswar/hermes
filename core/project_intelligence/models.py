@@ -107,6 +107,10 @@ class SkillMetadata:
     mtime_ns: int = 0
     tags: List[str] = field(default_factory=list)
 
+    @property
+    def source_path(self) -> str:
+        return self.skill_file or self.source_dir
+
     def to_dict(self) -> Dict[str, Any]:
         return {
             "name": self.name,
@@ -136,6 +140,45 @@ class Skill:
             "body_length": len(self.body),
             "resources_loaded": list(self.resources.keys()),
             "loaded_at": self.loaded_at,
+        }
+
+
+@dataclass
+class SkillRoutingDecision:
+    """Decision output of progressive skill routing based on intent & workspace signals."""
+    task_text: str
+    selected_skills: List[str] = field(default_factory=list)
+    selected_skill_metadata: List[SkillMetadata] = field(default_factory=list)
+    candidate_scores: Dict[str, float] = field(default_factory=dict)
+    rejection_reasons: Dict[str, str] = field(default_factory=dict)
+    decision_rationale: str = ""
+    is_fallback: bool = False
+    signals_used: Dict[str, Any] = field(default_factory=dict)
+    routed_at: float = field(default_factory=time.time)
+
+    @property
+    def scores(self) -> Dict[str, float]:
+        return self.candidate_scores
+
+    @property
+    def reasons(self) -> Dict[str, str]:
+        return self.rejection_reasons
+
+    @property
+    def rejected_skills(self) -> List[Tuple[str, str]]:
+        return list(self.rejection_reasons.items())
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "task_text": self.task_text,
+            "selected_skills": self.selected_skills,
+            "selected_skill_metadata": [s.to_dict() for s in self.selected_skill_metadata],
+            "candidate_scores": self.candidate_scores,
+            "rejection_reasons": self.rejection_reasons,
+            "decision_rationale": self.decision_rationale,
+            "is_fallback": self.is_fallback,
+            "signals_used": self.signals_used,
+            "routed_at": self.routed_at,
         }
 
 
@@ -214,6 +257,7 @@ class ProjectIntelligenceSnapshot:
     active_skill_count: int
     bootstrap_command_count: int
     active_bootstrap_count: int
+    canonical_skills_root: str = ""
     timestamp: float = field(default_factory=time.time)
 
     def to_dict(self) -> Dict[str, Any]:
@@ -226,5 +270,6 @@ class ProjectIntelligenceSnapshot:
             "active_skill_count": self.active_skill_count,
             "bootstrap_command_count": self.bootstrap_command_count,
             "active_bootstrap_count": self.active_bootstrap_count,
+            "canonical_skills_root": self.canonical_skills_root,
             "timestamp": self.timestamp,
         }

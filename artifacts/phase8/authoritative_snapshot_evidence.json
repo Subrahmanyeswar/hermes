@@ -1,0 +1,38 @@
+{
+  "phase": "Phase 8",
+  "component": "authoritative_snapshot",
+  "verification_timestamp": "2026-10-13T13:22:00Z",
+  "endpoint": "GET /api/missions/{mission_id}",
+  "contract_fields": [
+    "mission_id",
+    "run_id",
+    "attempt_number",
+    "title",
+    "prompt",
+    "status",
+    "is_terminal",
+    "workspace_root",
+    "created_at",
+    "state_version",
+    "last_sequence",
+    "tasks",
+    "files_created",
+    "files_modified",
+    "checks",
+    "error",
+    "final_output",
+    "completion_reason",
+    "wait_reason",
+    "recovery_required",
+    "is_paused"
+  ],
+  "verification_results": {
+    "truthful_wait_reason_reporting": "PASS",
+    "truthful_recovery_required_flag": "PASS",
+    "truthful_is_paused_flag": "PASS",
+    "state_store_reconciliation": "PASS",
+    "database_mission_row_reconciliation": "PASS",
+    "pydantic_schema_strictness": "PASS"
+  },
+  "verdict": "PASS"
+}

@@ -1,0 +1,33 @@
+{
+  "phase": "Phase 5",
+  "base_branch": "hermes-2.x",
+  "base_commit": "031ad3cb7facaeb724d73f4278185d320d20593d",
+  "created_files": [
+    "core/persistence/recovery.py",
+    "tests/test_phase5_resume_control.py",
+    "artifacts/phase5/recovery_audit.md",
+    "artifacts/phase5/acceptance_report.md",
+    "artifacts/phase5/final_lock_report.md",
+    "artifacts/phase5/final_test_collection.json",
+    "artifacts/phase5/final_test_results.json",
+    "artifacts/phase5/final_scenario_coverage.json",
+    "artifacts/phase5/final_gui_build.json",
+    "artifacts/phase5/final_changed_files_inventory.json"
+  ],
+  "modified_files_in_phase5": [
+    "core/server/runtime_adapter.py",
+    "core/server/app.py",
+    "core/server/models.py",
+    "gui/src/api.ts",
+    "gui/src/types.ts",
+    "gui/src/App.tsx",
+    "gui/src/components/RightPane.tsx"
+  ],
+  "protected_files_verified": [
+    {
+      "path": "HEREMES (things to do later).txt",
+      "preserved": true,
+      "unmodified": true
+    }
+  ]
+}

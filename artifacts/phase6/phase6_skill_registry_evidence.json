@@ -1,0 +1,858 @@
+{
+  "phase": 6,
+  "canonical_skills_root": "None",
+  "skill_count": 13,
+  "skills": {
+    "auto-docs": {
+      "name": "auto-docs",
+      "description": "Generate README files, docstrings, and API documentation from existing code",
+      "triggers": [
+        "docs",
+        "documentation",
+        "readme",
+        "docstring",
+        "api docs",
+        "document",
+        "explain code",
+        "jsdoc"
+      ],
+      "priority": 1,
+      "allowed_tools": [],
+      "disable_model_invocation": false,
+      "context_fork": false,
+      "source_dir": "C:\\Users\\SUBBU\\Downloads\\hermes\\skills\\auto-docs",
+      "skill_file": "C:\\Users\\SUBBU\\Downloads\\hermes\\skills\\auto-docs\\SKILL.md",
+      "sha256_hash": "7bbe9cb45db4ae6cbae394b7978a1028616d5b55adf9064b2a03930de42f8666"
+    },
+    "bash-scripting": {
+      "name": "bash-scripting",
+      "description": "Bash scripting best practices, error handling, and safe shell command patterns",
+      "triggers": [
+        "bash",
+        "shell script",
+        "linux",
+        "terminal",
+        "command line",
+        "automation",
+        "shell",
+        "cron",
+        "sh file"
+      ],
+      "priority": 1,
+      "allowed_tools": [],
+      "disable_model_invocation": false,
+      "context_fork": false,
+      "source_dir": "C:\\Users\\SUBBU\\Downloads\\hermes\\skills\\bash-scripting",
+      "skill_file": "C:\\Users\\SUBBU\\Downloads\\hermes\\skills\\bash-scripting\\SKILL.md",
+      "sha256_hash": "2c5b96cf98bcd345574ce5ed4b89cca2980b01e676769117aad75e3d11af88ed"
+    },
+    "code-review": {
+      "name": "code-review",
+      "description": "Structured code review covering correctness, security, performance, and style",
+      "triggers": [
+        "code review",
+        "review",
+        "pull request",
+        "pr review",
+        "code quality",
+        "audit code"
+      ],
+      "priority": 1,
+      "allowed_tools": [],
+      "disable_model_invocation": false,
+      "context_fork": false,
+      "source_dir": "C:\\Users\\SUBBU\\Downloads\\hermes\\skills\\code-review",
+      "skill_file": "C:\\Users\\SUBBU\\Downloads\\hermes\\skills\\code-review\\SKILL.md",
+      "sha256_hash": "1004bcd29c185b1d15a28447005513311ab21c581a21ac99107c2692c6923190"
+    },
+    "database-design": {
+      "name": "database-design",
+      "description": "Database schema design patterns for SQLite and PostgreSQL with SQLAlchemy",
+      "triggers": [
+        "database",
+        "schema",
+        "sqlite",
+        "postgresql",
+        "sql",
+        "tables",
+        "migration",
+        "models",
+        "orm",
+        "db"
+      ],
+      "priority": 1,
+      "allowed_tools": [],
+      "disable_model_invocation": false,
+      "context_fork": false,
+      "source_dir": "C:\\Users\\SUBBU\\Downloads\\hermes\\skills\\database-design",
+      "skill_file": "C:\\Users\\SUBBU\\Downloads\\hermes\\skills\\database-design\\SKILL.md",
+      "sha256_hash": "24c9920ca29f2e7ebb20ee723022926c16962781b9c13fe8e09bfc86701e2bd6"
+    },
+    "debugging": {
+      "name": "debugging",
+      "description": "Systematic 4-step debugging protocol for Python errors, broken code, and failing tests",
+      "triggers": [
+        "debug",
+        "error",
+        "traceback",
+        "fix",
+        "broken",
+        "not working",
+        "is not working",
+        "exception",
+        "failing",
+        "crash",
+        "have a crash",
+        "bug",
+        "issue",
+        "typeerror",
+        "attributeerror",
+        "valueerror",
+        "nameerror",
+        "keyerror",
+        "indexerror",
+        "on line"
+      ],
+      "priority": 1,
+      "allowed_tools": [],
+      "disable_model_invocation": false,
+      "context_fork": false,
+      "source_dir": "C:\\Users\\SUBBU\\Downloads\\hermes\\skills\\debugging",
+      "skill_file": "C:\\Users\\SUBBU\\Downloads\\hermes\\skills\\debugging\\SKILL.md",
+      "sha256_hash": "340ef1206dfec49f10ad5786a2dcb564237fe42d52f382ddd722df19c57b1393"
+    },
+    "flask-rest-api": {
+      "name": "flask-rest-api",
+      "description": "Expert patterns for building production-quality Flask REST APIs with SQLAlchemy and JWT",
+      "triggers": [
+        "flask",
+        "rest api",
+        "api server",
+        "backend",
+        "crud api",
+        "flask app",
+        "web api",
+        "endpoints"
+      ],
+      "priority": 1,
+      "allowed_tools": [],
+      "disable_model_invocation": false,
+      "context_fork": false,
+      "source_dir": "C:\\Users\\SUBBU\\Downloads\\hermes\\skills\\flask-rest-api",
+      "skill_file": "C:\\Users\\SUBBU\\Downloads\\hermes\\skills\\flask-rest-api\\SKILL.md",
+      "sha256_hash": "05bd2a9d337b43a6582f69855670bffc94fb52db3168b6755edba045a757beb9"
+    },
+    "git-workflow": {
+      "name": "git-workflow",
+      "description": "Git and GitHub workflow patterns for committing, branching, and pushing code",
+      "triggers": [
+        "git",
+        "github",
+        "commit",
+        "push",
+        "pull request",
+        "branch",
+        "repository",
+        "repo",
+        "version control"
+      ],
+      "priority": 1,
+      "allowed_tools": [],
+      "disable_model_invocation": false,
+      "context_fork": false,
+      "source_dir": "C:\\Users\\SUBBU\\Downloads\\hermes\\skills\\git-workflow",
+      "skill_file": "C:\\Users\\SUBBU\\Downloads\\hermes\\skills\\git-workflow\\SKILL.md",
+      "sha256_hash": "e1ae8684635dcc1b61424bce7770ee8a377282b27e3d1a4cb763503db2e49c13"
+    },
+    "pytest-generation": {
+      "name": "pytest-generation",
+      "description": "Generate comprehensive pytest test suites with fixtures, edge cases, and error case coverage",
+      "triggers": [
+        "pytest",
+        "tests",
+        "test",
+        "unit test",
+        "unit tests",
+        "write tests",
+        "test cases",
+        "test suite",
+        "testing",
+        "test coverage",
+        "test file",
+        "edge cases"
+      ],
+      "priority": 1,
+      "allowed_tools": [],
+      "disable_model_invocation": false,
+      "context_fork": false,
+      "source_dir": "C:\\Users\\SUBBU\\Downloads\\hermes\\skills\\pytest-generation",
+      "skill_file": "C:\\Users\\SUBBU\\Downloads\\hermes\\skills\\pytest-generation\\SKILL.md",
+      "sha256_hash": "eb398b30f050cf1167346eecd5ad3361b25fcb133c8db9a9fb0ea3e5d0bc19a6"
+    },
+    "react-frontend": {
+      "name": "react-frontend",
+      "description": "React 18 component patterns with Tailwind CSS, hooks, and state management",
+      "triggers": [
+        "react",
+        "reactjs",
+        "jsx",
+        "tsx",
+        "nextjs",
+        "react-router",
+        "zustand",
+        "redux",
+        "react-hooks"
+      ],
+      "priority": 1,
+      "allowed_tools": [],
+      "disable_model_invocation": false,
+      "context_fork": false,
+      "source_dir": "C:\\Users\\SUBBU\\Downloads\\hermes\\skills\\react-frontend",
+      "skill_file": "C:\\Users\\SUBBU\\Downloads\\hermes\\skills\\react-frontend\\SKILL.md",
+      "sha256_hash": "d08419fa55535c11b66b3715a632304655e73e3b8de8e60ab218f8565e06b564"
+    },
+    "refactoring": {
+      "name": "refactoring",
+      "description": "Code refactoring using SOLID principles, clean code patterns, and modular design",
+      "triggers": [
+        "refactor",
+        "clean code",
+        "improve",
+        "optimise",
+        "restructure",
+        "solid",
+        "technical debt",
+        "messy"
+      ],
+      "priority": 1,
+      "allowed_tools": [],
+      "disable_model_invocation": false,
+      "context_fork": false,
+      "source_dir": "C:\\Users\\SUBBU\\Downloads\\hermes\\skills\\refactoring",
+      "skill_file": "C:\\Users\\SUBBU\\Downloads\\hermes\\skills\\refactoring\\SKILL.md",
+      "sha256_hash": "ededfa4865b79b7bc63be8e3d3064f25c0e13c2572c110df707e4fe4bb6defd4"
+    },
+    "screenshot-to-code": {
+      "name": "screenshot-to-code",
+      "description": "Convert UI screenshots and design mockups to HTML/CSS or React code using vision",
+      "triggers": [
+        "screenshot",
+        "image",
+        "ui design",
+        "design to code",
+        "mockup",
+        "convert image",
+        "figma",
+        "visual",
+        "html"
+      ],
+      "priority": 1,
+      "allowed_tools": [],
+      "disable_model_invocation": false,
+      "context_fork": false,
+      "source_dir": "C:\\Users\\SUBBU\\Downloads\\hermes\\skills\\screenshot-to-code",
+      "skill_file": "C:\\Users\\SUBBU\\Downloads\\hermes\\skills\\screenshot-to-code\\SKILL.md",
+      "sha256_hash": "d7236ef7635af4695ebe76bb27691c67585902afae4dfcfe84345f413665bade"
+    },
+    "security-audit": {
+      "name": "security-audit",
+      "description": "Security review checklist based on OWASP Top 10 for Python web applications",
+      "triggers": [
+        "security",
+        "vulnerability",
+        "audit",
+        "injection",
+        "xss",
+        "sanitise",
+        "owasp",
+        "secure",
+        "exploit"
+      ],
+      "priority": 1,
+      "allowed_tools": [],
+      "disable_model_invocation": false,
+      "context_fork": false,
+      "source_dir": "C:\\Users\\SUBBU\\Downloads\\hermes\\skills\\security-audit",
+      "skill_file": "C:\\Users\\SUBBU\\Downloads\\hermes\\skills\\security-audit\\SKILL.md",
+      "sha256_hash": "1e89535c142ce79efb5083ca4709ef9d01e6e115b538e87de11e02a1187c53dd"
+    },
+    "vanilla-web": {
+      "name": "vanilla-web",
+      "description": "Browser-native vanilla HTML5, CSS3, and ES6+ JavaScript patterns with DOM manipulation and localStorage",
+      "triggers": [
+        "html",
+        "css",
+        "javascript",
+        "vanilla",
+        "vanilla-web",
+        "website",
+        "webpage",
+        "frontend",
+        "web",
+        "landing-page",
+        "ui",
+        "webapp",
+        "responsive",
+        "lost-and-found"
+      ],
+      "priority": 1,
+      "allowed_tools": [],
+      "disable_model_invocation": false,
+      "context_fork": false,
+      "source_dir": "C:\\Users\\SUBBU\\Downloads\\hermes\\skills\\vanilla-web",
+      "skill_file": "C:\\Users\\SUBBU\\Downloads\\hermes\\skills\\vanilla-web\\SKILL.md",
+      "sha256_hash": "4f3ed5e6cc8b5c23d8c9ee43dc0a22b426ec5a79d1946b756b871bfeaa8dac22"
+    }
+  },
+  "routing_scenarios": {
+    "A_vanilla_web": {
+      "task_text": "Build a responsive static landing page with HTML, CSS, and vanilla JS",
+      "selected_skills": [
+        "vanilla-web",
+        "screenshot-to-code"
+      ],
+      "selected_skill_metadata": [
+        {
+          "name": "vanilla-web",
+          "description": "Browser-native vanilla HTML5, CSS3, and ES6+ JavaScript patterns with DOM manipulation and localStorage",
+          "triggers": [
+            "html",
+            "css",
+            "javascript",
+            "vanilla",
+            "vanilla-web",
+            "website",
+            "webpage",
+            "frontend",
+            "web",
+            "landing-page",
+            "ui",
+            "webapp",
+            "responsive",
+            "lost-and-found"
+          ],
+          "priority": 1,
+          "allowed_tools": [],
+          "disable_model_invocation": false,
+          "context_fork": false,
+          "source_dir": "C:\\Users\\SUBBU\\Downloads\\hermes\\skills\\vanilla-web",
+          "skill_file": "C:\\Users\\SUBBU\\Downloads\\hermes\\skills\\vanilla-web\\SKILL.md",
+          "sha256_hash": "4f3ed5e6cc8b5c23d8c9ee43dc0a22b426ec5a79d1946b756b871bfeaa8dac22"
+        },
+        {
+          "name": "screenshot-to-code",
+          "description": "Convert UI screenshots and design mockups to HTML/CSS or React code using vision",
+          "triggers": [
+            "screenshot",
+            "image",
+            "ui design",
+            "design to code",
+            "mockup",
+            "convert image",
+            "figma",
+            "visual",
+            "html"
+          ],
+          "priority": 1,
+          "allowed_tools": [],
+          "disable_model_invocation": false,
+          "context_fork": false,
+          "source_dir": "C:\\Users\\SUBBU\\Downloads\\hermes\\skills\\screenshot-to-code",
+          "skill_file": "C:\\Users\\SUBBU\\Downloads\\hermes\\skills\\screenshot-to-code\\SKILL.md",
+          "sha256_hash": "d7236ef7635af4695ebe76bb27691c67585902afae4dfcfe84345f413665bade"
+        }
+      ],
+      "candidate_scores": {
+        "auto-docs": 0.02,
+        "bash-scripting": 0.02,
+        "code-review": 0.02,
+        "database-design": 0.02,
+        "debugging": 0.02,
+        "flask-rest-api": 0.02,
+        "git-workflow": 0.02,
+        "pytest-generation": 0.02,
+        "refactoring": 0.02,
+        "screenshot-to-code": 0.62,
+        "security-audit": 0.02,
+        "vanilla-web": 1.42
+      },
+      "rejection_reasons": {
+        "react-frontend": "Workspace contains vanilla HTML/JS without React"
+      },
+      "decision_rationale": "Selected vanilla-web, screenshot-to-code based on task intent and workspace signals",
+      "is_fallback": false,
+      "signals_used": {},
+      "routed_at": 1792599125.1768727
+    },
+    "B_python_traceback": {
+      "task_text": "Fix this ZeroDivisionError in app/calculator.py: line 42 in divide: return a / b",
+      "selected_skills": [
+        "debugging"
+      ],
+      "selected_skill_metadata": [
+        {
+          "name": "debugging",
+          "description": "Systematic 4-step debugging protocol for Python errors, broken code, and failing tests",
+          "triggers": [
+            "debug",
+            "error",
+            "traceback",
+            "fix",
+            "broken",
+            "not working",
+            "is not working",
+            "exception",
+            "failing",
+            "crash",
+            "have a crash",
+            "bug",
+            "issue",
+            "typeerror",
+            "attributeerror",
+            "valueerror",
+            "nameerror",
+            "keyerror",
+            "indexerror",
+            "on line"
+          ],
+          "priority": 1,
+          "allowed_tools": [],
+          "disable_model_invocation": false,
+          "context_fork": false,
+          "source_dir": "C:\\Users\\SUBBU\\Downloads\\hermes\\skills\\debugging",
+          "skill_file": "C:\\Users\\SUBBU\\Downloads\\hermes\\skills\\debugging\\SKILL.md",
+          "sha256_hash": "340ef1206dfec49f10ad5786a2dcb564237fe42d52f382ddd722df19c57b1393"
+        }
+      ],
+      "candidate_scores": {
+        "auto-docs": 0.02,
+        "bash-scripting": 0.02,
+        "code-review": 0.02,
+        "database-design": 0.02,
+        "debugging": 1.12,
+        "flask-rest-api": 0.02,
+        "git-workflow": 0.02,
+        "pytest-generation": 0.02,
+        "react-frontend": 0.02,
+        "refactoring": 0.02,
+        "screenshot-to-code": 0.02,
+        "security-audit": 0.02,
+        "vanilla-web": 0.02
+      },
+      "rejection_reasons": {},
+      "decision_rationale": "Selected debugging based on task intent and workspace signals",
+      "is_fallback": false,
+      "signals_used": {},
+      "routed_at": 1792599125.177869
+    },
+    "C_api_review": {
+      "task_text": "Review the security and structure of this Flask REST endpoint",
+      "selected_skills": [
+        "code-review",
+        "flask-rest-api",
+        "security-audit"
+      ],
+      "selected_skill_metadata": [
+        {
+          "name": "code-review",
+          "description": "Structured code review covering correctness, security, performance, and style",
+          "triggers": [
+            "code review",
+            "review",
+            "pull request",
+            "pr review",
+            "code quality",
+            "audit code"
+          ],
+          "priority": 1,
+          "allowed_tools": [],
+          "disable_model_invocation": false,
+          "context_fork": false,
+          "source_dir": "C:\\Users\\SUBBU\\Downloads\\hermes\\skills\\code-review",
+          "skill_file": "C:\\Users\\SUBBU\\Downloads\\hermes\\skills\\code-review\\SKILL.md",
+          "sha256_hash": "1004bcd29c185b1d15a28447005513311ab21c581a21ac99107c2692c6923190"
+        },
+        {
+          "name": "flask-rest-api",
+          "description": "Expert patterns for building production-quality Flask REST APIs with SQLAlchemy and JWT",
+          "triggers": [
+            "flask",
+            "rest api",
+            "api server",
+            "backend",
+            "crud api",
+            "flask app",
+            "web api",
+            "endpoints"
+          ],
+          "priority": 1,
+          "allowed_tools": [],
+          "disable_model_invocation": false,
+          "context_fork": false,
+          "source_dir": "C:\\Users\\SUBBU\\Downloads\\hermes\\skills\\flask-rest-api",
+          "skill_file": "C:\\Users\\SUBBU\\Downloads\\hermes\\skills\\flask-rest-api\\SKILL.md",
+          "sha256_hash": "05bd2a9d337b43a6582f69855670bffc94fb52db3168b6755edba045a757beb9"
+        },
+        {
+          "name": "security-audit",
+          "description": "Security review checklist based on OWASP Top 10 for Python web applications",
+          "triggers": [
+            "security",
+            "vulnerability",
+            "audit",
+            "injection",
+            "xss",
+            "sanitise",
+            "owasp",
+            "secure",
+            "exploit"
+          ],
+          "priority": 1,
+          "allowed_tools": [],
+          "disable_model_invocation": false,
+          "context_fork": false,
+          "source_dir": "C:\\Users\\SUBBU\\Downloads\\hermes\\skills\\security-audit",
+          "skill_file": "C:\\Users\\SUBBU\\Downloads\\hermes\\skills\\security-audit\\SKILL.md",
+          "sha256_hash": "1e89535c142ce79efb5083ca4709ef9d01e6e115b538e87de11e02a1187c53dd"
+        }
+      ],
+      "candidate_scores": {
+        "auto-docs": 0.02,
+        "bash-scripting": 0.02,
+        "code-review": 1.12,
+        "database-design": 0.02,
+        "debugging": 0.02,
+        "flask-rest-api": 1.07,
+        "git-workflow": 0.02,
+        "pytest-generation": 0.02,
+        "react-frontend": 0.02,
+        "refactoring": 0.02,
+        "screenshot-to-code": 0.02,
+        "security-audit": 0.62,
+        "vanilla-web": 0.02
+      },
+      "rejection_reasons": {},
+      "decision_rationale": "Selected code-review, flask-rest-api, security-audit based on task intent and workspace signals",
+      "is_fallback": false,
+      "signals_used": {},
+      "routed_at": 1792599125.1788704
+    },
+    "D_database_design": {
+      "task_text": "Design a normalized PostgreSQL schema for a multi-tenant SaaS application",
+      "selected_skills": [
+        "database-design"
+      ],
+      "selected_skill_metadata": [
+        {
+          "name": "database-design",
+          "description": "Database schema design patterns for SQLite and PostgreSQL with SQLAlchemy",
+          "triggers": [
+            "database",
+            "schema",
+            "sqlite",
+            "postgresql",
+            "sql",
+            "tables",
+            "migration",
+            "models",
+            "orm",
+            "db"
+          ],
+          "priority": 1,
+          "allowed_tools": [],
+          "disable_model_invocation": false,
+          "context_fork": false,
+          "source_dir": "C:\\Users\\SUBBU\\Downloads\\hermes\\skills\\database-design",
+          "skill_file": "C:\\Users\\SUBBU\\Downloads\\hermes\\skills\\database-design\\SKILL.md",
+          "sha256_hash": "24c9920ca29f2e7ebb20ee723022926c16962781b9c13fe8e09bfc86701e2bd6"
+        }
+      ],
+      "candidate_scores": {
+        "auto-docs": 0.02,
+        "bash-scripting": 0.02,
+        "code-review": 0.02,
+        "database-design": 1.17,
+        "debugging": 0.02,
+        "flask-rest-api": 0.02,
+        "git-workflow": 0.02,
+        "pytest-generation": 0.02,
+        "react-frontend": 0.02,
+        "refactoring": 0.07,
+        "screenshot-to-code": 0.07,
+        "security-audit": 0.02,
+        "vanilla-web": 0.02
+      },
+      "rejection_reasons": {},
+      "decision_rationale": "Selected database-design based on task intent and workspace signals",
+      "is_fallback": false,
+      "signals_used": {},
+      "routed_at": 1792599125.1788704
+    },
+    "E_multi_skill": {
+      "task_text": "Build a vanilla website that submits data to a small API and persists it in a relational database",
+      "selected_skills": [
+        "vanilla-web",
+        "database-design",
+        "flask-rest-api"
+      ],
+      "selected_skill_metadata": [
+        {
+          "name": "vanilla-web",
+          "description": "Browser-native vanilla HTML5, CSS3, and ES6+ JavaScript patterns with DOM manipulation and localStorage",
+          "triggers": [
+            "html",
+            "css",
+            "javascript",
+            "vanilla",
+            "vanilla-web",
+            "website",
+            "webpage",
+            "frontend",
+            "web",
+            "landing-page",
+            "ui",
+            "webapp",
+            "responsive",
+            "lost-and-found"
+          ],
+          "priority": 1,
+          "allowed_tools": [],
+          "disable_model_invocation": false,
+          "context_fork": false,
+          "source_dir": "C:\\Users\\SUBBU\\Downloads\\hermes\\skills\\vanilla-web",
+          "skill_file": "C:\\Users\\SUBBU\\Downloads\\hermes\\skills\\vanilla-web\\SKILL.md",
+          "sha256_hash": "4f3ed5e6cc8b5c23d8c9ee43dc0a22b426ec5a79d1946b756b871bfeaa8dac22"
+        },
+        {
+          "name": "database-design",
+          "description": "Database schema design patterns for SQLite and PostgreSQL with SQLAlchemy",
+          "triggers": [
+            "database",
+            "schema",
+            "sqlite",
+            "postgresql",
+            "sql",
+            "tables",
+            "migration",
+            "models",
+            "orm",
+            "db"
+          ],
+          "priority": 1,
+          "allowed_tools": [],
+          "disable_model_invocation": false,
+          "context_fork": false,
+          "source_dir": "C:\\Users\\SUBBU\\Downloads\\hermes\\skills\\database-design",
+          "skill_file": "C:\\Users\\SUBBU\\Downloads\\hermes\\skills\\database-design\\SKILL.md",
+          "sha256_hash": "24c9920ca29f2e7ebb20ee723022926c16962781b9c13fe8e09bfc86701e2bd6"
+        },
+        {
+          "name": "flask-rest-api",
+          "description": "Expert patterns for building production-quality Flask REST APIs with SQLAlchemy and JWT",
+          "triggers": [
+            "flask",
+            "rest api",
+            "api server",
+            "backend",
+            "crud api",
+            "flask app",
+            "web api",
+            "endpoints"
+          ],
+          "priority": 1,
+          "allowed_tools": [],
+          "disable_model_invocation": false,
+          "context_fork": false,
+          "source_dir": "C:\\Users\\SUBBU\\Downloads\\hermes\\skills\\flask-rest-api",
+          "skill_file": "C:\\Users\\SUBBU\\Downloads\\hermes\\skills\\flask-rest-api\\SKILL.md",
+          "sha256_hash": "05bd2a9d337b43a6582f69855670bffc94fb52db3168b6755edba045a757beb9"
+        }
+      ],
+      "candidate_scores": {
+        "auto-docs": 0.07,
+        "bash-scripting": 0.02,
+        "code-review": 0.02,
+        "database-design": 1.07,
+        "debugging": 0.02,
+        "flask-rest-api": 0.47,
+        "git-workflow": 0.02,
+        "pytest-generation": 0.02,
+        "refactoring": 0.02,
+        "screenshot-to-code": 0.02,
+        "security-audit": 0.02,
+        "vanilla-web": 1.42
+      },
+      "rejection_reasons": {
+        "react-frontend": "Workspace contains vanilla HTML/JS without React"
+      },
+      "decision_rationale": "Selected vanilla-web, database-design, flask-rest-api based on task intent and workspace signals",
+      "is_fallback": false,
+      "signals_used": {},
+      "routed_at": 1792599125.179871
+    },
+    "F_no_match": {
+      "task_text": "Write a haiku about the spring rain in Kyoto",
+      "selected_skills": [],
+      "selected_skill_metadata": [],
+      "candidate_scores": {
+        "auto-docs": 0.02,
+        "bash-scripting": 0.02,
+        "code-review": 0.02,
+        "database-design": 0.02,
+        "debugging": 0.02,
+        "flask-rest-api": 0.02,
+        "git-workflow": 0.02,
+        "pytest-generation": 0.02,
+        "react-frontend": 0.02,
+        "refactoring": 0.02,
+        "screenshot-to-code": 0.02,
+        "security-audit": 0.02,
+        "vanilla-web": 0.02
+      },
+      "rejection_reasons": {},
+      "decision_rationale": "No skill met the relevance threshold (0.30)",
+      "is_fallback": true,
+      "signals_used": {},
+      "routed_at": 1792599125.1808717
+    },
+    "G_ambiguous": {
+      "task_text": "Help me optimize my application performance",
+      "selected_skills": [],
+      "selected_skill_metadata": [],
+      "candidate_scores": {
+        "auto-docs": 0.02,
+        "bash-scripting": 0.02,
+        "code-review": 0.07,
+        "database-design": 0.02,
+        "debugging": 0.02,
+        "flask-rest-api": 0.02,
+        "git-workflow": 0.02,
+        "pytest-generation": 0.02,
+        "react-frontend": 0.02,
+        "refactoring": 0.02,
+        "screenshot-to-code": 0.02,
+        "security-audit": 0.02,
+        "vanilla-web": 0.02
+      },
+      "rejection_reasons": {},
+      "decision_rationale": "No skill met the relevance threshold (0.30)",
+      "is_fallback": true,
+      "signals_used": {},
+      "routed_at": 1792599125.181871
+    },
+    "H_conflict": {
+      "task_text": "Create a new modal component for user profile details",
+      "selected_skills": [
+        "vanilla-web"
+      ],
+      "selected_skill_metadata": [
+        {
+          "name": "vanilla-web",
+          "description": "Browser-native vanilla HTML5, CSS3, and ES6+ JavaScript patterns with DOM manipulation and localStorage",
+          "triggers": [
+            "html",
+            "css",
+            "javascript",
+            "vanilla",
+            "vanilla-web",
+            "website",
+            "webpage",
+            "frontend",
+            "web",
+            "landing-page",
+            "ui",
+            "webapp",
+            "responsive",
+            "lost-and-found"
+          ],
+          "priority": 1,
+          "allowed_tools": [],
+          "disable_model_invocation": false,
+          "context_fork": false,
+          "source_dir": "C:\\Users\\SUBBU\\Downloads\\hermes\\skills\\vanilla-web",
+          "skill_file": "C:\\Users\\SUBBU\\Downloads\\hermes\\skills\\vanilla-web\\SKILL.md",
+          "sha256_hash": "4f3ed5e6cc8b5c23d8c9ee43dc0a22b426ec5a79d1946b756b871bfeaa8dac22"
+        }
+      ],
+      "candidate_scores": {
+        "auto-docs": 0.02,
+        "bash-scripting": 0.02,
+        "code-review": 0.02,
+        "database-design": 0.02,
+        "debugging": 0.02,
+        "flask-rest-api": 0.02,
+        "git-workflow": 0.02,
+        "pytest-generation": 0.02,
+        "refactoring": 0.02,
+        "screenshot-to-code": 0.02,
+        "security-audit": 0.02,
+        "vanilla-web": 0.37
+      },
+      "rejection_reasons": {
+        "react-frontend": "Workspace contains vanilla HTML/JS without React"
+      },
+      "decision_rationale": "Selected vanilla-web based on task intent and workspace signals",
+      "is_fallback": false,
+      "signals_used": {
+        "files": [
+          "index.html",
+          "style.css",
+          "app.js"
+        ],
+        "framework": "vanilla"
+      },
+      "routed_at": 1792599125.1828716
+    }
+  },
+  "verification_results": {
+    "phase6_dedicated_tests": {
+      "total": 20,
+      "passed": 20,
+      "failed": 0
+    },
+    "project_intelligence_tests": {
+      "total": 20,
+      "passed": 20,
+      "failed": 0
+    },
+    "phase5_regression_tests": {
+      "total": 42,
+      "passed": 42,
+      "failed": 0
+    },
+    "phase11_contract_tests": {
+      "total": 36,
+      "passed": 36,
+      "failed": 0
+    },
+    "phase1_regression_tests": {
+      "total": 26,
+      "passed": 26,
+      "failed": 0
+    },
+    "phase2_regression_tests": {
+      "total": 65,
+      "passed": 65,
+      "failed": 0
+    },
+    "phase3_regression_tests": {
+      "total": 66,
+      "passed": 66,
+      "failed": 0
+    },
+    "phase4_regression_tests": {
+      "total": 37,
+      "passed": 37,
+      "failed": 0
+    },
+    "gui_prototype_acceptance": {
+      "total": 5,
+      "passed": 5,
+      "failed": 0
+    },
+    "gui_production_build": {
+      "exit_code": 0,
+      "status": "SUCCESS"
+    }
+  }
+}

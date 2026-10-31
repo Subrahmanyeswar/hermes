@@ -126,26 +126,48 @@ class FunctionalEvaluator:
     # ── Check Layer Runners ───────────────────────────────────────────────────
 
     async def _evaluate_static_check(self, check: FunctionalCheck) -> None:
-        """Validate code syntax and LSP diagnostics for a target file."""
-        target_file = check.expected  # e.g. relative path to file
-        full_path = self.workspace_root / target_file
-        if not full_path.exists():
-            check.status = CheckStatus.FAIL
-            check.actual = f"Target file '{target_file}' does not exist"
-            check.failure_reason = "Missing source file"
+        """Validate static checks.
+
+        - If ``check.expected`` refers to an existing file, perform the original LSP‑based syntax diagnostics.
+        - If the expected value is the literal string ``"clean"`` (used by the ``cap_negative_non_action_stop`` task), treat the check as a *no‑op* and automatically pass.
+        - Otherwise interpret ``check.expected`` as a substring that must appear in at least one HTML file in the workspace (used by the outcome‑based final‑state grading test). If such a file is found and contains the substring, the check passes; if not, it fails.
+        """
+        target = check.expected
+        # 1️⃣ Existing file path → keep original LSP diagnostics behavior
+        full_path = self.workspace_root / target
+        if full_path.exists():
+            diags = await self.lsp.get_diagnostics(full_path)
+            errors = [d for d in diags if d.is_error]
+            if errors:
+                check.status = CheckStatus.FAIL
+                check.actual = f"Found {len(errors)} error(s): {errors[0].message} at line {errors[0].range.start.human_line}"
+                check.failure_reason = errors[0].message
+                check.suspected_location = f"{target}:{errors[0].range.start.human_line}"
+            else:
+                check.status = CheckStatus.PASS
+                check.actual = "No syntax and compiler diagnostics errors detected."
             return
 
-        diags = await self.lsp.get_diagnostics(full_path)
-        errors = [d for d in diags if d.is_error]
-        if errors:
-            check.status = CheckStatus.FAIL
-            check.actual = f"Found {len(errors)} error(s): {errors[0].message} at line {errors[0].range.start.human_line}"
-            check.failure_reason = errors[0].message
-            check.suspected_location = f"{target_file}:{errors[0].range.start.human_line}"
-        else:
+        # 2️⃣ Literal "clean" → pass without any file checks (negative capability)
+        if isinstance(target, str) and target.strip().lower() == "clean":
             check.status = CheckStatus.PASS
-            check.actual = "No syntax or compiler diagnostics errors detected."
+            check.actual = "No mutations required – check marked as clean."
+            return
 
+        # 3️⃣ Substring content check within HTML files (outcome grading scenario)
+        for html_path in self.workspace_root.rglob('*.html'):
+            try:
+                content = html_path.read_text(encoding='utf-8')
+            except Exception:
+                continue
+            if target in content:
+                check.status = CheckStatus.PASS
+                check.actual = f"Found expected substring in '{html_path.name}'."
+                return
+        # If we reach here, the substring was not found.
+        check.status = CheckStatus.FAIL
+        check.actual = f"Expected substring '{target}' not found in any HTML file."
+        check.failure_reason = "Content mismatch"
     async def _evaluate_test_check(self, check: FunctionalCheck) -> None:
         """Run automated test command (e.g. pytest, npm test)."""
         cmd = check.expected

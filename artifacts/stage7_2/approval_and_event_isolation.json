@@ -1,0 +1,34 @@
+{
+  "timestamp": "2026-10-11T21:01:45+05:30",
+  "approval_isolation_evidence": {
+    "grant_structure": {
+      "model": "ApprovalGrant",
+      "fields_added": ["mission_id"]
+    },
+    "grant_binding": {
+      "create_grant_enforces_mission_id": true,
+      "resolve_request_binds_grant_to_mission_id": true,
+      "find_matching_grant_enforces_mission_id_match": true
+    },
+    "cross_mission_leak_test": {
+      "grant_a_for_mission_a": "MATCHED",
+      "grant_a_for_mission_b": "REJECTED (matched=None)",
+      "leak_prevented": true
+    },
+    "scoped_invalidation": {
+      "cancel_requests_for_mission_a_leaves_mission_b_intact": true
+    }
+  },
+  "event_stream_isolation_evidence": {
+    "bus_type": "EventBus",
+    "replay_scoping": {
+      "replay_mission_a_contains_only_mission_a_events": true,
+      "replay_mission_b_contains_only_mission_b_events": true
+    },
+    "terminal_state_resilience": {
+      "cancelled_state_immutable": true,
+      "late_failure_rejected": true,
+      "resurrection_blocked": true
+    }
+  }
+}

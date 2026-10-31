@@ -1,0 +1,43 @@
+{
+  "test_suite": "tests/test_phase2_durable_persistence.py",
+  "scenarios_verified": [
+    "test_scenario_d_checkpoint_manifest_and_blob_integrity",
+    "test_scenario_e_safe_execution_boundary_checkpoints",
+    "test_scenario_j_corruption_and_tamper_detection"
+  ],
+  "content_addressed_storage": {
+    "hashing_algorithm": "SHA-256",
+    "atomic_writes": true,
+    "directory_partitioning": "2-char hex prefix",
+    "idempotent_deduplication": true
+  },
+  "manifest_fields": [
+    "checkpoint_id",
+    "session_id",
+    "mission_id",
+    "sequence",
+    "run_id",
+    "attempt_number",
+    "created_at",
+    "state_hash",
+    "workspace_manifest",
+    "git_manifest",
+    "environment_manifest",
+    "provider_manifest",
+    "security_manifest",
+    "jobs_manifest",
+    "evidence_refs",
+    "manifest_hash"
+  ],
+  "safe_boundary_triggers": {
+    "MISSION_START": "CheckpointReason.MANUAL",
+    "TURN_SETTLED": "CheckpointReason.POST_ACTION",
+    "VERIFICATION_COMPLETED": "CheckpointReason.POST_VERIFICATION",
+    "TERMINAL": "CheckpointReason.MANUAL"
+  },
+  "tamper_detection": {
+    "blob_payload_mutation_detected": true,
+    "missing_blob_detected": true,
+    "verification_result_on_tamper": false
+  }
+}

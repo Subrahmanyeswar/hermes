@@ -1,0 +1,47 @@
+{
+  "timestamp": 1791890540.8500092,
+  "python_version": "3.12.0 (tags/v3.12.0:0fb18b0, Oct  2 2023, 13:03:39) [MSC v.1935 64 bit (AMD64)]",
+  "event_bus": {
+    "single_publish_p50_ms": 0.0081,
+    "single_publish_p95_ms": 0.0133,
+    "single_publish_avg_ms": 0.0108,
+    "burst_total_ms": 65.93,
+    "burst_throughput_events_per_sec": 75836.4,
+    "replay_500_events_ms": 141.0221
+  },
+  "snapshot_assembly": {
+    "snapshot_10_events_p50_ms": 0.156,
+    "snapshot_10_events_p95_ms": 0.255,
+    "snapshot_10_events_avg_ms": 0.17,
+    "snapshot_100_events_p50_ms": 0.185,
+    "snapshot_100_events_p95_ms": 0.289,
+    "snapshot_100_events_avg_ms": 0.199,
+    "snapshot_500_events_p50_ms": 0.203,
+    "snapshot_500_events_p95_ms": 0.244,
+    "snapshot_500_events_avg_ms": 0.219
+  },
+  "workspace_and_checkpoints": {
+    "workspace_files_count": 50,
+    "cold_workspace_index_ms": 116.245,
+    "warm_workspace_refresh_ms": 22.792,
+    "cold_checkpoint_snapshot_ms": 207.42,
+    "warm_checkpoint_snapshot_p50_ms": 31.124,
+    "single_file_mod_snapshot_ms": 23.976
+  },
+  "persistence": {
+    "mission_create_avg_ms": 0.052,
+    "mission_create_p50_ms": 0.037,
+    "event_journal_append_avg_ms": 0.091,
+    "event_journal_append_p50_ms": 0.07,
+    "snapshot_save_avg_ms": 0.054,
+    "snapshot_save_p50_ms": 0.043,
+    "snapshot_read_avg_ms": 0.035,
+    "snapshot_read_p50_ms": 0.031
+  },
+  "controls": {
+    "pause_request_p50_ms": 0.0208,
+    "pause_request_avg_ms": 0.0342,
+    "stop_request_p50_ms": 0.0004,
+    "stop_request_avg_ms": 0.0007
+  }
+}

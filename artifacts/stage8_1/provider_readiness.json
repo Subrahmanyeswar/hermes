@@ -1,0 +1,39 @@
+{
+  "timestamp": "2026-10-12T10:19:46+05:30",
+  "provider_readiness": {
+    "tier1": {
+      "tier": "Tier 1",
+      "provider": "nvidia_nim",
+      "model": "z-ai/glm-5.3-flash",
+      "endpoint": "https://integrate.api.nvidia.com/v1",
+      "status": "PASS",
+      "latency_ms": 734.11,
+      "response_preview": "T1_PONG",
+      "real_provider_confirmed": true,
+      "credentials_redacted": true
+    },
+    "tier2": {
+      "tier": "Tier 2",
+      "provider": "ollama",
+      "model": "gpt-oss:120b-cloud",
+      "endpoint": "http://127.0.0.1:11434",
+      "status": "PASS",
+      "latency_ms": 2084.8,
+      "response_preview": "/think>\nT2_PONG",
+      "real_provider_confirmed": true,
+      "credentials_redacted": true
+    },
+    "tier3": {
+      "tier": "Tier 3",
+      "provider": "ollama",
+      "model": "nemotron-3-ultra:cloud",
+      "endpoint": "http://127.0.0.1:11434",
+      "status": "PASS",
+      "latency_ms": 2376.76,
+      "response_preview": "/think>\nT3_PONG",
+      "real_provider_confirmed": true,
+      "credentials_redacted": true
+    }
+  },
+  "overall_provider_verdict": "PASS"
+}

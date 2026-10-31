@@ -52,7 +52,7 @@ async def test_generate_calls_correct_endpoint() -> None:
 
     # URL
     called_url: str = call_args.args[0] if call_args.args else call_args.kwargs["url"]
-    assert called_url == "http://localhost:11434/api/generate"
+    assert called_url in ("http://localhost:11434/api/generate", "http://127.0.0.1:11434/api/generate")
 
     # Body (passed as json= kwarg)
     body: dict = call_args.kwargs["json"]

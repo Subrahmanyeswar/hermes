@@ -21,11 +21,16 @@ from loguru import logger
 def _get_known_tools() -> Set[str]:
     """Return the set of all recognized tool names, including batch tools and known aliases."""
     try:
-        from tools.registry import list_tools
+        from tools.registry import list_tools, TOOL_ALIASES
         registered = set(list_tools())
+        registered.update(TOOL_ALIASES.keys())
     except Exception:
         registered = set()
-    registered.update({"write_files_batch", "list_files", "create_directory", "list_dir"})
+    registered.update({
+        "write_files_batch", "list_files", "create_directory", "list_dir",
+        "fs.read", "fs.write", "fs.edit", "shell.bash", "search.glob", "search.grep",
+        "task.todo", "task.delegate", "user.ask", "tool_search"
+    })
     return registered
 
 
@@ -110,20 +115,32 @@ class ResponseParser:
 
                 # If mixed calls and one is write_file, prefer the write_file call
                 active_tc = write_file_calls[0] if (len(write_file_calls) == 1 and len(tool_calls) > 1) else tool_calls[0]
-                fn = active_tc.get("function", {})
-                tname = fn.get("name", "")
-                args_raw = fn.get("arguments", {})
-                params = self._parse_tool_arguments(tname, args_raw)
+                fn = active_tc.get("function", {}) if isinstance(active_tc, dict) else getattr(active_tc, "function", {})
+                tname = fn.get("name", "") if isinstance(fn, dict) else getattr(fn, "name", "")
+                from tools.registry import get_canonical_tool_name
+                canonical_tname = get_canonical_tool_name(tname)
+                if canonical_tname:
+                    tname = canonical_tname
+                    args_raw = fn.get("arguments", {})
+                    params = self._parse_tool_arguments(tname, args_raw)
 
-                if tname and (params or tname not in ("write_file", "append_file", "read_file", "bash_exec")):
-                    logger.debug(f"ResponseParser: success via native_tool_call | tool={tname}")
-                    return ParseSuccess(
-                        tool=tname,
-                        parameters=params,
-                        reasoning="Native tool call emitted by provider.",
-                        explanation=f"Executed native tool call {tname}.",
-                        method_used="native_tool_call",
+                    if tname and (params or tname not in ("write_file", "append_file", "read_file", "bash_exec")):
+                        logger.debug(f"ResponseParser: success via native_tool_call | tool={tname}")
+                        return ParseSuccess(
+                            tool=tname,
+                            parameters=params,
+                            reasoning="Native tool call emitted by provider.",
+                            explanation=f"Executed native tool call {tname}.",
+                            method_used="native_tool_call",
+                            raw_response=getattr(response, "text", str(response)),
+                        )
+                elif tname:
+                    logger.warning(f"ResponseParser: native_tool_call rejected unknown tool '{tname}'")
+                    return ParseFailure(
                         raw_response=getattr(response, "text", str(response)),
+                        failure_reason=f"unknown_tool_rejected:{tname}",
+                        methods_tried=["native_tool_call"],
+                        response_length=len(getattr(response, "text", str(response))),
                     )
             except Exception as e:
                 logger.debug(f"ResponseParser: native_tool_call extraction exception: {e}")
@@ -151,7 +168,12 @@ class ResponseParser:
                 cleaned_response = think_reasoning
         elif "<think>" in cleaned_response and "</think>" not in cleaned_response:
             think_reasoning = cleaned_response.replace("<think>", "").strip()
-            cleaned_response = think_reasoning
+            brace_idx = think_reasoning.find("{")
+            rbrace_idx = think_reasoning.rfind("}")
+            if brace_idx != -1 and rbrace_idx > brace_idx:
+                cleaned_response = think_reasoning[brace_idx:rbrace_idx + 1]
+            else:
+                cleaned_response = think_reasoning
 
         methods_tried = []
 
@@ -166,6 +188,14 @@ class ResponseParser:
         # ── Strategy 2: Strip markdown fences ────────────────────────────────
         methods_tried.append("strip_markdown_fences")
         result = self._try_strip_fences(cleaned_response)
+        if result:
+            if think_reasoning and not result.reasoning:
+                result.reasoning = think_reasoning
+            return result
+
+        # ── Strategy 2.5: Extract XML tool_call tags ─────────────────────────
+        methods_tried.append("extract_tool_call_xml")
+        result = self._try_extract_tool_call_xml(cleaned_response)
         if result:
             if think_reasoning and not result.reasoning:
                 result.reasoning = think_reasoning
@@ -235,22 +265,29 @@ class ResponseParser:
         tool_clean = tool.strip()
 
         # Hardening: Validate tool name against known registered tools & aliases
-        known_tools = _get_known_tools()
-        if tool_clean not in known_tools:
+        from tools.registry import get_canonical_tool_name
+        canonical_name = get_canonical_tool_name(tool_clean)
+        if not canonical_name:
             logger.warning(f"ResponseParser: rejected unknown tool '{tool_clean}' via {method}")
             return None
 
-        parameters = data.get("parameters") or data.get("params") or data.get("args") or {}
+        parameters = (
+            data.get("parameters")
+            or data.get("params")
+            or data.get("args")
+            or data.get("arguments")
+            or {}
+        )
         if not isinstance(parameters, dict):
             parameters = {}
 
         # Tools requiring parameters must not have empty parameters
-        if tool_clean in ("write_file", "read_file", "bash_exec", "create_directory", "write_files_batch") and not parameters:
-            logger.warning(f"ResponseParser: {tool_clean} requires parameters but none found via {method}")
+        if canonical_name in ("write_file", "read_file", "bash_exec", "create_directory", "write_files_batch") and not parameters:
+            logger.warning(f"ResponseParser: {canonical_name} requires parameters but none found via {method}")
             return None
 
         # Reject prompt-demo placeholders in write_file
-        if tool_clean == "write_file":
+        if canonical_name == "write_file":
             content_val = parameters.get("content") or parameters.get("code") or parameters.get("body")
             if isinstance(content_val, str) and content_val.strip() in (
                 "full content here", "the code string", "# full content here", "# the code string",
@@ -260,7 +297,7 @@ class ResponseParser:
                 return None
 
         # Validation for write_files_batch
-        if tool_clean == "write_files_batch":
+        if canonical_name == "write_files_batch":
             files = parameters.get("files")
             if not isinstance(files, list) or len(files) == 0:
                 logger.warning(f"ResponseParser: write_files_batch requires non-empty 'files' list via {method}")
@@ -307,7 +344,7 @@ class ResponseParser:
 
     def _try_direct_parse(self, response: str) -> Optional[ParseSuccess]:
         try:
-            data = json.loads(response.strip())
+            data = json.loads(response.strip(), strict=False)
             return self._validate_and_build(data, "direct_parse", response)
         except (json.JSONDecodeError, ValueError):
             return None
@@ -321,7 +358,7 @@ class ResponseParser:
         cleaned = re.sub(r'\n?```\s*$', '', cleaned)
         cleaned = cleaned.strip()
         try:
-            data = json.loads(cleaned)
+            data = json.loads(cleaned, strict=False)
             return self._validate_and_build(data, "strip_markdown_fences", response)
         except (json.JSONDecodeError, ValueError):
             return None
@@ -355,7 +392,7 @@ class ResponseParser:
                 if depth == 0 and start >= 0:
                     candidate = response[start:i+1]
                     try:
-                        data = json.loads(candidate)
+                        data = json.loads(candidate, strict=False)
                         res = self._validate_and_build(data, "extract_first_json_object", response)
                         if res:
                             return res
@@ -367,7 +404,14 @@ class ResponseParser:
     def _try_fix_single_quotes(self, response: str) -> Optional[ParseSuccess]:
         # Find the JSON portion and attempt single→double quote conversion
         # Only attempt on strings that look like they contain a JSON object
-        if '"tool"' not in response and "'tool'" not in response and '"action"' not in response and "'action'" not in response:
+        if (
+            '"tool"' not in response
+            and "'tool'" not in response
+            and '"action"' not in response
+            and "'action'" not in response
+            and '"tool_name"' not in response
+            and "'tool_name'" not in response
+        ):
             return None
         try:
             # Replace Python-style single-quoted strings with double quotes
@@ -380,12 +424,12 @@ class ResponseParser:
                 json_portion = fixed[start:end+1]
                 json_portion = re.sub(r"'([^']*)'(\s*:)", r'"\1"\2', json_portion)  # keys
                 json_portion = re.sub(r':\s*\'([^\']*?)\'', r': "\1"', json_portion)  # string values
-                data = json.loads(json_portion)
+                data = json.loads(json_portion, strict=False)
                 return self._validate_and_build(data, "fix_single_quotes", response)
 
             fixed = re.sub(r"'([^']*)'(\s*:)", r'"\1"\2', fixed)  # keys
             fixed = re.sub(r':\s*\'([^\']*?)\'', r': "\1"', fixed)  # string values
-            data = json.loads(fixed)
+            data = json.loads(fixed, strict=False)
             return self._validate_and_build(data, "fix_single_quotes", response)
         except (json.JSONDecodeError, ValueError, re.error):
             return None
@@ -400,6 +444,10 @@ class ResponseParser:
         if not tool_match:
             tool_match = re.search(r"'action'\s*:\s*'([^']+)'", response)
         if not tool_match:
+            tool_match = re.search(r'"tool_name"\s*:\s*"([^"]+)"', response)
+        if not tool_match:
+            tool_match = re.search(r"'tool_name'\s*:\s*'([^']+)'", response)
+        if not tool_match:
             return None
 
         tool_name = tool_match.group(1)
@@ -410,18 +458,26 @@ class ResponseParser:
         if not params_match:
             params_match = re.search(r"'parameters'\s*:\s*(\{[^}]*\})", response, re.DOTALL)
         if not params_match:
+            params_match = re.search(r'"arguments"\s*:\s*(\{[^}]*\})', response, re.DOTALL)
+        if not params_match:
+            params_match = re.search(r"'arguments'\s*:\s*(\{[^}]*\})", response, re.DOTALL)
+        if not params_match:
             params_match = re.search(r'"params"\s*:\s*(\{[^}]*\})', response, re.DOTALL)
         if not params_match:
             params_match = re.search(r"'params'\s*:\s*(\{[^}]*\})", response, re.DOTALL)
+        if not params_match:
+            params_match = re.search(r'"args"\s*:\s*(\{[^}]*\})', response, re.DOTALL)
+        if not params_match:
+            params_match = re.search(r"'args'\s*:\s*(\{[^}]*\})", response, re.DOTALL)
 
         if params_match:
             try:
-                params = json.loads(params_match.group(1))
+                params = json.loads(params_match.group(1), strict=False)
             except (json.JSONDecodeError, ValueError):
                 try:
                     fixed_params = re.sub(r"'([^']*)'(\s*:)", r'"\1"\2', params_match.group(1))
                     fixed_params = re.sub(r':\s*\'([^\']*?)\'', r': "\1"', fixed_params)
-                    params = json.loads(fixed_params)
+                    params = json.loads(fixed_params, strict=False)
                 except (json.JSONDecodeError, ValueError, re.error):
                     pass
 
@@ -544,11 +600,45 @@ class ResponseParser:
             content_str = content_str.replace('\\"', '"').replace('\\n', '\n').replace('\\t', '\t')
             return {"path": path, "content": content_str}
 
+    def _try_extract_tool_call_xml(self, response: str) -> Optional[ParseSuccess]:
+        """
+        Handle GLM / custom XML tool call formats:
+        <tool_call>tool_name<arg_key>k</arg_key><arg_value>v</arg_value></tool_call>
+        """
+        if "<tool_call>" not in response:
+            return None
+        m = re.search(r'<tool_call>\s*([a-zA-Z0-9_\.\-]+)', response)
+        if not m:
+            return None
+        tool_name = m.group(1).strip()
+        params = {}
+        for arg_m in re.finditer(r'<arg_key>\s*([^<]+?)\s*</arg_key>\s*<arg_value>(.*?)(?:</arg_value>|(?=<arg_key>)|(?=</tool_call>)|$)', response, re.DOTALL):
+            k = arg_m.group(1).strip()
+            v_raw = arg_m.group(2).strip()
+            try:
+                params[k] = json.loads(v_raw)
+            except Exception:
+                try:
+                    params[k] = json.loads(_clean_json_string(v_raw))
+                except Exception:
+                    params[k] = v_raw
+        
+        from tools.registry import get_canonical_tool_name
+        canonical = get_canonical_tool_name(tool_name)
+        if canonical:
+            return ParseSuccess(
+                tool=canonical,
+                parameters=params,
+                reasoning="GLM XML tool call parsed",
+                explanation=f"Executing {canonical}",
+                method_used="extract_tool_call_xml",
+                raw_response=response,
+            )
         return None
 
     def _try_extract_code_block(self, response: str) -> Optional[ParseSuccess]:
         """Extract markdown code block or raw HTML and target path if present."""
-        code_match = re.search(r'```(?:python|py|html|css|js|javascript|json|sh|bash)?\s*\n(.*?)\n```', response, re.DOTALL)
+        code_match = re.search(r'```([a-zA-Z0-9_\-]+)?\s*\n(.*?)\n```', response, re.DOTALL)
         if not code_match:
             # Also check for raw HTML documents without code fences
             stripped = response.strip()
@@ -556,7 +646,7 @@ class ResponseParser:
                 path_match = re.search(r'["\']?path["\']?\s*:\s*["\']([^"\']+\.[a-zA-Z0-9_]+)["\']', response)
                 path = path_match.group(1) if path_match else ""
                 if not path:
-                    file_match = re.search(r'(?:file|path|module|in|called|named|create)\s+[`"\']?([a-zA-Z0-9_\-\.\/]+\.(?:html|htm))[`"\']?', response, re.IGNORECASE)
+                    file_match = re.search(r'(?:file|write to|target file)\s*[:=]?\s*[`"\']?([a-zA-Z0-9_\-\.\/]+\.(?:html|htm))[`"\']?', response, re.IGNORECASE)
                     path = file_match.group(1) if file_match else "index.html"
                 return ParseSuccess(
                     tool="write_file",
@@ -567,7 +657,21 @@ class ResponseParser:
                     raw_response=response,
                 )
             return None
-        code_content = code_match.group(1).strip()
+
+        lang = (code_match.group(1) or "").lower().strip()
+        code_content = code_match.group(2).strip()
+
+        # Security & Integrity Guard: Shell/bash code blocks must NEVER be extracted as file writes
+        if lang in ("sh", "bash", "shell", "zsh", "cmd", "powershell", "ps1", "terminal", "console"):
+            logger.debug(f"ResponseParser: rejecting shell/bash code block (lang={lang}) from write_file extraction")
+            return None
+
+        # Content Guard: Reject if content is obviously terminal / shell instructions
+        first_line = (code_content.split("\n")[0] if code_content else "").strip().lower()
+        if any(first_line.startswith(prefix) for prefix in ("mkdir ", "cd ", "npm ", "npx ", "pip ", "python ", "node ", "git ", "cat ", "curl ", "wget ")):
+            logger.debug(f"ResponseParser: rejecting terminal command block starting with '{first_line[:30]}' from write_file extraction")
+            return None
+
         if not code_content or len(code_content) < 10:
             return None
 
@@ -575,15 +679,20 @@ class ResponseParser:
             logger.warning("ResponseParser: extract_code_block rejected demo placeholder")
             return None
 
-        # Look for target file path in response
+        # Look for target file path in response with strict unambiguous anchors
         path = ""
         path_match = re.search(r'["\']?path["\']?\s*:\s*["\']([^"\']+\.[a-zA-Z0-9_]+)["\']', response)
         if path_match:
             path = path_match.group(1)
         else:
-            file_match = re.search(r'(?:file|path|module|in|called|named|create)\s+[`"\']?([a-zA-Z0-9_\-\.\/]+\.[a-zA-Z0-9_]+)[`"\']?', response, re.IGNORECASE)
+            file_match = re.search(r'(?:file|target file|write to|create file|save as)\s*[:=]?\s*[`"\']([a-zA-Z0-9_\-\.\/]+\.[a-zA-Z0-9_]+)[`"\']', response, re.IGNORECASE)
             if file_match:
                 path = file_match.group(1)
+
+        # Disallow library names masquerading as files (e.g. "Three.js", "React.js") unless explicitly anchored as path/file
+        if path and path.lower() in ("three.js", "react.js", "vue.js", "jquery.js") and not path_match:
+            logger.debug(f"ResponseParser: rejecting ambiguous library name '{path}' from heuristic file extraction")
+            return None
 
         if path and not path.startswith("http"):
             logger.info(f"ResponseParser: extracted code block for path '{path}'")
@@ -613,7 +722,11 @@ class ResponseParser:
         response_lower = response.lower()
         for tool_name in available_tools:
             # Tools requiring parameters must NEVER be returned with empty parameters
-            if tool_name in ("write_file", "read_file", "bash_exec", "create_directory", "write_files_batch"):
+            if tool_name in (
+                "write_file", "read_file", "bash_exec", "create_directory", "write_files_batch",
+                "web_fetch", "web_search", "image_search", "download_image", "web_crawl",
+                "browser_open", "edit_file", "patch_file", "delete_file",
+            ):
                 continue
 
             # Use word boundaries to ensure we match the exact tool name
@@ -638,7 +751,7 @@ class ResponseParser:
         try:
             cleaned = re.sub(r'^```(?:json)?\s*\n?', '', r)
             cleaned = re.sub(r'\n?```\s*$', '', cleaned).strip()
-            data = json.loads(cleaned)
+            data = json.loads(cleaned, strict=False)
             if isinstance(data, dict):
                 tool = data.get("tool") or data.get("action") or data.get("tool_name")
                 if tool and isinstance(tool, str):
@@ -652,7 +765,14 @@ class ResponseParser:
             return "model_responded_with_plain_text_no_json"
         if r.count("{") == 0:
             return "no_json_braces_found_at_all"
-        if r.count('"tool"') == 0 and r.count("'tool'") == 0 and r.count('"action"') == 0 and r.count("'action'") == 0:
+        if (
+            r.count('"tool"') == 0
+            and r.count("'tool'") == 0
+            and r.count('"action"') == 0
+            and r.count("'action'") == 0
+            and r.count('"tool_name"') == 0
+            and r.count("'tool_name'") == 0
+        ):
             return "json_found_but_no_tool_key"
         if r.count('"') < 4 and r.count("'") < 4:
             return "insufficient_json_quotes"

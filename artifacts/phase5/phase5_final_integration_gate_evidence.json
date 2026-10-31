@@ -1,0 +1,145 @@
+{
+  "timestamp": "2026-10-21T19:22:00+05:30",
+  "phase": 5,
+  "stage": "Final Integration Gate: Behavioral Failure -> Mission Completion",
+  "environment": {
+    "python_executable": "C:\\Users\\SUBBU\\Downloads\\hermes\\venv\\Scripts\\python.exe",
+    "python_version": "3.12.0",
+    "repository_root": "C:\\Users\\SUBBU\\Downloads\\hermes",
+    "git_branch": "hermes-2.x",
+    "model_stack_preserved": {
+      "tier1": "nvidia_nim (z-ai/glm-5.3-flash)",
+      "tier2": "ollama (gpt-oss:120b-cloud)",
+      "tier3": "ollama (nemotron-3-ultra:cloud)"
+    }
+  },
+  "gates": {
+    "gate_a_completion_pathway_traced": {
+      "status": "PASS",
+      "evaluator_call": "FunctionalEvaluator.evaluate_suite (core/evaluation/functional/evaluator.py)",
+      "check_output": "FunctionalEvaluationResult with CheckStatus.FAIL and failed_checks > 0",
+      "ledger_integration": "AcceptanceLedger / AcceptanceCheck status=FAIL with failure details",
+      "completion_evaluation": "CompletionPolicy.evaluate_completion -> GoalCompleteGuard.evaluate / validate_invariants (core/agent_loop/completion.py)",
+      "agent_loop_action": "AgentLoop.evaluate_completion receives accepted=False; suppresses MISSION_COMPLETED; emits VERIFICATION_NEEDS_IMPROVEMENT and AGENT_REPAIR_REQUESTED (core/agent_loop/loop.py:856-902)",
+      "reducer_terminal_protection": "StateReducer.reduce transitions to MissionStatus.COMPLETED ONLY on EventType.MISSION_COMPLETED (core/runtime_state/reducer.py:240)",
+      "finding": "Call pathway between FunctionalEvaluator results, AcceptanceLedger, CompletionPolicy, and AgentLoop terminal completion is deterministic, verified, and complete."
+    },
+    "gate_b_negative_integration_test": {
+      "status": "PASS",
+      "test_file": "tests/test_phase5_behavioral_completion_integration.py",
+      "test_case_negative": "test_gate_b_behavioral_failure_propagates_to_completion_rejection",
+      "test_case_positive": "test_gate_b_positive_control_allows_completion",
+      "negative_scenario": "Python code with correct syntax and physical files (calc.py, test_calc.py) where addition logic fails (2+2!=5). Evaluator executes real test harness, reports CheckStatus.FAIL, records in AcceptanceLedger. CompletionPolicy strictly evaluates state and returns accepted=False with explicit failure reasons.",
+      "positive_scenario": "Repaired code with correct addition logic (2+2=4). Evaluator reports CheckStatus.PASS, records in AcceptanceLedger. CompletionPolicy evaluates state and returns accepted=True with zero unmet issues.",
+      "result": "PASSED"
+    },
+    "gate_c_terminal_state_and_event_integrity": {
+      "status": "PASS",
+      "test_case": "test_gate_c_terminal_state_protection_and_repair_budget",
+      "verifications": [
+        "VERIFICATION_NEEDS_IMPROVEMENT event maintains RUNNING state, does not transition to COMPLETED",
+        "RepairController enforces bounded recovery budget (attempt cap and identical fingerprint stall detection)",
+        "Exhausted repair budget triggers can_retry=False, blocking completion candidate generation",
+        "MISSION_FAILED terminal state is immutable against late or invalid MISSION_COMPLETED events"
+      ],
+      "result": "PASSED"
+    },
+    "gate_d_browser_driver_identification_and_real_execution": {
+      "status": "PASS",
+      "existing_test_audit": {
+        "test_file": "tests/test_phase5_behavioral_acceptance.py",
+        "identified_driver": "SimulatedBrowserDriver",
+        "code_evidence": "Line 93: sim_driver = SimulatedBrowserDriver(); bm.driver = sim_driver",
+        "conclusion": "The existing test in test_phase5_behavioral_acceptance.py used SimulatedBrowserDriver, NOT a real CDP browser."
+      },
+      "real_browser_cdp_verification": {
+        "test_case": "test_gate_d_real_browser_cdp_execution",
+        "browser_binary": "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe",
+        "driver_class": "CdpBrowserDriver",
+        "headless": true,
+        "websocket_cdp_target": "Live DevServer URL target matching dynamic port",
+        "interaction_executed": "Runtime.evaluate clicking #action-btn",
+        "observed_mutation": "DOM text content mutated from 'Initial' to 'Mutated via CDP'",
+        "result": "PASSED"
+      }
+    }
+  },
+  "test_suites_executed": {
+    "focused_final_integration_suite": {
+      "file": "tests/test_phase5_behavioral_completion_integration.py",
+      "tests_run": 5,
+      "passed": 5,
+      "failed": 0
+    },
+    "all_phase5_dedicated_suite": {
+      "files": [
+        "tests/test_phase5_behavioral_completion_integration.py",
+        "tests/test_phase5_line_count_policy.py",
+        "tests/test_phase5_behavioral_acceptance.py",
+        "tests/test_phase5_completion_gate.py",
+        "tests/test_phase5_contract_creation.py",
+        "tests/test_phase5_contract_verification.py",
+        "tests/test_phase5_targeted_repair.py",
+        "tests/test_phase5_end_to_end_acceptance.py",
+        "tests/test_phase5_stop_and_fencing.py",
+        "tests/test_phase5_event_durability_restart.py",
+        "tests/test_phase5_transport_safety.py"
+      ],
+      "tests_run": 32,
+      "passed": 32,
+      "failed": 0
+    },
+    "historical_regressions": {
+      "phase11_alignment_and_contracts": {
+        "files": ["tests/test_phase11_alignment_verifier.py", "tests/test_phase11_contracts.py"],
+        "tests_run": 36,
+        "passed": 36,
+        "failed": 0
+      },
+      "phase1_baseline": {
+        "files": ["tests/test_phase1_*.py (5 files)"],
+        "tests_run": 26,
+        "passed": 26,
+        "failed": 0
+      },
+      "phase2_baseline": {
+        "files": ["tests/test_phase2_*.py (10 files)"],
+        "tests_run": 41,
+        "passed": 41,
+        "failed": 0
+      },
+      "phase3_baseline": {
+        "files": ["tests/test_phase3_*.py (11 files)"],
+        "tests_run": 46,
+        "passed": 46,
+        "failed": 0
+      },
+      "phase4_baseline": {
+        "files": ["tests/test_phase4_*.py (9 files)"],
+        "tests_run": 29,
+        "passed": 29,
+        "failed": 0
+      },
+      "frontend_snapshot_race": {
+        "command": "node gui/test_snapshot_race.mjs",
+        "tests_run": 5,
+        "passed": 5,
+        "failed": 0
+      },
+      "frontend_production_build": {
+        "command": "npm --prefix gui run build",
+        "exit_code": 0
+      }
+    }
+  },
+  "production_code_changes": {
+    "files_modified": [],
+    "files_added": [
+      "tests/test_phase5_behavioral_completion_integration.py",
+      "artifacts/phase5/phase5_final_integration_gate_report.md",
+      "artifacts/phase5/phase5_final_integration_gate_evidence.json"
+    ],
+    "rationale": "Existing production architecture in core/agent_loop/completion.py, core/agent_loop/loop.py, and core/runtime_state/reducer.py already strictly rejects completion candidates when acceptance ledger checks or behavioral verifications fail. Zero production modifications were needed; focused integration test coverage was added to prevent regression."
+  },
+  "final_decision": "PASS — READY FOR PHASE 6"
+}

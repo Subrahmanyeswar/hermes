@@ -1,0 +1,26 @@
+{
+  "target": "Target D: Secure, Bounded Connectivity Probes",
+  "verified_at": "2026-10-13T11:18:35+05:30",
+  "status": "PASS",
+  "scenario_description": "Network connectivity probes use validated HTTPS endpoints, enforce default TLS certificate verification, truncate response reads to 4KB, and detect captive portal interception.",
+  "probe_configuration": {
+    "endpoints": [
+      "https://1.1.1.1/cdn-cgi/trace",
+      "https://dns.google/resolve?name=example.com",
+      "https://cloudflare.com/cdn-cgi/trace",
+      "https://icanhazip.com"
+    ],
+    "tls_verification": "ENABLED (default httpx verify=True)",
+    "response_body_cap_bytes": 4096,
+    "probe_timeout_seconds": 2.0,
+    "captive_portal_detection": "Checks for HTTP redirects, HTML content-types, and login/portal/radius markers in sample body."
+  },
+  "verification_results": {
+    "valid_https_probe": "SUCCESS (returns ProbeResult.success=True)",
+    "captive_portal_interception": "REJECTED (returns ProbeResult.success=False with Captive portal detected)",
+    "tls_hostname_mismatch": "REJECTED (raises ConnectError / SSLError, treated as failure)",
+    "oversized_response_bounded": "TRUNCATED to 4KB sample",
+    "model_generation_tokens_consumed": 0
+  },
+  "test_evidence": "tests/test_phase7_network_recovery.py::test_critical_e_connectivity_probe_tls_and_captive_portal"
+}

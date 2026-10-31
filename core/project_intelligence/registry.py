@@ -31,6 +31,7 @@ from core.project_intelligence.models import (
     RuleMetadata,
     Skill,
     SkillMetadata,
+    SkillRoutingDecision,
 )
 from core.project_intelligence.rules import RuleEngine
 from core.project_intelligence.skills import SkillEngine
@@ -46,17 +47,22 @@ class ProjectIntelligenceRegistry:
     def __init__(
         self,
         workspace_root: Optional[Path | str] = None,
+        canonical_skills_root: Optional[Path | str] = None,
         event_bus: Any = None,
         mission_id: str = "default",
     ) -> None:
         self.workspace_root = Path(workspace_root).resolve() if workspace_root else Path.cwd().resolve()
+        self._explicit_canonical_skills_root = Path(canonical_skills_root).resolve() if canonical_skills_root else None
         self.event_bus = event_bus
         self.mission_id = mission_id
 
         # Initialize the 4 subsystem engines
         self.hermes_md_loader = HermesMdLoader(workspace_root=self.workspace_root)
         self.rule_engine = RuleEngine(workspace_root=self.workspace_root)
-        self.skill_engine = SkillEngine(workspace_root=self.workspace_root)
+        self.skill_engine = SkillEngine(
+            workspace_root=self.workspace_root,
+            canonical_skills_root=self._explicit_canonical_skills_root,
+        )
         self.bootstrap_engine = BootstrapEngine(workspace_root=self.workspace_root)
 
         # Active state tracking
@@ -64,6 +70,13 @@ class ProjectIntelligenceRegistry:
         self._active_skills: Dict[str, Skill] = {}
         self._active_resources: Dict[Tuple[str, str], str] = {}
         self._discovered: bool = False
+
+    @property
+    def canonical_skills_root(self) -> Path:
+        """Authoritative canonical skills directory path."""
+        if self._explicit_canonical_skills_root and self._explicit_canonical_skills_root.is_dir():
+            return self._explicit_canonical_skills_root
+        return self.skill_engine.canonical_root
 
     # ── Discovery & Snapshot ──────────────────────────────────────────────────
 
@@ -138,6 +151,7 @@ class ProjectIntelligenceRegistry:
             active_skill_count=act_s_count,
             bootstrap_command_count=b_count,
             active_bootstrap_count=b_count,
+            canonical_skills_root=str(self.canonical_skills_root),
         )
 
     # ── Freshness & Invalidation ──────────────────────────────────────────────
@@ -258,7 +272,7 @@ class ProjectIntelligenceRegistry:
             self._active_rules[name] = rule
         return rule
 
-    # ── Agent Skills (3-Level Progressive Disclosure) ──────────────────────────
+    # ── Agent Skills (3-Level Progressive Disclosure & Routing) ───────────────
 
     def match_skills(
         self,
@@ -276,11 +290,67 @@ class ProjectIntelligenceRegistry:
             max_candidates=max_candidates,
         )
 
+    def route_skills(
+        self,
+        task_description: str,
+        workspace_signals: Optional[Dict[str, Any]] = None,
+        max_candidates: int = 3,
+    ) -> SkillRoutingDecision:
+        """
+        Intelligently route task to relevant skills based on intent and workspace signals.
+        Emits SKILL_ROUTING_COMPLETED and SKILL_SELECTED events.
+        """
+        decision = self.skill_engine.route_skills(
+            task_description=task_description,
+            workspace_signals=workspace_signals,
+            max_candidates=max_candidates,
+        )
+
+        # Emit canonical routing completed event
+        self._publish_event(
+            EventType.SKILL_ROUTING_COMPLETED,
+            payload={
+                "selected_skills": decision.selected_skills,
+                "candidate_scores": decision.candidate_scores,
+                "rejection_reasons": decision.rejection_reasons,
+                "is_fallback": decision.is_fallback,
+                "decision_rationale": decision.decision_rationale,
+            },
+        )
+
+        # Emit individual selection events
+        for skill_name in decision.selected_skills:
+            self._publish_event(
+                EventType.SKILL_SELECTED,
+                payload={
+                    "skill_name": skill_name,
+                    "score": decision.candidate_scores.get(skill_name, 1.0),
+                    "rationale": decision.decision_rationale,
+                    "is_fallback": decision.is_fallback,
+                },
+            )
+
+        return decision
+
     def load_skill_body(self, name: str) -> Optional[Skill]:
         """
         Level 2: Load SKILL.md body on demand when an agent activates a skill.
+        Emits SKILL_LOADED on success, or SKILL_LOAD_FAILED on failure.
         """
-        skill = self.skill_engine.load_skill(name)
+        try:
+            skill = self.skill_engine.load_skill(name)
+        except Exception as exc:
+            self._publish_event(
+                EventType.SKILL_LOAD_FAILED,
+                severity=EventSeverity.ERROR,
+                payload={
+                    "name": name,
+                    "error": str(exc),
+                    "reason": "load_exception",
+                },
+            )
+            return None
+
         if skill:
             self._active_skills[name] = skill
             self._publish_event(
@@ -289,9 +359,100 @@ class ProjectIntelligenceRegistry:
                     "name": name,
                     "allowed_tools": skill.metadata.allowed_tools,
                     "body_length": len(skill.body),
+                    "sha256": skill.metadata.sha256_hash,
                 },
             )
-        return skill
+            return skill
+        else:
+            self._publish_event(
+                EventType.SKILL_LOAD_FAILED,
+                severity=EventSeverity.WARNING,
+                payload={
+                    "name": name,
+                    "error": f"Skill '{name}' could not be loaded or found",
+                    "reason": "file_missing_or_invalid",
+                },
+            )
+            return None
+
+    def get_active_skills(self) -> Dict[str, Skill]:
+        """Return snapshot dictionary of currently active/loaded skills."""
+        return dict(self._active_skills)
+
+    def restore_skills(self, skill_names: List[str]) -> List[Skill]:
+        """
+        Restore and reload skills by name (e.g. during mission continuation/recovery).
+        """
+        restored = []
+        for name in skill_names:
+            s = self.load_skill_body(name)
+            if s:
+                restored.append(s)
+        return restored
+
+    def sync_skills_to_context_engine(
+        self,
+        context_engine: Any,
+        skills: Optional[List[Skill]] = None,
+    ) -> List[str]:
+        """
+        Register active skills into ContextEngine 2.x under ContextSectionType.SKILLS.
+        Emits SKILL_CONTEXT_ATTACHED for each registered skill.
+        Returns list of attached skill names.
+        """
+        from core.context.models import (
+            ContextItem,
+            ContextPriority,
+            ContextProvenance,
+            ContextSectionType,
+            ContextSourceType,
+        )
+
+        skills_to_sync = skills if skills is not None else list(self._active_skills.values())
+        attached_names: List[str] = []
+
+        for skill in skills_to_sync:
+            meta = skill.metadata
+            item_id = f"skill_{meta.name}"
+            allowed_tools_str = ",".join(meta.allowed_tools) if meta.allowed_tools else ""
+            content = (
+                f'<skill name="{meta.name}" allowed_tools="{allowed_tools_str}">\n'
+                f"{skill.body}\n"
+                f"</skill>"
+            )
+            item = ContextItem(
+                id=item_id,
+                section=ContextSectionType.SKILLS,
+                content=content,
+                provenance=ContextProvenance(
+                    source_type=ContextSourceType.SKILL,
+                    source_id=meta.name,
+                    file_path=meta.source_path,
+                    content_hash=meta.sha256_hash,
+                ),
+                priority=ContextPriority.IMPORTANT,
+                relevance_score=0.90,
+                metadata={
+                    "name": meta.name,
+                    "triggers": meta.triggers,
+                    "allowed_tools": meta.allowed_tools,
+                    "fingerprint": meta.sha256_hash,
+                },
+            )
+            context_engine.register_item(item)
+            attached_names.append(meta.name)
+
+            self._publish_event(
+                EventType.SKILL_CONTEXT_ATTACHED,
+                payload={
+                    "name": meta.name,
+                    "section": "SKILLS",
+                    "item_id": item_id,
+                    "token_length": len(skill.body.split()),
+                },
+            )
+
+        return attached_names
 
     def load_skill_resource(
         self,
@@ -420,6 +581,10 @@ class ProjectIntelligenceRegistry:
         for item_id in list(context_engine._items.keys()):
             if item_id.startswith("scoped_rule_") and item_id not in matched_rule_ids:
                 context_engine._items.pop(item_id, None)
+
+        # 4. Active Skills -> SKILLS
+        if self._active_skills:
+            self.sync_skills_to_context_engine(context_engine)
 
     # ── Helpers ───────────────────────────────────────────────────────────────
 

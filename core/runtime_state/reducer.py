@@ -20,6 +20,7 @@ from typing import Dict, Any, Optional
 from core.runtime_state.models import (
     HermesRuntimeState,
     MissionStatus,
+    is_legal_mission_transition,
     TaskStatus,
     GoalStatus,
     WaitReason,
@@ -87,40 +88,100 @@ class StateReducer:
         Apply event to state and return updated state.
         Must be pure: no mutations of outside variables, no network, no I/O.
         """
+        # Identity checks: drop cross-mission or stale run/attempt events
+        if event.mission_id and state.mission.mission_id and event.mission_id != state.mission.mission_id:
+            return state
+
+        if (
+            isinstance(event.attempt_number, int)
+            and isinstance(state.mission.attempt_number, int)
+            and event.attempt_number < state.mission.attempt_number
+            and (not event.run_id or not state.mission.run_id or event.run_id != state.mission.run_id)
+        ):
+            # Stale event from a previous attempt
+            return state
+
+        if (
+            event.run_id
+            and state.mission.run_id
+            and event.run_id != state.mission.run_id
+            and (event.attempt_number or 0) <= (state.mission.attempt_number or 1)
+        ):
+            # Stale run event from a previous or mismatched run
+            return state
+
         # Stale event sequence check: reject out-of-order sequence regressing state
         if event.sequence > 0 and event.sequence <= state.last_event_sequence:
             # Stale sequence, record sequence and return state unchanged
             return state
+
+        et = event.event_type
+        payload = event.payload or {}
+
+        # Track attempt boundary: detect authorized continuation attempt
+        prev_attempt = state.mission.attempt_number or 1
+        is_new_attempt = bool(
+            event.attempt_number
+            and event.attempt_number > prev_attempt
+            and et in (EventType.MISSION_RESUMED, EventType.MISSION_STARTED)
+        )
+
+        # Propagate run identity if event carries it and state doesn't have it set yet
+        if event.run_id and not state.mission.run_id:
+            state.mission.run_id = event.run_id
+        if event.attempt_number and event.attempt_number > state.mission.attempt_number:
+            state.mission.attempt_number = event.attempt_number
+            if event.run_id:
+                state.mission.run_id = event.run_id
 
         # Create or update sequence and timestamp
         state.last_event_sequence = max(state.last_event_sequence, event.sequence)
         state.state_version += 1
         state.last_updated_at = event.timestamp or time.time()
         state.progress.last_state_change_at = state.last_updated_at
-        et = event.event_type
-        payload = event.payload or {}
 
         # ── 1. Terminal Mission Guard ─────────────────────────────────────────
         # If mission is terminal (COMPLETED, FAILED, CANCELLED, ABORTED),
-        # ignore events that would reopen or regress the mission.
-        if state.mission.is_terminal:
+        # ignore events that would reopen or regress the mission unless it is
+        # an authorized continuation attempt with a strictly incremented attempt_number.
+        if state.mission.is_terminal and not is_new_attempt:
             # Allow purely informational observation/evidence events, but do not
             # resurrect mission to RUNNING or change task status.
             if et in {EventType.EVIDENCE_CREATED, EventType.STATE_SNAPSHOT}:
                 cls._handle_evidence(state, event, payload)
             return state
 
+        # Helper to validate and apply mission transitions
+        def _apply_mission_status(target_status: MissionStatus) -> bool:
+            if is_new_attempt:
+                state.mission.status = target_status
+                return True
+            if not is_legal_mission_transition(state.mission.status, target_status):
+                state.metadata["last_invalid_transition"] = {
+                    "from": state.mission.status.value,
+                    "to": target_status.value,
+                    "event_type": et.value if hasattr(et, "value") else str(et),
+                    "timestamp": state.last_updated_at,
+                }
+                return False
+            state.mission.status = target_status
+            return True
+
         # ── 2. Mission Lifecycle ──────────────────────────────────────────────
         if et == EventType.MISSION_CREATED:
-            state.mission.status = MissionStatus.CREATED
+            _apply_mission_status(MissionStatus.CREATED)
             state.mission.prompt = payload.get("prompt", state.mission.prompt)
             state.mission.workspace_root = payload.get("workspace_root", state.mission.workspace_root)
             state.mission.execution_mode = payload.get("execution_mode", state.mission.execution_mode)
+            if payload.get("run_id"):
+                state.mission.run_id = payload.get("run_id")
+            if payload.get("attempt_number"):
+                state.mission.attempt_number = int(payload.get("attempt_number"))
 
         elif et == EventType.PLANNING_STARTED:
-            state.mission.status = MissionStatus.PLANNING
-            state.progress.waiting_reason = WaitReason.WORKING
-            state.progress.current_action = "Planning mission decomposition"
+            if _apply_mission_status(MissionStatus.PLANNING):
+                state.progress.waiting_reason = WaitReason.WORKING
+                state.progress.current_action = "Planning mission decomposition"
 
         elif et == EventType.PLAN_CREATED:
             tasks_list = payload.get("tasks", [])
@@ -140,46 +201,69 @@ class StateReducer:
                     )
 
         elif et == EventType.MISSION_STARTED:
-            state.mission.status = MissionStatus.RUNNING
-            state.mission.start_time = event.timestamp
-            state.progress.waiting_reason = WaitReason.WORKING
-            state.progress.current_action = "Mission execution started"
+            if _apply_mission_status(MissionStatus.RUNNING):
+                state.mission.start_time = event.timestamp
+                state.progress.waiting_reason = WaitReason.WORKING
+                state.progress.current_action = "Mission execution started"
+            if payload.get("run_id"):
+                state.mission.run_id = payload.get("run_id")
+            if payload.get("attempt_number"):
+                state.mission.attempt_number = int(payload.get("attempt_number"))
+            if payload.get("workspace_root") or payload.get("workspace_path"):
+                state.mission.workspace_root = payload.get("workspace_root") or payload.get("workspace_path")
 
         elif et == EventType.MISSION_PAUSED:
-            state.mission.status = MissionStatus.PAUSED
+            _apply_mission_status(MissionStatus.PAUSED)
 
         elif et == EventType.MISSION_RESUMED:
-            state.mission.status = MissionStatus.RUNNING
+            _apply_mission_status(MissionStatus.RUNNING)
+            if payload.get("run_id") or event.run_id:
+                state.mission.run_id = payload.get("run_id") or event.run_id
+            if payload.get("attempt_number") or event.attempt_number:
+                state.mission.attempt_number = int(payload.get("attempt_number") or event.attempt_number)
+            state.progress.waiting_reason = WaitReason.WORKING
+            state.progress.current_action = "Mission execution resumed"
+
+        elif et == EventType.MISSION_WAITING:
+            if _apply_mission_status(MissionStatus.WAITING):
+                wr_str = payload.get("wait_reason", "WAITING_FOR_NETWORK")
+                try:
+                    wr_enum = WaitReason(wr_str)
+                except (ValueError, TypeError):
+                    wr_enum = WaitReason.WAITING_FOR_NETWORK
+                state.progress.waiting_reason = wr_enum
+                state.progress.current_action = f"Waiting: {payload.get('reason', wr_str)}"
 
         elif et == EventType.MISSION_COMPLETING:
-            state.mission.status = MissionStatus.COMPLETING
+            _apply_mission_status(MissionStatus.COMPLETING)
 
         elif et == EventType.MISSION_COMPLETED:
-            state.mission.status = MissionStatus.COMPLETED
-            state.mission.end_time = event.timestamp
-            state.mission.completion_reason = payload.get("reason", "All tasks verified successfully")
-            state.progress.waiting_reason = WaitReason.COMPLETED
-            state.progress.current_action = "Mission completed"
+            if _apply_mission_status(MissionStatus.COMPLETED):
+                state.mission.end_time = event.timestamp
+                state.mission.completion_reason = payload.get("completion_reason") or payload.get("reason", "All tasks verified successfully")
+                state.progress.waiting_reason = WaitReason.COMPLETED
+                state.progress.current_action = "Mission completed"
 
         elif et == EventType.MISSION_FAILED:
-            state.mission.status = MissionStatus.FAILED
-            state.mission.end_time = event.timestamp
-            state.mission.abort_reason = payload.get("error", "Execution failure")
-            state.progress.waiting_reason = WaitReason.FAILED
-            state.progress.current_action = f"Mission failed: {state.mission.abort_reason}"
+            if _apply_mission_status(MissionStatus.FAILED):
+                state.mission.end_time = event.timestamp
+                state.mission.abort_reason = payload.get("error", "Execution failure")
+                state.progress.waiting_reason = WaitReason.FAILED
+                state.progress.current_action = f"Mission failed: {state.mission.abort_reason}"
 
         elif et == EventType.MISSION_BLOCKED:
-            state.mission.status = MissionStatus.BLOCKED
+            _apply_mission_status(MissionStatus.WAITING)
 
         elif et in {EventType.MISSION_CANCELLED, EventType.MISSION_ABORTED}:
-            state.mission.status = MissionStatus.CANCELLED if et == EventType.MISSION_CANCELLED else MissionStatus.ABORTED
-            state.mission.cancelled = True
-            state.mission.end_time = event.timestamp
-            state.mission.abort_reason = payload.get("reason", "Cancelled by user")
-            state.progress.waiting_reason = WaitReason.CANCELLED
-            state.current_task = None
-            state.tool_execution.status = ToolStatus.CANCELLED
-            state.model_execution.status = ModelStatus.CANCELLED
+            target = MissionStatus.CANCELLED if et == EventType.MISSION_CANCELLED else MissionStatus.ABORTED
+            if _apply_mission_status(target):
+                state.mission.cancelled = True
+                state.mission.end_time = event.timestamp
+                state.mission.abort_reason = payload.get("reason", "Cancelled by user")
+                state.progress.waiting_reason = WaitReason.CANCELLED
+                state.current_task = None
+                state.tool_execution.status = ToolStatus.CANCELLED
+                state.model_execution.status = ModelStatus.CANCELLED
             return state
 
         # ── 3. Task Lifecycle ─────────────────────────────────────────────────
@@ -238,7 +322,10 @@ class StateReducer:
             elif et == EventType.TASK_COMPLETED:
                 task.status = TaskStatus.COMPLETED
                 task.completed_at = event.timestamp
-                task.completion_reason = payload.get("reason", "Task finished")
+                v_ev = payload.get("verification_evidence")
+                task.completion_reason = v_ev or payload.get("reason", "Task finished")
+                if v_ev:
+                    setattr(task, "verification_evidence", v_ev)
                 if state.mission.current_task_id == tid:
                     state.mission.current_task_id = None
                     state.current_task = None
@@ -289,6 +376,8 @@ class StateReducer:
             state.tool_execution.exit_code = payload.get("exit_code", 0)
             state.tool_execution.success = True
             state.tool_execution.error = None
+            if payload.get("tool_name") or payload.get("tool"):
+                state.tool_execution.tool_name = payload.get("tool_name") or payload.get("tool")
             # Push to bounded recent_tools
             t_record = {
                 "tool_name": state.tool_execution.tool_name,
@@ -782,6 +871,16 @@ class StateReducer:
                     created_at=event.timestamp,
                     updated_at=event.timestamp,
                 )
+                if r_id not in state.tasks:
+                    state.tasks[r_id] = TaskState(
+                        task_id=r_id,
+                        mission_id=state.mission.mission_id,
+                        title=payload.get("title", r_id),
+                        description=payload.get("description", ""),
+                        order_index=len(state.tasks),
+                        dependencies=payload.get("dependencies", []),
+                        status=TaskStatus.PENDING,
+                    )
                 cls._recalculate_requirement_counts(state)
 
         elif et == EventType.REQUIREMENT_UPDATED:
@@ -797,6 +896,8 @@ class StateReducer:
             r_id = payload.get("requirement_id")
             if r_id and r_id in state.requirements:
                 state.requirements[r_id].transition_status(RequirementStatus.IN_PROGRESS, reason=payload.get("reason", ""), actor=event.source)
+                if r_id in state.tasks:
+                    state.tasks[r_id].status = TaskStatus.IN_PROGRESS
                 state.progress.current_focus = r_id
                 state.progress.overall_status = "WORKING"
                 cls._recalculate_requirement_counts(state)
@@ -805,6 +906,8 @@ class StateReducer:
             r_id = payload.get("requirement_id")
             if r_id and r_id in state.requirements:
                 state.requirements[r_id].transition_status(RequirementStatus.BLOCKED, reason=payload.get("reason", ""), actor=event.source)
+                if r_id in state.tasks:
+                    state.tasks[r_id].status = TaskStatus.BLOCKED
                 state.progress.blocked_reason = payload.get("reason", "")
                 cls._recalculate_requirement_counts(state)
 
@@ -812,6 +915,8 @@ class StateReducer:
             r_id = payload.get("requirement_id")
             if r_id and r_id in state.requirements:
                 state.requirements[r_id].transition_status(RequirementStatus.VERIFIED, reason=payload.get("reason", ""), actor=event.source)
+                if r_id in state.tasks:
+                    state.tasks[r_id].status = TaskStatus.COMPLETED
                 ev = payload.get("evidence_ref")
                 if ev and ev not in state.requirements[r_id].evidence_refs:
                     state.requirements[r_id].evidence_refs.append(ev)
@@ -944,6 +1049,21 @@ class StateReducer:
         elif et == EventType.PLAN_APPROVED:
             if state.plan:
                 state.plan.status = PlanStatus.APPROVED
+
+        elif et == EventType.CONTRACT_CREATED:
+            from core.contracts.blueprint import ImplementationBlueprint
+            from core.contracts.manifest import InterfaceManifest
+            from core.contracts.rubric import QualityRubric
+
+            bp_data = payload.get("blueprint")
+            if bp_data:
+                state.blueprint = ImplementationBlueprint.from_dict(bp_data) if isinstance(bp_data, dict) else bp_data
+            im_data = payload.get("interface_manifest")
+            if im_data:
+                state.interface_manifest = InterfaceManifest.from_dict(im_data) if isinstance(im_data, dict) else im_data
+            qr_data = payload.get("quality_rubric")
+            if qr_data:
+                state.quality_rubric = QualityRubric.from_dict(qr_data) if isinstance(qr_data, dict) else qr_data
                 state.plan.approved_by = payload.get("actor", "user")
                 state.plan.approved_at = event.timestamp
 
@@ -955,6 +1075,40 @@ class StateReducer:
             if state.plan:
                 state.plan.status = PlanStatus.STALE
                 state.plan.reason_changed = payload.get("reason", "Requirements changed")
+
+        # ── Phase 6 Skills ───────────────────────────────────────────────────
+        elif et == EventType.SKILL_ROUTING_COMPLETED:
+            skills = payload.get("selected_skills", [])
+            if skills:
+                state.progress.current_action = f"Skills selected: {', '.join(skills)}"
+            else:
+                state.progress.current_action = "No specialized skill required for task"
+
+        elif et == EventType.SKILL_SELECTED:
+            s_name = payload.get("skill_name") or payload.get("name")
+            if s_name:
+                if s_name not in state.active_skills:
+                    state.active_skills.append(s_name)
+                if state.mission and s_name not in state.mission.active_skills:
+                    state.mission.active_skills.append(s_name)
+
+        elif et == EventType.SKILL_LOADED:
+            s_name = payload.get("skill_name") or payload.get("name")
+            sha = payload.get("sha256") or payload.get("sha256_hash")
+            if s_name and sha:
+                state.skill_fingerprints[s_name] = sha
+                if state.mission:
+                    state.mission.skill_fingerprints[s_name] = sha
+
+        elif et == EventType.SKILL_INVALIDATED:
+            s_name = payload.get("skill_name") or payload.get("name")
+            if s_name in state.active_skills:
+                state.active_skills.remove(s_name)
+            state.skill_fingerprints.pop(s_name, None)
+            if state.mission:
+                if s_name in state.mission.active_skills:
+                    state.mission.active_skills.remove(s_name)
+                state.mission.skill_fingerprints.pop(s_name, None)
 
         elif et == EventType.PLAN_MODE_ENTERED:
             state.execution_mode = ExecutionMode.PLAN_MODE
@@ -1223,6 +1377,28 @@ class StateReducer:
                     updated_at=event.timestamp,
                 )
                 state.progress.waiting_reason = WaitReason.REPAIRING
+
+        elif et == EventType.REPAIR_COMPLETED:
+            if rep_id:
+                if rep_id not in state.repairs:
+                    state.repairs[rep_id] = RepairState(
+                        repair_id=rep_id,
+                        mission_id=state.mission.mission_id,
+                        attempt=payload.get("attempt_number", 1),
+                        status=RepairStatus.COMPLETED,
+                        created_at=event.timestamp,
+                        updated_at=event.timestamp,
+                    )
+                else:
+                    state.repairs[rep_id].status = RepairStatus.COMPLETED
+                    state.repairs[rep_id].updated_at = event.timestamp
+            state.progress.waiting_reason = WaitReason.WORKING
+
+        elif et in (EventType.REPAIR_FAILED, EventType.REPAIR_EXHAUSTED):
+            if rep_id and rep_id in state.repairs:
+                state.repairs[rep_id].status = RepairStatus.FAILED
+                state.repairs[rep_id].updated_at = event.timestamp
+            state.progress.waiting_reason = WaitReason.WORKING
 
         elif et == EventType.REPAIR_STALLED:
             if rep_id and rep_id in state.repairs:

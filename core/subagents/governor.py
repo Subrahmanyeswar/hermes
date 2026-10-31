@@ -52,9 +52,12 @@ class ResourceGovernor:
         with self._lock:
             return len(self._active_agents)
 
-    async def acquire_slot(self) -> None:
-        """Acquire a slot in the concurrency semaphore."""
-        await self._semaphore.acquire()
+    async def acquire_slot(self, timeout: Optional[float] = None) -> None:
+        """Acquire a slot in the concurrency semaphore with optional timeout."""
+        if timeout is not None:
+            await asyncio.wait_for(self._semaphore.acquire(), timeout=timeout)
+        else:
+            await self._semaphore.acquire()
 
     def release_slot(self) -> None:
         """Release a slot in the concurrency semaphore."""

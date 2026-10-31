@@ -42,13 +42,8 @@ def test_1_all_phase3_files_exist():
         (".gitignore",                        "Git ignore file"),
     ]
     missing = [f"{p} ({d})" for p, d in required if not Path(p).exists()]
-    if missing:
-        print(f"  ✗ Missing files:")
-        for m in missing:
-            print(f"    - {m}")
-        return False
+    assert not missing, f"Missing files: {missing}"
     print(f"  ✓ All {len(required)} Phase 3 files exist")
-    return True
 
 
 def test_2_all_phase3_modules_import():
@@ -74,13 +69,8 @@ def test_2_all_phase3_modules_import():
         except Exception as e:
             failures.append(f"{mod_path}: {type(e).__name__}: {str(e)[:80]}")
 
-    if failures:
-        print(f"  ✗ Import failures:")
-        for f in failures:
-            print(f"    - {f}")
-        return False
+    assert not failures, f"Import failures: {failures}"
     print(f"  ✓ All {len(modules)} Phase 3 modules import cleanly")
-    return True
 
 # ══════════════════════════════════════════════════════════════════════
 # Section 2: Frontend-Backend Alignment
@@ -108,12 +98,9 @@ def test_3_orchestrator_result_tui_field_alignment():
     ]
 
     missing = [f for f in tui_reads if f not in orch_fields]
-    if missing:
-        print(f"  ✗ OrchestratorResult missing TUI-required fields: {missing}")
-        return False
+    assert not missing, f"OrchestratorResult missing TUI-required fields: {missing}"
 
     print(f"  ✓ All {len(tui_reads)} TUI-required fields exist on OrchestratorResult")
-    return True
 
 
 def test_4_orchestrator_response_has_all_fields():
@@ -130,12 +117,9 @@ def test_4_orchestrator_response_has_all_fields():
         "trace_id", "skill_ids",
     }
     missing = required - params
-    if missing:
-        print(f"  ✗ OrchestratorResponse missing params: {missing}")
-        return False
+    assert not missing, f"OrchestratorResponse missing params: {missing}"
 
     print(f"  ✓ OrchestratorResponse has all {len(required)} required fields")
-    return True
 
 
 def test_5_process_request_maps_fields_correctly():
@@ -158,14 +142,9 @@ def test_5_process_request_maps_fields_correctly():
         if check_str not in src:
             failures.append(f"Missing: {description} ({check_str!r})")
 
-    if failures:
-        print(f"  ✗ _process_request alignment issues:")
-        for f in failures:
-            print(f"    - {f}")
-        return False
+    assert not failures, f"_process_request alignment issues: {failures}"
 
     print(f"  ✓ _process_request correctly maps all {len(checks)} field alignments")
-    return True
 
 
 def test_6_right_panel_has_update_all_tabs():
@@ -185,12 +164,9 @@ def test_6_right_panel_has_update_all_tabs():
         "refresh_tasks",
     ]
     missing = [c for c in required_calls if c not in src]
-    if missing:
-        print(f"  ✗ _update_all_tabs missing calls: {missing}")
-        return False
+    assert not missing, f"_update_all_tabs missing calls: {missing}"
 
     print(f"  ✓ RightPanel._update_all_tabs exists and calls all 3 tab update methods")
-    return True
 
 
 def test_7_memory_store_interface_complete():
@@ -233,7 +209,6 @@ def test_7_memory_store_interface_complete():
                 f"Expected {expected_type}, got {fact.fact_type} for {line!r}"
 
     print(f"  ✓ memory.store interface complete | MemoryIndex | SimpleFact | read_memory_index")
-    return True
 
 # ══════════════════════════════════════════════════════════════════════
 # Section 3: UI Component Integration
@@ -252,9 +227,7 @@ def test_8_status_bar_complete():
     bar = StatusBar()
     required_methods = ["set_processing", "update_all", "_render", "_start_spinner", "_stop_spinner"]
     missing = [m for m in required_methods if not hasattr(bar, m)]
-    if missing:
-        print(f"  ✗ StatusBar missing methods: {missing}")
-        return False
+    assert not missing, f"StatusBar missing methods: {missing}"
 
     # Test render for all modes
     for mode in ("safe", "plan", "auto"):
@@ -263,7 +236,6 @@ def test_8_status_bar_complete():
         assert mode.upper() in rendered.plain, f"{mode.upper()} not in render"
 
     print(f"  ✓ StatusBar complete | 30 unique verbs | all methods | renders all modes")
-    return True
 
 
 def test_9_tool_trace_entry_renders_all_cases():
@@ -292,7 +264,6 @@ def test_9_tool_trace_entry_renders_all_cases():
             assert skills[0] in rendered.plain, f"Skill {skills[0]} not in render"
 
     print(f"  ✓ ToolTraceEntry renders all {len(cases)} cases correctly")
-    return True
 
 async def test_10_full_tui_mount_with_mock_orchestrator():
     """TUI must mount completely with a mocked orchestrator."""
@@ -348,7 +319,6 @@ async def test_10_full_tui_mount_with_mock_orchestrator():
 
             print("  [PASS] TUI mounts with all 4 panels | mode switching works")
 
-    return True
 
 # ══════════════════════════════════════════════════════════════════════
 # Section 4: Benchmark Integrity
@@ -371,7 +341,6 @@ def test_11_tasks_json_complete():
     assert skill_relevant == 30, f"Expected 30 skill-relevant tasks, got {skill_relevant}"
 
     print(f"  ✓ tasks.json: 50 tasks | correct difficulty distribution | 30 skill-relevant")
-    return True
 
 
 def test_12_graphs_and_paper_exist():
@@ -392,15 +361,12 @@ def test_12_graphs_and_paper_exist():
         if missing_sections:
             issues.append(f"Paper missing sections: {missing_sections}")
 
-    if issues:
-        for issue in issues:
-            print(f"  ⚠ {issue}")
-        return len(issues) == 0
+    assert not issues, f"Paper issues: {issues}"
 
     word_count = len(paper_path.read_text().split())
     graphs_count = len(list(graphs_dir.glob("fig*.png"))) if graphs_dir.exists() else 0
     print(f"  ✓ Paper draft: {word_count:,} words | Graphs: {graphs_count}/5")
-    return True
+
 
 # ══════════════════════════════════════════════════════════════════════
 # Main
@@ -430,8 +396,7 @@ async def main():
     for name, fn in sync_tests:
         print(f"\n[TEST] {name}")
         try:
-            if not fn():
-                passed_all = False
+            fn()
         except Exception as e:
             import traceback
             print(f"  ✗ ERROR: {type(e).__name__}: {e}")

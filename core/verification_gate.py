@@ -51,11 +51,25 @@ TOOL_RISK_MAP: Dict[str, ToolRiskCategory] = {
     "git_diff": ToolRiskCategory.READ_ONLY,
     "web_search": ToolRiskCategory.READ_ONLY,
     "read_url": ToolRiskCategory.READ_ONLY,
+    "browser_inspect_page": ToolRiskCategory.READ_ONLY,
+    "browser_inspect": ToolRiskCategory.READ_ONLY,
+    "browser_get_console_errors": ToolRiskCategory.READ_ONLY,
+    "browser_get_network_failures": ToolRiskCategory.READ_ONLY,
+    "browser_check_layout": ToolRiskCategory.READ_ONLY,
+    "browser_check_images": ToolRiskCategory.READ_ONLY,
+    "browser_check_accessibility": ToolRiskCategory.READ_ONLY,
+    "browser_screenshot": ToolRiskCategory.READ_ONLY,
 
     # Low-risk write tools
     "write_file": ToolRiskCategory.LOW_RISK_WRITE,
     "create_file": ToolRiskCategory.LOW_RISK_WRITE,
     "write_files_batch": ToolRiskCategory.LOW_RISK_WRITE,
+    "browser_open_preview": ToolRiskCategory.LOW_RISK_WRITE,
+    "browser_set_viewport": ToolRiskCategory.LOW_RISK_WRITE,
+    "browser_click": ToolRiskCategory.LOW_RISK_WRITE,
+    "browser_fill": ToolRiskCategory.LOW_RISK_WRITE,
+    "browser_type": ToolRiskCategory.LOW_RISK_WRITE,
+    "browser_press_key": ToolRiskCategory.LOW_RISK_WRITE,
 
     # Medium-risk write tools
     "patch_file": ToolRiskCategory.MEDIUM_RISK_WRITE,
@@ -167,7 +181,9 @@ class VerificationGate:
         from core.workspace import workspace_manager
         def _resolve_p(p: str) -> Path:
             if workspace_manager.is_locked and workspace_manager.workspace_root and not Path(p).is_absolute():
-                return Path(workspace_manager.workspace_root) / p
+                ws_p = Path(workspace_manager.workspace_root)
+                if ws_p.exists():
+                    return ws_p / p
             return Path(p)
 
         # Tool-specific deterministic checks
@@ -355,12 +371,11 @@ class VerificationGate:
                     tf.write(code_to_parse)
                     temp_file = Path(tf.name)
 
-                env = os.environ.copy()
-                pp = os.pathsep.join(filter(None, [str(ws_root), str(file_p.parent), env.get("PYTHONPATH", "")]))
-                env["PYTHONPATH"] = pp
-
-                import shutil
-                pytest_cmd = ["uv", "run", "pytest"] if shutil.which("uv") else [sys.executable, "-m", "pytest"]
+                from core.runtime_identity import get_canonical_python_executable, get_canonical_subprocess_env
+                pp = os.pathsep.join(filter(None, [str(ws_root) if ws_root else "", str(file_p.parent), os.environ.get("PYTHONPATH", "")]))
+                env = get_canonical_subprocess_env({"PYTHONPATH": pp})
+                canonical_py = get_canonical_python_executable()
+                pytest_cmd = [canonical_py, "-m", "pytest"]
                 proc = subprocess.run(
                     pytest_cmd + [str(temp_file), "-q", "--tb=short"],
                     cwd=str(ws_root),
@@ -768,3 +783,101 @@ class VerificationGate:
             task_id=task_id,
         )
         return res, "T2_CONSERVATIVE_FALLBACK"
+
+
+class ProjectCategory(str, Enum):
+    STATIC_WEB = "STATIC_WEB"
+    BUNDLED_WEB = "BUNDLED_WEB"
+    PYTHON_CLI = "PYTHON_CLI"
+    PYTHON_WEB = "PYTHON_WEB"
+    DATA_PROCESSING = "DATA_PROCESSING"
+    RESEARCH_DOCS = "RESEARCH_DOCS"
+    EXISTING_MODIFICATION = "EXISTING_MODIFICATION"
+
+
+@dataclass
+class VerificationProfile:
+    category: ProjectCategory
+    requires_browser_verification: bool = False
+    requires_preview_server: bool = False
+    requires_python_tests: bool = False
+    requires_build_step: bool = False
+    viewports: List[Dict[str, Any]] = field(default_factory=list)
+    check_accessibility: bool = False
+    check_images: bool = False
+    check_layout: bool = False
+
+    @classmethod
+    def for_category(cls, category: ProjectCategory | str) -> 'VerificationProfile':
+        cat = ProjectCategory(category) if isinstance(category, str) else (category or ProjectCategory.STATIC_WEB)
+        if cat in (ProjectCategory.STATIC_WEB, ProjectCategory.BUNDLED_WEB):
+            return cls(
+                category=cat,
+                requires_browser_verification=True,
+                requires_preview_server=True,
+                requires_build_step=(cat == ProjectCategory.BUNDLED_WEB),
+                viewports=[
+                    {"width": 1440, "height": 900},
+                    {"width": 1280, "height": 720},
+                    {"width": 1024, "height": 768},
+                    {"width": 768, "height": 1024},
+                    {"width": 390, "height": 844},
+                    {"width": 375, "height": 812},
+                ],
+                check_accessibility=True,
+                check_images=True,
+                check_layout=True,
+            )
+        elif cat in (ProjectCategory.PYTHON_CLI, ProjectCategory.PYTHON_WEB):
+            return cls(
+                category=cat,
+                requires_browser_verification=False,
+                requires_preview_server=(cat == ProjectCategory.PYTHON_WEB),
+                requires_python_tests=True,
+                check_accessibility=False,
+                check_images=False,
+                check_layout=False,
+            )
+        elif cat == ProjectCategory.DATA_PROCESSING:
+            return cls(
+                category=cat,
+                requires_browser_verification=False,
+                requires_preview_server=False,
+                requires_python_tests=True,
+                check_accessibility=False,
+                check_images=False,
+                check_layout=False,
+            )
+        else:
+            return cls(
+                category=cat,
+                requires_browser_verification=False,
+                requires_preview_server=False,
+                check_accessibility=False,
+                check_images=False,
+                check_layout=False,
+            )
+
+
+def detect_project_category(workspace_path: Path | str) -> ProjectCategory:
+    ws = Path(workspace_path).resolve()
+    if not ws.exists():
+        return ProjectCategory.STATIC_WEB
+
+    if (ws / "index.html").exists():
+        if (ws / "package.json").exists():
+            return ProjectCategory.BUNDLED_WEB
+        return ProjectCategory.STATIC_WEB
+
+    if (ws / "setup.py").exists() or (ws / "pyproject.toml").exists():
+        return ProjectCategory.PYTHON_CLI
+
+    py_files = list(ws.glob("*.py")) + list(ws.glob("src/**/*.py"))
+    if py_files:
+        return ProjectCategory.PYTHON_CLI
+
+    csv_files = list(ws.glob("*.csv")) + list(ws.glob("data/*.csv"))
+    if csv_files:
+        return ProjectCategory.DATA_PROCESSING
+
+    return ProjectCategory.RESEARCH_DOCS

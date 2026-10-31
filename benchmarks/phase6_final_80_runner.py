@@ -323,7 +323,7 @@ async def main():
 - **Cost per 100 Missions**: `${((total_cost_usd / total_tasks) * 100):.4f}`
 
 ## 2. Non-Fabrication Guarantee
-- No \$0 fabrication for unavailable endpoints.
+- No $0 fabrication for unavailable endpoints.
 - Real token counts recorded from provider telemetry.
 """
     (artifacts_dir / "PHASE_6_T3_COST_ANALYSIS.md").write_text(t3_cost_md, encoding="utf-8")

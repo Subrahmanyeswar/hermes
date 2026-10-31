@@ -1,0 +1,18 @@
+{
+  "target": "Target A: Provider Recovery Without General WAN Transition",
+  "verified_at": "2026-10-13T11:18:20+05:30",
+  "status": "PASS",
+  "scenario_description": "Global Internet connectivity stays online continuously while a model provider route fails (tripping circuit breaker) and subsequently recovers.",
+  "verification_details": {
+    "global_internet_state": "ONLINE (continuous, zero toggling to OFFLINE)",
+    "affected_route": "nvidia_nim:z-ai/glm-5.3-flash",
+    "route_circuit_breaker_state_initial": "OPEN",
+    "manual_recover_api_called": false,
+    "recovery_mechanism": "CircuitBreakerRegistry listener callback & notify_provider_recovered() trigger",
+    "continuation_run_id_generated": "run_2_...",
+    "continuation_attempt_number": 2,
+    "side_effects_duplicated": 0,
+    "unrelated_routes_impacted": false
+  },
+  "test_evidence": "tests/test_phase7_network_recovery.py::test_critical_a_provider_recovery_without_internet_transition"
+}

@@ -290,14 +290,15 @@ class ProcessingIndicator(Static):
                     subtask["status"] = "running"
                     break
 
-            self.tool_execution = {
-                "tool": tool_name,
-                "target": target,
-                "lines": lines_count,
-                "status": "Running...",
-                "attempts": self.tool_execution.get("attempts", []),
-                "current_attempt": attempt
-            }
+            if tool_name and str(tool_name).lower() not in ("none", "unknown", "unknown_tool", "unknown tool", "null", ""):
+                self.tool_execution = {
+                    "tool": tool_name,
+                    "target": target,
+                    "lines": lines_count,
+                    "status": "Running...",
+                    "attempts": self.tool_execution.get("attempts", []),
+                    "current_attempt": attempt
+                }
             
         if event_type == "stage_end" and stage == 7:
             tool_name = data.get("tool_name")
@@ -320,11 +321,12 @@ class ProcessingIndicator(Static):
                     "reason": error or ""
                 })
             
-            self.live_feed.append({
-                "tool": tool_name,
-                "success": success,
-                "duration": duration
-            })
+            if tool_name and str(tool_name).lower() not in ("none", "unknown", "unknown_tool", "unknown tool", "null", ""):
+                self.live_feed.append({
+                    "tool": tool_name,
+                    "success": success,
+                    "duration": duration
+                })
             
             for subtask in self.subtasks:
                 if subtask.get("status") == "running":
@@ -485,11 +487,23 @@ class ProcessingIndicator(Static):
             t.append("\n")
 
         # ── Tool execution + retries + error block (Always Visible if populated) ──
-        if self.tool_execution:
+        # ── Tool execution + retries + error block (Always Visible if populated) ──
+        tool_raw = self.tool_execution.get('tool') or self.tool_execution.get('tool_name') if self.tool_execution else None
+        if self.tool_execution and tool_raw and str(tool_raw).lower() not in ('none', 'unknown', 'unknown tool', 'unknown_tool', 'null', ''):
+            from tools.registry import get_canonical_tool_name
+            tool_display = get_canonical_tool_name(str(tool_raw))
             t.append("Tool Execution\n", style="bold #4A90D9")
-            tool_display = self.tool_execution.get('tool') or 'Unknown tool'
             t.append(f"  Tool:   {tool_display}\n", style="white")
-            t.append(f"  Target: {self.tool_execution.get('target') or '-'}\n", style="white")
+            raw_target = self.tool_execution.get('target')
+            if isinstance(raw_target, dict):
+                target_str = raw_target.get("path") or raw_target.get("target_file") or raw_target.get("file_path") or "-"
+            elif raw_target:
+                target_str = str(raw_target)
+            else:
+                target_str = "-"
+            if target_str == "{}":
+                target_str = "-"
+            t.append(f"  Target: {target_str}\n", style="white")
             if self.tool_execution.get("lines"):
                 t.append(f"  Lines:  {self.tool_execution.get('lines')}\n", style="white")
             
@@ -511,7 +525,6 @@ class ProcessingIndicator(Static):
                 t.append("  │                     ERROR DETECTED                     │\n", style="bold #EF4444")
                 t.append("  ├────────────────────────────────────────────────────────┤\n", style="bold #EF4444")
                 t.append(f"  │ Stage:  Tool Execution                                 │\n", style="white")
-                tool_display = (self.tool_execution.get('tool') or 'Unknown tool')
                 t.append(f"  │ Tool:   {tool_display:<46} │\n", style="white")
                 t.append(f"  │ Reason: {last_reason[:46]:<46} │\n", style="bold #EF4444")
                 
@@ -528,8 +541,23 @@ class ProcessingIndicator(Static):
             if self.live_feed:
                 t.append("Live Execution Feed\n", style="bold #4A90D9")
                 for entry in self.live_feed[-5:]:
-                    tool_name = entry.get("tool") or "unknown_tool"
-                    t.append(f"  ⚙ {tool_name}\n", style="bold #22C55E")
+                    tool_raw = entry.get("tool") or entry.get("tool_name")
+                    if tool_raw and str(tool_raw).lower() not in ("none", "unknown", "unknown_tool", "unknown tool", "null", ""):
+                        t.append(f"  ⚙ {tool_raw}\n", style="bold #22C55E")
+                    elif "tool" in entry:
+                        t.append("  ⚙ unknown_tool\n", style="bold #22C55E")
+                    else:
+                        ev_type = entry.get("event_type") or entry.get("type") or entry.get("stage_name") or ""
+                        thought_txt = entry.get("thought") or entry.get("text") or entry.get("detail") or ""
+                        if "verify" in str(ev_type).lower():
+                            t.append("  🔍 Verification\n", style="bold #38BDF8")
+                        elif "plan" in str(ev_type).lower():
+                            t.append("  📋 Planning\n", style="bold #F59E0B")
+                        elif thought_txt:
+                            preview = str(thought_txt)[:60]
+                            t.append(f"  💭 Thought: {preview}\n", style="italic #94A3B8")
+                        else:
+                            t.append(f"  ⚡ {ev_type or 'Status Update'}\n", style="dim white")
                     dur = entry.get("duration")
                     dur_str = f" ({_safe_float_str(dur, '.2f')}s)" if dur is not None else ""
                     success = entry.get("success")
@@ -707,13 +735,14 @@ class ChatPanel(Widget):
                     tab_behavior="indent",
                 )
                 with Vertical(id="input-buttons"):
-                    yield Button("[ SEND ]", id="send-btn", variant="default")
-                    yield Button("[ STOP ]", id="stop-btn", variant="default")
+                    yield Button(Text("[ SEND ]"), id="send-btn", variant="default")
+                    yield Button(Text("[ STOP ]"), id="stop-btn", variant="default")
 
     def on_mount(self) -> None:
-        """Focus the input on mount."""
+        """Focus the input on mount and initialize buttons."""
         chat_input = self.query_one("#chat-input")
         chat_input.focus()
+        self.update_input_controls(processing=False)
 
     # ── Input handling ────────────────────────────────────────────────
 
@@ -750,18 +779,33 @@ class ChatPanel(Widget):
     @on(Button.Pressed, "#stop-btn")
     async def handle_stop_pressed(self, event: Button.Pressed) -> None:
         """Stop the current mission."""
-        app = self.app
-        if hasattr(app, 'action_stop_mission'):
-            app.action_stop_mission()
-        # Update button states
         try:
-            self.query_one("#stop-btn", Button).remove_class("-visible")
-            self.query_one("#send-btn", Button).add_class("-visible")
+            event.stop()
         except Exception:
             pass
+        try:
+            app = self.app
+        except Exception:
+            app = getattr(self, "_app", None)
+        if app and hasattr(app, 'action_stop_mission'):
+            app.action_stop_mission()
+        if app and hasattr(app, '_current_worker') and app._current_worker:
+            app._current_worker.cancel()
+        if app and hasattr(app, 'is_processing'):
+            app.is_processing = False
+        self.update_input_controls(processing=False)
+
+    async def _render_submission_ui(self, text: str) -> None:
+        """Render user message bubble and processing indicator asynchronously without blocking worker dispatch."""
+        try:
+            await self._add_user_message(text)
+            await self._show_processing_indicator()
+        except Exception as e:
+            from loguru import logger
+            logger.debug(f"_render_submission_ui background error: {e}")
 
     async def _submit_input(self) -> None:
-        """Extract text from TextArea and submit as a user request."""
+        """Extract text from TextArea and submit as a user request immediately."""
         try:
             text_area = self.query_one("#chat-input", TextArea)
             text = text_area.text.strip()
@@ -776,18 +820,18 @@ class ChatPanel(Widget):
                 await self._handle_slash_command(text)
                 return
 
-            # Regular request: post to app
+            # Immediate UI control flip and message dispatch (<100ms)
+            self.update_input_controls(processing=True)
             self.post_message(UserMessageSent(text))
-            await self._add_user_message(text)
 
-            # Show stop button during processing
-            try:
-                self.query_one("#stop-btn", Button).add_class("-visible")
-                self.query_one("#send-btn", Button).remove_class("-visible")
-            except Exception:
-                pass
-
-            await self._show_processing_indicator()
+            # UI rendering occurs asynchronously without delaying the mission worker
+            if getattr(self, "is_mounted", False) or hasattr(self, "run_worker"):
+                try:
+                    self.run_worker(self._render_submission_ui(text), exclusive=False)
+                except Exception:
+                    await self._render_submission_ui(text)
+            else:
+                await self._render_submission_ui(text)
 
         except Exception as e:
             from loguru import logger
@@ -1130,12 +1174,7 @@ class ChatPanel(Widget):
         await self._remove_processing_indicator()
         history = self.query_one("#chat-history", ScrollableContainer)
 
-        # Restore send button, hide stop button
-        try:
-            self.query_one("#stop-btn", Button).remove_class("-visible")
-            self.query_one("#send-btn", Button).add_class("-visible")
-        except Exception:
-            pass
+        self.update_input_controls(processing=False)
 
         if message.is_plan_update:
             # Render live execution plan checklist
@@ -1209,29 +1248,44 @@ class ChatPanel(Widget):
 
     # ── Input state management ────────────────────────────────────────
 
-    def set_input_enabled(self, enabled: bool) -> None:
-        """Enable or disable the text input (called by App while processing)."""
+    def update_input_controls(self, processing: bool) -> None:
+        """
+        Authoritative mutually-exclusive input controls state machine.
+        - Idle (processing=False):
+            #send-btn: display=True, disabled=False, label="[ SEND ]"
+            #stop-btn: display=False, disabled=True
+            #chat-input: disabled=False
+        - Processing (processing=True):
+            #send-btn: display=False, disabled=True
+            #stop-btn: display=True, disabled=False, label="[ STOP ]"
+            #chat-input: disabled=True
+        """
         try:
-            chat_input = self.query_one("#chat-input")
-            chat_input.disabled = not enabled
-            
-            btn = None
-            for btn_id in ("#send-btn", "#stop-btn"):
-                try:
-                    btn = self.query_one(btn_id, Button)
-                    break
-                except Exception:
-                    pass
+            chat_input = self.query_one("#chat-input", TextArea)
+            send_btn = self.query_one("#send-btn", Button)
+            stop_btn = self.query_one("#stop-btn", Button)
 
-            if btn is not None:
-                if enabled:
-                    btn.label = Text("[ SEND ]")
-                    btn.disabled = False
-                    chat_input.focus()
+            if processing:
+                chat_input.disabled = True
+                chat_input.blur()
+                send_btn.display = False
+                send_btn.disabled = True
+                stop_btn.display = True
+                stop_btn.disabled = False
+                stop_btn.label = Text("[ STOP ]")
+            else:
+                chat_input.disabled = False
+                chat_input.focus()
+                send_btn.display = True
+                send_btn.disabled = False
+                send_btn.label = Text("[ SEND ]")
+                stop_btn.display = False
+                stop_btn.disabled = True
+                if getattr(self, "is_mounted", False):
                     self.run_worker(self._remove_processing_indicator())
-                else:
-                    chat_input.blur()
-                    btn.label = Text("[ STOP ]")
-                    btn.disabled = False
         except Exception:
             pass
+
+    def set_input_enabled(self, enabled: bool) -> None:
+        """Enable or disable input controls (called by App)."""
+        self.update_input_controls(processing=not enabled)

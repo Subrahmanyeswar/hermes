@@ -127,6 +127,18 @@ class FileIdentityCache:
 
         return True, None
 
+    def has_been_read(self, file_path: Path | str) -> bool:
+        """Check whether a file has been read in the current session/cache."""
+        key = self._normalize_key(file_path)
+        with self._lock:
+            return key in self._cache
+
+    def mark_read(self, file_path: Path | str, content_hash: Optional[str] = None) -> None:
+        """Explicitly record that a file has been inspected."""
+        p = Path(file_path).resolve()
+        if p.exists() and p.is_file():
+            self.record(p)
+
     def invalidate(self, file_path: Path | str) -> None:
         """Invalidate cached identity after write or external deletion."""
         key = self._normalize_key(file_path)

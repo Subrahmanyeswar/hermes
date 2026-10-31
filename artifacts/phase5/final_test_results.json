@@ -1,0 +1,22 @@
+{
+  "timestamp": "2026-10-12T22:33:10+05:30",
+  "command": "& \"C:\\Users\\SUBBU\\Downloads\\hermes\\venv\\Scripts\\python.exe\" -m pytest tests/test_phase1_mission_lifecycle.py tests/test_phase2_durable_persistence.py tests/test_stage9_workspace_hub.py tests/test_phase3_tool_journaling.py tests/test_phase3_file_safety.py tests/test_phase4_stop_control.py tests/test_phase5_resume_control.py -v",
+  "exit_code": 0,
+  "summary": {
+    "total": 61,
+    "passed": 61,
+    "failed": 0,
+    "errors": 0,
+    "skipped": 0,
+    "duration_seconds": 12.79
+  },
+  "results_by_suite": {
+    "tests/test_phase1_mission_lifecycle.py": { "collected": 7, "passed": 7, "failed": 0 },
+    "tests/test_phase2_durable_persistence.py": { "collected": 12, "passed": 12, "failed": 0 },
+    "tests/test_stage9_workspace_hub.py": { "collected": 8, "passed": 8, "failed": 0 },
+    "tests/test_phase3_tool_journaling.py": { "collected": 7, "passed": 7, "failed": 0 },
+    "tests/test_phase3_file_safety.py": { "collected": 9, "passed": 9, "failed": 0 },
+    "tests/test_phase4_stop_control.py": { "collected": 8, "passed": 8, "failed": 0 },
+    "tests/test_phase5_resume_control.py": { "collected": 10, "passed": 10, "failed": 0 }
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "phase": "Phase 4",
+  "verification": "Subprocess Tree Termination Under Windows",
+  "test_scenario": "test_scenario_d_subprocess_tree_termination",
+  "implementation": {
+    "process_tracking": "tools.shell_tools.PROCESS_MISSION_MAP",
+    "tree_cleanup_library": "psutil",
+    "recursive_children_kill": true,
+    "escalation_policy": "terminate -> wait(1.0s) -> kill",
+    "mission_scoped_only": true,
+    "unrelated_processes_preserved": true
+  },
+  "verdict": "PASS"
+}

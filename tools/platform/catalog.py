@@ -81,12 +81,19 @@ class ToolCatalog:
         """Resolve any tool name or alias to its canonical name."""
         if not self._initialized:
             self.initialize()
-        return self._aliases.get(name, name)
+        if name in self._specs:
+            return name
+        resolved = self._aliases.get(name, name)
+        if resolved in self._specs:
+            return resolved
+        return self._aliases.get(resolved, resolved)
 
     def get(self, name: str) -> Optional[ToolSpec]:
         """Retrieve a ToolSpec by canonical name or alias."""
         if not self._initialized:
             self.initialize()
+        if name in self._specs:
+            return self._specs[name]
         canon = self.resolve_name(name)
         return self._specs.get(canon)
 
@@ -502,7 +509,9 @@ class ToolCatalog:
         """Import all legacy tools from tools.registry._REGISTRY and wrap them in ToolSpecs."""
         legacy_core_aliases = {
             "read_file", "write_file", "bash_exec", "list_directory", "list_dir",
-            "search_files", "grep", "read", "write", "edit"
+            "search_files", "grep", "read", "write", "edit",
+            "browser_click", "browser_screenshot", "browser_navigate", "browser_type",
+            "browser_inspect", "browser_console", "browser_network",
         }
         for name, cls in _REGISTRY.items():
             if name in self._specs or name in legacy_core_aliases:
@@ -829,20 +838,26 @@ class ToolCatalog:
 
     def _register_aliases(self) -> None:
         """Register legacy aliases and standard shortcuts."""
-        # Include legacy registry aliases
+        # Include legacy registry aliases (only if not already a canonical spec)
         for al, canon in LEGACY_ALIASES.items():
-            self._aliases[al] = canon
+            if al not in self._specs:
+                self._aliases[al] = canon
 
         # Core aliases
         aliases_map = {
             "read_file": "fs.read",
             "read": "fs.read",
             "view_file": "fs.read",
+            "fs_read": "fs.read",
             "edit_file": "fs.edit",
             "edit": "fs.edit",
+            "fs_edit": "fs.edit",
+            "file_editor": "fs.edit",
+            "str_replace_editor": "fs.edit",
             "replace_file_content": "fs.edit",
             "write_file": "fs.write",
             "write": "fs.write",
+            "fs_write": "fs.write",
             "bash_exec": "shell.bash",
             "bash": "shell.bash",
             "shell": "shell.bash",

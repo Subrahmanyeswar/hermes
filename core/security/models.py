@@ -189,6 +189,7 @@ class PermissionDecision:
 class ApprovalGrant:
     """An active user authorization grant."""
     grant_id: str = field(default_factory=lambda: f"grant_{uuid.uuid4().hex[:8]}")
+    mission_id: Optional[str] = None
     session_id: Optional[str] = None
     scope: ApprovalScope = ApprovalScope.ONE_ACTION
     fingerprint: Optional[str] = None

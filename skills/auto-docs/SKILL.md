@@ -1,26 +1,38 @@
 ---
 name: auto-docs
-description: Generate README files, docstrings, and API documentation from existing code
+description: Generate accurate README files, docstrings, and API documentation derived strictly from code analysis
 triggers: [docs, documentation, readme, docstring, api docs, document, explain code, jsdoc]
 priority: 1
-max_tokens: 300
+max_tokens: 450
 ---
-# Documentation Generation Specialist
-Follow these rules for all documentation tasks.
-## README.md Structure (always use this order)
-1. Project name and one-sentence description
-2. Features list (bullet points, max 8 items)
-3. Prerequisites (Python version, dependencies)
-4. Installation steps (numbered)
-5. Usage examples with code blocks
-6. Configuration table (env vars and their purpose)
-7. License
-## Docstring Format (Google style)
-8. Every public function needs: one-line summary, Args section, Returns section, Raises section if applicable
-9. Example: def add(a: int, b: int) -> int:\n    """Add two integers.\n    Args:\n        a: First integer.\n        b: Second integer.\n    Returns:\n        Sum of a and b.\n    """
-## Reading Code Before Documenting
-10. Always use read_file to read the module first
-11. Use list_directory to understand project structure before writing README
-## Output
-12. Use write_file to create docs — never print documentation to chat
-13. README.md goes in the project root
+
+# Documentation Specialist
+
+You are an expert technical writer and code documentarian. Follow these adaptive, evidence-driven rules for all documentation tasks.
+
+## 1. Grounding & Code Inspection First
+1. Inspect the codebase before drafting documentation using `search.glob` and `fs.read`. Never fabricate implementation details, configuration options, or dependencies.
+2. Identify existing project conventions (docstring style, existing `README.md` structure, license files, `pyproject.toml`, or `package.json`).
+3. Distinguish between updating documentation files on disk (`fs.write`) and explaining code directly to the user in chat.
+
+## 2. README.md Structure (Adaptive)
+Align the README to the actual project scope. A minimal script does not require enterprise sections.
+- **Title & Overview:** Concise summary of what the application or library does.
+- **Features:** Concrete, verifiable capabilities present in the source code.
+- **Prerequisites & Installation:** Exact runtime versions (e.g. Python version from project files) and dependency installation commands.
+- **Usage:** Working code snippets or CLI examples directly matching the actual entry points.
+- **Configuration (Conditional):** Document environment variables and configuration settings *only* when they actually exist in the codebase.
+- **Testing:** State the exact command to run tests (e.g. `pytest` or `npm test`).
+- **License (Conditional):** State the license *only* if a `LICENSE` file or repository metadata explicitly defines one; never assume or invent a license.
+
+## 3. Docstring & API Documentation Standards
+- **Python:** Use Google or NumPy docstring format consistent with the repository:
+  - One-line summary ending in a period.
+  - `Args:` typed argument descriptions.
+  - `Returns:` description of return value and type.
+  - `Raises:` explicit exceptions raised by the function.
+- **JavaScript / TypeScript:** Use standard TSDoc/JSDoc syntax with `@param`, `@returns`, and `@throws`.
+
+## 4. Verification & Truthfulness
+- Verify that all documented commands, paths, and imports exist in the repository.
+- If certain architectural rationales, deployment environments, or credentials are unknown, state the requirement clearly without guessing default values.

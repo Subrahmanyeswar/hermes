@@ -9,9 +9,22 @@ Usage:
   python main.py test-pipeline     # Run a single test task through the pipeline
   python main.py info              # Show model and config info
 """
+import sys
+
+# ── CANONICAL RUNTIME GUARD ──────────────────────────────────────────────
+if sys.version_info.major != 3 or sys.version_info.minor != 12:
+    sys.stderr.write(
+        f"\n[HERMES FATAL ERROR] Incompatible Python interpreter: Python {sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}\n"
+        f"HERMES strictly requires Python 3.12.x. Normal execution on Python 3.10, 3.13, etc. is rejected.\n"
+        f"Launch via canonical launcher:\n"
+        f"  .\\hermes.bat <args>\n"
+        f"Or directly with the canonical interpreter:\n"
+        f"  .\\venv\\Scripts\\python.exe main.py <args>\n\n"
+    )
+    sys.exit(1)
+
 import asyncio
 import json
-import sys
 from pathlib import Path
 from typing import Optional
 import typer
@@ -33,16 +46,24 @@ app = typer.Typer(help="HERMES — Local-first agentic coding framework")
 @app.command()
 def version():
     """Show HERMES version and release status."""
-    typer.echo(f"HERMES v{__version__} (Release Candidate 1)")
+    from config.model_config import (
+        TIER1_PROVIDER, TIER1_MODEL,
+        TIER2_PROVIDER, TIER2_MODEL,
+        TIER3_PROVIDER, TIER3_MODEL,
+    )
+    typer.echo(f"HERMES v{__version__} (Three-Provider Production Release)")
     typer.echo("Core Runtime: FROZEN")
     typer.echo("Model Stack:")
-    typer.echo("  • Tier 1: nvidia_nim / z-ai/glm-5.3-flash")
-    typer.echo("  • Tier 2: ollama / gpt-oss:120b-cloud")
-    typer.echo("  • Tier 3: ollama / nemotron-3-ultra:cloud")
+    typer.echo(f"  • Tier 1: {TIER1_PROVIDER} / {TIER1_MODEL}")
+    typer.echo(f"  • Tier 2: {TIER2_PROVIDER} / {TIER2_MODEL}")
+    typer.echo(f"  • Tier 3: {TIER3_PROVIDER} / {TIER3_MODEL}")
 
 @app.command()
-def diagnostics():
-    """Run full system and provider diagnostic checks."""
+def diagnostics(workspace: Optional[str] = typer.Option(None, help="Workspace directory to verify")):
+    """Run full system, provider, and canonical runtime diagnostic checks."""
+    from core.runtime_identity import detect_runtime_identity
+    identity = detect_runtime_identity(workspace_root=workspace)
+    typer.echo(identity.format_diagnostic())
     asyncio.run(_run_diagnostics())
 
 async def _run_diagnostics():
@@ -95,6 +116,33 @@ async def _run_diagnostics():
 
     typer.echo("\nDiagnostic check complete.")
 
+@app.command(name="env-check")
+def env_check(
+    strict: bool = typer.Option(False, "--strict", help="Exit with code 1 on any error"),
+    workspace: Optional[str] = typer.Option(None, help="Workspace directory to verify"),
+):
+    """Validate runtime environment determinism (Python 3.12, canonical venv, dependency lock)."""
+    from core.runtime_identity import validate_runtime_environment, detect_runtime_identity
+    identity = detect_runtime_identity(workspace_root=workspace)
+    typer.echo(identity.format_diagnostic())
+    res = validate_runtime_environment(strict=False, workspace_root=workspace)
+    if res["valid"]:
+        typer.echo("\n[OK] Canonical Python 3.12 runtime environment is fully qualified.")
+    else:
+        typer.echo("\n[ERROR] Runtime environment validation failed:")
+        for err in res["errors"]:
+            typer.echo(f"  • {err}")
+        if strict or not res["valid"]:
+            raise typer.Exit(1)
+
+@app.command(name="doctor")
+def doctor(
+    strict: bool = typer.Option(False, "--strict", help="Exit with code 1 on any error"),
+    workspace: Optional[str] = typer.Option(None, help="Workspace directory to verify"),
+):
+    """Run full environment and provider health checks."""
+    env_check(strict=strict, workspace=workspace)
+
 def setup_logging(debug: bool = False):
     logger.remove()
     level = "DEBUG" if debug else "INFO"
@@ -114,6 +162,9 @@ def run(
     debug: bool = typer.Option(False, help="Enable debug logging"),
 ):
     """Start HERMES in headless script mode (with prompt/stdin) or interactive CLI mode."""
+    from core.runtime_identity import ensure_canonical_runtime
+    ensure_canonical_runtime(workspace_root=workspace)
+
     if mode not in ("safe", "plan", "auto"):
         typer.echo(f"Invalid mode '{mode}'. Must be: safe, plan, auto", err=True)
         raise typer.Exit(2)
@@ -308,9 +359,13 @@ async def _show_info():
 def ui(
     mode: str = typer.Option("auto", help="Permission mode: safe, plan, auto"),
     project: str = typer.Option("default", help="Project name for memory context"),
+    workspace: Optional[str] = typer.Option(None, help="Workspace directory"),
     debug: bool = typer.Option(False, help="Enable debug logging"),
 ):
     """Launch the HERMES Textual TUI."""
+    from core.runtime_identity import ensure_canonical_runtime
+    ensure_canonical_runtime(workspace_root=workspace)
+
     if mode not in ("safe", "plan", "auto"):
         typer.echo(f"Invalid mode '{mode}'. Must be: safe, plan, auto", err=True)
         raise typer.Exit(1)
@@ -318,10 +373,17 @@ def ui(
     from utils.logging import setup_logging as _setup_logging
     _setup_logging(debug=debug, tui=True)
 
-    from ui.app import HermesApp
-    hermes_app = HermesApp(mode=mode, project=project, debug=debug)
+    if workspace:
+        from core.workspace import workspace_manager
+        try:
+            workspace_manager.lock(workspace)
+        except Exception as e:
+            typer.echo(f"Warning: could not lock workspace '{workspace}': {e}", err=True)
 
-    typer.echo(f"Launching HERMES TUI | mode={mode} | project={project}")
+    from ui.app import HermesApp
+    hermes_app = HermesApp(mode=mode, project=project, workspace=workspace, debug=debug)
+
+    typer.echo(f"Launching HERMES TUI | mode={mode} | project={project} | workspace={workspace or 'interactive'}")
     typer.echo("Press Ctrl+Q to exit.")
 
     hermes_app.run()
@@ -536,7 +598,8 @@ def tasks():
 
 @app.command(name="eval")
 def run_eval(
-    suite: str = typer.Option("capability", "--suite", "-s", help="Suite category: capability, regression, heldout, all"),
+    action: Optional[str] = typer.Argument(None, help="Action or suite: doctor, report, capability, regression, heldout, chaos, security, soak, all"),
+    suite: str = typer.Option("capability", "--suite", "-s", help="Suite category: capability, regression, heldout, chaos, security, soak, all"),
     task: Optional[str] = typer.Option(None, "--task", "-t", help="Specific task ID to run"),
     trials: Optional[int] = typer.Option(None, "--trials", help="Override number of trials per task"),
     output_dir: str = typer.Option("artifacts/evals", "--output", "-o", help="Output directory for reports and results"),
@@ -544,10 +607,55 @@ def run_eval(
     json_output: bool = typer.Option(False, "--json", help="Output results in JSON format"),
     workspace: Optional[str] = typer.Option(None, "--workspace", "-w", help="Workspace directory"),
 ):
-    """Run HERMES Evaluation Harness across capability, regression, or held-out suites."""
+    """Run HERMES Evaluation Harness across capability, regression, held-out, chaos, security, or soak suites."""
+    import json
+    from pathlib import Path
     from core.evaluation.harness.suites import suite_registry
     from core.evaluation.harness.runner import EvalRunner
     from core.evaluation.harness.models import EvaluationCategory
+
+    # Handle action routing
+    if action:
+        act_lower = action.lower()
+        if act_lower == "doctor":
+            typer.echo("HERMES Evaluation Suite Diagnostics (Doctor):")
+            typer.echo("=" * 60)
+            typer.echo(f"  • Registered Tasks: {len(suite_registry.list_all_tasks())}")
+            import shutil, os
+            typer.echo(f"  • Python LSP (ruff): {'✓ Available' if shutil.which('ruff') else '✗ Missing'}")
+            edge_avail = os.path.exists('C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe') or bool(shutil.which('msedge'))
+            typer.echo(f"  • Browser Automation (CDP): {'✓ Available (Edge)' if edge_avail else '✗ Simulated Only'}")
+            from config.model_config import TIER1_MODEL, TIER2_MODEL, TIER3_MODEL
+            typer.echo(f"  • Active Model Stack: T1={TIER1_MODEL} | T2={TIER2_MODEL} | T3={TIER3_MODEL}")
+            typer.echo(f"  • Eval Output Root: {output_dir}")
+            typer.echo("=" * 60)
+            return
+        elif act_lower == "report":
+            typer.echo(f"HERMES Consolidated Evaluation Report ({output_dir}):")
+            typer.echo("=" * 60)
+            out_p = Path(output_dir)
+            if not out_p.exists():
+                typer.echo("No evaluation runs found.")
+                return
+            reports = list(out_p.glob("*/result.json"))
+            if not reports:
+                typer.echo("No result.json artifacts found.")
+                return
+            typer.echo(f"Found {len(reports)} completed task run(s):\n")
+            for rep in reports:
+                try:
+                    data = json.loads(rep.read_text(encoding="utf-8"))
+                    task_id = data.get("task_id", rep.parent.name)
+                    status = data.get("overall_status", "UNKNOWN")
+                    rate = data.get("pass_rate", 0.0) * 100
+                    med = data.get("median_duration", 0.0)
+                    icon = "[PASS]" if status == "PASS" else "[FAIL]"
+                    typer.echo(f"  {icon} {task_id:<35} | Status: {status:<6} | Pass Rate: {rate:5.1f}% | Median: {med:.2f}s")
+                except Exception as e:
+                    typer.echo(f"  [ERR]  {rep.parent.name}: {e}")
+            return
+        elif act_lower in ("capability", "cap", "regression", "reg", "heldout", "held_out", "chaos", "security", "sec", "soak", "all"):
+            suite = act_lower
 
     if list_tasks:
         tasks = suite_registry.list_all_tasks()
@@ -574,8 +682,14 @@ def run_eval(
             tasks_to_run = suite_registry.get_tasks_by_category(EvaluationCategory.REGRESSION)
         elif suite_lower in ("heldout", "held_out"):
             tasks_to_run = suite_registry.get_tasks_by_category(EvaluationCategory.HELDOUT)
+        elif suite_lower in ("chaos",):
+            tasks_to_run = suite_registry.get_tasks_by_category(EvaluationCategory.CHAOS)
+        elif suite_lower in ("security", "sec"):
+            tasks_to_run = suite_registry.get_tasks_by_category(EvaluationCategory.SECURITY)
+        elif suite_lower in ("soak",):
+            tasks_to_run = suite_registry.get_tasks_by_category(EvaluationCategory.SOAK)
         else:
-            typer.echo(f"Unknown suite '{suite}'. Must be: capability, regression, heldout, all", err=True)
+            typer.echo(f"Unknown suite '{suite}'. Must be: capability, regression, heldout, chaos, security, soak, all", err=True)
             raise typer.Exit(1)
 
     if not tasks_to_run:
@@ -608,5 +722,42 @@ def run_eval(
     if not all_passed:
         raise typer.Exit(1)
 
+@app.command()
+def serve(
+    host: str = typer.Option("127.0.0.1", "--host", "-h", help="Host address (strictly 127.0.0.1 / localhost)"),
+    port: int = typer.Option(8765, "--port", "-p", help="Port number (default: 8765)"),
+    log_level: str = typer.Option("info", "--log-level", help="Logging level"),
+):
+    """Start HERMES local FastAPI runtime bridge and SSE stream server."""
+    from core.server.main import run_server
+    run_server(host=host, port=port, log_level=log_level)
+
+@app.command()
+def gui(
+    host: str = typer.Option("127.0.0.1", "--host", "-h", help="Host address (strictly 127.0.0.1 / localhost)"),
+    port: int = typer.Option(8765, "--port", "-p", help="Port number (default: 8765)"),
+    no_browser: bool = typer.Option(False, "--no-browser", help="Start server without opening browser automatically"),
+    stop: bool = typer.Option(False, "--stop", help="Stop running HERMES GUI server instance"),
+    status: bool = typer.Option(False, "--status", help="Check status of HERMES GUI server"),
+):
+    """Launch or manage the HERMES graphical interface."""
+    from core.server.launcher import launch_server, stop_server, get_port_status
+    if stop:
+        ok = stop_server(port=port)
+        if not ok:
+            raise typer.Exit(1)
+        return
+    if status:
+        stat = get_port_status(host=host, port=port)
+        import json
+        typer.echo(json.dumps(stat, indent=2))
+        return
+
+    code = launch_server(host=host, port=port, open_browser=not no_browser)
+    if code != 0:
+        raise typer.Exit(code)
+
 if __name__ == "__main__":
     app()
+
+

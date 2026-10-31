@@ -1,0 +1,202 @@
+[
+  {
+    "id": "T1",
+    "prompt": "Create a single file hello world Python script in main.py",
+    "expected": "TRIVIAL",
+    "predicted": "TRIVIAL",
+    "correct": true,
+    "domain": "scripting"
+  },
+  {
+    "id": "T2",
+    "prompt": "Write a python function that calculates the factorial of a number",
+    "expected": "TRIVIAL",
+    "predicted": "TRIVIAL",
+    "correct": true,
+    "domain": "algorithms"
+  },
+  {
+    "id": "T3",
+    "prompt": "Generate a simple shell script to list all files in the current folder",
+    "expected": "TRIVIAL",
+    "predicted": "TRIVIAL",
+    "correct": true,
+    "domain": "scripting"
+  },
+  {
+    "id": "T4",
+    "prompt": "Create a utility function to check if a string is a palindrome in utils.py",
+    "expected": "TRIVIAL",
+    "predicted": "TRIVIAL",
+    "correct": true,
+    "domain": "utility"
+  },
+  {
+    "id": "T5",
+    "prompt": "Create a single file script to reverse a string",
+    "expected": "TRIVIAL",
+    "predicted": "TRIVIAL",
+    "correct": true,
+    "domain": "scripting"
+  },
+  {
+    "id": "S1",
+    "prompt": "Build a personal portfolio website with about, skills, and projects sections",
+    "expected": "SIMPLE",
+    "predicted": "SIMPLE",
+    "correct": true,
+    "domain": "web_frontend"
+  },
+  {
+    "id": "S2",
+    "prompt": "Build a single page campus event board with announcements and event cards",
+    "expected": "SIMPLE",
+    "predicted": "SIMPLE",
+    "correct": true,
+    "domain": "web_frontend"
+  },
+  {
+    "id": "S3",
+    "prompt": "Create an interactive expense tracker with category filtering and local storage",
+    "expected": "SIMPLE",
+    "predicted": "SIMPLE",
+    "correct": true,
+    "domain": "web_application"
+  },
+  {
+    "id": "S4",
+    "prompt": "Create a markdown note taking web app with preview and local storage",
+    "expected": "SIMPLE",
+    "predicted": "SIMPLE",
+    "correct": true,
+    "domain": "web_application"
+  },
+  {
+    "id": "S5",
+    "prompt": "Build a tip calculator web app with responsive sliders and bill splitting",
+    "expected": "SIMPLE",
+    "predicted": "SIMPLE",
+    "correct": true,
+    "domain": "web_application"
+  },
+  {
+    "id": "M1",
+    "prompt": "Build a Flask REST API with SQLite database, models and routes for managing books and authors",
+    "expected": "MEDIUM",
+    "predicted": "MEDIUM",
+    "correct": true,
+    "domain": "api_backend"
+  },
+  {
+    "id": "M2",
+    "prompt": "Create a FastAPI backend service with endpoints and SQLite database for todo items",
+    "expected": "MEDIUM",
+    "predicted": "MEDIUM",
+    "correct": true,
+    "domain": "api_backend"
+  },
+  {
+    "id": "M3",
+    "prompt": "Build a CRUD API backend with SQLite database for customer management",
+    "expected": "MEDIUM",
+    "predicted": "MEDIUM",
+    "correct": true,
+    "domain": "api_backend"
+  },
+  {
+    "id": "M4",
+    "prompt": "Implement a REST API with endpoints and sqlite database for user profiles",
+    "expected": "MEDIUM",
+    "predicted": "MEDIUM",
+    "correct": true,
+    "domain": "api_backend"
+  },
+  {
+    "id": "M5",
+    "prompt": "Build a Flask API service with database models and routes for tracking fitness logs",
+    "expected": "MEDIUM",
+    "predicted": "MEDIUM",
+    "correct": true,
+    "domain": "api_backend"
+  },
+  {
+    "id": "C1",
+    "prompt": "Build a full stack web application with JWT authentication, user registration, and database migrations",
+    "expected": "COMPLEX",
+    "predicted": "COMPLEX",
+    "correct": true,
+    "domain": "full_stack"
+  },
+  {
+    "id": "C2",
+    "prompt": "Build a web platform with OAuth authentication, user dashboard, and Stripe payment processing",
+    "expected": "COMPLEX",
+    "predicted": "COMPLEX",
+    "correct": true,
+    "domain": "full_stack"
+  },
+  {
+    "id": "C3",
+    "prompt": "Create a full-stack system with background worker, Redis queue, and task progress tracking",
+    "expected": "COMPLEX",
+    "predicted": "COMPLEX",
+    "correct": true,
+    "domain": "distributed_system"
+  },
+  {
+    "id": "C4",
+    "prompt": "Build a SaaS application with login and signup, subscription billing, and database migration",
+    "expected": "COMPLEX",
+    "predicted": "COMPLEX",
+    "correct": true,
+    "domain": "saas"
+  },
+  {
+    "id": "C5",
+    "prompt": "Create a full stack platform with user authentication, file uploads, and async Celery processing",
+    "expected": "COMPLEX",
+    "predicted": "COMPLEX",
+    "correct": true,
+    "domain": "full_stack"
+  },
+  {
+    "id": "L1",
+    "prompt": "Design a microservices architecture with Kubernetes manifests and service discovery",
+    "expected": "LARGE",
+    "predicted": "LARGE",
+    "correct": true,
+    "domain": "cloud_architecture"
+  },
+  {
+    "id": "L2",
+    "prompt": "Build a distributed event-driven architecture using Kafka message broker and multi-repo deployment",
+    "expected": "LARGE",
+    "predicted": "LARGE",
+    "correct": true,
+    "domain": "distributed_system"
+  },
+  {
+    "id": "L3",
+    "prompt": "Develop a microservices backend with Docker compose, Kubernetes deployment, and API gateway",
+    "expected": "LARGE",
+    "predicted": "LARGE",
+    "correct": true,
+    "domain": "cloud_architecture"
+  },
+  {
+    "id": "L4",
+    "prompt": "Build a distributed stream processing platform with Kafka topics and microservice workers",
+    "expected": "LARGE",
+    "predicted": "LARGE",
+    "correct": true,
+    "domain": "stream_processing"
+  },
+  {
+    "id": "L5",
+    "prompt": "Design a monorepo multi-service platform with distributed caching and Kubernetes orchestration",
+    "expected": "LARGE",
+    "predicted": "LARGE",
+    "correct": true,
+    "domain": "monorepo"
+  }
+]

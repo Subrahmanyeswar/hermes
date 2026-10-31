@@ -43,8 +43,41 @@ def generate_trace_id() -> str:
 
 
 def generate_session_id() -> str:
-    """Generate a session ID that persists for the entire application lifetime."""
+    """Generate a session ID that persists for the entire application lifetime. Format: 12 hex characters."""
     return uuid.uuid4().hex[:12]
+
+
+import re
+
+
+def redact_secrets(text: str) -> str:
+    """Scrub sensitive credentials (API keys, bearer tokens, connection strings, passwords) from text strings."""
+    if not isinstance(text, str) or not text:
+        return text
+
+    try:
+        from config.model_config import NVIDIA_API_KEY, OPENROUTER_API_KEY
+        if NVIDIA_API_KEY and len(NVIDIA_API_KEY) > 8 and NVIDIA_API_KEY in text:
+            text = text.replace(NVIDIA_API_KEY, "[REDACTED_API_KEY]")
+        if OPENROUTER_API_KEY and len(OPENROUTER_API_KEY) > 8 and OPENROUTER_API_KEY in text:
+            text = text.replace(OPENROUTER_API_KEY, "[REDACTED_API_KEY]")
+    except Exception:
+        pass
+
+    text = re.sub(r'nvapi-[A-Za-z0-9_\-]{20,}', '[REDACTED_NVIDIA_KEY]', text)
+    text = re.sub(r'sk-[A-Za-z0-9_\-]{20,}', '[REDACTED_API_KEY]', text)
+    text = re.sub(r'ghp_[A-Za-z0-9]{36,}', '[REDACTED_GITHUB_TOKEN]', text)
+    text = re.sub(r'(Bearer\s+)[A-Za-z0-9_\-\.]{15,}', r'\1[REDACTED_TOKEN]', text, flags=re.IGNORECASE)
+    # URI / Connection string credentials: scheme://user:password@host
+    text = re.sub(r'([a-zA-Z][a-zA-Z0-9+.-]*://[^:\s/@]+:)([^@\s]+)(@)', r'\1[REDACTED_PASSWORD]\3', text)
+    # Key-value secret parameters (password=..., token=..., api_key=..., secret=...)
+    text = re.sub(r'(?i)(password|passwd|secret|token|api_key|apikey|auth_token)\s*([:=])\s*["\']?([^"\'\s,;&]+)["\']?', r'\1\2[REDACTED_SECRET]', text)
+    return text
+
+
+def _redact_patcher(record) -> None:
+    """Patch all log records to strip secrets from message and extra fields."""
+    record["message"] = redact_secrets(record["message"])
 
 
 # ── JSONL Sink Filter ─────────────────────────────────────────────────
@@ -57,7 +90,7 @@ def _jsonl_sink_filter(record) -> bool:
         "level": record["level"].name,
         "session_id": _SESSION_ID,
         "trace_id": record["extra"].get("trace_id", ""),
-        "message": record["message"],
+        "message": redact_secrets(record["message"]),
         "module": record["name"],
         "function": record["function"],
         "line": record["line"],
@@ -87,6 +120,7 @@ def setup_logging(session_id: Optional[str] = None, debug: bool = False, tui: bo
 
     # ── Remove all default Loguru handlers ───────────────────────────────
     logger.remove()
+    logger.configure(patcher=_redact_patcher)
 
     log_level = "DEBUG" if debug else "INFO"
 

@@ -22,6 +22,7 @@ class ContextSerializer:
         ContextSectionType.SYSTEM,
         ContextSectionType.PROJECT_RULES,
         ContextSectionType.SCOPED_RULES,
+        ContextSectionType.SKILLS,
         ContextSectionType.CURRENT_GOAL,
         ContextSectionType.ACTIVE_REQUIREMENTS,
         ContextSectionType.RELEVANT_FILES,
@@ -87,7 +88,13 @@ class ContextSerializer:
         user_blocks: List[str] = []
 
         # System role sections
-        for sec in (ContextSectionType.SYSTEM, ContextSectionType.PROJECT_RULES, ContextSectionType.SCOPED_RULES, ContextSectionType.ACTIVE_TOOLS):
+        for sec in (
+            ContextSectionType.SYSTEM,
+            ContextSectionType.PROJECT_RULES,
+            ContextSectionType.SCOPED_RULES,
+            ContextSectionType.SKILLS,
+            ContextSectionType.ACTIVE_TOOLS,
+        ):
             items = sections.get(sec, [])
             if items:
                 tag = sec.value.lower()
@@ -120,6 +127,15 @@ class ContextSerializer:
                     lines.append(f"  {it.content.strip()}")
             lines.append(f"</{tag}>")
             user_blocks.append("\n".join(lines))
+
+        # Surface any critical system directives prominently right before user prompt
+        system_items = sections.get(ContextSectionType.SYSTEM, [])
+        directives = [
+            it.content.strip() for it in system_items
+            if it.id.startswith(("guidance_", "gov_notice_")) or "CRITICAL DIRECTIVE" in it.content or "PROGRESS GOVERNOR" in it.content
+        ]
+        if directives:
+            user_blocks.append("\n" + "\n\n".join(directives) + "\n")
 
         user_blocks.append("What is the next useful action to achieve the current goal?")
 

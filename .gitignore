@@ -1,13 +1,24 @@
-# Environments
+# Environments & Dependencies
 venv/
 bench_venv/
 .venv/
+node_modules/
+**/node_modules/
+dist/
+build/
+.turbo/
+gui/dist/
+gui/test_dist/
 
 # Local database & credentials
 data/
 *.db
 .env
-*.env
+.env*
+*.env*
+*.bak*
+*.pid
+.temp_*
 
 # Python compilation & cache
 __pycache__/
@@ -26,6 +37,7 @@ artifacts/performance/traces/
 # Temporary runtime artifacts & scratch exploration
 scratch/
 generated_projects/
+workspaces/
 .artifacts/
 .hermes/
 artifacts/browser/

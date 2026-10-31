@@ -1,0 +1,163 @@
+{
+  "audit_phase": 6,
+  "audit_name": "final_quality_upgrade_and_skill_hardening",
+  "audit_timestamp": "2026-10-21T22:02:00Z",
+  "canonical_skills_root": "C:\\Users\\SUBBU\\Downloads\\hermes\\skills",
+  "total_skills_assessed": 13,
+  "skills": [
+    {
+      "name": "auto-docs",
+      "manifest_path": "skills/auto-docs/SKILL.md",
+      "pre_change_verdict": "NEEDS_UPGRADE",
+      "final_verdict": "VERIFIED_UPGRADED",
+      "tool_issues": ["read_file", "list_directory", "write_file"],
+      "rigid_rules": ["Mandatory 7-section order", "Forced License and Config table"],
+      "proposed_remediation": "Update tool names, adapt to project conventions, prevent license/dep fabrication",
+      "completed_action": "Replaced fake tools with fs.read, search.glob, fs.write; inspects existing doc conventions (Google/NumPy/Sphinx); documents actual code without fabricating licenses or dependencies",
+      "final_sha256": "30b03bdd98708a5e70e8c0830815e5eacfce154248ebf3140394af4e9d92b3b5"
+    },
+    {
+      "name": "bash-scripting",
+      "manifest_path": "skills/bash-scripting/SKILL.md",
+      "pre_change_verdict": "NEEDS_UPGRADE",
+      "final_verdict": "VERIFIED_UPGRADED",
+      "tool_issues": ["generic bash references"],
+      "rigid_rules": ["Assumes /bin/bash universally", "Hardcoded /tmp trap path"],
+      "proposed_remediation": "Add shell/platform detection, safe single-target mktemp trap, HERMES non-destructive boundary rules",
+      "completed_action": "Added platform and shell detection (POSIX sh vs bash vs Windows PowerShell); safe single-target mktemp trap cleanup; explicit non-destructive shell boundaries; uses shell.bash",
+      "final_sha256": "349a6e9e56664e7131ece41f6a613872a330607004e5f38b4e84d36b796f61da"
+    },
+    {
+      "name": "code-review",
+      "manifest_path": "skills/code-review/SKILL.md",
+      "pre_change_verdict": "NEEDS_UPGRADE",
+      "final_verdict": "VERIFIED_UPGRADED",
+      "tool_issues": ["read_file"],
+      "rigid_rules": ["Unstructured severity format without actionable criteria"],
+      "proposed_remediation": "Update to fs.read, provide structured findings with severity, location, impact, and concrete replacement code",
+      "completed_action": "Updated to fs.read and search.regex; structured findings schema by severity ([CRITICAL], [MAJOR], [MINOR]), exact line numbers, functional impact, and concrete replacement diffs",
+      "final_sha256": "366f65f1487ef4656b774260a5e57bbc447ae89038352b3a8407db0c102cedc6"
+    },
+    {
+      "name": "database-design",
+      "manifest_path": "skills/database-design/SKILL.md",
+      "pre_change_verdict": "NEEDS_UPGRADE",
+      "final_verdict": "VERIFIED_UPGRADED",
+      "tool_issues": [],
+      "rigid_rules": [
+        "Mandatory id, created_at, updated_at on every table",
+        "Mandatory SQLite WAL mode universally",
+        "Mandatory raw SQL migrations at migrations/V{N}.sql"
+      ],
+      "proposed_remediation": "Allow composite keys on junction tables, contextualize WAL mode, support existing migration frameworks, add lazy-loaded schema_patterns reference",
+      "completed_action": "Allowed composite primary keys on junction tables; contextualized SQLite WAL mode to concurrent write workloads; added migration framework adaptability; added lazy-loaded reference references/schema_patterns.md",
+      "final_sha256": "9c0d83615495968fdf5eebec0628266b7671b1e343b980e5efa695ac84b435d4"
+    },
+    {
+      "name": "debugging",
+      "manifest_path": "skills/debugging/SKILL.md",
+      "pre_change_verdict": "NEEDS_UPGRADE",
+      "final_verdict": "VERIFIED_UPGRADED",
+      "tool_issues": ["read_file", "write_file (mode overwrite)", "run_python", "run_tests"],
+      "rigid_rules": ["Make exactly one hypothesis. Do not list multiple possibilities."],
+      "proposed_remediation": "Permit systematic comparison of competing hypotheses, update to fs.read/fs.edit/shell.bash, trace caller stack",
+      "completed_action": "Permits systematic evaluation and comparison of competing hypotheses; traces caller stacks to find the true origin of errors; enforces 4-step reproduction before applying fixes; uses fs.read, fs.edit, and shell.bash",
+      "final_sha256": "33f855c7f5e69d592dbe2bf94501cd4ecde18bdbe612db88238132fc9513c33d"
+    },
+    {
+      "name": "flask-rest-api",
+      "manifest_path": "skills/flask-rest-api/SKILL.md",
+      "pre_change_verdict": "NEEDS_UPGRADE",
+      "final_verdict": "VERIFIED_UPGRADED",
+      "tool_issues": ["write_file"],
+      "rigid_rules": ["Mandatory flask-jwt-extended on all APIs", "Rigid 7-file folder layout"],
+      "proposed_remediation": "Make JWT conditional on auth requirements, adapt to existing structure, update to fs.write",
+      "completed_action": "Made JWT authentication conditional on task requirements; supports modular Flask Blueprints; integrates Pydantic/Marshmallow validation and explicit HTTP status codes; uses fs.write and fs.edit",
+      "final_sha256": "c0e571ac656b591bb88f8b31032f34eb4e2102ac22bfc3805a90b2165a19efec"
+    },
+    {
+      "name": "git-workflow",
+      "manifest_path": "skills/git-workflow/SKILL.md",
+      "pre_change_verdict": "CRITICAL_UPGRADE",
+      "final_verdict": "VERIFIED_UPGRADED",
+      "tool_issues": ["git_init", "git_add_commit", "git_push"],
+      "rigid_rules": [
+        "Always run git_init before any git_add_commit",
+        "Always stage all changes with add_all=True",
+        "Auto-push without authorization"
+      ],
+      "proposed_remediation": "Replace fake tools with shell.bash, inspect before action, stage only intended files, require explicit authorization for commits/pushes, forbid destructive commands, add safety_rules reference",
+      "completed_action": "Safety Invariant enforced: prohibited all destructive Git commands (reset --hard, clean, push --force); inspection-first (git status, git diff); atomic single-file staging; mandatory operator authorization before commits/pushes; added lazy-loaded reference references/safety_rules.md",
+      "final_sha256": "1d34fd7c11f839287a274320be997c96addebbd801366b7e0753d8a02c84e466"
+    },
+    {
+      "name": "pytest-generation",
+      "manifest_path": "skills/pytest-generation/SKILL.md",
+      "pre_change_verdict": "NEEDS_UPGRADE",
+      "final_verdict": "VERIFIED_UPGRADED",
+      "tool_issues": ["read_file", "run_tests"],
+      "rigid_rules": ["One test class per class under test"],
+      "proposed_remediation": "Update to fs.read and shell.bash with canonical venv, support functional/class test styles, emphasize tmp_path and edge/exception tests",
+      "completed_action": "Updated to fs.read, fs.write, and shell.bash with canonical Python interpreter; supports functional and class-based test layouts; requires tmp_path fixture isolation and edge/exception assertions",
+      "final_sha256": "1ae695a71f67fb25dac00caaa13483f773a217c33f6e244631190219cd099973"
+    },
+    {
+      "name": "react-frontend",
+      "manifest_path": "skills/react-frontend/SKILL.md",
+      "pre_change_verdict": "NEEDS_UPGRADE",
+      "final_verdict": "VERIFIED_UPGRADED",
+      "tool_issues": [],
+      "rigid_rules": ["Mandatory Tailwind CSS utility classes", "Forced Next.js App Router conventions"],
+      "proposed_remediation": "Detect and align with project CSS strategy, support Vite/CRA/Next conventions, ensure accessibility and loading/error states",
+      "completed_action": "Detects and aligns with existing project CSS strategies (CSS modules, Tailwind, vanilla CSS); supports modern functional React + TypeScript, Vite, and Next.js conventions; ensures ARIA accessibility and loading/error states",
+      "final_sha256": "37600e2281f941a1079c161ac1a840e83bc98d0891fc1c5c10b70f2e17dd8eb8"
+    },
+    {
+      "name": "refactoring",
+      "manifest_path": "skills/refactoring/SKILL.md",
+      "pre_change_verdict": "NEEDS_UPGRADE",
+      "final_verdict": "VERIFIED_UPGRADED",
+      "tool_issues": ["read_file", "run_tests"],
+      "rigid_rules": [
+        "Functions longer than 20 lines need splitting",
+        "Functions with more than 3 parameters need dataclass"
+      ],
+      "proposed_remediation": "Eliminate arbitrary line and parameter count thresholds, replace with observable maintainability indicators, verify behavioral preservation with tests",
+      "completed_action": "Eliminated arbitrary 20-line and 3-parameter thresholds; replaced with Martin Fowler code smell heuristics (coupling, cohesion, cyclomatic complexity, side effects); test-driven behavioral preservation using shell.bash",
+      "final_sha256": "26597860b40f588ba578b3192e8634afbd16b4ca0b101d0fc0abde770e1f1bf6"
+    },
+    {
+      "name": "screenshot-to-code",
+      "manifest_path": "skills/screenshot-to-code/SKILL.md",
+      "pre_change_verdict": "NEEDS_UPGRADE_AND_ROUTING_FIX",
+      "final_verdict": "VERIFIED_UPGRADED",
+      "tool_issues": ["read_image", "write_file"],
+      "rigid_rules": ["Trigger 'html' causes false-positive routing", "Mandatory Tailwind CSS", "Hardcoded output path"],
+      "proposed_remediation": "Remove 'html' from triggers to resolve Scenario A discrepancy, require vision/mockup intent, adapt to project conventions and destination paths",
+      "completed_action": "Removed 'html' and generic 'visual' triggers; added visual-intent guard in route_skills; uses real file inspection and project-adaptive styling; supports plain HTML/CSS and React; operational limitation: in headless non-vision environments relies on image file paths and mockup wireframe specs",
+      "final_sha256": "f37cd8ff58fb2fd4ff815e94bcdc531c37e83c3c3e4739fe4e691d5d8e0c1119"
+    },
+    {
+      "name": "security-audit",
+      "manifest_path": "skills/security-audit/SKILL.md",
+      "pre_change_verdict": "NEEDS_UPGRADE",
+      "final_verdict": "VERIFIED_UPGRADED",
+      "tool_issues": [],
+      "rigid_rules": ["Assumes Python web app context universally"],
+      "proposed_remediation": "Broaden across web and backend systems, structure findings with severity/evidence/remediation, add lazy-loaded owasp_checklist reference",
+      "completed_action": "Broadened across backend and web architectures; non-destructive read-only audit principles; structured findings by OWASP Top 10 with verified preconditions, CWE mappings, and remediation diffs; added lazy-loaded reference references/owasp_checklist.md",
+      "final_sha256": "01928d7716a3fb4122c9266acd507bdf777ed0faf5377e1a04460680340b4ac5"
+    },
+    {
+      "name": "vanilla-web",
+      "manifest_path": "skills/vanilla-web/SKILL.md",
+      "pre_change_verdict": "NEEDS_UPGRADE",
+      "final_verdict": "VERIFIED_UPGRADED",
+      "tool_issues": [],
+      "rigid_rules": ["Mandatory localStorage persistence universally", "Mandatory form/select elements"],
+      "proposed_remediation": "Make localStorage conditional on persistence requirements, emphasize semantic markup, responsive design, and safe DOM manipulation",
+      "completed_action": "Made client-side storage conditional on explicit persistence requirements; emphasizes modern semantic HTML5 elements, accessible ARIA roles, responsive CSS Grid/Flexbox layouts, and modular vanilla JavaScript",
+      "final_sha256": "3aef624d12f159d15dfc18d9a21c6f3b4cb8fadbdc9ed7dd6387a4cdd71d67a4"
+    }
+  ]
+}

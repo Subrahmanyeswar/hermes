@@ -1,0 +1,32 @@
+{
+  "timestamp": "2026-10-11T21:01:40+05:30",
+  "platform": "Windows",
+  "process_registry_mechanisms": {
+    "active_subprocesses": "tools.shell_tools.ACTIVE_SUBPROCESSES",
+    "process_mission_map": "tools.shell_tools.PROCESS_MISSION_MAP",
+    "current_mission_id_var": "tools.shell_tools.CURRENT_MISSION_ID",
+    "registration_functions": [
+      "register_active_subprocess(proc, mission_id=None)",
+      "unregister_active_subprocess(proc)",
+      "terminate_active_subprocesses(mission_id=None)"
+    ]
+  },
+  "termination_semantics": {
+    "recursive_tree_termination": true,
+    "psutil_children_lookup": true,
+    "scoping_by_mission_id": true,
+    "unrelated_process_protection": true
+  },
+  "empirical_test_results": {
+    "tree_termination": {
+      "parent_script": "spawns python child sleeper",
+      "parent_killed": true,
+      "child_killed": true,
+      "unrelated_proc_alive": true
+    },
+    "cancellation_isolation": {
+      "mission_a_cancelled_proc_dead": true,
+      "mission_b_active_proc_alive": true
+    }
+  }
+}

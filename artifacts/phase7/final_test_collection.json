@@ -1,0 +1,60 @@
+{
+  "phase": "Phase 7 — Internet-Loss Detection, Durable Waiting & Automatic Recovery",
+  "generated_at": "2026-10-13T11:08:30+05:30",
+  "test_suites": [
+    {
+      "file": "tests/test_phase7_network_recovery.py",
+      "test_count": 15,
+      "tests": [
+        "test_section_a_error_condition_classification",
+        "test_section_b_connectivity_monitor_hysteresis",
+        "test_section_b_monitor_listener_notification",
+        "test_section_c_waiting_state_reducer_persistence",
+        "test_section_d_safe_boundary_preservation",
+        "test_section_e_auto_recovery_coordinator_execution",
+        "test_section_f_ineligible_mission_fencing",
+        "test_section_g_flapping_and_concurrency_deduplication",
+        "test_section_h_browser_disconnect_resilience",
+        "test_section_i_backend_restart_waiting_recovery",
+        "test_section_j_network_api_endpoints",
+        "test_critical_a_provider_recovery_without_internet_transition",
+        "test_critical_c_recoverable_workspace_and_checkpoint_blockers",
+        "test_critical_d_backend_restart_classification_and_eligibility",
+        "test_critical_e_connectivity_probe_tls_and_captive_portal"
+      ]
+    },
+    {
+      "file": "tests/test_phase1_mission_lifecycle.py",
+      "test_count": 7
+    },
+    {
+      "file": "tests/test_phase2_durable_persistence.py",
+      "test_count": 12
+    },
+    {
+      "file": "tests/test_stage9_workspace_hub.py",
+      "test_count": 8
+    },
+    {
+      "file": "tests/test_phase3_tool_journaling.py",
+      "test_count": 7
+    },
+    {
+      "file": "tests/test_phase3_file_safety.py",
+      "test_count": 9
+    },
+    {
+      "file": "tests/test_phase4_stop_control.py",
+      "test_count": 8
+    },
+    {
+      "file": "tests/test_phase5_resume_control.py",
+      "test_count": 10
+    },
+    {
+      "file": "tests/test_phase6_transport_hardening.py",
+      "test_count": 16
+    }
+  ],
+  "total_regression_test_count": 92
+}

@@ -20,6 +20,9 @@ class EvaluationCategory(str, Enum):
     CAPABILITY = "CAPABILITY"
     REGRESSION = "REGRESSION"
     HELDOUT = "HELDOUT"
+    CHAOS = "CHAOS"
+    SECURITY = "SECURITY"
+    SOAK = "SOAK"
 
 
 class EvaluationDifficulty(str, Enum):

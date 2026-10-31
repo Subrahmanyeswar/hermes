@@ -1,0 +1,82 @@
+{
+  "all_security_passed": true,
+  "events": [
+    {
+      "test": "path_traversal_write",
+      "payload": "../outside.txt",
+      "blocked": true,
+      "error_msg": "SECURITY: Path '../outside.txt' escapes workspace boundary 'C:\\Users\\SUBBU\\Downloads\\hermes\\tmp_security_audit': 'C:\\\\Users\\\\SUBBU\\\\Downloads\\\\hermes\\",
+      "verdict": "PASS"
+    },
+    {
+      "test": "path_traversal_write",
+      "payload": "../../sensitive.txt",
+      "blocked": true,
+      "error_msg": "SECURITY: Path '../../sensitive.txt' escapes workspace boundary 'C:\\Users\\SUBBU\\Downloads\\hermes\\tmp_security_audit': 'C:\\\\Users\\\\SUBBU\\\\Downloads\\\\se",
+      "verdict": "PASS"
+    },
+    {
+      "test": "path_traversal_write",
+      "payload": "..\\..\\windows\\system32\\cmd.exe",
+      "blocked": true,
+      "error_msg": "SECURITY: Path '..\\..\\windows\\system32\\cmd.exe' escapes workspace boundary 'C:\\Users\\SUBBU\\Downloads\\hermes\\tmp_security_audit': 'C:\\\\Users\\\\SUBBU\\\\Do",
+      "verdict": "PASS"
+    },
+    {
+      "test": "path_traversal_write",
+      "payload": "C:\\Windows\\System32\\calc.exe",
+      "blocked": true,
+      "error_msg": "SECURITY: Path 'C:\\Windows\\System32\\calc.exe' is outside workspace boundary 'C:\\Users\\SUBBU\\Downloads\\hermes\\tmp_security_audit'",
+      "verdict": "PASS"
+    },
+    {
+      "test": "path_traversal_write",
+      "payload": "D:\\other\\restricted_file.txt",
+      "blocked": true,
+      "error_msg": "SECURITY: Path 'D:\\other\\restricted_file.txt' is outside workspace boundary 'C:\\Users\\SUBBU\\Downloads\\hermes\\tmp_security_audit'",
+      "verdict": "PASS"
+    },
+    {
+      "test": "path_traversal_read",
+      "payload": "../outside.txt",
+      "blocked": true,
+      "error_msg": "SECURITY: Path '../outside.txt' escapes workspace boundary 'C:\\Users\\SUBBU\\Downloads\\hermes\\tmp_security_audit': 'C:\\\\Users\\\\SUBBU\\\\Downloads\\\\hermes\\",
+      "verdict": "PASS"
+    },
+    {
+      "test": "path_traversal_read",
+      "payload": "../../sensitive.txt",
+      "blocked": true,
+      "error_msg": "SECURITY: Path '../../sensitive.txt' escapes workspace boundary 'C:\\Users\\SUBBU\\Downloads\\hermes\\tmp_security_audit': 'C:\\\\Users\\\\SUBBU\\\\Downloads\\\\se",
+      "verdict": "PASS"
+    },
+    {
+      "test": "path_traversal_read",
+      "payload": "..\\..\\windows\\system32\\cmd.exe",
+      "blocked": true,
+      "error_msg": "SECURITY: Path '..\\..\\windows\\system32\\cmd.exe' escapes workspace boundary 'C:\\Users\\SUBBU\\Downloads\\hermes\\tmp_security_audit': 'C:\\\\Users\\\\SUBBU\\\\Do",
+      "verdict": "PASS"
+    },
+    {
+      "test": "path_traversal_read",
+      "payload": "C:\\Windows\\System32\\calc.exe",
+      "blocked": true,
+      "error_msg": "SECURITY: Path 'C:\\Windows\\System32\\calc.exe' is outside workspace boundary 'C:\\Users\\SUBBU\\Downloads\\hermes\\tmp_security_audit'",
+      "verdict": "PASS"
+    },
+    {
+      "test": "path_traversal_read",
+      "payload": "D:\\other\\restricted_file.txt",
+      "blocked": true,
+      "error_msg": "SECURITY: Path 'D:\\other\\restricted_file.txt' is outside workspace boundary 'C:\\Users\\SUBBU\\Downloads\\hermes\\tmp_security_audit'",
+      "verdict": "PASS"
+    },
+    {
+      "test": "checkpoint_save_and_restore",
+      "checkpoint_id": "chk_72ea4624de5c",
+      "total_files_captured": 2,
+      "integrity_verified": true,
+      "verdict": "PASS"
+    }
+  ]
+}

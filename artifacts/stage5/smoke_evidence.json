@@ -1,0 +1,24 @@
+{
+  "stage": "Stage 5",
+  "timestamp": "2026-10-11 10:53:05",
+  "mission_id": "m_stage5_smoke_01",
+  "tests": {
+    "initial_launch": {
+      "title": "HERMES \u2014 Autonomous Harness",
+      "connected": true,
+      "has_hermes_branding": true,
+      "has_workspace": true,
+      "status": "PASS"
+    },
+    "approval_binding": {
+      "approval_shown": true,
+      "mission_bound_shown": true,
+      "status": "PASS"
+    },
+    "termination_and_refresh": {
+      "approval_cleared_after_termination": true,
+      "connected_after_refresh": true,
+      "status": "PASS"
+    }
+  }
+}

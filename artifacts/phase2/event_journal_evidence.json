@@ -1,0 +1,31 @@
+{
+  "test_suite": "tests/test_phase2_durable_persistence.py",
+  "scenarios_verified": [
+    "test_scenario_a_durable_event_journal_append",
+    "test_scenario_b_sequence_monotonicity_across_restart",
+    "test_scenario_h_replay_beyond_buffer_limit",
+    "test_scenario_i_concurrent_persistence_ordering",
+    "test_scenario_k_non_blocking_publish_performance"
+  ],
+  "latency_benchmark_results": {
+    "sample_count": 200,
+    "mean_publish_ms": 0.02197,
+    "median_publish_ms": 0.01920,
+    "p95_publish_ms": 0.02850,
+    "p99_publish_ms": 0.14400,
+    "max_publish_ms": 0.22240,
+    "flush_ms": 10.505
+  },
+  "concurrency_guarantees": {
+    "thread_count": 5,
+    "events_published": 100,
+    "duplicate_sequences": 0,
+    "monotonic_ordering_verified": true
+  },
+  "ring_buffer_overflow_recovery": {
+    "in_memory_ring_buffer_size": 10,
+    "events_published": 25,
+    "events_replayed_from_db": 25,
+    "data_loss_percentage": 0.0
+  }
+}

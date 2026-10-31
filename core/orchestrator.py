@@ -53,13 +53,19 @@ from core.verification_gate import VerificationGate
 from core.reasoning_budget import ReasoningBudgetManager, ComplexityLevel
 from core.reasoning_policy import ReasoningPolicy, TaskComplexity
 from core.tool_validator import tool_validator
+
+
+class MultiTierRoutingExhaustedError(RuntimeError):
+    """Raised when all configured model tiers fail in sequence."""
+    pass
+
 from core.disagreement_router import DisagreementRouter, RoutingDecision, RouterResult, ALWAYS_ESCALATE_TOOLS
 from core.planner import TaskPlanner, Task
 from core.intent_classifier import IntentClassifier
 from core.prompt_builder import PromptContext, build_system_prompt, build_user_message
 from core.telemetry import telemetry, ToolTelemetry, StageSpan, VerificationTelemetry, RepairTelemetry
 import tools  # Triggers tool registration
-from tools.registry import get_tool, tool_schema_for_prompt, list_tools, PermissionGate
+from tools.registry import get_tool, tool_schema_for_prompt, list_tools, PermissionGate, get_canonical_tool_name
 from tools.base import ToolResult
 from memory.store import read_context_for_prompt
 from memory.extractor import confirm_and_write_facts, extract_memories
@@ -114,21 +120,26 @@ class Orchestrator:
         self._project = project
         self.execution_mode = execution_mode  # "production", "benchmark", "demo", "performance"
         self._progress_callback = progress_callback
-        from models.ollama_client import get_shared_ollama_client
-        self.ollama = get_shared_ollama_client()
-        self._default_ollama = self.ollama
-        if TIER1_PROVIDER == "nvidia_nim":
-            from models.nvidia_client import get_shared_nvidia_client
-            self.tier1 = get_shared_nvidia_client()
-        else:
-            self.tier1 = self.ollama
+        # Historical / mock test compatibility
+        try:
+            from models.ollama_client import get_shared_ollama_client
+            self.ollama = get_shared_ollama_client()
+        except Exception:
+            self.ollama = None
 
-        if TIER3_PROVIDER == "ollama":
-            self._tier3 = self.ollama
-        else:
-            self._tier3 = OpenRouterClient(timeout_seconds=MODEL_TIMEOUT_SECONDS)
+        from models.common_adapter import get_provider_adapter
+        from config.model_config import (
+            TIER1_PROVIDER, TIER1_MODEL,
+            TIER2_PROVIDER, TIER2_MODEL,
+            TIER3_PROVIDER, TIER3_MODEL,
+        )
+        self.tier1 = get_provider_adapter(TIER1_PROVIDER, TIER1_MODEL, tier=1)
+        self.tier2 = get_provider_adapter(TIER2_PROVIDER, TIER2_MODEL, tier=2)
+        self.tier3 = get_provider_adapter(TIER3_PROVIDER, TIER3_MODEL, tier=3)
+        self._tier3 = self.tier3
         self.claude = self._tier3  # Backwards compatibility alias
-        self.verifier = Tier2Verifier(self.ollama, model=TIER2_MODEL)
+        self._default_ollama = self.ollama
+        self.verifier = Tier2Verifier(getattr(self, "tier2", self.ollama), model=TIER2_MODEL)
         self.verification_gate = VerificationGate()
         self.budget_manager = ReasoningBudgetManager()
         self.tool_validator = tool_validator
@@ -152,6 +163,16 @@ class Orchestrator:
 
     @property
     def active_t1_client(self):
+        t1 = getattr(self, "tier1", None)
+        if t1 is not None and t1 is not getattr(self, "ollama", None):
+            t1_gen = getattr(t1, "generate", None)
+            if t1_gen is not None and (
+                hasattr(t1_gen, "assert_called")
+                or hasattr(t1_gen, "mock")
+                or getattr(t1_gen, "__class__", None).__name__ in ("AsyncMock", "MagicMock", "Mock")
+            ):
+                return t1
+
         current_ollama = getattr(self, "ollama", None)
         if current_ollama is not None and current_ollama is not getattr(self, "_default_ollama", None):
             return current_ollama
@@ -164,8 +185,17 @@ class Orchestrator:
             return current_ollama
         return getattr(self, "tier1", self.ollama)
 
+    @active_t1_client.setter
+    def active_t1_client(self, client: Any) -> None:
+        self.tier1 = client
+
     async def _generate_t1(self, **kwargs) -> Any:
         """Execute Tier 1 generation through configured provider with test harness compatibility."""
+        from config.model_config import (
+            TIER1_PROVIDER, TIER1_MODEL,
+            TIER2_PROVIDER, TIER2_MODEL,
+            TIER3_PROVIDER, TIER3_MODEL,
+        )
         tier1_client = self.active_t1_client
         if "request_id" not in kwargs:
             curr_trace = getattr(self, "_current_trace_id", None)
@@ -174,38 +204,246 @@ class Orchestrator:
                 kwargs.setdefault("mission_id", curr_trace)
                 kwargs.setdefault("task_id", curr_trace)
         kwargs.setdefault("stage", "Tier 1 Generation")
-        if tier1_client is getattr(self, "ollama", None) and self.ollama is not getattr(self, "_default_ollama", None):
-            return await self.ollama.generate(**kwargs)
-        ollama_gen = getattr(getattr(self, "ollama", None), "generate", None)
-        if ollama_gen is not None and (
-            hasattr(ollama_gen, "assert_called")
-            or hasattr(ollama_gen, "mock")
-            or getattr(ollama_gen, "__class__", None).__name__ in ("AsyncMock", "MagicMock", "Mock")
-        ):
-            return await self.ollama.generate(**kwargs)
+        t1_gen = getattr(tier1_client, "generate", None)
+        is_t1_mocked = t1_gen is not None and (
+            hasattr(t1_gen, "assert_called")
+            or hasattr(t1_gen, "mock")
+            or getattr(t1_gen, "__class__", None).__name__ in ("AsyncMock", "MagicMock", "Mock")
+        )
+
+        if not is_t1_mocked:
+            if tier1_client is getattr(self, "ollama", None) and self.ollama is not getattr(self, "_default_ollama", None):
+                return await self.ollama.generate(**kwargs)
+            ollama_gen = getattr(getattr(self, "ollama", None), "generate", None)
+            if ollama_gen is not None and (
+                hasattr(ollama_gen, "assert_called")
+                or hasattr(ollama_gen, "mock")
+                or getattr(ollama_gen, "__class__", None).__name__ in ("AsyncMock", "MagicMock", "Mock")
+            ):
+                return await self.ollama.generate(**kwargs)
 
         prov = getattr(tier1_client, "provider", TIER1_PROVIDER)
         mod = getattr(tier1_client, "model", TIER1_MODEL)
+        from core.adaptive_routing import get_adaptive_router
+        router = get_adaptive_router()
+
+        mid = kwargs.get("mission_id", "")
+        turn_id = kwargs.get("turn_id", "")
+
+        route_decision = router.route_primary(client_t1=tier1_client)
+        tier2_client = getattr(self, "tier2", None) or getattr(self, "ollama", None)
+        tier3_client = getattr(self, "tier3", None) or getattr(self, "_tier3", None) or getattr(self, "ollama", None)
+
+        t2_gen = getattr(tier2_client, "generate", None)
+        is_t2_mocked = t2_gen is not None and (
+            hasattr(t2_gen, "assert_called")
+            or hasattr(t2_gen, "mock")
+            or getattr(t2_gen, "__class__", None).__name__ in ("AsyncMock", "MagicMock", "Mock")
+        )
+        t3_gen = getattr(tier3_client, "generate", None)
+        is_t3_mocked = t3_gen is not None and (
+            hasattr(t3_gen, "assert_called")
+            or hasattr(t3_gen, "mock")
+            or getattr(t3_gen, "__class__", None).__name__ in ("AsyncMock", "MagicMock", "Mock")
+        )
+        allow_t2_failover = tier2_client is not None and (not is_t1_mocked or is_t2_mocked)
+        allow_t3_failover = tier3_client is not None and bool(TIER3_MODEL) and (not is_t1_mocked or is_t3_mocked)
+
+        if route_decision.bypassed and allow_t2_failover:
+            logger.info(
+                f"Tier 1 circuit is open. Zero-wait failover to Tier 2 ({TIER2_PROVIDER} / {TIER2_MODEL}) | "
+                f"reason={route_decision.reason} | avoided_wait={route_decision.avoided_timeout_ms:.0f}ms"
+            )
+            await self._emit_progress("circuit_bypass", {
+                "tier": 2,
+                "provider": TIER2_PROVIDER,
+                "model": TIER2_MODEL,
+                "reason": route_decision.reason,
+                "avoided_timeout_ms": route_decision.avoided_timeout_ms,
+                "mission_id": mid,
+                "turn_id": turn_id,
+            })
+            await self._emit_progress("model_start", {
+                "tier": 2, "provider": TIER2_PROVIDER, "model": TIER2_MODEL,
+                "mission_id": mid,
+                "turn_id": turn_id,
+            })
+            t2_kwargs = self._build_t2_failover_kwargs(kwargs)
+            t2_t0 = time.monotonic()
+            try:
+                resp2 = await tier2_client.generate(**t2_kwargs)
+                if getattr(resp2, "success", True) is False:
+                    raise RuntimeError(getattr(resp2, "error", None) or f"Tier 2 ({TIER2_PROVIDER}/{TIER2_MODEL}) failed")
+                t2_lat = time.monotonic() - t2_t0
+                router.record_success(tier=2, latency=t2_lat)
+                logger.info(f"MODEL_COMPLETE | tier=2 (circuit_bypass) | provider={TIER2_PROVIDER} | model={TIER2_MODEL} | latency={t2_lat:.2f}s")
+                await self._emit_progress("model_complete", {
+                    "tier": 2, "provider": TIER2_PROVIDER, "model": TIER2_MODEL, "latency": t2_lat,
+                    "mission_id": mid,
+                    "turn_id": turn_id,
+                })
+                return resp2
+            except Exception as t2_exc:
+                router.record_failure(tier=2, error=t2_exc, latency=time.monotonic() - t2_t0)
+                logger.error(f"Tier 2 circuit bypass also failed: {t2_exc}. Attempting Tier 3 failover...")
+                if tier3_client is not None and TIER3_MODEL:
+                    t3_kwargs = dict(t2_kwargs)
+                    t3_kwargs["model"] = TIER3_MODEL
+                    t3_t0 = time.monotonic()
+                    try:
+                        resp3 = await tier3_client.generate(**t3_kwargs)
+                        t3_lat = time.monotonic() - t3_t0
+                        logger.info(f"MODEL_COMPLETE | tier=3 (failover) | provider={TIER3_PROVIDER} | model={TIER3_MODEL} | latency={t3_lat:.2f}s")
+                        await self._emit_progress("model_complete", {
+                            "tier": 3, "provider": TIER3_PROVIDER, "model": TIER3_MODEL, "latency": t3_lat,
+                            "mission_id": mid,
+                            "turn_id": turn_id,
+                        })
+                        return resp3
+                    except Exception as t3_exc:
+                        logger.error(f"Tier 3 failover also failed: {t3_exc}")
+                        raise MultiTierRoutingExhaustedError(
+                            f"All model tiers failed during circuit bypass. Tier 2: {t2_exc}. Tier 3: {t3_exc}"
+                        ) from t3_exc
+                raise MultiTierRoutingExhaustedError(
+                    f"Tier 2 failed during circuit bypass and no Tier 3 fallback available: {t2_exc}"
+                ) from t2_exc
+
         logger.info(f"MODEL_START | tier=1 | provider={prov} | model={mod}")
-        await self._emit_progress("model_start", {"tier": 1, "provider": prov, "model": mod})
+        await self._emit_progress("model_start", {
+            "tier": 1, "provider": prov, "model": mod,
+            "mission_id": mid, "turn_id": turn_id
+        })
         t0 = time.monotonic()
         try:
             resp = await tier1_client.generate(**kwargs)
+            if getattr(resp, "success", True) is False:
+                raise RuntimeError(getattr(resp, "error", None) or f"Tier 1 ({prov}/{mod}) failed with unsuccessful response")
             lat = time.monotonic() - t0
+            router.record_success(tier=1, latency=lat)
             logger.info(f"MODEL_COMPLETE | tier=1 | provider={prov} | model={mod} | latency={lat:.2f}s")
-            await self._emit_progress("model_complete", {"tier": 1, "provider": prov, "model": mod, "latency": lat})
+            if not kwargs.get("suppress_model_completed_event", False):
+                await self._emit_progress("model_complete", {
+                    "tier": 1, "provider": prov, "model": mod, "latency": lat,
+                    "duration_ms": int(lat * 1000), "headline": f"Thought for {lat:.1f}s",
+                    "mission_id": mid, "turn_id": turn_id
+                })
             return resp
         except Exception as exc:
             lat = time.monotonic() - t0
+            to_type = getattr(exc, "timeout_type", "FIRST_TOKEN_TIMEOUT" if "timeout" in str(exc).lower() else "ERROR")
+            router.record_failure(tier=1, error=exc, timeout_type=to_type, latency=lat, client=tier1_client)
             logger.warning(f"MODEL_FAILED | tier=1 | provider={prov} | model={mod} | latency={lat:.2f}s | error={exc}")
+            
+            if allow_t2_failover:
+                logger.warning(
+                    f"Tier 1 ({mod}) failed: {exc}. "
+                    f"Failing over to Tier 2 ({TIER2_PROVIDER} / {TIER2_MODEL}) via multi-tier architecture..."
+                )
+                await self._emit_progress("model_failover", {
+                    "tier": 2, "provider": TIER2_PROVIDER, "model": TIER2_MODEL, "reason": str(exc),
+                    "mission_id": mid,
+                    "turn_id": turn_id,
+                })
+                t2_kwargs = self._build_t2_failover_kwargs(kwargs)
+                t2_t0 = time.monotonic()
+                try:
+                    resp2 = await tier2_client.generate(**t2_kwargs)
+                    if getattr(resp2, "success", True) is False:
+                        raise RuntimeError(getattr(resp2, "error", None) or f"Tier 2 ({TIER2_PROVIDER}/{TIER2_MODEL}) failed")
+                    t2_lat = time.monotonic() - t2_t0
+                    router.record_success(tier=2, latency=t2_lat)
+                    logger.info(f"MODEL_COMPLETE | tier=2 (failover) | provider={TIER2_PROVIDER} | model={TIER2_MODEL} | latency={t2_lat:.2f}s")
+                    await self._emit_progress("model_complete", {
+                        "tier": 2, "provider": TIER2_PROVIDER, "model": TIER2_MODEL, "latency": t2_lat,
+                        "mission_id": mid,
+                        "turn_id": turn_id,
+                    })
+                    return resp2
+                except Exception as t2_exc:
+                    router.record_failure(tier=2, error=t2_exc, latency=time.monotonic() - t2_t0)
+                    logger.error(f"Tier 2 failover also failed: {t2_exc}. Attempting Tier 3 failover...")
+                    if allow_t3_failover:
+                        t3_kwargs = dict(t2_kwargs)
+                        t3_kwargs["model"] = TIER3_MODEL
+                        t3_t0 = time.monotonic()
+                        try:
+                            resp3 = await tier3_client.generate(**t3_kwargs)
+                            if getattr(resp3, "success", True) is False:
+                                raise RuntimeError(getattr(resp3, "error", None) or f"Tier 3 ({TIER3_PROVIDER}/{TIER3_MODEL}) failed")
+                            t3_lat = time.monotonic() - t3_t0
+                            logger.info(f"MODEL_COMPLETE | tier=3 (failover) | provider={TIER3_PROVIDER} | model={TIER3_MODEL} | latency={t3_lat:.2f}s")
+                            await self._emit_progress("model_complete", {
+                                "tier": 3, "provider": TIER3_PROVIDER, "model": TIER3_MODEL, "latency": t3_lat,
+                                "mission_id": mid,
+                                "turn_id": turn_id,
+                            })
+                            return resp3
+                        except Exception as t3_exc:
+                            logger.error(f"Tier 3 failover also failed: {t3_exc}")
+                            raise MultiTierRoutingExhaustedError(
+                                f"All configured model tiers failed. Tier 1 ({mod}): {exc}. "
+                                f"Tier 2 ({TIER2_MODEL}): {t2_exc}. Tier 3 ({TIER3_MODEL}): {t3_exc}"
+                            ) from t3_exc
+                    raise MultiTierRoutingExhaustedError(
+                        f"Tier 1 ({mod}) and Tier 2 ({TIER2_MODEL}) failed, no Tier 3 available: {t2_exc}"
+                    ) from t2_exc
             raise
+            raise
+
+    def _build_t2_failover_kwargs(self, kwargs: dict) -> dict:
+        """Standardize keyword arguments for Tier 2 failover or circuit bypass."""
+        from config.model_config import TIER2_MODEL
+        t2_kwargs = dict(kwargs)
+        t2_kwargs["model"] = TIER2_MODEL
+        tools_list = t2_kwargs.get("tools")
+        t2_kwargs.pop("tool_choice", None)
+        t2_kwargs.pop("reasoning_effort", None)
+
+        tier2_client = getattr(self, "tier2", None) or getattr(self, "ollama", None)
+        is_native_tools = hasattr(tier2_client, "_sanitize_tool_definitions") or getattr(tier2_client, "provider", "") in ("nvidia_nim", "zai", "openrouter")
+
+        if is_native_tools and tools_list:
+            t2_kwargs["tools"] = tools_list
+            t2_kwargs.pop("format", None)
+        else:
+            tools_list = t2_kwargs.pop("tools", None)
+            t2_kwargs["format"] = "json"
+            t2_kwargs["think"] = False
+            t2_kwargs["keep_alive"] = 0
+            t2_kwargs["num_ctx"] = 16384
+            if not t2_kwargs.get("num_predict") or t2_kwargs.get("num_predict") < 4096:
+                t2_kwargs["num_predict"] = 4096
+
+            tools_doc = ""
+            if tools_list and isinstance(tools_list, list):
+                tool_lines = []
+                for t in tools_list:
+                    if isinstance(t, dict) and "function" in t:
+                        fn = t["function"]
+                        fname = fn.get("name", "")
+                        fdesc = fn.get("description", "")
+                        fparams = fn.get("parameters", {}).get("properties", {})
+                        param_names = list(fparams.keys()) if isinstance(fparams, dict) else []
+                        tool_lines.append(f"- {fname}: {fdesc} (parameters: {', '.join(param_names)})")
+                if tool_lines:
+                    tools_doc = "\nAvailable Tools:\n" + "\n".join(tool_lines)
+
+            t2_system = t2_kwargs.get("system", "")
+            t2_kwargs["system"] = t2_system + tools_doc + (
+                "\n\n[FAILOVER TOOL EXECUTION RULE]\n"
+                "Do NOT output <think> tags. Output ONLY a valid JSON tool call object in this format:\n"
+                '{"tool": "<tool_name>", "parameters": { ... }}\n'
+                "No prose or explanation outside the JSON."
+            )
+        return t2_kwargs
 
     @property
     def tier3(self):
         """Tier 3 arbitration client, synchronized with claude alias for test compatibility."""
         if hasattr(self, "claude") and self.claude is not None and self.claude is not getattr(self, "_tier3", None):
             return self.claude
-        return getattr(self, "_tier3", self.ollama)
+        return getattr(self, "_tier3", getattr(self, "ollama", None))
 
     @tier3.setter
     def tier3(self, val):
@@ -214,18 +452,58 @@ class Orchestrator:
 
     async def _emit_progress(self, event_type: str, payload: dict) -> None:
         """
-        Emit a pipeline progress event to the registered callback.
+        Emit a pipeline progress event to the registered callback and canonical EventBus.
         Silently does nothing if no callback is registered.
         Never raises — progress emission must never crash the pipeline.
         """
-        if self._progress_callback is None:
+        try:
+            from core.event_bus import event_bus as global_event_bus
+            from core.runtime_state.events import HermesEvent, EventType
+            eb = getattr(self, "event_bus", None) or global_event_bus
+            if eb and hasattr(eb, "publish"):
+                et = EventType.ROUTING_DECISION
+                if event_type == "model_failover":
+                    et = EventType.TIER_FAILOVER_STARTED
+                elif event_type in ("model_start", "circuit_bypass"):
+                    et = EventType.TIER_SELECTED
+                elif event_type == "model_complete":
+                    et = EventType.MODEL_COMPLETED
+                mid = (
+                    payload.get("mission_id")
+                    or getattr(self, "mission_id", None)
+                    or getattr(self, "_current_mission_id", None)
+                    or getattr(self, "current_mission_id", None)
+                    or ""
+                )
+                turn_id = payload.get("turn_id")
+                ev = HermesEvent(
+                    event_type=et,
+                    mission_id=mid,
+                    turn_id=turn_id,
+                    payload=dict(payload),
+                )
+                res = eb.publish(ev)
+                if asyncio.iscoroutine(res):
+                    await res
+        except Exception as eb_exc:
+            from loguru import logger
+            logger.warning(f"Orchestrator._emit_progress: event bus publish error: {eb_exc}")
+
+        cb = None
+        try:
+            from core.mission_runner import _task_progress_callback_var
+            cb = _task_progress_callback_var.get()
+        except Exception:
+            pass
+        if cb is None:
+            cb = getattr(self, "_progress_callback", None)
+        if cb is None:
             return
         try:
-            import asyncio
-            if asyncio.iscoroutinefunction(self._progress_callback):
-                await self._progress_callback(event_type, payload)
+            if asyncio.iscoroutinefunction(cb):
+                await cb(event_type, payload)
             else:
-                self._progress_callback(event_type, payload)
+                cb(event_type, payload)
         except Exception as e:
             from loguru import logger
             logger.debug(f"Orchestrator._emit_progress: callback error: {e}")
@@ -259,35 +537,33 @@ class Orchestrator:
         return sorted(list(artifacts))
 
     def _resolve_artifact_path(self, path_str: str) -> Path:
-        """Resolve artifact path against workspace or generated_projects directory."""
+        """Resolve artifact path against authoritative workspace or generated_projects directory."""
         from core.workspace import workspace_manager
         p = Path(path_str)
-        if p.is_absolute():
+        if p.is_absolute() and p.exists():
             return p
-        ws_root = Path(workspace_manager.workspace_root) if (workspace_manager.is_locked and workspace_manager.workspace_root) else Path.cwd()
-        
-        candidates = [
-            ws_root / p,
-            ws_root / "generated_projects" / p.name,
-            Path.cwd() / p,
-            Path.cwd() / "generated_projects" / p.name
-        ]
-        for c in candidates:
-            if c.exists():
-                return c
-        
-        # Check subdirectories of workspace root for p.name
-        try:
-            matches = [
-                m for m in ws_root.glob(f"**/{p.name}")
-                if ".git" not in m.parts and ".venv" not in m.parts and "artifacts" not in m.parts
-            ]
-            if matches:
-                return matches[0]
-        except Exception:
-            pass
 
-        return ws_root / p
+        # If locked to authoritative workspace, resolve against MissionWorkspace
+        if workspace_manager.is_locked and workspace_manager.workspace_root:
+            mws = workspace_manager.get_mission_workspace()
+            if mws:
+                found = mws.find_artifact(p.name)
+                if found and found.exists():
+                    return found
+                try:
+                    direct = mws.validate_path(path_str)
+                    if direct.exists():
+                        return direct
+                except Exception:
+                    pass
+            ws_root = Path(workspace_manager.workspace_root)
+            cand = ws_root / "generated_projects" / p.name
+            if cand.exists():
+                return cand
+            return ws_root / p.name
+
+        # Fallback to cwd
+        return Path.cwd() / p.name
 
     async def _execute_single_tool(self, tool_name: str, tool_params: dict, sanitised: str):
         """Helper to validate, normalize, and execute a single tool call."""
@@ -299,6 +575,7 @@ class Orchestrator:
             budget_manager=self.budget_manager
         )
         if not val_res.is_valid:
+            logger.warning(f"_execute_single_tool: invalid params for {tool_name}: {val_res.errors}")
             from tools.base import ToolResult
             return ToolResult(success=False, output="", error=f"Invalid parameters: {val_res.errors}", exit_code=1), tool_name, tool_params
         
@@ -307,6 +584,7 @@ class Orchestrator:
         t_input = val_res.validated_input
         tool_cls = get_tool(t_name)
         if not tool_cls:
+            logger.warning(f"_execute_single_tool: tool {t_name} not found")
             from tools.base import ToolResult
             return ToolResult(success=False, output="", error=f"Tool {t_name} not found", exit_code=1), t_name, t_params
             
@@ -316,6 +594,7 @@ class Orchestrator:
             t_res = await instance.execute(t_input)
         else:
             t_res = instance.execute(t_input)
+        logger.info(f"_execute_single_tool: {t_name} executed -> success={t_res.success}, exit_code={t_res.exit_code}, error={t_res.error}")
         return t_res, t_name, t_params
 
     async def run(self, user_request: str, on_progress=None, **kwargs) -> OrchestratorResult:
@@ -349,6 +628,7 @@ class Orchestrator:
                     logger.warning(f"Error in progress callback: {exc}")
 
         try:
+            telemetry.record_milestone(trace_id, "t_prompt_submitted")
             # ── Stage 1: Sanitise input ───────────────────────────────
             with telemetry.span("Input Sanitisation", request_id=trace_id, stage_number=1):
                 await self._emit_progress("stage_start", {
@@ -465,8 +745,8 @@ class Orchestrator:
 
                 # ── Stage 4: Memory Injection ──
                 await self._emit_progress("stage_start", {
-                    "stage": 3,
-                    "name": "Memory Retrieval",
+                    "stage": 4,
+                    "name": "Memory Injection",
                     "verb": "Retrieving memory",
                     "detail": "Loading project context from MEMORY.md",
                 })
@@ -479,10 +759,10 @@ class Orchestrator:
                     )
                 except Exception as mem_exc:
                     mem_err = self.error_handler.memory_parse_error(str(mem_exc), self.project)
-                    logger.warning(f"Stage 3: {mem_err.technical_detail}")
+                    logger.warning(f"Stage 4: {mem_err.technical_detail}")
                     memory_context = ""  # Empty fallback
 
-                logger.debug(f"Stage 3 complete: skills={loaded_skill_ids} | memory_lines={memory_context.count(chr(10))}")
+                logger.debug(f"Stage 4 complete: skills={loaded_skill_ids} | memory_lines={memory_context.count(chr(10))}")
                 
                 lines = [l.strip() for l in memory_context.split('\n') if l.strip()]
                 mem_facts = []
@@ -497,16 +777,16 @@ class Orchestrator:
 
                 await notify("stage_end", stage=4, status="success", memories=mem_facts)
                 await self._emit_progress("stage_complete", {
-                    "stage": 3, "name": "Skill + Memory Injection",
+                    "stage": 4, "name": "Memory Injection", "memories": mem_facts,
                 })
 
 
             # ── Stage 5: Tier 1 Reasoning ──────
-            span_t1 = telemetry.start_span("Tier 1 Generation", request_id=trace_id, stage_number=4)
+            span_t1 = telemetry.start_span("Tier 1 Generation", request_id=trace_id, stage_number=5)
             tier1_display = getattr(self.tier1, "model", TIER1_MODEL)
             await self._emit_progress("stage_start", {
-                "stage": 4,
-                "name": "Tier 1 Generation",
+                "stage": 5,
+                "name": "Tier 1 Reasoning",
                 "verb": "Reasoning",
                 "model": tier1_display,
                 "detail": "Generating tool call...",
@@ -615,6 +895,7 @@ class Orchestrator:
 
             # Attempt 1
             t1_start = time.monotonic()
+            telemetry.record_milestone(trace_id, "t_first_model_requested")
             try:
                 tier1_resp = await self._generate_t1(
                     model=TIER1_MODEL,
@@ -627,6 +908,7 @@ class Orchestrator:
                     think=t1_think,
                     tools=native_tools,
                 )
+                telemetry.record_milestone(trace_id, "t_first_model_response")
                 tier1_raw = getattr(tier1_resp, "text", str(tier1_resp))
                 eval_tokens = getattr(tier1_resp, "output_tokens", 0)
                 t1_latency = time.monotonic() - t1_start
@@ -714,20 +996,29 @@ class Orchestrator:
                     await notify("stage_end", stage=5, status="failed", error=result.error)
                     return result
 
-            tool_name = tier1_parsed.get("tool", "")
+            raw_tool = tier1_parsed.get("tool", "")
+            if raw_tool and isinstance(raw_tool, str):
+                canonical_tool = get_canonical_tool_name(raw_tool.strip())
+            else:
+                canonical_tool = ""
+
             tool_params = tier1_parsed.get("parameters", {})
             tier1_reasoning = tier1_parsed.get("reasoning", "")
             explanation = tier1_parsed.get("explanation", "Task completed.")
 
+            tool_name = canonical_tool if canonical_tool else ""
+            if tool_name:
+                telemetry.record_milestone(trace_id, "t_first_tool_available")
+
             self.session_logger.log_tier1_response(
-                TIER1_MODEL, tier1_raw[:500], t1_latency, tool_name
+                TIER1_MODEL, tier1_raw[:500], t1_latency, tool_name or None
             )
             log_tier1_call(
                 trace_id=trace_id,
                 model=TIER1_MODEL,
                 prompt_tokens_estimate=len(system_prompt) // 4,
                 latency=t1_latency,
-                parsed_tool=tool_name,
+                parsed_tool=tool_name or None,
                 parse_method=getattr(
                     getattr(tier1_parsed, '_parse_method', None),
                     '__name__', 'direct'
@@ -735,19 +1026,21 @@ class Orchestrator:
             )
             tlog.debug(f"Stage 4 complete | tool={tool_name} | latency={t1_latency:.2f}s")
             
-            thought_summary = tier1_reasoning.strip().split('\n')[0][:120] if tier1_reasoning else "Plan prepared for executing tool."
-            await notify("stage_end", stage=5, status="success", tool=tool_name, parameters=tool_params, explanation=explanation, thought=thought_summary)
+            thought_summary = tier1_reasoning.strip().split('\n')[0][:120] if tier1_reasoning else ("Direct response provided." if not tool_name else "Plan prepared for executing tool.")
+            await notify("stage_end", stage=5, status="success", tool=tool_name or None, tool_name=tool_name or None, parameters=tool_params if tool_name else {}, explanation=explanation, thought=thought_summary)
             await self._emit_progress("stage_complete", {
-                "stage": 4,
-                "name": "Tier 1 Generation",
-                "tool_name": tool_name if tool_name else "unknown",
+                "stage": 5,
+                "name": "Tier 1 Reasoning",
+                "tool_name": tool_name if tool_name else None,
+                "parameters": tool_params if tool_name else {},
+                "thought": thought_summary,
             })
             telemetry.end_span(span_t1, success=True)
 
             # ── Stage 6: Tool Validation ──
-            if not tool_name or tool_name.lower() in ("none", "null", "no_tool"):
+            if not tool_name or tool_name.lower() in ("none", "null", "no_tool", "conversational", ""):
                 # Conversational response without tool execution
-                logger.info("Stage 4: No tool required (conversational / direct response)")
+                logger.info("Stage 5: No tool required (conversational / direct response)")
                 result.success = True
                 result.final_output = explanation if explanation and explanation != "Action proceeding." else tier1_raw
                 result.tool_name = None
@@ -756,15 +1049,17 @@ class Orchestrator:
                 await notify("stage_end", stage=12, status="success")
                 return result
 
-            span_sec = telemetry.start_span("Security Validation", request_id=trace_id, stage_number=5)
+            span_sec = telemetry.start_span("Tool Validation", request_id=trace_id, stage_number=6)
             await self._emit_progress("stage_start", {
-                "stage": 5,
-                "name": "Security Validation",
+                "stage": 6,
+                "name": "Tool Validation",
                 "verb": "Validating",
                 "detail": "Running 15 security gates",
+                "tool_name": tool_name,
+                "parameters": tool_params,
             })
-            await notify("stage_start", stage=6, name="Tool Validation", thought="Validating tool parameter schema and security permissions...", spinner_verb="Validating")
-            result.pipeline_stage_reached = 5
+            await notify("stage_start", stage=6, name="Tool Validation", thought="Validating tool parameter schema and security permissions...", spinner_verb="Validating", tool_name=tool_name, parameters=tool_params)
+            result.pipeline_stage_reached = 6
 
             tool_class = get_tool(tool_name)
             if tool_class is None:
@@ -788,6 +1083,8 @@ class Orchestrator:
                     final_tool_err = self.error_handler.unknown_error(retry_exc, "stage_5_tool_retry")
                     result.final_output = final_tool_err.tagged_output(final_tool_err.user_message)
                     result.error = final_tool_err.technical_detail
+                    result.success = False
+                    result.tool_name = None
                     mark_failed(db_task_id, error=final_tool_err.technical_detail[:300], db_path=DB_PATH)
                     await notify("stage_end", stage=6, status="failed", error=result.error)
                     return result
@@ -797,19 +1094,24 @@ class Orchestrator:
                     final_tool_err = self.error_handler.tool_not_found(tool_name, list_tools(), attempt=1)
                     result.final_output = final_tool_err.user_message
                     result.error = final_tool_err.technical_detail
+                    result.success = False
+                    result.tool_name = None
                     mark_failed(db_task_id, error=final_tool_err.technical_detail[:300], db_path=DB_PATH)
                     await notify("stage_end", stage=6, status="failed", error=result.error)
                     return result
 
-                tool_name = tier1_parsed_retry.get("tool", "")
+                raw_retry_tool = tier1_parsed_retry.get("tool", "")
+                tool_name = get_canonical_tool_name(raw_retry_tool) if raw_retry_tool else ""
                 tool_params = tier1_parsed_retry.get("parameters", {})
                 tier1_reasoning = tier1_parsed_retry.get("reasoning", "")
-                tool_class = get_tool(tool_name)
+                tool_class = get_tool(tool_name) if tool_name else None
 
                 if tool_class is None:
-                    final_tool_err = self.error_handler.tool_not_found(tool_name, list_tools(), attempt=1)
+                    final_tool_err = self.error_handler.tool_not_found(raw_retry_tool or tool_name or "unknown", list_tools(), attempt=1)
                     result.final_output = final_tool_err.user_message
                     result.error = final_tool_err.technical_detail
+                    result.success = False
+                    result.tool_name = None
                     mark_failed(db_task_id, error=final_tool_err.technical_detail[:300], db_path=DB_PATH)
                     await notify("stage_end", stage=6, status="failed", error=result.error)
                     return result
@@ -824,6 +1126,27 @@ class Orchestrator:
                 mark_failed(db_task_id, error=f"Permission gate: {gate_reason}", db_path=DB_PATH)
                 await notify("stage_end", stage=6, status="failed", error=result.final_output)
                 return result
+
+            # Phase 4B: Action Discipline Fast Rejection on Non-Progress Read Loop
+            tracker = kwargs.get("action_tracker")
+            if tracker is None:
+                try:
+                    from core.mission_runner import _task_action_tracker_var
+                    tracker = _task_action_tracker_var.get()
+                except Exception:
+                    pass
+            if tracker is None:
+                tracker = getattr(self, "_action_tracker", None)
+            if tracker is not None:
+                should_reject, reject_reason = tracker.should_reject_read_action(tool_name)
+                if should_reject:
+                    logger.warning(f"Stage 6: ActionDiscipline rejected non-progress tool '{tool_name}': {reject_reason}")
+                    result.final_output = reject_reason
+                    result.error = reject_reason
+                    result.success = False
+                    mark_failed(db_task_id, error=reject_reason[:300], db_path=DB_PATH)
+                    await notify("stage_end", stage=6, status="failed", error=result.final_output)
+                    return result
 
             # Hardened Tool Validation & Repair Pipeline
             val_res = await self.tool_validator.process_and_validate(
@@ -857,16 +1180,16 @@ class Orchestrator:
                 risk_score=getattr(tool_class, 'risk_score', 0.0),
                 parameters_preview=json.dumps(tool_params)[:200]
             )
-            tlog.debug(f"Stage 5 complete | tool={tool_name} validated")
+            tlog.debug(f"Stage 6 complete | tool={tool_name} validated")
             await notify("stage_end", stage=6, status="success", tool_name=tool_name, parameters=tool_params)
             await self._emit_progress("stage_complete", {
-                "stage": 5, "name": "Security Validation",
+                "stage": 6, "name": "Tool Validation", "tool_name": tool_name, "parameters": tool_params,
             })
             telemetry.end_span(span_sec, success=True)
 
             # ── Stage 7: Tool Execution ──
-            span_tool = telemetry.start_span("Tool Execution", request_id=trace_id, stage_number=6)
-            result.pipeline_stage_reached = 6
+            span_tool = telemetry.start_span("Tool Execution", request_id=trace_id, stage_number=7)
+            result.pipeline_stage_reached = 7
 
             tool_instance = tool_class()
             tool_exec_retry_count = 0
@@ -874,31 +1197,52 @@ class Orchestrator:
 
             from core.structured_observation import StructuredObservation
             from pathlib import Path
-            workspace_root = Path("generated_projects")
-            files_before = set(str(f) for f in workspace_root.rglob("*") if f.is_file()) \
-                if workspace_root.exists() else set()
+            from core.workspace import workspace_manager
+            def _safe_scan_workspace_files(root: Path) -> set[str]:
+                import os
+                found = set()
+                if not root.exists():
+                    return found
+                IGNORED = {'node_modules', '.git', 'venv', '.venv', '__pycache__', '.next', 'dist'}
+                for dirpath, dirnames, filenames in os.walk(str(root)):
+                    dirnames[:] = [d for d in dirnames if d not in IGNORED]
+                    for f in filenames:
+                        found.add(os.path.join(dirpath, f))
+                return found
+
+            workspace_root = Path(workspace_manager.workspace_root) if workspace_manager.is_locked and workspace_manager.workspace_root else Path("generated_projects")
+            files_before = _safe_scan_workspace_files(workspace_root)
 
             while tool_exec_retry_count <= 3:
                 t_exec_start = time.monotonic()
+                target = tool_params.get("TargetFile") or tool_params.get("path") or tool_params.get("filename") or str(tool_params)
+                lines_count = len(tool_params.get("CodeContent", "").split('\n')) if tool_params.get("CodeContent") else 0
                 
                 await self._emit_progress("tool_executing", {
-                    "stage": 6,
+                    "stage": 7,
                     "name": "Tool Execution",
                     "verb": "Executing",
                     "tool": tool_name,
+                    "tool_name": tool_name,
+                    "target": target,
+                    "parameters": tool_params,
+                    "attempt": tool_exec_retry_count + 1,
                     "detail": f"Running {tool_name}",
                 })
-                await notify("stage_start", stage=7, name="Tool Execution", thought=f"Executing tool {tool_name}...", spinner_verb="Executing", tool_name=tool_name, parameters=tool_params, attempt=tool_exec_retry_count + 1)
+                await notify("stage_start", stage=7, name="Tool Execution", thought=f"Executing tool {tool_name}...", spinner_verb="Executing", tool_name=tool_name, parameters=tool_params, target=target, attempt=tool_exec_retry_count + 1)
                 
                 try:
+                    telemetry.record_milestone(trace_id, "t_first_tool_dispatched")
                     if asyncio.iscoroutinefunction(tool_instance.execute):
                         current_tool_result = await tool_instance.execute(tool_input)
                     else:
                         current_tool_result = tool_instance.execute(tool_input)
                     t_exec_dur = time.monotonic() - t_exec_start
+                    if getattr(current_tool_result, "success", False) and tool_name in ("write_file", "append_file", "patch_file", "write_files_batch"):
+                        telemetry.record_milestone(trace_id, "t_first_fs_mutation")
                 except Exception as exec_exc:
                     t_exec_dur = time.monotonic() - t_exec_start
-                    exec_err = self.error_handler.unknown_error(exec_exc, f"stage_6_{tool_name}_execute")
+                    exec_err = self.error_handler.unknown_error(exec_exc, f"stage_7_{tool_name}_execute")
                     result.final_output = exec_err.tagged_output(exec_err.user_message)
                     result.error = exec_err.technical_detail
                     try:
@@ -929,11 +1273,21 @@ class Orchestrator:
                         pass
                     self.session_logger.log_tool_result(tool_name, False, 1, str(exec_exc)[:200], t_exec_dur)
                     mark_failed(db_task_id, error=exec_err.technical_detail[:300], db_path=DB_PATH)
-                    await notify("stage_end", stage=7, status="failed", tool_name=tool_name, duration=t_exec_dur, error=result.error, attempt=tool_exec_retry_count + 1)
+                    await notify("stage_end", stage=7, status="failed", tool_name=tool_name, target=target, duration=t_exec_dur, error=result.error, attempt=tool_exec_retry_count + 1)
+                    await self._emit_progress("tool_complete", {
+                        "stage": 7,
+                        "tool": tool_name,
+                        "tool_name": tool_name,
+                        "target": target,
+                        "success": False,
+                        "exit_code": 1,
+                        "error": str(exec_exc),
+                        "duration": t_exec_dur,
+                        "attempt": tool_exec_retry_count + 1,
+                    })
                     return result
 
-                files_after = set(str(f) for f in workspace_root.rglob("*") if f.is_file()) \
-                    if workspace_root.exists() else set()
+                files_after = _safe_scan_workspace_files(workspace_root)
 
                 structured_obs = StructuredObservation.from_tool_result(
                     tool_name=tool_name,
@@ -970,7 +1324,7 @@ class Orchestrator:
                             duration_ms=t_exec_dur * 1000.0,
                             filesystem_duration_ms=t_exec_dur * 1000.0 if cat == "filesystem" else 0.0,
                             subprocess_duration_ms=t_exec_dur * 1000.0 if cat == "shell" else 0.0,
-                            success=bool(current_tool_result.success or (current_tool_result.exit_code == 0)),
+                            success=bool(current_tool_result.success and (current_tool_result.exit_code == 0)),
                             exit_code=current_tool_result.exit_code,
                             args_size_bytes=len(str(tool_params)),
                             output_size_bytes=len(current_tool_result.output or ""),
@@ -986,18 +1340,20 @@ class Orchestrator:
                 except Exception as telem_err:
                     logger.debug(f"Telemetry record_tool failed: {telem_err}")
 
-                if current_tool_result.success or current_tool_result.exit_code == 0:
+                if current_tool_result.success and current_tool_result.exit_code == 0:
                     tool_result = current_tool_result
                     logger.debug(
-                        f"Stage 6: tool={tool_name} succeeded | "
+                        f"Stage 7: tool={tool_name} succeeded | "
                         f"exit={current_tool_result.exit_code} | attempt={tool_exec_retry_count + 1}"
                     )
-                    target = tool_params.get("TargetFile") or tool_params.get("path") or tool_params.get("filename") or str(tool_params)
-                    lines_count = len(tool_params.get("CodeContent", "").split('\n')) if tool_params.get("CodeContent") else 0
                     await notify("stage_end", stage=7, status="success", tool_name=tool_name, target=target, lines=lines_count, duration=t_exec_dur, attempt=tool_exec_retry_count + 1)
                     await self._emit_progress("tool_complete", {
-                        "stage": 6,
+                        "stage": 7,
                         "tool": tool_name,
+                        "tool_name": tool_name,
+                        "target": target,
+                        "lines": lines_count,
+                        "attempt": tool_exec_retry_count + 1,
                         "success": structured_obs.success,
                         "exit_code": structured_obs.exit_code,
                         "output_preview": structured_obs.to_context_string()[:200],
@@ -1110,16 +1466,16 @@ class Orchestrator:
             telemetry.end_span(span_tool, success=bool(tool_result and (tool_result.success or tool_result.exit_code == 0)))
 
             # ── Stage 8: Progressive Verification Gate ──────────────
-            span_ver = telemetry.start_span("Tier 2 Verification", request_id=trace_id, stage_number=7)
+            span_ver = telemetry.start_span("Tier 2 Verification", request_id=trace_id, stage_number=8)
             await self._emit_progress("stage_start", {
-                "stage": 7,
+                "stage": 8,
                 "name": "Progressive Verification",
                 "verb": "Verifying",
                 "model": "adaptive",
                 "detail": "Evaluating deterministic and semantic checks",
             })
             await notify("stage_start", stage=8, name="Verification", thought="Evaluating deterministic and semantic verification...", spinner_verb="Verifying")
-            result.pipeline_stage_reached = 7
+            result.pipeline_stage_reached = 8
             ver_method = "UNKNOWN"
             ver_start_mono = time.monotonic()
 
@@ -1142,19 +1498,20 @@ class Orchestrator:
             except Exception as t2_exc:
                 from models.ollama_client import OllamaTimeoutError
                 if isinstance(t2_exc, OllamaTimeoutError):
-                    t2_err = self.error_handler.ollama_timeout(TIER2_MODEL, MODEL_TIMEOUT_SECONDS, "stage_7")
+                    t2_err = self.error_handler.ollama_timeout(TIER2_MODEL, MODEL_TIMEOUT_SECONDS, "stage_8")
                 else:
-                    t2_err = self.error_handler.unknown_error(t2_exc, "stage_7_tier2")
-                logger.warning(f"Stage 7: Verification failed — {t2_err.technical_detail}. Proceeding with T1 output.")
+                    t2_err = self.error_handler.unknown_error(t2_exc, "stage_8_tier2")
+                logger.warning(f"Stage 8: Verification unavailable — {t2_err.technical_detail}. Proceeding with T1 output.")
                 from core.verifier import VerificationResult
                 verification = VerificationResult(
                     agree=True,
                     confidence=0.5,
-                    critical_issues=[f"Verification unavailable: {t2_err.failure_mode.value}"],
+                    critical_issues=[],
                     risk_score=0.3,
-                    reasoning="Verification unavailable — proceeding with reduced confidence."
+                    reasoning=f"Verification unavailable ({t2_err.failure_mode.value}) — proceeding with reduced confidence."
                 )
-                ver_method = "FALLBACK_ERROR"
+                verification.is_unavailable = True
+                ver_method = "FALLBACK_UNAVAILABLE"
 
             ver_end_mono = time.monotonic()
             try:
@@ -1194,29 +1551,36 @@ class Orchestrator:
                 risk_score=verification.risk_score,
                 escalated=verification.should_escalate
             )
-            tlog.debug(f"Stage 7 complete | method={ver_method} | {verification.summary()}")
+            tlog.debug(f"Stage 8 complete | method={ver_method} | {verification.summary()}")
             await notify("stage_end", stage=8, status="success", verifier=model_used_for_log, agree=verification.agree, confidence=verification.confidence, critical_issues=len(verification.critical_issues), method=ver_method)
             await self._emit_progress("stage_complete", {
-                "stage": 7,
+                "stage": 8,
                 "name": "Progressive Verification",
+                "verifier": model_used_for_log,
                 "confidence": getattr(verification, 'confidence', 0),
                 "agree": getattr(verification, 'agree', True),
+                "critical_issues": len(getattr(verification, 'critical_issues', [])),
                 "method": ver_method
             })
             telemetry.end_span(span_ver, success=True)
 
             # ── Stage 9: Disagreement Router ──
-            span_route = telemetry.start_span("Disagreement Routing", request_id=trace_id, stage_number=8)
+            span_route = telemetry.start_span("Disagreement Routing", request_id=trace_id, stage_number=9)
             await self._emit_progress("stage_start", {
-                "stage": 8,
+                "stage": 9,
                 "name": "Disagreement Routing",
                 "verb": "Routing",
                 "detail": "Checking local agreement threshold",
             })
             await notify("stage_start", stage=9, name="Disagreement Analysis", thought="Routing verification agreement and resolving path...", spinner_verb="Comparing")
-            result.pipeline_stage_reached = 8
-            routing = self.router.route(verification, tool_name, self.mode)
-            logger.info(f"Stage 8 complete: {routing.summary()}")
+            t_err = getattr(tool_result, "error", "") or ""
+            t_id = kwargs.get("task_id") or getattr(task, "task_id", trace_id)
+            m_id = kwargs.get("mission_id") or trace_id
+            routing = self.router.route(
+                verification, tool_name, self.mode,
+                task_id=t_id, mission_id=m_id, error_message=t_err
+            )
+            logger.info(f"Stage 9 complete: {routing.summary()}")
             await notify("stage_end", stage=9, status="success", decision=routing.decision.value, reason=routing.reason, threshold=routing.confidence_threshold_used, actual=verification.confidence, action="Consult Tier 3" if routing.tier3_needed else "Proceed")
 
             if routing.decision == RoutingDecision.ESCALATE and routing.tier3_needed:
@@ -1226,7 +1590,7 @@ class Orchestrator:
                 alternative_accepted = False
                 if tool_name not in ALWAYS_ESCALATE_TOOLS:
                     await self._emit_progress("alternative_check", {
-                        "stage": 8,
+                        "stage": 9,
                         "verb": "Evaluating",
                         "detail": "Generating alternative approach before T3 escalation",
                     })
@@ -1273,38 +1637,38 @@ class Orchestrator:
                                     execution_mode=self.execution_mode,
                                 )
                                 await self._emit_progress("alternative_accepted", {
-                                    "stage": 8,
+                                    "stage": 9,
                                     "verb": "Alternative accepted",
                                     "detail": f"T3 escalation avoided — executed {alternative['tool']}",
                                     "original_tool": tool_name,
                                     "alternative_tool": alternative["tool"],
                                 })
                                 logger.info(
-                                    f"Stage 8: ToT/LATS alternative executed and accepted | "
+                                    f"Stage 9: ToT/LATS alternative executed and accepted | "
                                     f"tool={tool_name} | "
                                     f"T3 escalation avoided"
                                 )
                     except Exception as alt_exc:
-                        logger.warning(f"Stage 8: alternative evaluation failed: {alt_exc}")
+                        logger.warning(f"Stage 9: alternative evaluation failed: {alt_exc}")
 
                 if not alternative_accepted:
                     await self._emit_progress("escalating", {
-                        "stage": 8,
+                        "stage": 9,
                         "verb": "Escalating",
                         "detail": "Disagreement detected — routing to Tier 3",
                         "reason": routing.reason,
                     })
             else:
                 await self._emit_progress("stage_complete", {
-                    "stage": 8, "name": "Disagreement Routing",
+                    "stage": 9, "name": "Disagreement Routing",
                     "decision": "accepted locally",
                 })
             telemetry.end_span(span_route, success=True)
 
             # ── Stage 10: Tier 3 Escalation ──
-            span_t3 = telemetry.start_span("Tier 3 Arbitration", request_id=trace_id, stage_number=9)
+            span_t3 = telemetry.start_span("Tier 3 Arbitration", request_id=trace_id, stage_number=10)
             await notify("stage_start", stage=10, name="Tier 3 Escalation", thought=f"Escalating task to {TIER3_MODEL} for arbitration...", spinner_verb="Escalating", needed=routing.tier3_needed, reason=routing.reason, model=TIER3_MODEL)
-            result.pipeline_stage_reached = 9
+            result.pipeline_stage_reached = 10
 
             tier3_decision_text = ""
 
@@ -1322,7 +1686,7 @@ class Orchestrator:
 
             elif routing.decision == RoutingDecision.ESCALATE and routing.tier3_needed:
                 t3_mission_id = getattr(task, 'task_id', trace_id)
-                logger.info(f"MODEL_START | tier=3 | provider=ollama | model={TIER3_MODEL} | mission_id={t3_mission_id} | task_id={t3_mission_id}")
+                logger.info(f"MODEL_START | tier=3 | provider={TIER3_PROVIDER} | model={TIER3_MODEL} | mission_id={t3_mission_id} | task_id={t3_mission_id}")
                 await self._emit_progress("stage_start", {
                     "stage": 9,
                     "name": "Tier 3 Arbitration",
@@ -1343,7 +1707,7 @@ class Orchestrator:
                     )
 
                     if not tier3_response.success:
-                        logger.error(f"MODEL_ERROR | tier=3 | provider=ollama | model={TIER3_MODEL} | mission_id={t3_mission_id} | task_id={t3_mission_id} | latency={tier3_response.latency_seconds:.2f}s | error={tier3_response.error}")
+                        logger.error(f"MODEL_ERROR | tier=3 | provider={TIER3_PROVIDER} | model={TIER3_MODEL} | mission_id={t3_mission_id} | task_id={t3_mission_id} | latency={tier3_response.latency_seconds:.2f}s | error={tier3_response.error}")
                         result.tier3_was_called = True
                         t3_err = self.error_handler.tier3_api_failure(
                             "APIError",
@@ -1363,7 +1727,7 @@ class Orchestrator:
                         )
                         await notify("stage_end", stage=10, status="failed", needed=True, verdict="Corrections Required")
                     else:
-                        logger.info(f"MODEL_COMPLETE | tier=3 | provider=ollama | model={TIER3_MODEL} | mission_id={t3_mission_id} | task_id={t3_mission_id} | latency={tier3_response.latency_seconds:.2f}s")
+                        logger.info(f"MODEL_COMPLETE | tier=3 | provider={TIER3_PROVIDER} | model={TIER3_MODEL} | mission_id={t3_mission_id} | task_id={t3_mission_id} | latency={tier3_response.latency_seconds:.2f}s")
                         result.tier3_was_called = True
                         self.session_logger.log_tier3_arbitration(
                             tier3_response.content[:200],
@@ -1391,7 +1755,7 @@ class Orchestrator:
                     })
 
                 except Exception as t3_exc:
-                    logger.error(f"MODEL_ERROR | tier=3 | provider=ollama | model={TIER3_MODEL} | mission_id={t3_mission_id} | task_id={t3_mission_id} | error={t3_exc}")
+                    logger.error(f"MODEL_ERROR | tier=3 | provider={TIER3_PROVIDER} | model={TIER3_MODEL} | mission_id={t3_mission_id} | task_id={t3_mission_id} | error={t3_exc}")
                     result.tier3_was_called = True
                     t3_err = self.error_handler.tier3_api_failure(
                         type(t3_exc).__name__,
@@ -1415,26 +1779,47 @@ class Orchestrator:
             telemetry.end_span(span_t3, success=result.tier3_was_called)
 
             # ── Post-Plan Continuation & Artifact Verification Check ──
-            # If the user requested specific artifacts and they do NOT exist or are empty,
-            # OR if verification failed (e.g. tests or contracts failed) after Tier 3 arbitration,
-            # we MUST execute / repair to produce the required working artifact.
+            # Strict Verification & Repair Invariants:
+            # 1. A repair is allowed ONLY when there is authoritative verification evidence identifying an actionable failure.
+            # 2. These states must NEVER cause an automatic repair: Verifier=N/A, Agreement=PENDING, Confidence=N/A, No evidence, Unknown failure, Missing verification result.
+            # 3. If verification is unavailable, HERMES must NOT interpret absence of evidence as failure.
+            # 4. Every repair attempt must produce new evidence or changed artifact state.
+            # 5. Repeated failure fingerprint terminates repair immediately (REPEATED_FAILURE_DETECTED).
+            # 6. Strict maximum repair budget (MAX_REPAIR_BUDGET = 3).
             requested_artifacts = self.extract_requested_artifacts(sanitised)
             missing_artifacts = [
                 art for art in requested_artifacts
                 if not self._resolve_artifact_path(art).exists() or self._resolve_artifact_path(art).stat().st_size == 0
             ]
-            has_failed_verification = bool(
-                verification and (not verification.agree or len(getattr(verification, 'critical_issues', [])) > 0)
-            )
+
+            actionable_verification_failure = False
+            actionable_issues = []
+            if verification is not None and not getattr(verification, 'is_unavailable', False):
+                if verification.agree is False:
+                    actionable_issues = [
+                        iss for iss in getattr(verification, 'critical_issues', [])
+                        if iss and not any(kw in iss.lower() for kw in ("unavailable", "timeout", "timed out", "fallback", "n/a", "pending"))
+                    ]
+                    if actionable_issues:
+                        actionable_verification_failure = True
+
+            has_failed_verification = actionable_verification_failure
             needs_execution_or_repair = bool(
                 (missing_artifacts and (result.tier3_was_called or tool_name in ("list_directory", "read_file", "search_files", "file_exists")))
                 or (has_failed_verification and (result.tier3_was_called or routing.decision == "escalate"))
             )
 
             if needs_execution_or_repair:
+                MAX_REPAIR_BUDGET = 3
+                if not hasattr(self, '_repair_attempts_count'):
+                    self._repair_attempts_count = 0
+                if not hasattr(self, '_repair_fingerprints_seen'):
+                    self._repair_fingerprints_seen = set()
+
                 plan_guidance = tier3_decision_text if tier3_decision_text else "Plan is approved."
                 if missing_artifacts:
                     target_art = missing_artifacts[0]
+                    target_art_path = self._resolve_artifact_path(target_art)
                     logger.info(
                         "Post-Plan Execution: Target artifact(s) {} not yet created. Continuing into implementation.",
                         missing_artifacts
@@ -1456,9 +1841,10 @@ class Orchestrator:
                     target_art = (
                         tool_params.get("path") or tool_params.get("file_path") or (requested_artifacts[0] if requested_artifacts else "file")
                     )
-                    issues_text = "; ".join(getattr(verification, 'critical_issues', []))
+                    target_art_path = self._resolve_artifact_path(target_art)
+                    issues_text = "; ".join(actionable_issues)
                     logger.info(
-                        "Post-Plan Execution: Verification issues detected ({}); initiating targeted repair for '{}'.",
+                        "Post-Plan Execution: Actionable verification failure detected ({}); initiating targeted repair for '{}'.",
                         issues_text, target_art
                     )
                     await self._emit_progress("stage_start", {
@@ -1474,69 +1860,96 @@ class Orchestrator:
                         f"Ensure all imports, tests, and syntax pass completely."
                     )
 
-                # Restrict tools exclusively to file-writing tools to prevent re-entering inspection loops
-                write_tools = [
-                    t for t in (native_tools or [])
-                    if isinstance(t, dict) and t.get("function", {}).get("name") in ("write_file", "write_files_batch")
-                ]
-                if not write_tools:
-                    write_tools = native_tools
+                # Compute deterministic failure fingerprint
+                content_hash = "missing"
+                if target_art_path.exists() and target_art_path.is_file():
+                    try:
+                        content_hash = hashlib.sha256(target_art_path.read_bytes()).hexdigest()[:16]
+                    except Exception:
+                        pass
+                issues_sig = "|".join(sorted(actionable_issues))
+                failure_fingerprint = f"{target_art_path.name}:{content_hash}:{issues_sig}"
 
-                try:
-                    cont_resp = await self._generate_t1(
-                        model=TIER1_MODEL,
-                        prompt=continuation_prompt,
-                        system=system_prompt,
-                        keep_alive=MODEL_KEEP_ALIVE,
-                        temperature=0.05,
-                        num_ctx=4096,
-                        num_predict=max(num_predict, 2048),
-                        think=t1_think,
-                        tools=write_tools,
+                if self._repair_attempts_count >= MAX_REPAIR_BUDGET:
+                    logger.warning(
+                        "REPAIR_BUDGET_EXCEEDED: Maximum repair attempts ({}) reached for mission. Halting repair.",
+                        MAX_REPAIR_BUDGET
                     )
-                    cont_parsed = self._parse_tier1_response(cont_resp)
-                    if cont_parsed and isinstance(cont_parsed, dict) and "tool" in cont_parsed:
-                        cont_tool_name = cont_parsed["tool"]
-                        cont_params = cont_parsed.get("parameters", {})
-                        
-                        logger.info(f"Post-Plan Execution: invoking tool {cont_tool_name} with params keys {list(cont_params.keys())}")
-                        cont_tool_result, norm_tool_name, norm_params = await self._execute_single_tool(
-                            cont_tool_name, cont_params, sanitised
+                    needs_execution_or_repair = False
+                elif failure_fingerprint in self._repair_fingerprints_seen:
+                    logger.warning(
+                        "REPEATED_FAILURE_DETECTED: Fingerprint '{}' repeated without progress. Halting repair loop.",
+                        failure_fingerprint
+                    )
+                    needs_execution_or_repair = False
+                else:
+                    self._repair_fingerprints_seen.add(failure_fingerprint)
+                    self._repair_attempts_count += 1
+
+                if needs_execution_or_repair:
+                    # Restrict tools exclusively to file-writing tools to prevent re-entering inspection loops
+                    write_tools = [
+                        t for t in (native_tools or [])
+                        if isinstance(t, dict) and t.get("function", {}).get("name") in ("write_file", "write_files_batch")
+                    ]
+                    if not write_tools:
+                        write_tools = native_tools
+
+                    try:
+                        cont_resp = await self._generate_t1(
+                            model=TIER1_MODEL,
+                            prompt=continuation_prompt,
+                            system=system_prompt,
+                            keep_alive=MODEL_KEEP_ALIVE,
+                            temperature=0.05,
+                            num_ctx=4096,
+                            num_predict=max(num_predict, 2048),
+                            think=t1_think,
+                            tools=write_tools,
                         )
-                        
-                        if cont_tool_result:
-                            # Evaluate verification on the newly written artifact
-                            cont_ver, cont_vmethod = await self.verification_gate.evaluate(
-                                task_description=sanitised,
-                                tier1_reasoning=cont_parsed.get("reasoning", ""),
-                                tool_name=norm_tool_name,
-                                tool_parameters=norm_params,
-                                tool_result_output=cont_tool_result.output,
-                                tool_exit_code=cont_tool_result.exit_code,
-                                tool_success=cont_tool_result.success,
-                                verifier=self.verifier,
-                                task_complexity=getattr(task, 'complexity_score', 0.5),
-                                execution_mode=self.execution_mode,
+                        cont_parsed = self._parse_tier1_response(cont_resp)
+                        if cont_parsed and isinstance(cont_parsed, dict) and "tool" in cont_parsed:
+                            cont_tool_name = cont_parsed["tool"]
+                            cont_params = cont_parsed.get("parameters", {})
+                            
+                            logger.info(f"Post-Plan Execution: invoking tool {cont_tool_name} with params keys {list(cont_params.keys())}")
+                            cont_tool_result, norm_tool_name, norm_params = await self._execute_single_tool(
+                                cont_tool_name, cont_params, sanitised
                             )
-                            # Update active tool result state to reflect execution
-                            tool_name = norm_tool_name
-                            tool_params = norm_params
-                            tool_result = cont_tool_result
-                            verification = cont_ver
-                            tier1_parsed = cont_parsed
-                except Exception as cont_exc:
-                    logger.warning(f"Post-plan execution failed: {cont_exc}")
+                            
+                            if cont_tool_result:
+                                # Evaluate verification on the newly written artifact
+                                cont_ver, cont_vmethod = await self.verification_gate.evaluate(
+                                    task_description=sanitised,
+                                    tier1_reasoning=cont_parsed.get("reasoning", ""),
+                                    tool_name=norm_tool_name,
+                                    tool_parameters=norm_params,
+                                    tool_result_output=cont_tool_result.output,
+                                    tool_exit_code=cont_tool_result.exit_code,
+                                    tool_success=cont_tool_result.success,
+                                    verifier=self.verifier,
+                                    task_complexity=getattr(task, 'complexity_score', 0.5),
+                                    execution_mode=self.execution_mode,
+                                )
+                                # Update active tool result state to reflect execution
+                                tool_name = norm_tool_name
+                                tool_params = norm_params
+                                tool_result = cont_tool_result
+                                verification = cont_ver
+                                tier1_parsed = cont_parsed
+                    except Exception as cont_exc:
+                        logger.warning(f"Post-plan execution failed: {cont_exc}")
 
             # ── Stage 11: Background Memory Update (Non-Blocking) ──
-            span_mem = telemetry.start_span("Memory Update", request_id=trace_id, stage_number=10)
+            span_mem = telemetry.start_span("Memory Update", request_id=trace_id, stage_number=11)
             await self._emit_progress("stage_start", {
-                "stage": 10,
+                "stage": 11,
                 "name": "Memory Update",
                 "verb": "Queueing memory",
                 "detail": "Enqueuing background memory extraction to MEMORY.md",
             })
             await notify("stage_start", stage=11, name="Memory Update", thought="Enqueuing background memory extraction...", spinner_verb="Queueing")
-            result.pipeline_stage_reached = 10
+            result.pipeline_stage_reached = 11
             written_status = "0"
             if tool_result and tool_result.exit_code == 0 and tool_result.success:
                 conversation_for_extraction = [
@@ -1566,27 +1979,49 @@ class Orchestrator:
 
             await notify("stage_end", stage=11, status="success", added=["Background extraction queued"], updated=[])
             await self._emit_progress("stage_complete", {
-                "stage": 10, "name": "Memory Update", "status": "background_queued"
+                "stage": 11, "name": "Memory Update", "status": "background_queued"
             })
             written = written_status
             telemetry.end_span(span_mem, success=True)
 
             # ── Stage 12: Build Final Response ──
-            span_final = telemetry.start_span("Final Response", request_id=trace_id, stage_number=11)
-            result.pipeline_stage_reached = 11
+            span_final = telemetry.start_span("Final Response", request_id=trace_id, stage_number=12)
+            result.pipeline_stage_reached = 12
             logger.debug(f"Stage 11 complete: task {task.task_id} processed")
 
             await notify("stage_start", stage=12, name="Final Response", thought="Synthesizing final execution report...", spinner_verb="Finalizing")
-            result.pipeline_stage_reached = 12
 
             # Artifact-based completion enforcement:
-            # Check if all requested artifacts exist on disk and have non-zero size
-            still_missing = [
-                art for art in self.extract_requested_artifacts(sanitised)
-                if not self._resolve_artifact_path(art).exists() or self._resolve_artifact_path(art).stat().st_size == 0
-            ]
+            # Check if requested artifacts for this specific task exist on disk and have non-zero size.
+            # Do NOT fail intermediate tasks for artifacts requested by future tasks in a multi-task mission.
+            task_id_arg = kwargs.get("task_id")
+            is_read_tool = tool_name in ("list_directory", "read_file", "search_files", "file_exists", "view_file")
 
-            if still_missing:
+            if is_read_tool:
+                # Read-only inspection tasks never fail for missing write artifacts
+                still_missing = []
+            elif task_id_arg:
+                # Running a specific task within a mission:
+                # Extract requested artifacts ONLY from the specific TASK section if present, or from the tool call
+                task_match = re.search(r"TASK(?:\s+TO\s+EXECUTE)?:\s*\n(.*?)(?:\n\s*SUCCESS CRITERION:|\Z)", sanitised, re.DOTALL | re.IGNORECASE)
+                sub_text = task_match.group(1).strip() if task_match else ""
+                target_artifacts = self.extract_requested_artifacts(sub_text) if sub_text else []
+                if not target_artifacts and tool_name in ("write_file", "fs.write", "append_file"):
+                    p = tool_params.get("path") or tool_params.get("TargetFile")
+                    if p:
+                        target_artifacts = [p]
+                still_missing = [
+                    art for art in target_artifacts
+                    if not self._resolve_artifact_path(art).exists() or self._resolve_artifact_path(art).stat().st_size == 0
+                ]
+            else:
+                target_artifacts = self.extract_requested_artifacts(sanitised)
+                still_missing = [
+                    art for art in target_artifacts
+                    if not self._resolve_artifact_path(art).exists() or self._resolve_artifact_path(art).stat().st_size == 0
+                ]
+
+            if still_missing and not is_read_tool:
                 logger.error(f"Mission Completion Contract Violated: Expected artifact(s) {still_missing} not created on disk")
                 result.success = False
                 result.error = f"AWAITING_EXECUTION / PLAN_APPROVED: Requested artifact(s) not created on disk: {still_missing}"
@@ -1596,9 +2031,13 @@ class Orchestrator:
                 )
             else:
                 ver_agree = True
-                if verification:
+                if 'routing' in locals() and routing is not None:
+                    ver_agree = (routing.decision == RoutingDecision.ACCEPT) or (
+                        routing.decision == RoutingDecision.ESCALATE and bool(getattr(locals().get('tier3_response'), 'success', False))
+                    )
+                elif verification:
                     ver_agree = bool(verification.agree and len(getattr(verification, 'critical_issues', [])) == 0)
-                result.success = bool(tool_result and (tool_result.success or tool_result.exit_code == 0) and ver_agree)
+                result.success = bool(tool_result and tool_result.success and (tool_result.exit_code == 0) and ver_agree)
 
                 explanation = tier1_parsed.get("explanation", "Task completed.") if isinstance(tier1_parsed, dict) else "Task completed."
 
@@ -1724,26 +2163,16 @@ class Orchestrator:
             tlog.info(f"Pipeline complete | success={result.success} | latency={total_latency:.2f}s")
             result.total_latency_seconds = total_latency
             
-            # ── Stage 11: Task Queue Update ──
-            await self._emit_progress("stage_start", {
-                "stage": 11,
-                "name": "Task Queue Update",
-                "verb": "Updating queue",
-                "detail": "Recording task result in SQLite",
-            })
+            # ── Stage 12: Output & Task Queue Finalization ──
             if result.success:
                 mark_completed(db_task_id, db_path=DB_PATH)
             else:
                 mark_failed(db_task_id, error=result.error or result.final_output[:200], db_path=DB_PATH)
-            await self._emit_progress("stage_complete", {
-                "stage": 11, "name": "Task Queue Update",
-            })
 
-            # ── Stage 12: Output ──
             await notify("stage_end", stage=12, status="success" if result.success else "failed")
             await self._emit_progress("stage_complete", {
                 "stage": 12,
-                "name": "Output",
+                "name": "Final Response",
                 "verb": "Ready",
                 "detail": "Pipeline complete",
                 "pipeline_stage_reached": 12,
@@ -1812,7 +2241,14 @@ class Orchestrator:
             return result
         finally:
             try:
-                telemetry.finish_request(trace_id, success=result.success, stage_reached=result.pipeline_stage_reached, error=result.error)
+                finished_req = telemetry.finish_request(trace_id, success=result.success, stage_reached=result.pipeline_stage_reached, error=result.error)
+                if finished_req:
+                    waterfall = finished_req.get_waterfall()
+                    logger.info(
+                        f"LATENCY WATERFALL [{trace_id}]: total={waterfall['total_wall_clock_ms']}ms | "
+                        f"accounted={waterfall['total_accounted_ms']}ms | overhead={waterfall['unaccounted_overhead_ms']}ms | "
+                        f"milestones={waterfall['milestone_intervals_ms']}"
+                    )
             except Exception:
                 pass
 

@@ -18,7 +18,7 @@ from pathlib import Path
 from typing import Optional
 from loguru import logger
 
-from core.mission_planner import MissionPlanner, Mission
+from core.mission_planner import MissionPlanner, Mission, TaskState
 from core.mission_runner import MissionRunner, MissionEvent, MissionResult
 from core.workspace import workspace_manager as global_workspace
 from core.context_builder import ContextBuilder
@@ -113,21 +113,40 @@ class MissionDriver:
             except (asyncio.QueueEmpty, ValueError):
                 break
 
-        # Plan the mission
-        exec_mode = getattr(self.orchestrator, "execution_mode", "production")
-        if hasattr(self._planner, "plan_async"):
-            mission = await self._planner.plan_async(
-                user_prompt,
-                workspace_root=global_workspace.root_str,
-                execution_mode=exec_mode,
+        # Check for continuation intent
+        lower_prompt = user_prompt.lower().strip()
+        is_continuation = lower_prompt in ("continue", "continue building", "keep going", "finish it", "proceed", "resume", "carry on") or (
+            lower_prompt.startswith("continue") and len(lower_prompt.split()) <= 4
+        )
+
+        if is_continuation and self._current_mission is not None and not self._current_mission.is_complete:
+            mission = self._current_mission
+            logger.info(
+                f"MissionDriver: RESUMING active mission {mission.mission_id} | "
+                f"progress={mission.progress[0]}/{mission.progress[1]} tasks | "
+                f"prompt={user_prompt}"
             )
+            # Reset any failed tasks to pending so continuation can execute them
+            for t in mission.tasks:
+                if t.state == TaskState.FAILED:
+                    t.state = TaskState.PENDING
+                    t.retry_count = 0
         else:
-            mission = self._planner.plan(
-                user_prompt,
-                workspace_root=global_workspace.root_str,
-                execution_mode=exec_mode,
-            )
-        self._current_mission = mission
+            # Plan the mission
+            exec_mode = getattr(self.orchestrator, "execution_mode", "production")
+            if hasattr(self._planner, "plan_async"):
+                mission = await self._planner.plan_async(
+                    user_prompt,
+                    workspace_root=global_workspace.root_str,
+                    execution_mode=exec_mode,
+                )
+            else:
+                mission = self._planner.plan(
+                    user_prompt,
+                    workspace_root=global_workspace.root_str,
+                    execution_mode=exec_mode,
+                )
+            self._current_mission = mission
 
         # Emit plan event
         await self._emit(MissionEvent(
@@ -143,7 +162,7 @@ class MissionDriver:
         # Run the mission based on execution mode
         raw_mode = self.execution_mode
         if raw_mode is None:
-            raw_mode = getattr(self.orchestrator, "execution_mode", "agentic")
+            raw_mode = getattr(self.orchestrator, "execution_mode", "strict")
         mode_str = str(raw_mode).lower() if isinstance(raw_mode, str) else "strict"
 
         if mode_str in ("strict", "production", "benchmark"):

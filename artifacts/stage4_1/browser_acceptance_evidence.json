@@ -1,0 +1,32 @@
+{
+  "stage": "4.1",
+  "timestamp": 1791692352.5155592,
+  "mission_id": "m_stage4_1_verified",
+  "tests": {
+    "test_d_approvals": {
+      "verdict": "PASS",
+      "has_approval_card": true,
+      "screenshot": "C:\\Users\\SUBBU\\Downloads\\hermes\\artifacts\\stage4_1\\screenshot_approvals.png"
+    },
+    "test_a_changes": {
+      "verdict": "PASS",
+      "has_changes_ui": true,
+      "screenshot": "C:\\Users\\SUBBU\\Downloads\\hermes\\artifacts\\stage4_1\\screenshot_changes.png"
+    },
+    "test_b_checks": {
+      "verdict": "PASS",
+      "has_checks_ui": true,
+      "screenshot": "C:\\Users\\SUBBU\\Downloads\\hermes\\artifacts\\stage4_1\\screenshot_checks.png"
+    },
+    "test_c_outcome": {
+      "verdict": "PASS",
+      "has_outcome_ui": true,
+      "screenshot": "C:\\Users\\SUBBU\\Downloads\\hermes\\artifacts\\stage4_1\\screenshot_outcome.png"
+    },
+    "test_e_sse": {
+      "verdict": "PASS",
+      "snapshot_consistent": true
+    }
+  },
+  "overall_verdict": "PASS"
+}

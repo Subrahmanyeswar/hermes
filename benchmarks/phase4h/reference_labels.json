@@ -1,0 +1,127 @@
+{
+  "TRIVIAL-01": {
+    "expected_complexity": "TRIVIAL",
+    "domain": "algorithms",
+    "rationale": "Single standalone file performing pure mathematical calculations with no external dependencies or state."
+  },
+  "TRIVIAL-02": {
+    "expected_complexity": "TRIVIAL",
+    "domain": "cli/text",
+    "rationale": "Single-file CLI script with basic argument parsing and file reading."
+  },
+  "TRIVIAL-03": {
+    "expected_complexity": "TRIVIAL",
+    "domain": "datetime/utility",
+    "rationale": "Single file utility helper function."
+  },
+  "TRIVIAL-04": {
+    "expected_complexity": "TRIVIAL",
+    "domain": "data/conversion",
+    "rationale": "Single file conversion utility script with standard library."
+  },
+  "TRIVIAL-05": {
+    "expected_complexity": "TRIVIAL",
+    "domain": "networking",
+    "rationale": "Single file health probe script with exit code status."
+  },
+  "SIMPLE-01": {
+    "expected_complexity": "SIMPLE",
+    "domain": "web/productivity",
+    "rationale": "Single-tier client-side application with HTML/CSS/JS, interactive DOM components, and local browser persistence."
+  },
+  "SIMPLE-02": {
+    "expected_complexity": "SIMPLE",
+    "domain": "web/media",
+    "rationale": "Client-side frontend application with media controls, tags, and local persistence."
+  },
+  "SIMPLE-03": {
+    "expected_complexity": "SIMPLE",
+    "domain": "web/health",
+    "rationale": "Frontend dashboard with form inputs, KPI summary cards, filtering, and localStorage."
+  },
+  "SIMPLE-04": {
+    "expected_complexity": "SIMPLE",
+    "domain": "web/finance",
+    "rationale": "Client-side financial calculator dashboard with currency conversion table and persistent settings."
+  },
+  "SIMPLE-05": {
+    "expected_complexity": "SIMPLE",
+    "domain": "web/notes",
+    "rationale": "Client-side web app with split-pane layout, note management, and browser persistence."
+  },
+  "MEDIUM-01": {
+    "expected_complexity": "MEDIUM",
+    "domain": "backend/healthcare",
+    "rationale": "Multi-endpoint backend web service with database models, CRUD operations, relationships, and SQLite persistence."
+  },
+  "MEDIUM-02": {
+    "expected_complexity": "MEDIUM",
+    "domain": "backend/crm",
+    "rationale": "Async REST API with request validation models, relational database storage, and status transition logic."
+  },
+  "MEDIUM-03": {
+    "expected_complexity": "MEDIUM",
+    "domain": "backend/logistics",
+    "rationale": "Backend service managing multi-entity inventory records, transactions, and relational queries."
+  },
+  "MEDIUM-04": {
+    "expected_complexity": "MEDIUM",
+    "domain": "backend/education",
+    "rationale": "Relational backend service with multiple models, routing logic, validation, and database storage."
+  },
+  "MEDIUM-05": {
+    "expected_complexity": "MEDIUM",
+    "domain": "backend/devops",
+    "rationale": "Structured backend service with status tracking, history logs, schema definitions, and REST endpoints."
+  },
+  "COMPLEX-01": {
+    "expected_complexity": "COMPLEX",
+    "domain": "fullstack/auth",
+    "rationale": "Multi-tier system requiring authentication middleware, token lifecycles, schema migrations, asynchronous workers, and external webhooks."
+  },
+  "COMPLEX-02": {
+    "expected_complexity": "COMPLEX",
+    "domain": "fullstack/collab",
+    "rationale": "Complex multi-tier platform with RBAC, database migrations, asynchronous job workers, and versioning."
+  },
+  "COMPLEX-03": {
+    "expected_complexity": "COMPLEX",
+    "domain": "fullstack/billing",
+    "rationale": "Platform with third-party payment integration, webhook security, state machine transitions, and background queues."
+  },
+  "COMPLEX-04": {
+    "expected_complexity": "COMPLEX",
+    "domain": "fullstack/enterprise",
+    "rationale": "Enterprise architecture with auth security, scheduled calculation workers, database migrations, and audit trails."
+  },
+  "COMPLEX-05": {
+    "expected_complexity": "COMPLEX",
+    "domain": "fullstack/ecommerce",
+    "rationale": "Multi-component commercial system with authentication, background processing, database migrations, and payment gateways."
+  },
+  "LARGE-01": {
+    "expected_complexity": "LARGE",
+    "domain": "distributed/microservices",
+    "rationale": "Distributed multi-service architecture with asynchronous event streaming, RPC contracts, service discovery, and container orchestration."
+  },
+  "LARGE-02": {
+    "expected_complexity": "LARGE",
+    "domain": "distributed/iot",
+    "rationale": "High-scale distributed streaming data pipeline with streaming bus, time-series storage, caching layer, and Kubernetes orchestration."
+  },
+  "LARGE-03": {
+    "expected_complexity": "LARGE",
+    "domain": "distributed/saga",
+    "rationale": "Distributed event-driven system with distributed saga compensation logic, broker routing, and container orchestration."
+  },
+  "LARGE-04": {
+    "expected_complexity": "LARGE",
+    "domain": "distributed/observability",
+    "rationale": "Monorepo distributed system with telemetry collection, distributed ingestion, multiple microservices, and orchestration."
+  },
+  "LARGE-05": {
+    "expected_complexity": "LARGE",
+    "domain": "distributed/fintech",
+    "rationale": "Distributed consensus and partitioned ledger architecture with multi-node replication and Kubernetes infrastructure."
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "target": "Target C: Recoverable Workspace and Checkpoint Blockers",
+  "verified_at": "2026-10-13T11:18:30+05:30",
+  "status": "PASS",
+  "scenario_description": "Temporarily missing workspace directories or corrupt latest checkpoints with valid parent fallback remain safely guarded in WAITING without irreversible terminal FAILED transitions.",
+  "findings": {
+    "missing_workspace_behavior": "Mission transitions to status=WAITING, wait_reason=WAITING_FOR_WORKSPACE, recovery_required=True. No tool execution permitted.",
+    "workspace_reconnection_behavior": "When directory is remounted/restored, coordinator re-evaluates eligibility; workspace identity is re-verified and disk reconciled before execution.",
+    "corrupted_latest_checkpoint_behavior": "If latest checkpoint is damaged, coordinator queries parent_checkpoint_id. If valid parent exists, fallback occurs; if no valid parent, mission remains blocked in WAITING without permanent FAILED transition.",
+    "irreversible_failed_transition_prevented": true,
+    "user_stopped_preservation": "Missions cancelled or stopped by user remain fenced even if workspace or checkpoint recovers."
+  },
+  "test_evidence": [
+    "tests/test_phase7_network_recovery.py::test_critical_c_recoverable_workspace_and_checkpoint_blockers",
+    "tests/test_phase7_network_recovery.py::test_section_f_ineligible_mission_fencing"
+  ]
+}

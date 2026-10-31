@@ -1,0 +1,57 @@
+{
+  "phase": "Phase 3: Safe File Operations and Tool-Result Journaling",
+  "generated_at": "2026-10-12T21:24:00+05:30",
+  "protocol": "Write-Ahead Intent, Actual Execution, Durable Outcome",
+  "scenarios": [
+    {
+      "scenario": "A",
+      "name": "Write-Ahead Intent Committed Before Physical Execution",
+      "operation_id": "op_test_scenario_a",
+      "tool_name": "fs.write",
+      "intent_committed": true,
+      "intent_sequence": 1,
+      "physical_executed": true,
+      "result_committed": true,
+      "result_sequence": 2,
+      "exit_code": 0,
+      "status": "RESULT_COMMITTED",
+      "status_code": "SUCCESS"
+    },
+    {
+      "scenario": "B",
+      "name": "Intent Commit Failure Prevents Execution",
+      "operation_id": "op_test_scenario_b",
+      "tool_name": "fs.write",
+      "intent_committed": false,
+      "intent_error": "DISK_I_O_ERROR: Simulated disk write failure on intent commit",
+      "physical_executed": false,
+      "target_file_exists": false,
+      "rejection_type": "PERSISTENCE_BARRIER_ERROR",
+      "status": "FAILED",
+      "status_code": "SUCCESS"
+    },
+    {
+      "scenario": "C",
+      "name": "Result Durability & Hash Correlation",
+      "operation_id": "op_test_scenario_c",
+      "tool_name": "fs.edit",
+      "prior_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "post_hash": "2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae",
+      "hash_mutated": true,
+      "intent_sequence": 3,
+      "result_sequence": 4,
+      "status": "RESULT_COMMITTED",
+      "status_code": "SUCCESS"
+    },
+    {
+      "scenario": "E",
+      "name": "Duplicate Dispatch Rejection",
+      "operation_id": "op_dedup_01",
+      "tool_name": "fs.write",
+      "initial_dispatch": "SUCCESS",
+      "second_dispatch": "REJECTED",
+      "rejection_type": "DUPLICATE_OPERATION",
+      "status_code": "SUCCESS"
+    }
+  ]
+}

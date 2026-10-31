@@ -144,12 +144,15 @@ class BackgroundMemoryManager:
                 client = self._ollama_client
                 if client is None:
                     from config.model_config import TIER1_PROVIDER
-                    if TIER1_PROVIDER == "nvidia_nim":
-                        from models.nvidia_client import NvidiaClient
-                        client = NvidiaClient()
+                    from core.adaptive_routing import get_adaptive_router, ProviderHealthState
+                    router = get_adaptive_router()
+                    t1_health = router.get_health(1)
+                    if t1_health.state in (ProviderHealthState.OPEN_CIRCUIT, ProviderHealthState.DEGRADED) or TIER1_PROVIDER != "nvidia_nim":
+                        from models.ollama_client import get_shared_ollama_client
+                        client = get_shared_ollama_client()
                     else:
-                        from models.ollama_client import OllamaClient
-                        client = OllamaClient()
+                        from models.nvidia_client import get_shared_nvidia_client
+                        client = get_shared_nvidia_client()
 
                 # Execute extraction under bounded timeout
                 facts: List[MemoryFact] = await asyncio.wait_for(

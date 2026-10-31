@@ -1,0 +1,45 @@
+{
+  "test_date": "2026-10-11T23:14:35+05:30",
+  "platform": "Windows (win32)",
+  "canonical_python": "C:\\Users\\SUBBU\\Downloads\\hermes\\venv\\Scripts\\python.exe",
+  "python_version": "3.12.0",
+  "launch_verification": {
+    "command": "python -m core.server.launcher launch --no-browser",
+    "port": 8765,
+    "health_endpoint": "http://127.0.0.1:8765/api/health",
+    "status": "PASS",
+    "health_response": {
+      "status": "ok",
+      "version": "1.0.0-rc1",
+      "runtime_mode": "auto",
+      "workspace_locked": false,
+      "model_stack": {
+        "tier1": "nvidia_nim / z-ai/glm-5.3-flash",
+        "tier2": "ollama / gpt-oss:120b-cloud",
+        "tier3": "ollama / nemotron-3-ultra:cloud"
+      }
+    }
+  },
+  "status_verification": {
+    "command": "python -m core.server.launcher status",
+    "status": "PASS",
+    "reports_hermes": true,
+    "reports_in_use": true
+  },
+  "stop_verification": {
+    "command": "python -m core.server.launcher stop",
+    "status": "PASS",
+    "pid_cleaned": true,
+    "port_released": true,
+    "unrelated_processes_unaffected": true
+  },
+  "safety_and_protection": {
+    "foreign_port_protection": "PASS (Foreign processes on 8765 are strictly untouched)",
+    "stale_pid_cleanup": "PASS",
+    "duplicate_launch_protection": "PASS (Reuses existing healthy server without crashing)"
+  },
+  "automated_suites": {
+    "test_stage5_launch_lifecycle": "7/7 PASS",
+    "test_stage5_1_process_safety": "9/9 PASS"
+  }
+}

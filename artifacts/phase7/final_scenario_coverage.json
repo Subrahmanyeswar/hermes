@@ -1,0 +1,97 @@
+{
+  "phase": "Phase 7 — Internet-Loss Detection, Durable Waiting & Automatic Recovery",
+  "verified_at": "2026-10-13T11:18:50+05:30",
+  "status": "PASS",
+  "scenarios": [
+    {
+      "id": "A",
+      "name": "Connectivity Condition Classification",
+      "test": "test_section_a_error_condition_classification",
+      "verdict": "PASS"
+    },
+    {
+      "id": "B1",
+      "name": "Connectivity Monitor Hysteresis",
+      "test": "test_section_b_connectivity_monitor_hysteresis",
+      "verdict": "PASS"
+    },
+    {
+      "id": "B2",
+      "name": "Monitor Listener Notification",
+      "test": "test_section_b_monitor_listener_notification",
+      "verdict": "PASS"
+    },
+    {
+      "id": "C",
+      "name": "Waiting State Reducer & Persistence",
+      "test": "test_section_c_waiting_state_reducer_persistence",
+      "verdict": "PASS"
+    },
+    {
+      "id": "D",
+      "name": "Safe Boundary Preservation & Zero Duplicate Operations",
+      "test": "test_section_d_safe_boundary_preservation",
+      "verdict": "PASS"
+    },
+    {
+      "id": "E",
+      "name": "Auto-Recovery Coordinator Execution & Continuation Identity",
+      "test": "test_section_e_auto_recovery_coordinator_execution",
+      "verdict": "PASS"
+    },
+    {
+      "id": "F",
+      "name": "Ineligible Mission Fencing",
+      "test": "test_section_f_ineligible_mission_fencing",
+      "verdict": "PASS"
+    },
+    {
+      "id": "G",
+      "name": "Flapping Protection & Concurrency Deduplication",
+      "test": "test_section_g_flapping_and_concurrency_deduplication",
+      "verdict": "PASS"
+    },
+    {
+      "id": "H",
+      "name": "Browser Disconnect Resilience",
+      "test": "test_section_h_browser_disconnect_resilience",
+      "verdict": "PASS"
+    },
+    {
+      "id": "I",
+      "name": "Backend Restart Waiting Recovery",
+      "test": "test_section_i_backend_restart_waiting_recovery",
+      "verdict": "PASS"
+    },
+    {
+      "id": "J",
+      "name": "Network REST API Endpoints",
+      "test": "test_section_j_network_api_endpoints",
+      "verdict": "PASS"
+    },
+    {
+      "id": "CritA",
+      "name": "Provider Recovery Without WAN Transition",
+      "test": "test_critical_a_provider_recovery_without_internet_transition",
+      "verdict": "PASS"
+    },
+    {
+      "id": "CritC",
+      "name": "Recoverable Workspace and Checkpoint Blockers",
+      "test": "test_critical_c_recoverable_workspace_and_checkpoint_blockers",
+      "verdict": "PASS"
+    },
+    {
+      "id": "CritD",
+      "name": "Backend Restart Classification and Eligibility",
+      "test": "test_critical_d_backend_restart_classification_and_eligibility",
+      "verdict": "PASS"
+    },
+    {
+      "id": "CritE",
+      "name": "Connectivity Probe TLS and Captive Portal",
+      "test": "test_critical_e_connectivity_probe_tls_and_captive_portal",
+      "verdict": "PASS"
+    }
+  ]
+}

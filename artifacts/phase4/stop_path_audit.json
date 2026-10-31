@@ -1,0 +1,39 @@
+{
+  "phase": "Phase 4",
+  "audit_target": "Immediate, Mission-Scoped Stop Path",
+  "python_executable": "C:\\Users\\SUBBU\\Downloads\\hermes\\venv\\Scripts\\python.exe",
+  "python_version": "3.12.0",
+  "checkpoints": {
+    "api_stop_route": {
+      "path": "/api/missions/{mission_id}/stop",
+      "method": "POST",
+      "non_blocking_response": true,
+      "status": "PASS"
+    },
+    "runtime_adapter_control": {
+      "method": "RuntimeAdapter.stop_mission(mission_id)",
+      "sets_abort_event": true,
+      "calls_control_cancel": true,
+      "terminates_owned_subprocesses": true,
+      "invalidates_security_approvals": true,
+      "status": "PASS"
+    },
+    "agent_loop_gates": {
+      "pre_turn_abort_check": true,
+      "post_model_response_abort_check": true,
+      "pre_tool_dispatch_abort_check": true,
+      "status": "PASS"
+    },
+    "action_executor_gate": {
+      "pre_intent_terminal_check": true,
+      "pre_physical_execution_terminal_check": true,
+      "status": "PASS"
+    },
+    "subprocess_tracking": {
+      "ownership_isolated": true,
+      "windows_safe_tree_kill": true,
+      "status": "PASS"
+    }
+  },
+  "overall_verdict": "VERIFIED"
+}

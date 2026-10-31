@@ -1,0 +1,18 @@
+{
+  "target": "Concurrency, Anti-Flapping and Stop Race Protection",
+  "verified_at": "2026-10-13T11:18:40+05:30",
+  "status": "PASS",
+  "findings": {
+    "anti_flapping_hysteresis": "Requires failure_threshold (default 2) and recovery_threshold (default 2) consecutive probes before state changes.",
+    "debounce_mechanism": "Coordinator debounces rapid recovery triggers (default 5.0s) to prevent thundering herd resumes.",
+    "in_memory_recovering_set": "Protects against concurrent duplicate resume triggers within the runtime process.",
+    "stop_race_guarantee": "Calling stop_mission() while in WAITING or during recovery formulation cancels the mission and aborts execution before any continuation is dispatched.",
+    "task_isolation": "Concurrent unrelated missions execute with independent agent loops and workspace roots without cross-mission interference."
+  },
+  "test_evidence": [
+    "tests/test_phase7_network_recovery.py::test_section_b_connectivity_monitor_hysteresis",
+    "tests/test_phase7_network_recovery.py::test_section_g_flapping_and_concurrency_deduplication",
+    "tests/test_phase4_stop_control.py::test_scenario_a_concurrent_mission_isolation",
+    "tests/test_phase4_stop_control.py::test_scenario_b_immediate_stop_barrier_prevents_tool_execution"
+  ]
+}

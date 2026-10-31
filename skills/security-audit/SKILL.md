@@ -1,25 +1,44 @@
 ---
 name: security-audit
-description: Security review checklist based on OWASP Top 10 for Python web applications
+description: Application security review, vulnerability assessment, threat modeling, and OWASP Top 10 mitigation
 triggers: [security, vulnerability, audit, injection, xss, sanitise, owasp, secure, exploit]
 priority: 1
-max_tokens: 300
+max_tokens: 450
 ---
+
 # Security Audit Specialist
-Apply all checks before marking any code as complete.
-## Input Validation
-1. Never trust user input — validate all request parameters with type checks and length limits
-2. SQL injection: never concatenate user input into SQL strings — use parameterised queries
-3. XSS: escape all user-supplied data before rendering in HTML templates
-## Authentication
-4. Never store plain-text passwords — use bcrypt or argon2 via passlib
-5. JWT secrets must come from environment variables, min 32 characters, random
-6. Session tokens must be cryptographically random — use secrets.token_hex(32)
-## File Operations
-7. Never use user-supplied filenames directly — sanitise with os.path.basename()
-8. Reject file paths containing ../ — path traversal attack vector
-## Environment
-9. API keys and secrets must be in .env — never in source code
-10. .env must be in .gitignore — verify before first commit
-## Code Review Checklist
-11. Check for: hardcoded credentials, eval() usage, pickle.loads() on untrusted data, subprocess with shell=True and user input
+
+Apply these rigorous, evidence-driven security practices to evaluate application code and configuration for vulnerabilities.
+
+## 1. Audit Principles & Non-Destructive Boundary
+1. Perform static code analysis and architectural reviews using `fs.read` and `search.grep`.
+2. Do not execute invasive penetration tests, brute-force exploits, or external attacks against remote services.
+3. Differentiate verified vulnerabilities (supported by reproducible code paths) from theoretical security hardening recommendations.
+
+## 2. Core Attack Surfaces & Vulnerability Classes
+
+### A. Injection Flaws
+- **SQL Injection:** Ensure all database queries use parameterised queries or ORM abstractions. Never interpolate strings or user input directly into SQL statements.
+- **Command Injection:** Avoid `subprocess.run(..., shell=True)` with user-supplied arguments. Use explicit argument lists (`shell=False`).
+- **Template Injection / XSS:** Ensure user input rendered in HTML templates is properly escaped. In frontend JavaScript, never pass unsanitized input to `innerHTML`.
+
+### B. Authentication & Session Management
+- Passwords must be hashed using robust algorithms (bcrypt, Argon2, PBKDF2). Never store plain-text or reversibly encrypted passwords.
+- Secret keys and JWT signing secrets must be cryptographically random and stored in environment variables, never hardcoded in source control.
+- Ensure authentication tokens and session identifiers are invalidated upon logout.
+
+### C. File & Path Operations (Path Traversal)
+- Validate and sanitize all user-controlled file paths. Ensure resolved paths remain strictly within the authorized workspace directory.
+- Reject paths containing directory traversal tokens (`../`, `..\\`).
+
+### D. Sensitive Data & Secrets Exposure
+- Inspect source code and version control for committed API keys, tokens, database credentials, or private certificates.
+- Ensure `.env` and credential files are included in `.gitignore`.
+
+## 3. Structured Security Reporting
+Report every finding using this format:
+- **Severity:** `[CRITICAL]` (Remote code execution, SQLi, authentication bypass), `[HIGH]` (Privilege escalation, stored XSS), `[MEDIUM]` (Information disclosure, missing CSRF), `[LOW]` (Security hardening recommendation).
+- **Location:** File path and specific lines.
+- **Vulnerability Description & Impact:** Mechanism of exposure and potential attacker impact.
+- **Remediation:** Specific code correction or configuration change.
+- For detailed OWASP Top 10 checklists, see `references/owasp_checklist.md`.

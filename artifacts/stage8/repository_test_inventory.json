@@ -1,0 +1,860 @@
+{
+  "total_files": 203,
+  "total_tests": 2050,
+  "categories": {
+    "acceptance_gates": {
+      "file_count": 36,
+      "test_count": 300,
+      "files": [
+        {
+          "file": "tests\\test_benchmark_reliability.py",
+          "test_count": 6
+        },
+        {
+          "file": "tests\\test_gate10_workspace_correctness.py",
+          "test_count": 16
+        },
+        {
+          "file": "tests\\test_gate11_context_correctness.py",
+          "test_count": 10
+        },
+        {
+          "file": "tests\\test_gate12_routing_calibration.py",
+          "test_count": 8
+        },
+        {
+          "file": "tests\\test_gate13_cancellation.py",
+          "test_count": 11
+        },
+        {
+          "file": "tests\\test_gate14_timeout.py",
+          "test_count": 7
+        },
+        {
+          "file": "tests\\test_gate15_1_integration.py",
+          "test_count": 10
+        },
+        {
+          "file": "tests\\test_gate15_2_chaos.py",
+          "test_count": 28
+        },
+        {
+          "file": "tests\\test_gate15_3_crash_resume.py",
+          "test_count": 12
+        },
+        {
+          "file": "tests\\test_gate15_4_freeze.py",
+          "test_count": 5
+        },
+        {
+          "file": "tests\\test_gate15_5_runtime.py",
+          "test_count": 5
+        },
+        {
+          "file": "tests\\test_gate15_6_vram.py",
+          "test_count": 5
+        },
+        {
+          "file": "tests\\test_gate15_7_security.py",
+          "test_count": 6
+        },
+        {
+          "file": "tests\\test_gate15_8_hostile_repo.py",
+          "test_count": 5
+        },
+        {
+          "file": "tests\\test_gate15_9_mission_boundary_e2e.py",
+          "test_count": 9
+        },
+        {
+          "file": "tests\\test_gate15_9_tool_reliability.py",
+          "test_count": 7
+        },
+        {
+          "file": "tests\\test_gate15_persistence.py",
+          "test_count": 4
+        },
+        {
+          "file": "tests\\test_gate16_measurement.py",
+          "test_count": 8
+        },
+        {
+          "file": "tests\\test_gate18_objective_evaluator.py",
+          "test_count": 10
+        },
+        {
+          "file": "tests\\test_gate23_protocol_validation.py",
+          "test_count": 20
+        },
+        {
+          "file": "tests\\test_runtime_reliability_gate.py",
+          "test_count": 6
+        },
+        {
+          "file": "tests\\test_security_gate_integration.py",
+          "test_count": 5
+        },
+        {
+          "file": "tests\\test_stage2_server_and_event_stream.py",
+          "test_count": 12
+        },
+        {
+          "file": "tests\\test_stage3_gui_prototype_acceptance.py",
+          "test_count": 5
+        },
+        {
+          "file": "tests\\test_stage4_1_audit_acceptance.py",
+          "test_count": 6
+        },
+        {
+          "file": "tests\\test_stage4_review_and_diff_acceptance.py",
+          "test_count": 6
+        },
+        {
+          "file": "tests\\test_stage5_1_process_safety.py",
+          "test_count": 9
+        },
+        {
+          "file": "tests\\test_stage5_launch_lifecycle.py",
+          "test_count": 7
+        },
+        {
+          "file": "tests\\test_stage6_1_browser_correlation.py",
+          "test_count": 2
+        },
+        {
+          "file": "tests\\test_stage6_2_goal_fulfillment.py",
+          "test_count": 6
+        },
+        {
+          "file": "tests\\test_stage6_real_execution.py",
+          "test_count": 5
+        },
+        {
+          "file": "tests\\test_stage7_1_stalled_finalization.py",
+          "test_count": 4
+        },
+        {
+          "file": "tests\\test_stage7_2_concurrent_isolation.py",
+          "test_count": 6
+        },
+        {
+          "file": "tests\\test_stage7_reliability_and_recovery.py",
+          "test_count": 11
+        },
+        {
+          "file": "tests\\test_tool_reliability.py",
+          "test_count": 10
+        },
+        {
+          "file": "tests\\test_verification_gate.py",
+          "test_count": 8
+        }
+      ]
+    },
+    "core_runtime_and_orchestrator": {
+      "file_count": 129,
+      "test_count": 1253,
+      "files": [
+        {
+          "file": "tests\\integration\\test_pipeline_integration.py",
+          "test_count": 20
+        },
+        {
+          "file": "tests\\integration\\test_threshold_calibration.py",
+          "test_count": 8
+        },
+        {
+          "file": "tests\\test_adaptive_execution.py",
+          "test_count": 8
+        },
+        {
+          "file": "tests\\test_agent_loop.py",
+          "test_count": 11
+        },
+        {
+          "file": "tests\\test_background_memory.py",
+          "test_count": 4
+        },
+        {
+          "file": "tests\\test_checkpoints.py",
+          "test_count": 1
+        },
+        {
+          "file": "tests\\test_classifier.py",
+          "test_count": 13
+        },
+        {
+          "file": "tests\\test_closure_regressions.py",
+          "test_count": 18
+        },
+        {
+          "file": "tests\\test_context_builder.py",
+          "test_count": 9
+        },
+        {
+          "file": "tests\\test_context_engine.py",
+          "test_count": 5
+        },
+        {
+          "file": "tests\\test_context_engine_2x.py",
+          "test_count": 16
+        },
+        {
+          "file": "tests\\test_cost_accounting.py",
+          "test_count": 7
+        },
+        {
+          "file": "tests\\test_discount.py",
+          "test_count": 1
+        },
+        {
+          "file": "tests\\test_error_handler.py",
+          "test_count": 24
+        },
+        {
+          "file": "tests\\test_event_bus.py",
+          "test_count": 10
+        },
+        {
+          "file": "tests\\test_evidence_and_verification.py",
+          "test_count": 14
+        },
+        {
+          "file": "tests\\test_final_execution_consistency.py",
+          "test_count": 43
+        },
+        {
+          "file": "tests\\test_forensic_regressions.py",
+          "test_count": 15
+        },
+        {
+          "file": "tests\\test_intelligent_routing.py",
+          "test_count": 12
+        },
+        {
+          "file": "tests\\test_kairos_daemon.py",
+          "test_count": 9
+        },
+        {
+          "file": "tests\\test_kairos_dag.py",
+          "test_count": 7
+        },
+        {
+          "file": "tests\\test_kairos_db.py",
+          "test_count": 10
+        },
+        {
+          "file": "tests\\test_log_analyzer.py",
+          "test_count": 2
+        },
+        {
+          "file": "tests\\test_logging.py",
+          "test_count": 26
+        },
+        {
+          "file": "tests\\test_memory_extractor.py",
+          "test_count": 8
+        },
+        {
+          "file": "tests\\test_memory_store.py",
+          "test_count": 17
+        },
+        {
+          "file": "tests\\test_memory_types.py",
+          "test_count": 13
+        },
+        {
+          "file": "tests\\test_mission_completion.py",
+          "test_count": 10
+        },
+        {
+          "file": "tests\\test_mission_driver.py",
+          "test_count": 3
+        },
+        {
+          "file": "tests\\test_mission_planner.py",
+          "test_count": 16
+        },
+        {
+          "file": "tests\\test_mission_runner.py",
+          "test_count": 9
+        },
+        {
+          "file": "tests\\test_network_resilience.py",
+          "test_count": 24
+        },
+        {
+          "file": "tests\\test_parser_baseline_probe.py",
+          "test_count": 1
+        },
+        {
+          "file": "tests\\test_part7_historical_fixes.py",
+          "test_count": 10
+        },
+        {
+          "file": "tests\\test_performance_telemetry.py",
+          "test_count": 7
+        },
+        {
+          "file": "tests\\test_permission_policy.py",
+          "test_count": 7
+        },
+        {
+          "file": "tests\\test_persistence_adversarial.py",
+          "test_count": 3
+        },
+        {
+          "file": "tests\\test_persistence_blobs.py",
+          "test_count": 4
+        },
+        {
+          "file": "tests\\test_persistence_database.py",
+          "test_count": 3
+        },
+        {
+          "file": "tests\\test_persistence_journal.py",
+          "test_count": 2
+        },
+        {
+          "file": "tests\\test_persistence_serializer.py",
+          "test_count": 1
+        },
+        {
+          "file": "tests\\test_phase2_complete.py",
+          "test_count": 10
+        },
+        {
+          "file": "tests\\test_phase2_core_runtime_repair.py",
+          "test_count": 20
+        },
+        {
+          "file": "tests\\test_phase2_golden_scenarios.py",
+          "test_count": 4
+        },
+        {
+          "file": "tests\\test_phase3_complete.py",
+          "test_count": 12
+        },
+        {
+          "file": "tests\\test_phase3b_repairs.py",
+          "test_count": 20
+        },
+        {
+          "file": "tests\\test_phase4b_action_discipline.py",
+          "test_count": 12
+        },
+        {
+          "file": "tests\\test_phase4c_fastpath.py",
+          "test_count": 9
+        },
+        {
+          "file": "tests\\test_phase4d_adaptive_routing.py",
+          "test_count": 10
+        },
+        {
+          "file": "tests\\test_phase4e_mission_optimization.py",
+          "test_count": 10
+        },
+        {
+          "file": "tests\\test_phase4f_generalization.py",
+          "test_count": 10
+        },
+        {
+          "file": "tests\\test_phase4g_acceptance_audit.py",
+          "test_count": 15
+        },
+        {
+          "file": "tests\\test_phase4h_release_candidate.py",
+          "test_count": 8
+        },
+        {
+          "file": "tests\\test_phase4i_operational_release.py",
+          "test_count": 10
+        },
+        {
+          "file": "tests\\test_planner.py",
+          "test_count": 11
+        },
+        {
+          "file": "tests\\test_planning_and_progress.py",
+          "test_count": 15
+        },
+        {
+          "file": "tests\\test_pre_qualification_hardening.py",
+          "test_count": 20
+        },
+        {
+          "file": "tests\\test_primes.py",
+          "test_count": 14
+        },
+        {
+          "file": "tests\\test_progressive_verifier.py",
+          "test_count": 10
+        },
+        {
+          "file": "tests\\test_project_intelligence.py",
+          "test_count": 20
+        },
+        {
+          "file": "tests\\test_prompt11_adversarial.py",
+          "test_count": 11
+        },
+        {
+          "file": "tests\\test_prompt11_mission_scenarios.py",
+          "test_count": 15
+        },
+        {
+          "file": "tests\\test_prompt12_never_hang.py",
+          "test_count": 10
+        },
+        {
+          "file": "tests\\test_prompt16_at_mentions.py",
+          "test_count": 7
+        },
+        {
+          "file": "tests\\test_prompt16_cli_headless_parity.py",
+          "test_count": 9
+        },
+        {
+          "file": "tests\\test_prompt16_command_parser.py",
+          "test_count": 7
+        },
+        {
+          "file": "tests\\test_prompt16_command_registry.py",
+          "test_count": 7
+        },
+        {
+          "file": "tests\\test_prompt16_control_handlers.py",
+          "test_count": 7
+        },
+        {
+          "file": "tests\\test_prompt16_pure_queries_no_llm.py",
+          "test_count": 8
+        },
+        {
+          "file": "tests\\test_prompt16_replay.py",
+          "test_count": 7
+        },
+        {
+          "file": "tests\\test_prompt16_shell_escape.py",
+          "test_count": 7
+        },
+        {
+          "file": "tests\\test_prompt17_browser.py",
+          "test_count": 4
+        },
+        {
+          "file": "tests\\test_prompt17_browser_live.py",
+          "test_count": 1
+        },
+        {
+          "file": "tests\\test_prompt17_eval_harness.py",
+          "test_count": 3
+        },
+        {
+          "file": "tests\\test_prompt17_eval_replay.py",
+          "test_count": 3
+        },
+        {
+          "file": "tests\\test_prompt17_flagship_frontend.py",
+          "test_count": 3
+        },
+        {
+          "file": "tests\\test_prompt17_functional_evaluator.py",
+          "test_count": 2
+        },
+        {
+          "file": "tests\\test_prompt17_lsp.py",
+          "test_count": 8
+        },
+        {
+          "file": "tests\\test_prompt17_lsp_live.py",
+          "test_count": 1
+        },
+        {
+          "file": "tests\\test_prompt17_visual_evaluator.py",
+          "test_count": 4
+        },
+        {
+          "file": "tests\\test_prompt18_capability.py",
+          "test_count": 6
+        },
+        {
+          "file": "tests\\test_prompt18_eval_integrity.py",
+          "test_count": 3
+        },
+        {
+          "file": "tests\\test_prompt18_long_horizon_context.py",
+          "test_count": 3
+        },
+        {
+          "file": "tests\\test_prompt18_parity.py",
+          "test_count": 4
+        },
+        {
+          "file": "tests\\test_prompt4_context_optimization.py",
+          "test_count": 9
+        },
+        {
+          "file": "tests\\test_prompt5_batch_routing.py",
+          "test_count": 10
+        },
+        {
+          "file": "tests\\test_prompt5_parser_hardening.py",
+          "test_count": 21
+        },
+        {
+          "file": "tests\\test_prompt6_bounded_concurrency.py",
+          "test_count": 6
+        },
+        {
+          "file": "tests\\test_prompt6_scaffolding.py",
+          "test_count": 8
+        },
+        {
+          "file": "tests\\test_prompt6_website_fast_path.py",
+          "test_count": 10
+        },
+        {
+          "file": "tests\\test_prompt7_optimizations.py",
+          "test_count": 13
+        },
+        {
+          "file": "tests\\test_prompt_builder.py",
+          "test_count": 10
+        },
+        {
+          "file": "tests\\test_prompt_injection.py",
+          "test_count": 6
+        },
+        {
+          "file": "tests\\test_reasoning_budget.py",
+          "test_count": 8
+        },
+        {
+          "file": "tests\\test_recovery_engine.py",
+          "test_count": 1
+        },
+        {
+          "file": "tests\\test_registry.py",
+          "test_count": 5
+        },
+        {
+          "file": "tests\\test_response_parser.py",
+          "test_count": 13
+        },
+        {
+          "file": "tests\\test_rewind_engine.py",
+          "test_count": 2
+        },
+        {
+          "file": "tests\\test_risk_engine.py",
+          "test_count": 7
+        },
+        {
+          "file": "tests\\test_routing.py",
+          "test_count": 24
+        },
+        {
+          "file": "tests\\test_runtime_determinism.py",
+          "test_count": 15
+        },
+        {
+          "file": "tests\\test_runtime_performance_and_pipeline.py",
+          "test_count": 12
+        },
+        {
+          "file": "tests\\test_runtime_state.py",
+          "test_count": 13
+        },
+        {
+          "file": "tests\\test_session_logger.py",
+          "test_count": 7
+        },
+        {
+          "file": "tests\\test_session_manager.py",
+          "test_count": 2
+        },
+        {
+          "file": "tests\\test_subagents_and_worktrees.py",
+          "test_count": 16
+        },
+        {
+          "file": "tests\\test_surgical_editing.py",
+          "test_count": 22
+        },
+        {
+          "file": "tests\\test_t3_identity_attribution.py",
+          "test_count": 6
+        },
+        {
+          "file": "tests\\test_task_queue.py",
+          "test_count": 13
+        },
+        {
+          "file": "tests\\test_telemetry_reconciliation.py",
+          "test_count": 4
+        },
+        {
+          "file": "tests\\test_thermal_sustained_load.py",
+          "test_count": 8
+        },
+        {
+          "file": "tests\\test_transcript_persistence.py",
+          "test_count": 1
+        },
+        {
+          "file": "tests\\test_ultra_low_latency_consolidation.py",
+          "test_count": 35
+        },
+        {
+          "file": "tests\\test_v4_integration.py",
+          "test_count": 13
+        },
+        {
+          "file": "tests\\test_verifier.py",
+          "test_count": 9
+        },
+        {
+          "file": "tests\\test_week10_final.py",
+          "test_count": 5
+        },
+        {
+          "file": "tests\\test_week11_final.py",
+          "test_count": 12
+        },
+        {
+          "file": "tests\\test_week12_final.py",
+          "test_count": 7
+        },
+        {
+          "file": "tests\\test_week13_final.py",
+          "test_count": 5
+        },
+        {
+          "file": "tests\\test_week14_final.py",
+          "test_count": 7
+        },
+        {
+          "file": "tests\\test_week15_final.py",
+          "test_count": 10
+        },
+        {
+          "file": "tests\\test_week16_final.py",
+          "test_count": 10
+        },
+        {
+          "file": "tests\\test_week17_final.py",
+          "test_count": 9
+        },
+        {
+          "file": "tests\\test_week18_final.py",
+          "test_count": 7
+        },
+        {
+          "file": "tests\\test_week19_final.py",
+          "test_count": 10
+        },
+        {
+          "file": "tests\\test_week3_integration.py",
+          "test_count": 6
+        },
+        {
+          "file": "tests\\test_week4_integration.py",
+          "test_count": 6
+        },
+        {
+          "file": "tests\\test_week5_final.py",
+          "test_count": 5
+        },
+        {
+          "file": "tests\\test_week9_integration.py",
+          "test_count": 14
+        }
+      ]
+    },
+    "tools_and_workspace": {
+      "file_count": 6,
+      "test_count": 120,
+      "files": [
+        {
+          "file": "tests\\test_tool_platform.py",
+          "test_count": 24
+        },
+        {
+          "file": "tests\\test_tool_workspace_enforcement.py",
+          "test_count": 8
+        },
+        {
+          "file": "tests\\test_tools.py",
+          "test_count": 51
+        },
+        {
+          "file": "tests\\test_workspace.py",
+          "test_count": 15
+        },
+        {
+          "file": "tests\\test_workspace_intelligence.py",
+          "test_count": 6
+        },
+        {
+          "file": "tests\\test_write_files_batch.py",
+          "test_count": 16
+        }
+      ]
+    },
+    "gui_server_and_lifecycle": {
+      "file_count": 14,
+      "test_count": 190,
+      "files": [
+        {
+          "file": "tests\\test_prompt18_tui_soak_concurrency.py",
+          "test_count": 4
+        },
+        {
+          "file": "tests\\test_tui.py",
+          "test_count": 43
+        },
+        {
+          "file": "tests\\test_tui_chaos.py",
+          "test_count": 4
+        },
+        {
+          "file": "tests\\test_tui_input_and_routing.py",
+          "test_count": 4
+        },
+        {
+          "file": "tests\\test_tui_isolation_and_purity.py",
+          "test_count": 3
+        },
+        {
+          "file": "tests\\test_tui_prompt14_integration.py",
+          "test_count": 2
+        },
+        {
+          "file": "tests\\test_tui_qualification.py",
+          "test_count": 105
+        },
+        {
+          "file": "tests\\test_tui_renderer.py",
+          "test_count": 3
+        },
+        {
+          "file": "tests\\test_tui_runtime_observer.py",
+          "test_count": 2
+        },
+        {
+          "file": "tests\\test_tui_screen_buffer_and_diff.py",
+          "test_count": 5
+        },
+        {
+          "file": "tests\\test_tui_supervisor_and_fallback.py",
+          "test_count": 3
+        },
+        {
+          "file": "tests\\test_tui_text_safety.py",
+          "test_count": 5
+        },
+        {
+          "file": "tests\\test_tui_viewmodels_and_selectors.py",
+          "test_count": 4
+        },
+        {
+          "file": "tests\\test_tui_virtualization.py",
+          "test_count": 3
+        }
+      ]
+    },
+    "models_and_providers": {
+      "file_count": 5,
+      "test_count": 51,
+      "files": [
+        {
+          "file": "tests\\test_claude_client.py",
+          "test_count": 11
+        },
+        {
+          "file": "tests\\test_model_migration.py",
+          "test_count": 14
+        },
+        {
+          "file": "tests\\test_model_residency.py",
+          "test_count": 6
+        },
+        {
+          "file": "tests\\test_ollama_client.py",
+          "test_count": 5
+        },
+        {
+          "file": "tests\\test_ollama_client_reasoning.py",
+          "test_count": 15
+        }
+      ]
+    },
+    "security_and_approvals": {
+      "file_count": 6,
+      "test_count": 69,
+      "files": [
+        {
+          "file": "tests\\test_prompt16_security_signals_chaos.py",
+          "test_count": 6
+        },
+        {
+          "file": "tests\\test_prompt17_eval_security.py",
+          "test_count": 6
+        },
+        {
+          "file": "tests\\test_prompt18_security_adversarial.py",
+          "test_count": 5
+        },
+        {
+          "file": "tests\\test_security.py",
+          "test_count": 38
+        },
+        {
+          "file": "tests\\test_security_models.py",
+          "test_count": 8
+        },
+        {
+          "file": "tests\\test_subagent_security.py",
+          "test_count": 6
+        }
+      ]
+    },
+    "benchmarks_and_chaos": {
+      "file_count": 7,
+      "test_count": 67,
+      "files": [
+        {
+          "file": "tests\\test_benchmark_dataset_integrity.py",
+          "test_count": 6
+        },
+        {
+          "file": "tests\\test_benchmark_statistics.py",
+          "test_count": 7
+        },
+        {
+          "file": "tests\\test_failure_modes.py",
+          "test_count": 13
+        },
+        {
+          "file": "tests\\test_prompt12_failure_injection.py",
+          "test_count": 8
+        },
+        {
+          "file": "tests\\test_prompt18_chaos_resilience.py",
+          "test_count": 7
+        },
+        {
+          "file": "tests\\test_prompt3_benchmark_isolation.py",
+          "test_count": 7
+        },
+        {
+          "file": "tests\\test_submission_ready.py",
+          "test_count": 19
+        }
+      ]
+    }
+  }
+}

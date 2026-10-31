@@ -1,0 +1,43 @@
+{
+  "phase": "PHASE_1_EXECUTION_REPAIR",
+  "timestamp": "2026-10-21T11:55:00+05:30",
+  "python_executable": "C:\\Users\\SUBBU\\Downloads\\hermes\\venv\\Scripts\\python.exe",
+  "python_version": "3.12.0",
+  "git_branch": "hermes-2.x",
+  "investigation_findings": {
+    "greenfield_preflight": {
+      "defect": "False-positive classification of greenfield missions (e.g., LabFlow) as modifying existing application due to negative/conditional guidance like 'If any existing files are present, do not overwrite them.' and false file detection from .artifacts directory.",
+      "resolution": "Implemented _should_require_existing_application() in core/agent_loop/loop.py with negative instruction stripping, strict modifier regexes, and robust workspace file filtering that ignores all hidden directories/metadata (.artifacts, .hermes, .git, etc.)."
+    },
+    "file_tools": {
+      "defect": "WriteFileTool direct writes risked partial corruption on crashes; lack of dictionary input handling could cause attribute failures under injected harness parameters.",
+      "resolution": "Added Pydantic Input coercion in execute/execute_async for ReadFileTool and WriteFileTool. Added atomic file write with temporary hidden file, safe directory creation, and atomic os.replace with Windows file-lock retry."
+    },
+    "planning_and_failure_handling": {
+      "defect": "AgentLoop blindly exhausted 5 consecutive failure budget when encountering external network/provider outages (Condition C / Condition D), falsely failing missions instead of pausing in WAITING.",
+      "resolution": "Integrated classify_error_condition() in AgentLoop error handling to truthfully classify outages as WAITING_FOR_PROVIDER (Condition C) or WAITING_FOR_NETWORK (Condition D) and persist recovery state without burning turn budgets."
+    },
+    "event_synchronization": {
+      "defect": "gui/src/sync.ts processIncomingSnapshot pruned all events sequence <= last_sequence. In gui/src/App.tsx, setStreamEvents was overwritten with this pruned list, erasing the activity log in ActivityPanel on snapshot reception.",
+      "resolution": "Updated gui/src/App.tsx to accumulate and deduplicate streamEvents in a persistent bounded ring buffer (1000 events max), preserving unbroken activity logs across snapshots."
+    },
+    "runtime_identity": {
+      "defect": "No runtime code fingerprinting existed between the live background uvicorn server and files on disk, allowing code drift or stale server execution.",
+      "resolution": "Added SHA-256 code fingerprinting, PID attribution, and server startup timestamp verification to /api/health in core/server/app.py and core/server/launcher.py."
+    }
+  },
+  "test_suites_passed": {
+    "test_incident_planning_and_lifecycle_recovery.py": "14/14 passed (100%)",
+    "test_phase1_mission_lifecycle.py": "7/7 passed (100%)",
+    "test_forensic_regressions.py": "15/15 passed (100%)",
+    "test_phase2_core_runtime_repair.py": "20/20 passed (100%)",
+    "test_stage2_server_and_event_stream.py": "12/12 passed (100%)",
+    "test_stage3_gui_prototype_acceptance.py": "5/5 passed (100%)",
+    "test_write_files_batch.py": "16/16 passed (100%)",
+    "test_phase3_file_safety.py": "9/9 passed (100%)",
+    "test_final_execution_consistency.py": "43/43 passed (100%)",
+    "test_agent_loop.py": "11/11 passed (100%)",
+    "node_gui_test_snapshot_race": "5/5 scenarios passed (100%)",
+    "gui_npm_build": "Clean build (0 errors, 1602 modules transformed)"
+  }
+}

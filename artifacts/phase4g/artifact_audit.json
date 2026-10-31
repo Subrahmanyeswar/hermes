@@ -1,0 +1,106 @@
+{
+  "simple": {
+    "app_name": "Personal Expense Tracker",
+    "directory": "C:\\Users\\SUBBU\\Downloads\\hermes_phase4f_simple",
+    "total_files": 3,
+    "files": {
+      "index.html": {
+        "size_bytes": 4922,
+        "extension": ".html",
+        "syntax_valid": true,
+        "syntax_error": "",
+        "has_placeholders": false
+      },
+      "css/styles.css": {
+        "size_bytes": 7533,
+        "extension": ".css",
+        "syntax_valid": true,
+        "syntax_error": "",
+        "has_placeholders": false
+      },
+      "js/app.js": {
+        "size_bytes": 9020,
+        "extension": ".js",
+        "syntax_valid": true,
+        "syntax_error": "",
+        "has_placeholders": false
+      }
+    },
+    "all_syntax_valid": true,
+    "zero_placeholders": true
+  },
+  "medium": {
+    "app_name": "Inventory & Stock Management Console",
+    "directory": "C:\\Users\\SUBBU\\Downloads\\hermes_phase4f_medium",
+    "total_files": 3,
+    "files": {
+      "index.html": {
+        "size_bytes": 7523,
+        "extension": ".html",
+        "syntax_valid": true,
+        "syntax_error": "",
+        "has_placeholders": false
+      },
+      "css/styles.css": {
+        "size_bytes": 11293,
+        "extension": ".css",
+        "syntax_valid": true,
+        "syntax_error": "",
+        "has_placeholders": false
+      },
+      "js/app.js": {
+        "size_bytes": 15027,
+        "extension": ".js",
+        "syntax_valid": true,
+        "syntax_error": "",
+        "has_placeholders": false
+      }
+    },
+    "all_syntax_valid": true,
+    "zero_placeholders": true
+  },
+  "complex": {
+    "app_name": "Developer Portfolio & Tech Showcase",
+    "directory": "C:\\Users\\SUBBU\\Downloads\\hermes_phase4f_complex",
+    "total_files": 5,
+    "files": {
+      "index.html": {
+        "size_bytes": 3881,
+        "extension": ".html",
+        "syntax_valid": true,
+        "syntax_error": "",
+        "has_placeholders": false
+      },
+      "README.md": {
+        "size_bytes": 1543,
+        "extension": ".md",
+        "syntax_valid": true,
+        "syntax_error": "",
+        "has_placeholders": false
+      },
+      "css/styles.css": {
+        "size_bytes": 8135,
+        "extension": ".css",
+        "syntax_valid": true,
+        "syntax_error": "",
+        "has_placeholders": false
+      },
+      "data/projects.json": {
+        "size_bytes": 2335,
+        "extension": ".json",
+        "syntax_valid": true,
+        "syntax_error": "",
+        "has_placeholders": false
+      },
+      "js/app.js": {
+        "size_bytes": 9528,
+        "extension": ".js",
+        "syntax_valid": true,
+        "syntax_error": "",
+        "has_placeholders": false
+      }
+    },
+    "all_syntax_valid": true,
+    "zero_placeholders": true
+  }
+}

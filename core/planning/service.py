@@ -498,9 +498,21 @@ class MissionPlanningService:
         if not self.event_bus:
             return
 
+        run_id = getattr(self, "run_id", None)
+        attempt_number = getattr(self, "attempt_number", None)
+        if (not run_id or not attempt_number) and self.event_bus and hasattr(self.event_bus, "get_state"):
+            store = self.event_bus.get_state(self.mission_id)
+            if store:
+                snap = store.get_snapshot()
+                if snap and snap.mission:
+                    run_id = run_id or snap.mission.run_id
+                    attempt_number = attempt_number or snap.mission.attempt_number
+
         event = HermesEvent(
             event_type=event_type,
             mission_id=self.mission_id,
+            run_id=run_id,
+            attempt_number=attempt_number or 1,
             source="mission_planning",
             severity=severity,
             payload=payload or {},

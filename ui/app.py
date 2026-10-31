@@ -9,6 +9,7 @@
 from __future__ import annotations
 
 import asyncio
+import time
 from pathlib import Path
 from typing import Optional
 
@@ -246,6 +247,7 @@ class HermesApp(App):
         self,
         mode: str = "auto",
         project: str = "default",
+        workspace: Optional[str] = None,
         debug: bool = False,
         show_startup: bool = True,
     ) -> None:
@@ -254,10 +256,25 @@ class HermesApp(App):
         self._project = project
         self._debug = debug
         self._show_startup = show_startup
+        if workspace:
+            try:
+                global_workspace.lock(workspace)
+                self._show_startup = False
+                self.workspace_root = global_workspace.root_str
+            except Exception as e:
+                logger.warning(f"Failed to lock workspace '{workspace}': {e}")
+        elif global_workspace.is_locked:
+            self._show_startup = False
+            self.workspace_root = global_workspace.root_str
         self._orchestrator: Optional[object] = None
         self._mission_driver: Optional[MissionDriver] = None
         self._event_queue: asyncio.Queue = asyncio.Queue()
         self._current_trace_id: str = ""
+
+    def get_runtime_identity(self):
+        """Retrieve authoritative runtime identity for this TUI instance."""
+        from core.runtime_identity import detect_runtime_identity
+        return detect_runtime_identity(workspace_root=self.workspace_root)
 
     # ── Lifecycle ──────────────────────────────────────────────────
 
@@ -406,10 +423,25 @@ class HermesApp(App):
 
     @on(UserMessageSent)
     async def handle_user_message(self, message: UserMessageSent) -> None:
+        t_submit_started = time.time()
+        if not message.text or not message.text.strip():
+            return
         if self.is_processing:
             return
         self.is_processing = True
+        t_message_published = time.time()
+
+        # Schedule worker asynchronously without blocking the UI
         self._current_worker = self._process_request(message.text)
+        t_worker_scheduled = time.time()
+
+        self._send_latency_audit = {
+            "submit_started": t_submit_started,
+            "message_published": t_message_published,
+            "worker_scheduled": t_worker_scheduled,
+            "latency_ms": (t_worker_scheduled - t_submit_started) * 1000.0,
+        }
+        logger.debug(f"TUI: SEND -> worker_scheduled in {self._send_latency_audit['latency_ms']:.2f}ms")
 
     @work(thread=False)
     async def _process_request(self, user_request: str) -> None:
@@ -484,7 +516,7 @@ class HermesApp(App):
                 resp = OrchestratorResponse(
                     user_request=user_request,
                     final_output=mission_result.walkthrough_text,
-                    tool_name="mission_complete",
+                    tool_name=None,
                     success=mission_result.success,
                     stage_reached=getattr(mission_result, "pipeline_stage_reached", 12),
                     tier3_called=getattr(mission_result, "tier3_was_called", mission_result.tier3_calls > 0),
@@ -675,6 +707,7 @@ class HermesApp(App):
                         panel.update_progress(
                             "stage_start" if status == "start" else "stage_end",
                             {
+                                **payload,
                                 "stage": stage_num,
                                 "stage_name": stage_name,
                                 "spinner_verb": verb,
@@ -710,7 +743,7 @@ class HermesApp(App):
                         pass
 
                 elif event_type == "tool_executing":
-                    tool = payload.get("tool", "")
+                    tool = payload.get("tool") or payload.get("tool_name", "")
                     try:
                         from ui.panels.status_bar import StatusBar
                         sb = self.query_one("#status-bar", StatusBar)
@@ -718,9 +751,22 @@ class HermesApp(App):
                         sb.update_log_line(f"→ {tool}")
                     except Exception:
                         pass
+                    try:
+                        from ui.panels.chat import ChatPanel
+                        panel = self.query_one(ChatPanel)
+                        panel.update_progress("stage_start", {
+                            **payload,
+                            "stage": 7,
+                            "tool_name": tool,
+                            "parameters": payload.get("parameters", {}),
+                            "target": payload.get("target"),
+                            "attempt": payload.get("attempt", 1),
+                        })
+                    except Exception:
+                        pass
 
                 elif event_type == "tool_complete":
-                    tool = payload.get("tool", "")
+                    tool = payload.get("tool") or payload.get("tool_name", "")
                     success = payload.get("success", False)
                     exit_code = payload.get("exit_code", -1)
                     output = payload.get("output_preview", "")
@@ -736,12 +782,29 @@ class HermesApp(App):
                             success=success,
                             exit_code=exit_code,
                             output_preview=output,
-                            latency=0.0,
+                            latency=payload.get("duration", 0.0),
                             tier3_called=False,
                             trace_id=self._current_trace_id or "",
                             skill_ids=[self.current_skill] if self.current_skill else [],
                         )
                         await trace_pane.add_trace_entry_direct(entry)
+                    except Exception:
+                        pass
+
+                    # Update ChatPanel progress
+                    try:
+                        from ui.panels.chat import ChatPanel
+                        panel = self.query_one(ChatPanel)
+                        panel.update_progress("stage_end", {
+                            **payload,
+                            "stage": 7,
+                            "tool_name": tool,
+                            "target": payload.get("target"),
+                            "lines": payload.get("lines"),
+                            "duration": payload.get("duration", 0.0),
+                            "status": "success" if success else "failed",
+                            "attempt": payload.get("attempt", 1),
+                        })
                     except Exception:
                         pass
 
@@ -952,8 +1015,8 @@ class HermesApp(App):
             self._focus_chat_input()
         else:
             try:
-                chat_panel = self.query_one("#chat-panel")
-                await chat_panel.submit_prompt()
+                log_bar = self.query_one("#log-bar", LogBar)
+                log_bar.update_log("Idle: No active mission to stop.")
             except Exception:
                 pass
 

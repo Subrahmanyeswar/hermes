@@ -1,0 +1,27 @@
+{
+  "send_and_planning": {
+    "send_latency_ms": 0.017,
+    "planning_latency_ms": 8.969,
+    "task_count": 1,
+    "target_met_send": true
+  },
+  "dev_server_reuse": {
+    "cold_startup_ms": 325.716,
+    "fast_reuse_ms": 0.321,
+    "speedup_factor": 1013.74,
+    "target_met_reuse": true
+  },
+  "dispatch_prep": {
+    "dispatch_prep_ms": 0.056,
+    "target_met_dispatch_prep": true
+  },
+  "dag_parallelism": {
+    "initial_batch_size": 3,
+    "initial_batch_titles": [
+      "Inspect workspace and existing files",
+      "Create css/styles.css with color palette.",
+      "Create js/app.js with data logic."
+    ],
+    "verification_barrier_preserved": true
+  }
+}

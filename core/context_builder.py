@@ -162,6 +162,7 @@ class ContextBuilder:
 
         task_section = ContextSection.from_content(
             "CURRENT TASK [PROTECTED]",
+            f"Mission Goal: {mission.user_prompt}\n"
             f"Title: {task.title}\n"
             f"Description: {task.description}\n"
             f"Acceptance: {task.acceptance_criteria}\n"

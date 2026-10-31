@@ -1,0 +1,159 @@
+{
+  "timestamp": "2026-10-08 21:30:31",
+  "benchmarks": {
+    "Benchmark_A_EventBoard": {
+      "archetype": "Interactive Board",
+      "expected_complexity": "SIMPLE",
+      "actual_complexity": "SIMPLE",
+      "classification_correct": true,
+      "classification_latency_us": 7.77,
+      "planning_latency_ms": 11.87,
+      "task_count": 4,
+      "execution_order_length": 4,
+      "parallel_batchable": true,
+      "target_artifacts": [
+        "index.html",
+        "css/styles.css",
+        "js/app.js",
+        "index.html",
+        "css/styles.css",
+        "js/app.js"
+      ]
+    },
+    "Benchmark_B_PersonalFinance": {
+      "archetype": "Financial Dashboard",
+      "expected_complexity": "SIMPLE",
+      "actual_complexity": "SIMPLE",
+      "classification_correct": true,
+      "classification_latency_us": 7.4,
+      "planning_latency_ms": 8.01,
+      "task_count": 4,
+      "execution_order_length": 4,
+      "parallel_batchable": true,
+      "target_artifacts": [
+        "index.html",
+        "css/styles.css",
+        "js/app.js",
+        "index.html",
+        "css/styles.css",
+        "js/app.js"
+      ]
+    },
+    "Benchmark_C_InventoryManagement": {
+      "archetype": "Inventory Console",
+      "expected_complexity": "SIMPLE",
+      "actual_complexity": "SIMPLE",
+      "classification_correct": true,
+      "classification_latency_us": 8.29,
+      "planning_latency_ms": 8.12,
+      "task_count": 4,
+      "execution_order_length": 4,
+      "parallel_batchable": true,
+      "target_artifacts": [
+        "index.html",
+        "css/styles.css",
+        "js/app.js",
+        "index.html",
+        "css/styles.css",
+        "js/app.js"
+      ]
+    },
+    "Benchmark_D_DeveloperPortfolio": {
+      "archetype": "Portfolio Showcase",
+      "expected_complexity": "SIMPLE",
+      "actual_complexity": "SIMPLE",
+      "classification_correct": true,
+      "classification_latency_us": 8.28,
+      "planning_latency_ms": 8.46,
+      "task_count": 4,
+      "execution_order_length": 4,
+      "parallel_batchable": true,
+      "target_artifacts": [
+        "index.html",
+        "css/styles.css",
+        "js/app.js",
+        "index.html",
+        "css/styles.css",
+        "js/app.js"
+      ]
+    },
+    "Benchmark_E_KanbanBoard": {
+      "archetype": "Workflow Kanban",
+      "expected_complexity": "SIMPLE",
+      "actual_complexity": "SIMPLE",
+      "classification_correct": true,
+      "classification_latency_us": 10.47,
+      "planning_latency_ms": 7.26,
+      "task_count": 4,
+      "execution_order_length": 4,
+      "parallel_batchable": true,
+      "target_artifacts": [
+        "index.html",
+        "css/styles.css",
+        "js/app.js",
+        "index.html",
+        "css/styles.css",
+        "js/app.js"
+      ]
+    },
+    "Benchmark_F_AnalyticsDashboard": {
+      "archetype": "Business Analytics",
+      "expected_complexity": "SIMPLE",
+      "actual_complexity": "SIMPLE",
+      "classification_correct": true,
+      "classification_latency_us": 7.19,
+      "planning_latency_ms": 8.56,
+      "task_count": 4,
+      "execution_order_length": 4,
+      "parallel_batchable": true,
+      "target_artifacts": [
+        "index.html",
+        "css/styles.css",
+        "js/app.js",
+        "index.html",
+        "css/styles.css",
+        "js/app.js"
+      ]
+    },
+    "Benchmark_G_DocumentationPortal": {
+      "archetype": "Knowledge Base",
+      "expected_complexity": "SIMPLE",
+      "actual_complexity": "SIMPLE",
+      "classification_correct": true,
+      "classification_latency_us": 7.13,
+      "planning_latency_ms": 7.72,
+      "task_count": 4,
+      "execution_order_length": 4,
+      "parallel_batchable": true,
+      "target_artifacts": [
+        "index.html",
+        "css/styles.css",
+        "js/app.js",
+        "index.html",
+        "css/styles.css",
+        "js/app.js"
+      ]
+    },
+    "Benchmark_H_CRUD_Backend": {
+      "archetype": "Backend REST API",
+      "expected_complexity": "MEDIUM",
+      "actual_complexity": "MEDIUM",
+      "classification_correct": true,
+      "classification_latency_us": 2.39,
+      "planning_latency_ms": 13.32,
+      "task_count": 1,
+      "execution_order_length": 1,
+      "parallel_batchable": false,
+      "target_artifacts": []
+    }
+  },
+  "summary": {
+    "total_benchmarks": 8,
+    "classification_accuracy_pct": 100.0,
+    "avg_classification_latency_us": 7.36,
+    "avg_planning_latency_ms": 9.16,
+    "all_compression_valid": true,
+    "all_parallel_dag_valid": true,
+    "ui_divergence_score": 1.0
+  }
+}
