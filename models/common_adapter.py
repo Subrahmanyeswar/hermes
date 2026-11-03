@@ -62,6 +62,25 @@ class ErrorClassification(str, Enum):
     MODEL_STREAM_STALL = "MODEL_STREAM_STALL"       # In-flight stream stall
     MODEL_REQUEST_TIMEOUT = "MODEL_REQUEST_TIMEOUT" # Overall request attempt timeout
     UNKNOWN_ERROR = "UNKNOWN_ERROR"
+    # Canonical error classifications per Section 5 & P0 Fix B
+    UNKNOWN_PROVIDER = "UNKNOWN_PROVIDER"
+    PROVIDER_CONNECT_TIMEOUT = "PROVIDER_CONNECT_TIMEOUT"
+    PROVIDER_READ_TIMEOUT = "PROVIDER_READ_TIMEOUT"
+    PROVIDER_RATE_LIMIT = "PROVIDER_RATE_LIMIT"
+    PROVIDER_SERVER_ERROR = "PROVIDER_SERVER_ERROR"
+    PROVIDER_AUTH_ERROR = "PROVIDER_AUTH_ERROR"
+    PROVIDER_MODEL_NOT_FOUND = "PROVIDER_MODEL_NOT_FOUND"
+    PROVIDER_ENDPOINT_ERROR = "PROVIDER_ENDPOINT_ERROR"
+    PROVIDER_BAD_REQUEST = "PROVIDER_BAD_REQUEST"
+    PROVIDER_DNS_ERROR = "PROVIDER_DNS_ERROR"
+    PROVIDER_TLS_ERROR = "PROVIDER_TLS_ERROR"
+    RESPONSE_PARSE_ERROR = "RESPONSE_PARSE_ERROR"
+    TOOL_CALL_SCHEMA_ERROR = "TOOL_CALL_SCHEMA_ERROR"
+    EMPTY_TOOL_CALL = "EMPTY_TOOL_CALL"
+    TOOL_EXECUTION_ERROR = "TOOL_EXECUTION_ERROR"
+    APP_VALIDATION_ERROR = "APP_VALIDATION_ERROR"
+    NO_PROGRESS = "NO_PROGRESS"
+    INTERNAL_RUNTIME_ERROR = "INTERNAL_RUNTIME_ERROR"
 
 
 class TTFTTimeoutError(TimeoutError):
@@ -251,7 +270,42 @@ def classify_provider_error(
             raw_response=body_text,
         )
 
+    if "unknown_provider" in body_lower or "unknown provider" in body_lower:
+        return ProviderErrorInfo(
+            classification=ErrorClassification.UNKNOWN_PROVIDER,
+            status_code=None,
+            message=body_text or "Unknown provider configured",
+            is_transient=False,
+            is_quota_exhausted=False,
+            is_unauthorized=False,
+            is_model_unavailable=True,
+            raw_response=body_text,
+        )
+
     # 2. Exception type & message matching
+    if isinstance(exc, httpx.ConnectTimeout):
+        return ProviderErrorInfo(
+            classification=ErrorClassification.PROVIDER_CONNECT_TIMEOUT,
+            status_code=408,
+            message=f"Provider connect timeout: {exc}",
+            is_transient=True,
+            is_quota_exhausted=False,
+            is_unauthorized=False,
+            is_model_unavailable=False,
+            raw_response=body_text,
+        )
+
+    if isinstance(exc, httpx.ReadTimeout):
+        return ProviderErrorInfo(
+            classification=ErrorClassification.PROVIDER_READ_TIMEOUT,
+            status_code=408,
+            message=f"Provider read timeout: {exc}",
+            is_transient=True,
+            is_quota_exhausted=False,
+            is_unauthorized=False,
+            is_model_unavailable=False,
+            raw_response=body_text,
+        )
     if isinstance(exc, TTFTTimeoutError) or "ttft" in body_lower or "first token" in body_lower:
         return ProviderErrorInfo(
             classification=ErrorClassification.MODEL_TTFT_TIMEOUT,
@@ -459,7 +513,7 @@ class CommonProviderAdapter(ModelProvider):
         self.tier = tier
         self.timeout_seconds = timeout_seconds
         self.first_token_timeout_seconds = first_token_timeout_seconds
-        self.stream_idle_timeout_seconds = stream_idle_timeout_seconds
+        self.stream_idle_timeout_seconds = max(float(stream_idle_timeout_seconds), 30.0)
         self.attempt_timeout_seconds = attempt_timeout_seconds
         self.extra_headers = extra_headers or {}
         self._client: Optional[httpx.AsyncClient] = None
@@ -1098,6 +1152,43 @@ class CommonProviderAdapter(ModelProvider):
 
 
 # ==============================================================================
+class UnknownProviderAdapter(ModelProvider):
+    """Explicit adapter for unconfigured or unknown providers per Section 4."""
+
+    def __init__(
+        self,
+        provider_name: str,
+        model_name: Optional[str] = None,
+        tier: Optional[int] = None,
+    ) -> None:
+        self.provider_name = provider_name
+        self.model_name = model_name or "unknown"
+        self.tier = tier
+        self.base_url = ""
+        self.api_key = ""
+        logger.error(
+            f"UNKNOWN_PROVIDER: Provider identifier '{provider_name}' configured for Tier {tier} "
+            f"(model: '{self.model_name}') is not recognized."
+        )
+
+    async def generate(self, *args, **kwargs) -> NormalizedModelResponse:
+        err_msg = (
+            f"UNKNOWN_PROVIDER: Provider '{self.provider_name}' (tier {self.tier}, model '{self.model_name}') "
+            f"is not recognized. Refusing to send request to generic or unrelated endpoint."
+        )
+        return NormalizedModelResponse(
+            text="",
+            model=self.model_name,
+            provider=self.provider_name,
+            error=err_msg,
+            success=False,
+            raw_response=err_msg,
+        )
+
+    async def close(self) -> None:
+        pass
+
+
 # 4. PROVIDER REGISTRY & SHARED CLIENT FACTORY
 # ==============================================================================
 
@@ -1117,7 +1208,7 @@ def get_provider_adapter(
     )
 
     p_norm = provider_name.lower().replace("-", "_")
-    eff_tier = tier if tier is not None else (2 if p_norm in ("mistral", "mistral_ai", "mistralai", "groq", "groq_api") else (3 if p_norm in ("nvidia_nim", "nvidia", "nim", "openrouter", "open_router") else 1))
+    eff_tier = tier if tier is not None else (2 if p_norm in ("mistral", "mistral_ai", "mistralai", "codestral", "groq", "groq_api") else (3 if p_norm in ("nvidia_nim", "nvidia", "nim", "openrouter", "open_router") else 1))
 
     # ── Gemini (Tier 1) ────────────────────────────────────────────────
     if p_norm in ("gemini", "google", "google_gemini"):
@@ -1137,7 +1228,7 @@ def get_provider_adapter(
         return _adapter_cache[cache_key]
 
     # ── Mistral (Tier 2, OpenAI-compatible) ───────────────────────────
-    if p_norm in ("mistral", "mistral_ai", "mistralai"):
+    if p_norm in ("mistral", "mistral_ai", "mistralai", "codestral"):
         m = model_name or os.getenv("TIER2_MODEL", "codestral-latest")
         cache_key = f"mistral:{m}:{eff_tier}"
         if cache_key not in _adapter_cache:
@@ -1218,15 +1309,17 @@ def get_provider_adapter(
             )
         return _adapter_cache[cache_key]
 
-    # Fallback generic
-    cache_key = f"{p_norm}:{model_name or 'default'}"
+    # Fallback: Unknown provider must never silently inherit OpenAI base_url / key
+    logger.error(
+        f"UNKNOWN_PROVIDER: Provider '{provider_name}' (tier {eff_tier}, model: '{model_name}') is not recognized. "
+        "Valid providers: gemini, mistral/codestral, groq, zai, nvidia_nim, openrouter."
+    )
+    cache_key = f"unknown:{p_norm}:{model_name or 'default'}:{eff_tier}"
     if cache_key not in _adapter_cache:
-        _adapter_cache[cache_key] = CommonProviderAdapter(
-            provider_name=p_norm,
-            model_name=model_name or "default",
-            base_url="https://api.openai.com/v1",
-            api_key=os.getenv(f"{p_norm.upper()}_API_KEY", ""),
-            tier=tier,
+        _adapter_cache[cache_key] = UnknownProviderAdapter(
+            provider_name=provider_name,
+            model_name=model_name,
+            tier=eff_tier,
         )
     return _adapter_cache[cache_key]
 

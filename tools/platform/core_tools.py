@@ -171,7 +171,7 @@ def _find_similar_files(root: Path, target_path_str: str, max_suggestions: int =
     try:
         for p in root.rglob("*"):
             if p.is_file():
-                if any(part in (".git", "node_modules", ".venv", "__pycache__", ".pytest_cache", ".tox") for part in p.parts):
+                if any(part in (".git", ".hermes", ".artifacts", "node_modules", ".venv", "venv", "__pycache__", ".pytest_cache", ".tox", "dist", "build") for part in p.parts):
                     continue
                 try:
                     rel = p.relative_to(root).as_posix()
@@ -1216,7 +1216,7 @@ class SearchGlobTool(BaseTool):
     risk_score = 0.1
     blocked_in = []
 
-    IGNORED_DIRS = {".git", "node_modules", ".venv", "__pycache__", ".pytest_cache", ".tox", "dist", "build"}
+    IGNORED_DIRS = {".git", ".hermes", ".artifacts", "node_modules", ".venv", "venv", "__pycache__", ".pytest_cache", ".tox", "dist", "build"}
 
     def execute(self, inp: Any) -> ToolResult:
         start_t = time.monotonic()
@@ -1298,7 +1298,7 @@ class SearchGrepTool(BaseTool):
     risk_score = 0.1
     blocked_in = []
 
-    IGNORED_DIRS = {".git", "node_modules", ".venv", "__pycache__", ".pytest_cache", ".tox", "dist", "build"}
+    IGNORED_DIRS = {".git", ".hermes", ".artifacts", "node_modules", ".venv", "venv", "__pycache__", ".pytest_cache", ".tox", "dist", "build"}
 
     def execute(self, inp: Any) -> ToolResult:
         start_t = time.monotonic()
