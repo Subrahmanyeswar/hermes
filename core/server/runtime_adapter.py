@@ -46,8 +46,61 @@ class RuntimeAdapter:
         # Subscribe this adapter to the global event bus
         self.event_bus.subscribe(self._on_runtime_event)
 
+        # Initialize global ObservabilityBusSubscriber for shared EventBus
+        self.telemetry_subscriber = None
+        self._init_telemetry_subscriber()
+
         # Restore persisted missions on backend startup
         self.restore_persisted_missions()
+
+    def _init_telemetry_subscriber(self) -> bool:
+        """Idempotently initialize and attach the global ObservabilityBusSubscriber."""
+        from core.runtime_state.events import redact_sensitive_str
+        if self.telemetry_subscriber is not None and getattr(self.telemetry_subscriber, "is_attached", False):
+            return True
+
+        try:
+            from core.observability.bus_subscriber import ObservabilityBusSubscriber
+            candidate = ObservabilityBusSubscriber(self.event_bus)
+            attached = candidate.attach()
+            if attached:
+                self.telemetry_subscriber = candidate
+                return True
+            else:
+                return False
+        except Exception as e:
+            logger.warning(f"Failed to attach telemetry subscriber: {redact_sensitive_str(str(e))}")
+            return False
+
+    def detach_telemetry_subscriber(self) -> bool:
+        """Gracefully detach the global ObservabilityBusSubscriber on shutdown."""
+        from core.runtime_state.events import redact_sensitive_str
+        if self.telemetry_subscriber is None:
+            return True
+
+        try:
+            detached = self.telemetry_subscriber.detach()
+            if detached:
+                self.telemetry_subscriber = None
+                return True
+
+            sub_key = getattr(self.telemetry_subscriber, "SUBSCRIPTION_KEY", "hermes.observability.global_subscriber")
+            has_sub = hasattr(self.event_bus, "has_subscription") and self.event_bus.has_subscription(sub_key)
+            if not has_sub:
+                self.telemetry_subscriber = None
+                return True
+
+            return False
+        except Exception as e:
+            logger.warning(f"Error detaching telemetry subscriber: {redact_sensitive_str(str(e))}")
+            try:
+                sub_key = getattr(self.telemetry_subscriber, "SUBSCRIPTION_KEY", "hermes.observability.global_subscriber")
+                has_sub = hasattr(self.event_bus, "has_subscription") and self.event_bus.has_subscription(sub_key)
+                if not has_sub:
+                    self.telemetry_subscriber = None
+            except Exception:
+                pass
+            return False
 
     def is_worker_alive(self, m: Union[dict, str]) -> bool:
         """

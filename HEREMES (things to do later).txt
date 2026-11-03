@@ -70,5 +70,22 @@ Invoke-RestMethod "http://127.0.0.1:8765/api/health" |
     Format-List
 
 
+
+cd C:\Users\SUBBU\Downloads\hermes
+
+.\scripts\watch_mission_logs.ps1 -Latest
+
+
+
+
+
+.\scripts\watch_mission_logs.ps1 -Latest -Stream models
+
+
+
+.\scripts\watch_mission_logs.ps1 -MissionId m_cbdeafec -NoFollow
+
+
+
 bro now on these issues by doing deep thinking and research find me the best solution and core logics give me your detailed prompt
 later dont say like can i give you this can i give you that like that give me everything and core logics to solve this issue in single shot give me the very very detailed prompt.....

@@ -22,9 +22,11 @@ class HealthResponse(BaseModel):
     startup_time: Optional[float] = None
     pid: Optional[int] = None
     code_fingerprint: Optional[str] = None
+    disk_fingerprint: Optional[str] = None
     code_match: Optional[bool] = None
     runtime_status: Optional[str] = "SYNCED"
     python_executable: Optional[str] = None
+    mismatched_files: Optional[List[str]] = Field(default_factory=list)
     model_stack: Dict[str, str]
 
 

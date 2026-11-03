@@ -1128,8 +1128,19 @@ class ShellBashTool(BaseTool):
             try:
                 stdout, stderr = proc.communicate(timeout=timeout_seconds)
             except subprocess.TimeoutExpired:
-                proc.kill()
-                stdout, stderr = proc.communicate()
+                if os.name == "nt":
+                    try:
+                        subprocess.run(["taskkill", "/F", "/T", "/PID", str(proc.pid)], capture_output=True, timeout=2.0)
+                    except Exception:
+                        pass
+                try:
+                    proc.kill()
+                except Exception:
+                    pass
+                try:
+                    stdout, stderr = proc.communicate(timeout=2.0)
+                except Exception:
+                    stdout, stderr = "", "Process terminated after timeout"
                 return ToolResult(
                     success=False,
                     error=f"Command timed out after {timeout_seconds} seconds: {command[:80]}",

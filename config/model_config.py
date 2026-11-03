@@ -16,9 +16,9 @@ TIER1_BASE_URL = os.getenv("TIER1_BASE_URL", "https://api.z.ai/api/paas/v4")
 TIER1_PROVIDER_STATUS = os.getenv("TIER1_PROVIDER_STATUS", "WAITING_FOR_VALID_CREDENTIALS")
 ZAI_API_KEY = os.getenv("ZAI_API_KEY", "")
 
-TIER2_PROVIDER = os.getenv("TIER2_PROVIDER", "nvidia_nim")
-TIER2_MODEL = os.getenv("TIER2_MODEL", "nvidia/nemotron-3.5-lightning-30b-a3b")
-TIER2_BASE_URL = os.getenv("TIER2_BASE_URL", "https://integrate.api.nvidia.com/v1")
+TIER2_PROVIDER = os.getenv("TIER2_PROVIDER", "mistral")
+TIER2_MODEL = os.getenv("TIER2_MODEL", "codestral-latest")  # Target: mistral-small-2603
+TIER2_BASE_URL = os.getenv("TIER2_BASE_URL", "https://api.mistral.ai/v1")
 TIER2_PROVIDER_STATUS = os.getenv("TIER2_PROVIDER_STATUS", "OPERATIONAL")
 NVIDIA_API_KEY = os.getenv("NVIDIA_API_KEY", "")
 
@@ -35,6 +35,7 @@ TIER4_PROVIDER_STATUS = os.getenv("TIER4_PROVIDER_STATUS", "OPERATIONAL")
 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
+MISTRAL_API_KEY = os.getenv("MISTRAL_API_KEY", "")
 
 def validate_timeout_config(
     env_var_name: str = "MODEL_TIMEOUT_SECONDS",
@@ -118,3 +119,8 @@ T2_MAX_CONCURRENCY = int(os.getenv("T2_MAX_CONCURRENCY", "1"))
 # Mission Logical Turn Budgets
 DEFAULT_MISSION_MAX_TURNS = int(os.getenv("MISSION_MAX_TURNS", "40"))
 WEBSITE_MISSION_MAX_TURNS = int(os.getenv("WEBSITE_MISSION_MAX_TURNS", "80"))
+
+# Bounded model request & streaming timeout controls (Part 8.2)
+HERMES_MODEL_FIRST_TOKEN_TIMEOUT_SECONDS = float(os.getenv("HERMES_MODEL_FIRST_TOKEN_TIMEOUT_SECONDS", "15.0"))
+HERMES_MODEL_STREAM_IDLE_TIMEOUT_SECONDS = float(os.getenv("HERMES_MODEL_STREAM_IDLE_TIMEOUT_SECONDS", "15.0"))
+HERMES_MODEL_ATTEMPT_TIMEOUT_SECONDS = float(os.getenv("HERMES_MODEL_ATTEMPT_TIMEOUT_SECONDS", "45.0"))

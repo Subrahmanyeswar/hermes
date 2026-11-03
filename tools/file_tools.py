@@ -12,7 +12,7 @@ import tempfile
 import time
 import uuid
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal, Optional
 
 import hashlib
 import aiofiles
@@ -91,7 +91,7 @@ class ReadFileTool(BaseTool):
         try:
             # ── Workspace boundary enforcement ──────────────────────────────
             try:
-                safe_path = effective_wm.validate_path(inp.path)
+                safe_path = effective_wm.validate_path(inp.path if hasattr(inp, "path") else inp.get("path"))
                 if not isinstance(safe_path, Path):
                     if isinstance(safe_path, str):
                         safe_path = Path(safe_path).resolve()
@@ -188,7 +188,7 @@ class ReadFileTool(BaseTool):
         try:
             # ── Workspace boundary enforcement ──────────────────────────────
             try:
-                safe_path = effective_wm.validate_path(inp.path)
+                safe_path = effective_wm.validate_path(inp.path if hasattr(inp, "path") else inp.get("path"))
                 if not isinstance(safe_path, Path):
                     if isinstance(safe_path, str):
                         safe_path = Path(safe_path).resolve()
@@ -237,7 +237,7 @@ class ReadFileTool(BaseTool):
             _READ_LOOP_TRACKER[track_key] = (content_hash, count)
 
             duration = time.monotonic() - start
-            if count >= 2:
+            if count >= 3:
                 return ToolResult(
                     success=False,
                     error=(
@@ -369,7 +369,7 @@ class WriteFileTool(BaseTool):
         try:
             # ── Workspace boundary enforcement ──────────────────────────────
             try:
-                safe_path = effective_wm.validate_path(inp.path)
+                safe_path = effective_wm.validate_path(inp.path if hasattr(inp, "path") else inp.get("path"))
             except WorkspaceBoundaryError as e:
                 return ToolResult(success=False, error=f"SECURITY: {e}", exit_code=126)
 
@@ -520,7 +520,7 @@ class WriteFileTool(BaseTool):
         try:
             # ── Workspace boundary enforcement ──────────────────────────────
             try:
-                safe_path = effective_wm.validate_path(inp.path)
+                safe_path = effective_wm.validate_path(inp.path if hasattr(inp, "path") else inp.get("path"))
             except WorkspaceBoundaryError as e:
                 return ToolResult(success=False, error=f"SECURITY: {e}", exit_code=126)
 
@@ -744,13 +744,23 @@ class WriteFilesBatchTool(BaseTool):
                     shutil.copy2(safe_dest, b_file)
                     backed_up_destinations.append((safe_dest, b_file))
 
-            # 3. Commit staged files to real destinations
+            # 3. Commit staged files to real destinations from staging area (Section 6.6)
             for idx, (safe_dest, content, mode, rel_p) in enumerate(validated_items):
+                staged_file = temp_staging_dir / f"stage_{idx}"
                 safe_dest.parent.mkdir(parents=True, exist_ok=True)
+                staged_content = staged_file.read_text(encoding="utf-8")
                 file_mode = "w" if mode == "overwrite" else "a"
                 with open(safe_dest, file_mode, encoding="utf-8", newline="") as df:
-                    df.write(content)
+                    df.write(staged_content)
                 written_destinations.append(safe_dest)
+
+            # 4. Verify all destination hashes after commit
+            verified_hashes: dict[str, str] = {}
+            for idx, (safe_dest, content, mode, rel_p) in enumerate(validated_items):
+                if not safe_dest.exists() or not safe_dest.is_file():
+                    raise IOError(f"Destination file '{rel_p}' missing after batch commit")
+                h_val = hashlib.sha256(safe_dest.read_bytes()).hexdigest()
+                verified_hashes[rel_p] = h_val
 
             workspace_manager.refresh_index()
             duration = time.monotonic() - start

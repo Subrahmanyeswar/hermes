@@ -55,6 +55,9 @@ class ProviderHealthRecord:
     probe_in_flight: bool = False
     circuit_open_ts: Optional[float] = None
     circuit_close_ts: Optional[float] = None
+    is_auth_failure: bool = False
+    is_quota_exhausted: bool = False
+    retry_after_ts: Optional[float] = None
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -149,13 +152,57 @@ class AdaptiveRouter:
         self._probe_callback = cb
 
     def get_health(self, tier: int) -> ProviderHealthRecord:
-        return self.providers[tier]
+        record = self.providers[tier]
+        if record.state in (ProviderHealthState.OPEN_CIRCUIT, ProviderHealthState.DEGRADED):
+            now = time.time()
+            # Permanent / unserviceable failure checks (do not auto-recover via generic cooldown)
+            if getattr(record, "is_auth_failure", False):
+                return record
+            if getattr(record, "is_quota_exhausted", False):
+                return record
+
+            # Retry-After duration check: must respect explicit provider Retry-After duration
+            if getattr(record, "retry_after_ts", None) is not None:
+                if now < record.retry_after_ts:
+                    return record
+                else:
+                    record.retry_after_ts = None
+
+            reference_ts = record.circuit_open_ts or record.last_state_change_ts or record.last_failure_ts
+            if reference_ts and (now - reference_ts >= T1_CIRCUIT_BREAKER_WINDOW):
+                logger.info(
+                    f"[ADAPTIVE ROUTING] Tier {tier} circuit breaker cooldown window expired ({now - reference_ts:.1f}s >= {T1_CIRCUIT_BREAKER_WINDOW}s). "
+                    "Resetting state to HEALTHY."
+                )
+                record.state = ProviderHealthState.HEALTHY
+                record.consecutive_first_token_failures = 0
+                record.failure_count = 0
+                record.circuit_open_ts = None
+                record.circuit_close_ts = now
+                record.last_state_change_ts = now
+        return record
 
     def is_tier_healthy(self, tier: int) -> bool:
-        record = self.providers.get(tier)
+        record = self.get_health(tier) if tier in self.providers else None
         if not record:
             return False
         return record.state in (ProviderHealthState.HEALTHY, ProviderHealthState.RECOVERED)
+
+    def reset_state(self) -> None:
+        """Reset all provider health records to clean initial state."""
+        now = time.time()
+        for tier, rec in self.providers.items():
+            rec.state = ProviderHealthState.HEALTHY
+            rec.failure_count = 0
+            rec.consecutive_first_token_failures = 0
+            rec.consecutive_successes = 0
+            rec.circuit_open_ts = None
+            rec.circuit_close_ts = now
+            rec.last_state_change_ts = now
+            rec.probe_in_flight = False
+            rec.is_auth_failure = False
+            rec.is_quota_exhausted = False
+            rec.retry_after_ts = None
 
     def route_primary(self, client_t1: Any = None) -> RouteDecision:
         """
@@ -288,6 +335,7 @@ class AdaptiveRouter:
         timeout_type: str = "",
         latency: float = 0.0,
         client: Any = None,
+        retry_after: Optional[float] = None,
     ) -> None:
         """Update provider health following a failure, tripping circuit if threshold exceeded."""
         record = self.providers.get(tier)
@@ -298,6 +346,31 @@ class AdaptiveRouter:
         record.last_failure_ts = now
         record.failure_count += 1
         record.consecutive_successes = 0
+
+        err_str = str(error).lower()
+        if "401" in err_str or "unauthorized" in err_str or "auth_failure" in err_str or "invalid api key" in err_str or "403" in err_str:
+            record.is_auth_failure = True
+            record.state = ProviderHealthState.OPEN_CIRCUIT
+            record.circuit_open_ts = now
+            return
+
+        if "insufficient_quota" in err_str or "quota exceeded" in err_str or "out of credits" in err_str:
+            record.is_quota_exhausted = True
+            record.state = ProviderHealthState.OPEN_CIRCUIT
+            record.circuit_open_ts = now
+            return
+
+        act_retry = retry_after
+        if act_retry is None and hasattr(error, "retry_after"):
+            try:
+                act_retry = float(getattr(error, "retry_after"))
+            except Exception:
+                pass
+        if act_retry is not None and act_retry > 0:
+            record.retry_after_ts = now + act_retry
+            record.state = ProviderHealthState.OPEN_CIRCUIT
+            record.circuit_open_ts = now
+            return
 
         is_severe_timeout = timeout_type in ("FIRST_TOKEN_TIMEOUT", "CONNECT_TIMEOUT", "TOTAL_GENERATION_TIMEOUT") or "timeout" in str(error).lower()
 

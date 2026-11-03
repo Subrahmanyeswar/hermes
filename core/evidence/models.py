@@ -28,6 +28,17 @@ from core.runtime_state.models import (
 
 
 class EvidenceSourceType(str, Enum):
+    # Distinct Evidence Provenance Types (Phase E)
+    INPUT_DISCOVERY = "INPUT_DISCOVERY"
+    ARTIFACT_WRITE = "ARTIFACT_WRITE"
+    ARTIFACT_PROMOTION = "ARTIFACT_PROMOTION"
+    SYNTAX_VALIDATION = "SYNTAX_VALIDATION"
+    CONTRACT_VALIDATION = "CONTRACT_VALIDATION"
+    API_TEST = "API_TEST"
+    RUNTIME_TEST = "RUNTIME_TEST"
+    BROWSER_TEST = "BROWSER_TEST"
+
+    # Existing source types
     FILE_EXISTENCE = "FILE_EXISTENCE"
     FILE_CONTENT = "FILE_CONTENT"
     FILE_HASH = "FILE_HASH"

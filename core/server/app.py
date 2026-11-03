@@ -69,22 +69,67 @@ _WS_EXIST_CACHE: dict[str, tuple[bool, float]] = {}
 _APP_STARTUP_TIME = time.time()
 
 
+_CRITICAL_RUNTIME_FILES = [
+    "core/server/app.py",
+    "core/server/runtime_adapter.py",
+    "core/agent_loop/loop.py",
+    "core/agent_loop/types.py",
+    "core/agent_loop/decisions.py",
+    "core/agent_loop/recovery_policy.py",
+    "core/adaptive_routing.py",
+    "core/structured_observation.py",
+    "models/common_adapter.py",
+    "tools/platform/core_tools.py",
+    "core/event_bus.py",
+    "config/model_config.py",
+    "core/observability/__init__.py",
+    "core/observability/bus_subscriber.py",
+    "core/observability/logger.py",
+    "core/observability/schemas.py",
+    "core/observability/spans.py",
+]
+
+
+def _compute_module_hashes() -> dict[str, str]:
+    """Compute sha256 digests for all critical runtime modules."""
+    import hashlib
+    base_repo = Path(__file__).resolve().parent.parent.parent
+    hashes = {}
+    for rel in _CRITICAL_RUNTIME_FILES:
+        target = base_repo / rel
+        if target.exists():
+            hashes[rel] = hashlib.sha256(target.read_bytes()).hexdigest()[:16]
+        else:
+            hashes[rel] = "missing"
+    return hashes
+
+
 def _compute_code_fingerprint() -> str:
-    """Compute lightweight hash of core server and loop source files."""
+    """Compute combined sha256 hash of all critical runtime modules."""
     try:
         import hashlib
         h = hashlib.sha256()
-        base_dir = Path(__file__).resolve().parent
-        for rel in ["app.py", "runtime_adapter.py", "../agent_loop/loop.py"]:
-            target = (base_dir / rel).resolve()
-            if target.exists():
-                h.update(target.read_bytes())
+        hashes = _compute_module_hashes()
+        for k in sorted(hashes.keys()):
+            h.update(f"{k}:{hashes[k]}".encode("utf-8"))
         return h.hexdigest()[:16]
     except Exception:
         return "unknown"
 
 
+_SERVER_MODULE_HASHES = _compute_module_hashes()
 _SERVER_CODE_FINGERPRINT = _compute_code_fingerprint()
+
+
+def _get_code_mismatches() -> list[str]:
+    """Compare loaded server hashes with current files on disk."""
+    current_hashes = _compute_module_hashes()
+    mismatched = []
+    for rel, initial_hash in _SERVER_MODULE_HASHES.items():
+        curr_hash = current_hashes.get(rel)
+        if curr_hash != initial_hash:
+            mismatched.append(rel)
+    return mismatched
 
 
 def create_app(adapter: Optional[RuntimeAdapter] = None, registry: Optional[WorkspaceRegistry] = None) -> FastAPI:
@@ -96,6 +141,62 @@ def create_app(adapter: Optional[RuntimeAdapter] = None, registry: Optional[Work
     from models.nvidia_client import close_shared_nvidia_client
     from models.ollama_client import close_shared_ollama_client
 
+    async def _execute_safe_shutdown():
+        from core.runtime_state.events import redact_sensitive_str
+
+        # 1. Subscriber detachment
+        try:
+            if hasattr(eff_adapter, "detach_telemetry_subscriber"):
+                eff_adapter.detach_telemetry_subscriber()
+        except Exception as exc:
+            logger.warning(f"Shutdown: failed to detach telemetry subscriber: {redact_sensitive_str(str(exc))}")
+
+        # 2. Recovery coordinator shutdown
+        try:
+            shared_recovery_coordinator.stop()
+        except Exception as exc:
+            logger.warning(f"Shutdown: failed to stop recovery coordinator: {redact_sensitive_str(str(exc))}")
+
+        # 3. Connectivity monitor shutdown
+        try:
+            await shared_connectivity_monitor.stop()
+        except Exception as exc:
+            logger.warning(f"Shutdown: failed to stop connectivity monitor: {redact_sensitive_str(str(exc))}")
+
+        # 4. Transport client cleanup
+        try:
+            await transport_client_manager.aclose()
+        except Exception as exc:
+            logger.warning(f"Shutdown: failed to close transport clients: {redact_sensitive_str(str(exc))}")
+
+        # 5. NVIDIA client cleanup
+        try:
+            await close_shared_nvidia_client()
+        except Exception as exc:
+            logger.warning(f"Shutdown: failed to close NVIDIA client: {redact_sensitive_str(str(exc))}")
+
+        # 6. Ollama client cleanup
+        try:
+            await close_shared_ollama_client()
+        except Exception as exc:
+            logger.warning(f"Shutdown: failed to close Ollama client: {redact_sensitive_str(str(exc))}")
+
+        # 7. Common adapter cleanup
+        try:
+            from models.common_adapter import close_all_adapters
+            await close_all_adapters()
+        except Exception as exc:
+            logger.warning(f"Shutdown: failed to close model adapters: {redact_sensitive_str(str(exc))}")
+
+        # 8. Runtime adapter cleanup
+        try:
+            if hasattr(eff_adapter, "cleanup"):
+                eff_adapter.cleanup()
+        except Exception as exc:
+            logger.warning(f"Shutdown: failed during adapter cleanup: {redact_sensitive_str(str(exc))}")
+
+        logger.info("FastAPI lifespan shutdown: all model transport clients and monitors closed.")
+
     @asynccontextmanager
     async def lifespan(app_instance: FastAPI):
         from core.network.connectivity import shared_connectivity_monitor
@@ -106,18 +207,8 @@ def create_app(adapter: Optional[RuntimeAdapter] = None, registry: Optional[Work
         shared_connectivity_monitor.start()
         shared_recovery_coordinator.start()
         yield
-        # Graceful shutdown: close all transport clients and monitors
-        try:
-            shared_recovery_coordinator.stop()
-            await shared_connectivity_monitor.stop()
-            await transport_client_manager.aclose()
-            await close_shared_nvidia_client()
-            await close_shared_ollama_client()
-            from models.common_adapter import close_all_adapters
-            await close_all_adapters()
-            logger.info("FastAPI lifespan shutdown: all model transport clients and monitors closed.")
-        except Exception as e:
-            logger.warning(f"Error during transport client shutdown: {e}")
+        # Graceful shutdown: independently protect each cleanup operation
+        await _execute_safe_shutdown()
 
     app = FastAPI(
         title="HERMES Runtime API",
@@ -127,6 +218,7 @@ def create_app(adapter: Optional[RuntimeAdapter] = None, registry: Optional[Work
         openapi_url="/api/openapi.json",
         lifespan=lifespan,
     )
+    app.state.safe_shutdown = _execute_safe_shutdown
 
     # Attach local loopback security middleware
     app.add_middleware(LocalHostSecurityMiddleware)
@@ -148,7 +240,8 @@ def create_app(adapter: Optional[RuntimeAdapter] = None, registry: Optional[Work
         import os
         ws_root = str(workspace_manager.workspace_root) if (workspace_manager.is_locked and workspace_manager.workspace_root) else str(Path.cwd().resolve())
         disk_fingerprint = _compute_code_fingerprint()
-        is_match = bool(_SERVER_CODE_FINGERPRINT == disk_fingerprint)
+        mismatched_files = _get_code_mismatches()
+        is_match = bool(len(mismatched_files) == 0 and _SERVER_CODE_FINGERPRINT == disk_fingerprint)
         return HealthResponse(
             status="ok",
             version="1.0.0-rc1",
@@ -160,8 +253,10 @@ def create_app(adapter: Optional[RuntimeAdapter] = None, registry: Optional[Work
             startup_time=_APP_STARTUP_TIME,
             pid=os.getpid(),
             code_fingerprint=_SERVER_CODE_FINGERPRINT,
+            disk_fingerprint=disk_fingerprint,
             code_match=is_match,
             runtime_status="SYNCED" if is_match else "STALE_RUNTIME",
+            mismatched_files=mismatched_files,
             python_executable=sys.executable,
             model_stack={
                 "tier1": f"{TIER1_PROVIDER} / {TIER1_MODEL}",
@@ -175,6 +270,22 @@ def create_app(adapter: Optional[RuntimeAdapter] = None, registry: Optional[Work
     async def get_research_status_endpoint():
         from config.research_config import get_research_status
         return get_research_status()
+
+    @app.get("/api/telemetry/{run_id}/summary")
+    async def get_telemetry_summary_endpoint(run_id: str):
+        """Retrieve forensic markdown summary for a specific run."""
+        from fastapi import HTTPException
+        from core.observability.logger import validate_run_id
+        obs_root = (Path(__file__).resolve().parent.parent.parent / "artifacts" / "observability").resolve()
+        try:
+            obs_dir = validate_run_id(run_id, obs_root)
+        except ValueError as err:
+            raise HTTPException(status_code=400, detail=f"Invalid run_id: {err}")
+        summary_file = obs_dir / "mission_summary.md"
+        if summary_file.exists():
+            return {"run_id": run_id, "summary": summary_file.read_text(encoding="utf-8")}
+        raise HTTPException(status_code=404, detail=f"No forensic summary found for run '{run_id}'")
+
 
     # ── 1C. GET /api/providers/status ─────────────────────────────────────────
     @app.get("/api/providers/status")
@@ -604,12 +715,13 @@ def create_app(adapter: Optional[RuntimeAdapter] = None, registry: Optional[Work
 
         if status_val == "COMPLETED" and not final_out:
             created_list = "\n".join(f"- `{f}`" for f in (all_created or ["index.html"]))
+            entry_f = all_created[0] if all_created else 'index.html'
             final_out = (
-                f"### Mission Completed Successfully\n\n"
+                f"### Mission Completed\n\n"
                 f"**Objective:** {state.mission.prompt or 'Build web application'}\n\n"
                 f"**Outcome & Deliverables:**\n{created_list}\n\n"
-                f"**Verification:** All requirements and behavioral contracts verified.\n\n"
-                f"**Launch Instructions:** Open `index.html` in your browser or run a local web server to explore the application."
+                f"**Verification:** Mission reached completion; inspect individual verification checks and evidence log for specific status.\n\n"
+                f"**Launch Instructions:** Open `{entry_f}` in your browser or run the local application server."
             )
 
         return MissionSnapshot(

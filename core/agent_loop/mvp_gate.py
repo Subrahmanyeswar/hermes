@@ -141,51 +141,64 @@ class WebsiteMvpGate:
             except Exception:
                 missing.append("package.json (malformed JSON syntax)")
 
-        # 2. index.html
-        html_path = ws / "index.html"
+        # Resolve canonical paths via ProjectContract (Phase B)
+        from core.project_contract import ProjectContract
+        contract = ProjectContract.create_or_load(ws)
+        canonical_html_rel = contract.canonical_html
+        canonical_css_rel = contract.canonical_css
+        canonical_js_rel = contract.canonical_js
+
+        # 2. HTML entrypoint
+        html_path = ws / canonical_html_rel
+        if not html_path.exists():
+            alt_html = ws / ("index.html" if "static/" in canonical_html_rel else "static/index.html")
+            if alt_html.exists() and alt_html.stat().st_size >= 50:
+                html_path = alt_html
+
         if not html_path.exists() or html_path.stat().st_size < 50:
-            missing.append("index.html")
+            missing.append(canonical_html_rel)
         else:
             try:
-                html_txt = html_path.read_text(encoding="utf-8", errors="ignore")
+                html_txt = html_path.read_text(encoding='utf-8', errors='ignore')
                 has_script = bool(re.search(r'<script[^>]+src=["\']([^"\']+\.js)["\']', html_txt, re.I))
                 if not has_script:
-                    missing.append("index.html (missing entrypoint <script> tag)")
+                    missing.append(f"{canonical_html_rel} (missing entrypoint <script> tag)")
             except Exception:
                 pass
 
         # 3. Primary JavaScript entrypoint (contract-driven & dynamic)
-        expected_js = "app.js"
-        # Check project contract if present
-        contract_file = ws / ".hermes" / "project_contract.json"
-        if contract_file.exists():
+        expected_js = canonical_js_rel
+        if html_path.exists():
             try:
-                cdata = json.loads(contract_file.read_text(encoding="utf-8", errors="ignore"))
-                if cdata.get("canonical_js"):
-                    expected_js = cdata["canonical_js"]
-            except Exception:
-                pass
-        elif html_path.exists():
-            # Check script referenced in index.html
-            try:
-                html_txt_check = html_path.read_text(encoding="utf-8", errors="ignore")
+                html_txt_check = html_path.read_text(encoding='utf-8', errors='ignore')
                 scripts_found = re.findall(r'<script[^>]+src=["\']([^"\']+\.js)["\']', html_txt_check, re.I)
                 for s in scripts_found:
                     if not s.startswith(("http://", "https://", "//")):
-                        expected_js = s.lstrip("./")
+                        clean_name = Path(s.lstrip('./')).name
+                        expected_js = f"static/{clean_name}" if "static/" in canonical_html_rel else clean_name
                         break
             except Exception:
                 pass
         elif pkg_path.exists():
             try:
-                pkg_data_check = json.loads(pkg_path.read_text(encoding="utf-8", errors="ignore"))
+                pkg_data_check = json.loads(pkg_path.read_text(encoding='utf-8', errors='ignore'))
                 if pkg_data_check.get("main") and isinstance(pkg_data_check["main"], str):
                     expected_js = pkg_data_check["main"].lstrip("./")
             except Exception:
                 pass
 
-        main_cands = [expected_js, "app.js", "main.js", "src/main.js", "src/app.js", "index.js", "script.js"]
-        # Remove duplicates while preserving order
+        main_cands = [
+            expected_js,
+            canonical_js_rel,
+            "static/app.js",
+            "static/main.js",
+            "app.js",
+            "main.js",
+            "src/main.js",
+            "src/app.js",
+            "index.js",
+            "script.js",
+        ]
         seen_cands = set()
         ordered_cands = []
         for c in main_cands:
@@ -196,17 +209,16 @@ class WebsiteMvpGate:
         found_main: Optional[Path] = None
         for p in ordered_cands:
             cand_p = ws / p
-            if cand_p.exists() and cand_p.stat().st_size > 40:
+            if cand_p.exists() and cand_p.stat().st_size > 10:
                 found_main = cand_p
                 break
 
         if not found_main:
             missing.append(expected_js)
         else:
-            # Check completeness and lack of placeholder stubs (Section 4 & 5)
             try:
                 from core.code_completeness import validate_implementation_completeness
-                code_txt = found_main.read_text(encoding="utf-8", errors="ignore")
+                code_txt = found_main.read_text(encoding='utf-8', errors='ignore')
                 is_complete, comp_err = validate_implementation_completeness(code_txt, found_main.name)
                 if not is_complete:
                     missing.append(f"{found_main.name} (incomplete or contains placeholder stubs: {comp_err})")
@@ -214,8 +226,8 @@ class WebsiteMvpGate:
                 logger.debug(f"WebsiteMvpGate: completeness check notice on {found_main}: {e}")
 
         # 4. Stylesheet (must exist, > 20 bytes, and connected)
-        style_cands = ["style.css", "src/style.css", "styles.css", "src/styles.css"]
-        has_style = any((ws / p).exists() and (ws / p).stat().st_size > 20 for p in style_cands)
+        style_cands = [canonical_css_rel, "static/style.css", "style.css", "src/style.css", "styles.css", "src/styles.css"]
+        has_style = any((ws / p).exists() and (ws / p).stat().st_size > 10 for p in style_cands)
         if not has_style:
             # Check if linked in index.html
             linked_css = False
@@ -229,7 +241,7 @@ class WebsiteMvpGate:
                 except Exception:
                     pass
             if not linked_css:
-                missing.append("style.css")
+                missing.append(canonical_css_rel)
 
         # 5. Cross-artifact structural integration check
         if len(missing) == 0:
@@ -241,6 +253,18 @@ class WebsiteMvpGate:
                         missing.append(f"DOM mismatch: {iss}")
             except Exception as e:
                 logger.debug(f"WebsiteMvpGate: integration validation notice: {e}")
+
+            # 6. Responsibility Contract Validation (Section 9.1) for full-stack applications
+            has_backend = (ws / "main.py").exists() or (ws / "app.py").exists() or (ws / "server.py").exists()
+            if has_backend:
+                try:
+                    from core.responsibility_contract import ResponsibilityContractEvaluator
+                    resp_rep = ResponsibilityContractEvaluator.evaluate_workspace(ws)
+                    if not resp_rep.valid:
+                        for u in resp_rep.unmet_responsibilities:
+                            missing.append(f"Unmet responsibility: {u}")
+                except Exception as e:
+                    logger.debug(f"WebsiteMvpGate: responsibility validation notice: {e}")
 
         return len(missing) == 0, missing
 

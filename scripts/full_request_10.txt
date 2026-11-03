@@ -1,0 +1,1207 @@
+<USER_REQUEST>
+# HERMES — AUTONOMOUS SOFTWARE ENGINEERING RELIABILITY UPGRADE
+## FINAL FORENSIC REPAIR AND CONTRACT-FIRST GENERATION
+
+**PRIORITY: CRITICAL — FINAL COLLEGE PROJECT REVIEW**
+
+**PRODUCT OBJECTIVE: HERMES MUST AUTONOMOUSLY BUILD COMPLETE, INTEGRATED, WORKING APPLICATIONS FROM NATURAL-LANGUAGE REQUIREMENTS.**
+
+---
+
+# 0. THE NON-NEGOTIABLE PRODUCT OBJECTIVE
+
+HERMES is the product being evaluated.
+
+TaskForge, CampusFlow, AURELION and other generated applications are qualification projects used to demonstrate HERMES's autonomous software engineering capabilities.
+
+The objective is NOT to manually complete those applications.
+
+HERMES itself must perform the complete lifecycle:
+
+1. Understand the user's application requirements.
+2. Plan the project architecture.
+3. Compile a shared machine-readable project contract.
+4. Establish canonical file paths and cross-file interfaces.
+5. Generate HTML, CSS, JavaScript, Python, database schemas, JSON, configuration and documentation as required.
+6. Validate individual artifacts.
+7. Detect cross-file incompatibilities.
+8. Repair identified defects using bounded recovery.
+9. Start the application.
+10. Test APIs and real browser workflows.
+11. Preserve evidence and report actual completion status.
+
+The fundamental engineering requirement:
+
+**Every generated artifact must be compatible with the other artifacts that depend on it. HERMES must verify this rather than assume it.**
+
+Do not replace HERMES's autonomous generation with manual application implementation.
+
+# 1. STRICT REPOSITORY AND OWNERSHIP BOUNDARY
+
+## Authorized repository
+
+`C:\Users\SUBBU\Downloads\hermes`
+
+Canonical Python interpreter:
+
+`C:\Users\SUBBU\Downloads\hermes\venv\Scripts\python.exe`
+
+Python version: 3.12.0.
+
+Use this interpreter for every Python command, test, migration check and backend operation.
+
+Do not:
+- Recreate or replace the virtual environment.
+- Use system Python.
+- Change the existing three-tier model configuration.
+- Change API keys or provider configuration.
+- Rewrite EventBus architecture.
+- Perform unrelated AgentLoop refactoring.
+- Stage or commit Git changes.
+- Reset, clean, stash or discard the user's existing Git modifications.
+
+## Strict zero-touch generated-workspace boundary
+
+You may inspect, edit and test HERMES source code and HERMES tests only.
+
+You must NOT create, modify, repair, rename, delete, promote, overwrite or reformat files in:
+
+- `C:\Users\SUBBU\Downloads\testing 2`
+- `C:\Users\SUBBU\Downloads\testing 1`
+- CampusFlow workspaces.
+- AURELION workspaces.
+- Any other HERMES-generated application workspace.
+
+Do not use Antigravity to finish TaskForge or any other generated application.
+
+All new synthetic test projects must be created inside isolated temporary directories managed by HERMES tests, preferably using `pytest tmp_path`.
+
+The generated application folders must remain exclusively controlled by HERMES during qualification.
+
+Before any filesystem write, resolve the destination and verify that it belongs to the authorized HERMES repository or an isolated test temporary directory.
+
+Reject path traversal and symlink escapes.
+
+# 2. EXECUTION RULES
+
+This is a forensic infrastructure repair, not an invitation to redesign HERMES from scratch.
+
+Work autonomously through the phases below.
+
+Do not stop after producing a plan.
+
+Do not spend excessive time repeatedly reasoning about the same failure.
+
+For every implementation phase:
+
+1. Inspect the existing implementation.
+2. Identify actual call sites and dependencies.
+3. Implement the smallest correct change.
+4. Add focused regression tests.
+5. Execute the tests with the canonical Python interpreter.
+6. Record the actual result.
+7. Continue only when the acceptance conditions for that phase are met.
+
+When a component already provides the required functionality, strengthen or integrate it instead of creating a duplicate.
+
+Do not create a second CrossFileContractManager, second evidence ledger, second mission-state engine or parallel file-generation pipeline.
+
+Preserve backward compatibility where practical.
+
+Do not copy the supplied illustrative pseudocode blindly. It is architectural guidance, not production-ready source code.
+
+# 3. FORENSIC FINDINGS — CONFIRMED EVIDENCE
+
+The following are confirmed observations from TaskForge mission:
+
+`m_4d8f79d2`
+
+Workspace:
+
+`C:\Users\SUBBU\Downloads\testing 2`
+
+## Finding A — Incorrect JavaScript staging validation
+
+HERMES generated:
+
+`static/app.js.pending`
+
+It attempted:
+
+`node --check static/app.js.pending`
+
+Node.js v20.18.3 returned:
+
+`ERR_UNKNOWN_FILE_EXTENSION: Unknown file extension ".pending"`
+
+The exact pending file was subsequently copied to:
+
+`static/__taskforge_validation__.js`
+
+Then:
+
+`node --check static/__taskforge_validation__.js`
+
+returned:
+
+`NODE EXIT CODE: 0`
+
+Therefore, the generated JavaScript content was syntactically valid under the successful `.js` check.
+
+The previous extension error must not be reported as proof of malformed JavaScript.
+
+This establishes a validator defect, not universal proof that every generated artifact is correct.
+
+## Finding B — Stale project contract
+
+The existing TaskForge contract contained:
+
+- Mission ID: `m_0fa1397d`
+- Canonical HTML: `index.html`
+- Canonical CSS: `style.css`
+- Canonical JavaScript: `app.js`
+
+But the later active mission was `m_4d8f79d2` and the actual frontend structure was:
+
+- `static/index.html`
+- `static/style.css`
+- `static/app.js.pending`
+
+This demonstrates that the project-contract lifecycle and file-layout detection were not consistently reconciled between missions.
+
+## Finding C — Duplicate root artifact
+
+The event sequence shows that HERMES created another root-level `index.html` during recovery, even though the application already had `static/index.html`.
+
+The planner, contract manager, scaffold checker and file-writing tools were not operating against one consistently enforced path definition.
+
+## Finding D — Contradictory mission state
+
+`progress.json` reported:
+
+`current_focus: req.style`
+
+while:
+
+`recovery_checkpoint.json` requested root-level scaffold creation.
+
+The checkpoint referred to missing root-level paths instead of the existing nested static structure.
+
+## Finding E — Evidence misclassification
+
+A successful `fs.write` operation was recorded as:
+
+`source_type: FUNCTIONAL_EVALUATION`
+
+with:
+
+`command: null`
+
+A successful file creation is not functional validation.
+
+## Finding F — Model escalation on local failures
+
+The event stream showed repeated validation failures, repeated reads and generation attempts, followed by:
+
+Gemini → Codestral → NVIDIA.
+
+These events demonstrate recovery inefficiency.
+
+A deterministic local Node.js file-extension error must not trigger model-provider failover.
+
+# 4. PHASE 0 — BASELINE AND SOURCE-CODE FORENSIC AUDIT
+
+Before editing anything, inspect the HERMES repository.
+
+First collect:
+
+- Current Git branch.
+- `git status --short`.
+- Python executable and Python version.
+- HERMES health and runtime status, where available.
+- Existing focused tests and current regression baseline.
+
+Do not discard any existing changes.
+
+Inspect the existing implementations and their call graph, including relevant components for:
+
+- Artifact generation.
+- File creation and promotion.
+- JavaScript validation.
+- Shell command execution.
+- Workspace path resolution.
+- Project contract generation.
+- `core/cross_file_contract.py`, if present.
+- `core/responsibility_contract.py`, if present.
+- Scaffold completeness detection.
+- `core/pytest_recovery_engine.py`, if present.
+- `core/runtime_integration_gate.py`, if present.
+- Mission progress and checkpoint persistence.
+- Evidence persistence.
+- No-progress detection.
+- Model routing and failover.
+- Existing browser and API verification.
+
+Names above are investigation starting points, not assumptions that a function or module must be recreated.
+
+Build an implementation map:
+
+| Subsystem | Existing implementation | Actual callers | Current defect | Proposed minimal repair |
+|---|---|---|---|---|
+
+Trace the real execution path from:
+
+User request → planning → contract → file generation → staged validation → file promotion → state update → cross-file verification → runtime tests → browser tests.
+
+Do not modify anything until the relevant call graph and existing data formats are understood.
+
+After the audit, proceed with the repairs. Do not wait for another user confirmation.
+
+# 5. PHASE A — ROBUST JAVASCRIPT STAGING AND VALIDATION
+
+This is the first implementation priority because the failure was reproduced directly.
+
+Locate every code path that stages JavaScript and invokes:
+
+- `node --check`
+- `node -c`
+- Any equivalent JavaScript validator.
+
+Ensure all paths use one shared validation implementation.
+
+## A1. Correct staging convention
+
+For a final artifact:
+
+`static/app.js`
+
+Prefer staging as:
+
+`static/app.pending.js`
+
+The final extension remains `.js`.
+
+Keep the staged file in the target directory or another verified same-volume location with equivalent module-resolution context.
+
+Do not generate `.pending` as the final file extension for JavaScript files.
+
+## A2. Legacy staging compatibility
+
+The validator must also safely handle existing staged names such as:
+
+`static/app.js.pending`
+
+When a legacy staged filename is encountered:
+
+1. Preserve its original contents.
+2. Create a temporary validation copy ending in the correct JavaScript extension.
+3. Validate that copy.
+4. Capture the complete command result.
+5. Delete the temporary validation copy in a `finally` block.
+6. Preserve the original staged artifact on failure.
+
+Never destructively rename an unvalidated file just to make Node accept its extension.
+
+## A3. JavaScript module-format correctness
+
+Do not determine JavaScript module type solely by a crude regular expression.
+
+Inspect the relevant context:
+
+- `.mjs` or `.cjs` final extension.
+- `package.json` module type.
+- HTML script `type="module"`.
+- Existing project module configuration.
+
+Use the appropriate validation mode and extension.
+
+A validator must not generate false syntax failures because it parsed a module using the wrong module rules.
+
+Ensure temporary validation happens in a context compatible with the intended project.
+
+## A4. Structured validation result
+
+Capture and persist:
+
+- Canonical target path.
+- Staged path.
+- Workspace root.
+- Exact command arguments.
+- Working directory.
+- Node executable/version.
+- Input SHA-256.
+- Standard output.
+- Standard error.
+- Exit code.
+- Validation outcome.
+- Error classification.
+- Line and column when reliably available.
+- Validation timestamp.
+
+Do not fabricate a line or column when Node's diagnostic does not expose one.
+
+Preserve the original diagnostic text.
+
+Bound stored output without losing the complete diagnostic from the recovery context.
+
+## A5. Error classification
+
+Use distinct categories, at minimum:
+
+- `syntax_error`
+- `validator_missing`
+- `validator_environment_error`
+- `unsupported_extension`
+- `module_configuration_error`
+- `validation_timeout`
+- `file_missing`
+- `validation_success`
+
+Important:
+
+`ERR_UNKNOWN_FILE_EXTENSION` is a validator/harness problem, not an ordinary JavaScript syntax defect.
+
+A missing Node executable is also a harness problem.
+
+A timeout is a tool execution failure.
+
+These conditions must not be sent to a model as instructions to rewrite otherwise valid JavaScript.
+
+## A6. Atomic promotion
+
+On successful validation only:
+
+1. Confirm the staged file still matches the validated input hash.
+2. Ensure the destination stays within the workspace.
+3. Promote the exact validated artifact using same-volume atomic replacement, such as `os.replace`.
+4. Preserve an existing working final artifact until the replacement has passed validation.
+5. Record `ARTIFACT_PROMOTION` evidence.
+6. Reconcile the artifact state against the promoted file hash.
+
+If validation fails, preserve the staged artifact and the previous working final artifact.
+
+The validator must not silently replace a valid final file with invalid source.
+
+# 6. PHASE B — CONTRACT-FIRST PROJECT GENERATION
+
+Strengthen the existing project-contract architecture.
+
+Do not create a duplicate cross-file manager.
+
+The contract must be established before the application artifact generators independently invent their shared interfaces.
+
+## B1. Canonical project contract
+
+Use a versioned, machine-readable contract stored within the generated project's HERMES metadata directory.
+
+The contract should contain:
+
+- Schema version.
+- Mission ID.
+- Workspace identity.
+- Application name and type.
+- Project layout.
+- Canonical HTML, CSS, JavaScript and backend paths.
+- Required artifact paths.
+- DOM IDs.
+- DOM classes.
+- Dynamic IDs/classes.
+- Data attributes.
+- CSS custom properties.
+- API endpoints and HTTP methods.
+- Request field names and data types.
+- Response field names and data types.
+- Status and enum values.
+- Data models.
+- Database tables and columns.
+- Asset dependencies.
+- Runtime configuration.
+- External dependencies.
+- Contract hash.
+- Creation and migration provenance.
+
+Use explicit workspace-relative forward-slash paths, for example:
+
+`static/index.html`
+
+`static/style.css`
+
+`static/app.js`
+
+Do not assume every project must use `static/`. The layout must be determined from the project plan and the actual workspace structure.
+
+## B2. Layout detection
+
+Implement deterministic layout selection.
+
+Use this order:
+
+1. Explicit project-planner layout declaration.
+2. Existing actual entrypoints and established project structure.
+3. Existing backend static mount or frontend build configuration.
+4. Project-type conventions for a genuinely new empty workspace.
+
+Support at least:
+
+- Root layout: `index.html`, `style.css`, `app.js`.
+- Static layout: `static/index.html`, `static/style.css`, `static/app.js`.
+- Existing projects with explicit custom frontend directories.
+
+Do not choose `static/` merely because any unrelated file happens to exist inside it.
+
+Do not choose root merely because a stale root-level file exists.
+
+If both root and nested entrypoints exist and their ownership is ambiguous, report the ambiguity and inspect the project configuration. Do not silently create another duplicate application.
+
+## B3. Canonical path resolver
+
+All artifact planners, file tools, scaffold checks, validators, recovery operations and contract verifiers must use the same canonical path-resolution implementation.
+
+Requirements:
+
+- Normalize Windows separators.
+- Correctly distinguish absolute and relative paths.
+- Resolve paths against the active workspace.
+- Reject paths that escape the workspace.
+- Reject symlink paths resolving outside the workspace.
+- Reject invalid traversal such as `../`.
+- Map only explicit canonical artifact aliases.
+- Never map every file sharing a basename to the same artifact.
+
+For example:
+
+`index.html` may resolve to the declared canonical HTML entrypoint when explicitly treated as an HTML entrypoint alias.
+
+But:
+
+`admin/index.html`
+
+must not silently be redirected to the primary HTML entrypoint.
+
+Likewise, an unrelated JavaScript asset must not be mapped to the application's main `app.js`.
+
+Do not return an external path's basename as a fallback for an out-of-workspace path. Reject it with a precise error.
+
+## B4. Stale contract reconciliation
+
+A contract from another mission must never silently override an active mission.
+
+Compare:
+
+- Mission ID.
+- Workspace identity.
+- Schema version.
+- Canonical paths.
+- Project continuation intent.
+- Existing artifacts and their hashes.
+
+Archive incompatible legacy contracts while preserving their history.
+
+For a legitimate continuation of an existing project, validated interface definitions may be migrated with recorded provenance.
+
+Do not blindly discard valid existing project knowledge.
+
+Do not blindly reuse old mission configuration either.
+
+The active project contract must belong to the current mission and workspace.
+
+## B5. Contract distribution to generators
+
+Every artifact-generation request must receive:
+
+- The same contract identifier.
+- The same contract hash.
+- The relevant subset of the contract.
+- Its dependency information.
+- The names and schemas of producer artifacts it depends upon.
+
+Generators must not independently invent:
+
+- DOM IDs.
+- CSS classes.
+- API routes.
+- JSON property names.
+- Enum values.
+- Database field names.
+- Runtime asset paths.
+
+If a contract change is necessary, explicitly update the authoritative contract, increment its version/hash and invalidate affected dependent artifacts for revalidation.
+
+Do not allow an artifact generator to silently change a shared interface without updating the contract.
+
+# 7. PHASE C — REAL CROSS-FILE CONTRACT GATE
+
+Strengthen and integrate the existing:
+
+`core/cross_file_contract.py`
+
+Do not create a competing gate.
+
+The contract gate must perform pre-generation and post-generation verification.
+
+## C1. HTML ↔ JavaScript
+
+Verify:
+
+- HTML IDs used by JavaScript.
+- `getElementById` references.
+- Static `querySelector` references.
+- Declared dynamic elements.
+- Data attributes.
+- Event targets.
+
+Use the actual parsed HTML structure.
+
+Recognize valid dynamic creation and DOM-building patterns where they can be established.
+
+Do not classify every dynamically constructed selector as a missing HTML ID.
+
+For uncertain dynamic references, report `UNVERIFIED` or a warning rather than a false hard failure.
+
+A genuine missing reference must identify:
+
+- Producer file.
+- Consumer file.
+- Missing identifier.
+- Source location if available.
+- Suggested repair target.
+
+## C2. HTML/JavaScript ↔ CSS
+
+Verify:
+
+- HTML classes and corresponding styles.
+- JavaScript-created classes.
+- Declared dynamic classes.
+- CSS custom property definitions and references.
+- Missing CSS variables.
+- Missing stylesheet references.
+- Invalid local asset paths.
+
+Support common patterns such as `classList.add`, `classList.remove`, class assignment and DOM element construction.
+
+Respect declared dynamic classes and configured external styling dependencies.
+
+Avoid treating pseudo-classes, pseudo-elements, global selectors, utility framework classes or external library classes as application integration failures.
+
+For CSS custom properties, detect genuinely undefined references.
+
+A valid fallback inside `var(--property, fallback)` must not be reported as a missing required definition.
+
+## C3. Frontend ↔ Backend
+
+Where FastAPI exists:
+
+- Obtain the application's OpenAPI schema safely where feasible.
+- Compare frontend HTTP methods and routes against backend routes.
+- Compare path parameters.
+- Compare JSON request fields.
+- Compare response models and fields.
+- Compare status and enum expectations where declared.
+
+Use the shared project contract and structured schema information.
+
+Do not rely exclusively on a single regular expression over JavaScript source.
+
+Where JavaScript uses highly dynamic route construction, report the limitation and use runtime API verification rather than inventing a false static match.
+
+## C4. Backend ↔ Database
+
+Where SQLite exists:
+
+- Inspect actual tables.
+- Inspect columns using `PRAGMA table_info`.
+- Verify expected table/column names.
+- Check foreign keys when declared.
+- Compare backend model expectations against the actual schema.
+- Identify missing columns or tables.
+
+Do not assume regex searches of SQL strings can reliably understand every dynamically composed query.
+
+Classify unresolved dynamic SQL as unverified where necessary.
+
+Database inspection must be read-only during contract verification.
+
+## C5. Application structure and assets
+
+Validate:
+
+- HTML entrypoints.
+- Script paths.
+- Stylesheet paths.
+- Images and local assets.
+- Relative imports.
+- Runtime entrypoints.
+- Static mounts.
+- Configuration files.
+- Required project dependencies.
+
+Ignore legitimate external URLs, data URLs, anchors and external CDN assets when checking local paths.
+
+## C6. Gate severity
+
+Return structured results with:
+
+- `PASS`
+- `FAIL`
+- `WARNING`
+- `UNVERIFIED`
+
+Only high-confidence, reproducible incompatibilities should block generation or final acceptance.
+
+Do not make the gate so aggressive that valid applications fail because of incomplete static analysis.
+
+Every failure must identify the exact producer, consumer, symbol and suggested repair location whenever possible.
+
+## C7. Gate integration
+
+Run the relevant checks:
+
+1. After the project contract is established.
+2. After each artifact is successfully produced and validated, for its relevant dependencies.
+3. After all core artifacts are available.
+4. Before runtime startup.
+5. Before final mission acceptance.
+
+Do not demand that a backend route already exists when the backend generation phase has not yet run.
+
+Use dependency-aware validation order.
+
+# 8. PHASE D — AUTHORITATIVE MISSION STATE
+
+Investigate all current consumers of:
+
+- `.artifacts/missions/<mission_id>/progress.json`
+- `.hermes/recovery_checkpoint.json`
+- `.hermes/project_contract.json`
+
+The actual TaskForge evidence showed conflicting progress and recovery instructions.
+
+Implement one authoritative mission-state model.
+
+A dedicated:
+
+`.hermes/mission_state.json`
+
+may be introduced if it fits the actual architecture and does not create a parallel state engine.
+
+The authoritative state must include:
+
+- Mission ID.
+- Workspace identity.
+- Contract version and hash.
+- Monotonic state version.
+- Current phase.
+- Required artifacts.
+- Final artifact paths.
+- Staged artifact paths.
+- Current artifact hashes.
+- Validation evidence associated with each hash.
+- Contract validation status.
+- Unmet requirements.
+- Current repair target.
+- Single next action.
+- Last meaningful progress event.
+
+## D1. Disk and evidence consistency
+
+Recompute artifact completion using canonical paths and actual file hashes.
+
+A staged file is not a final completed artifact.
+
+A final JavaScript file is not syntax-validated merely because an older version passed validation.
+
+Successful validation evidence is valid only when its input SHA matches the artifact being accepted.
+
+If the file changes after validation, its previous validation must be considered stale.
+
+## D2. Checkpoint reconciliation
+
+Mission progress and recovery checkpoints must be derived from authoritative state or synchronized through a versioned compatibility layer.
+
+Inspect all existing readers and writers before changing their formats.
+
+Do not break existing AgentLoop or UI consumers.
+
+Reject stale or foreign mission checkpoints.
+
+A checkpoint with an older state version or contract hash must not override newer verified evidence.
+
+Archive conflicting historical information instead of deleting it.
+
+Use atomic persistence for state files.
+
+## D3. Pure reconciliation
+
+Mission-state reconciliation must not unexpectedly create, overwrite, rename or promote application artifacts.
+
+Its responsibility is to determine state and return the correct next action.
+
+Actual artifact promotion belongs to the controlled validation-and-promotion operation.
+
+This separation is mandatory.
+
+Run reconciliation before the planner selects a new tool action and after meaningful state-changing results.
+
+Avoid expensive repeated full-workspace scans during every internal reasoning event.
+
+# 9. PHASE E — STRICT EVIDENCE PROVENANCE
+
+Inspect the existing mission evidence and event journal architecture.
+
+Do not create a duplicate event store.
+
+Introduce or enforce distinct evidence categories:
+
+- `INPUT_DISCOVERY`
+- `ARTIFACT_WRITE`
+- `ARTIFACT_PROMOTION`
+- `SYNTAX_VALIDATION`
+- `CONTRACT_VALIDATION`
+- `API_TEST`
+- `RUNTIME_TEST`
+- `BROWSER_TEST`
+
+## E1. Artifact-write evidence
+
+A successful write must record:
+
+- Mission ID.
+- Workspace.
+- Workspace-relative target.
+- Tool-call/action ID.
+- Timestamp.
+- Content SHA-256.
+- File size.
+- Operation result.
+
+A write event proves that the file was written. Nothing more.
+
+## E2. Validation evidence
+
+Every validation record must include:
+
+- Actual command or deterministic validator ID.
+- Working directory.
+- Tool/version.
+- Exit code or explicit structured result.
+- Input content hash.
+- Output digest.
+- Actual outcome.
+- Mission and artifact identity.
+
+A validation event must not default silently to `exit_code = 0`.
+
+Failed checks must be stored as failed checks.
+
+Do not silently downgrade invalid validation records into successful file-write evidence.
+
+Reject malformed validation records with a clear error.
+
+For non-shell internal checks, use a stable validator ID/version, input hash and explicit result instead of inventing a shell command.
+
+## E3. Functional evidence
+
+A successful file creation must NEVER count as:
+
+- Syntax validation.
+- Contract validation.
+- API success.
+- Runtime success.
+- Browser success.
+
+Only actual executed checks produce the corresponding evidence type.
+
+Historical records must remain preserved.
+
+Do not rewrite old evidence to make past missions appear more successful.
+
+## E4. Provenance report
+
+Provide a machine-readable mission output provenance manifest using the actual write journal.
+
+Compare the final SHA-256 of each declared generated artifact with its latest successful HERMES artifact-write/promotion event.
+
+Distinguish:
+
+- HERMES-generated outputs.
+- Pre-existing workspace inputs.
+- User-supplied files.
+- Runtime-generated files.
+- Unattributed or externally modified artifacts.
+
+Do not claim that every file in a workspace was written by HERMES when that is not established.
+
+Do not add a new UI dashboard or public API endpoint for provenance unless an existing low-risk integration point already supports it.
+
+The priority is trustworthy provenance, not cosmetic reporting.
+
+# 10. PHASE F — FAILURE CLASSIFICATION AND BOUNDED RECOVERY
+
+Investigate the existing recovery engine and model-routing call sites.
+
+Separate these failure categories:
+
+| Failure category | Required behavior |
+|---|---|
+| Provider timeout/quota/unavailability | Apply existing provider failover policy |
+| Provider authentication/configuration error | Report configuration failure or apply only a valid provider-specific policy |
+| Local JavaScript syntax error | Targeted code repair |
+| Invalid staged-file extension | Fix validator/harness |
+| Node executable missing | Fix environment; no model failover |
+| File not found | Resolve exact workspace path and retry once |
+| Path traversal/outside workspace | Reject safely |
+| Cross-file contract mismatch | Repair identified producer or consumer |
+| API failure | Diagnose actual backend/frontend defect |
+| Runtime failure | Diagnose application execution |
+| Browser failure | Diagnose the failed workflow |
+| Repeated unchanged result | Stop repeating and change strategy |
+
+## F1. Provider failover
+
+Model-provider failover must be driven by a failure at the actual model-provider call boundary.
+
+A local shell command returning exit code 1 is not evidence that Gemini, Codestral or NVIDIA failed.
+
+Do not trigger provider failover due to:
+
+- `node --check` errors.
+- Incorrect file extensions.
+- Missing local files.
+- CSS validation errors.
+- Failed API tests.
+- Browser assertion failures.
+- Contract mismatches.
+
+Do not change existing model names, credentials or configuration unnecessarily.
+
+## F2. No-progress fingerprints
+
+Create or improve the existing operation fingerprint system.
+
+A stable fingerprint should account for:
+
+- Mission ID.
+- Workspace.
+- Operation type.
+- Exact normalized arguments.
+- Working directory.
+- Relevant input/file hash.
+- Relevant tool/version.
+- Failure signature.
+
+After two identical failures with no meaningful intervening change, refuse a third identical operation.
+
+Do not incorrectly block a legitimate retry when:
+
+- The target file changed.
+- The command changed.
+- The workspace changed.
+- The underlying error changed.
+- A targeted repair produced new evidence.
+
+## F3. Bounded repair
+
+For localized source defects:
+
+1. Preserve the failing artifact.
+2. Provide the exact diagnostic and a bounded source window.
+3. Request a targeted repair.
+4. Require the target file hash to change.
+5. Re-run the same validation.
+6. Record the result.
+
+Allow a maximum of two targeted repair attempts per unchanged failure signature.
+
+If the repair does not change the file or the same failure remains, stop and report the exact issue.
+
+Do not repeatedly regenerate entire application files for localized defects.
+
+# 11. PHASE G — TESTS AND REGRESSION
+
+Create a focused test suite inside the HERMES repository.
+
+Suggested test file:
+
+`tests/test_autonomous_generation_reliability.py`
+
+Use synthetic workspaces created inside test temporary directories.
+
+Never use TaskForge, CampusFlow or AURELION as writeable test fixtures.
+
+Use the canonical interpreter:
+
+`C:\Users\SUBBU\Downloads\hermes\venv\Scripts\python.exe`
+
+## Required tests
+
+### Test Group 1 — Staged JavaScript
+
+1. Valid JavaScript staged as `app.pending.js` validates.
+2. Legacy `app.js.pending` is safely validated through a `.js` temporary copy.
+3. Valid files are atomically promoted.
+4. Invalid JavaScript is classified as `syntax_error`.
+5. Line and column are extracted where Node provides them.
+6. Failed validation preserves the staged artifact.
+7. An existing working final file remains untouched after a failed replacement.
+8. An unknown extension is classified as a validator problem, never as a syntax error.
+9. Node missing from PATH is classified as a harness issue.
+10. ES module and CommonJS files are checked under the correct module configuration.
+
+### Test Group 2 — Canonical paths and contracts
+
+1. Root frontend layout resolves correctly.
+2. Nested `static/` layout resolves correctly.
+3. Existing custom frontend layout is respected.
+4. Conflicting root and nested entrypoints are detected without silently duplicating files.
+5. Stale mission contracts are archived and reconciled safely.
+6. Cross-workspace contracts are rejected.
+7. Absolute paths outside the workspace are rejected.
+8. Relative path traversal is rejected.
+9. Symlink escapes are rejected where supported.
+10. File generators and scaffold checkers use identical canonical paths.
+
+### Test Group 3 — Cross-file contract validation
+
+Create passing and intentionally failing fixtures.
+
+Catch:
+
+- HTML ID missing from JavaScript.
+- Incorrect static selector.
+- Missing dynamic identifier declaration.
+- HTML class missing from CSS when genuinely required.
+- Missing dynamic class declaration.
+- Undefined CSS custom property without fallback.
+- Missing local script or stylesheet.
+- API route mismatch.
+- HTTP method mismatch.
+- Request field mismatch where schema evidence is available.
+- Response model mismatch where schema evidence is available.
+- Invalid enum values.
+- Missing database tables and columns.
+
+Ensure valid dynamic UI and external styling dependencies do not generate false blocker results.
+
+The clean fixture must pass.
+
+### Test Group 4 — Mission state
+
+1. Progress and checkpoint disagreement.
+2. Stale contract from previous mission.
+3. Stale checkpoint from previous mission.
+4. Pending artifact not counted as final.
+5. Validated artifact with matching hash.
+6. Previously validated file changed after validation.
+7. Single authoritative next action.
+8. Reconciliation does not itself promote application artifacts.
+9. State writes are atomic and versioned.
+
+### Test Group 5 — Evidence provenance
+
+1. `fs.write` produces only `ARTIFACT_WRITE`.
+2. Invalid validation evidence is rejected.
+3. Validation requires an actual command or deterministic validator ID.
+4. Validation input hash is recorded.
+5. Failed validation records remain failed.
+6. Artifact writes never satisfy functional test requirements.
+7. Final provenance matches current artifact hashes.
+8. Externally changed artifacts are reported as unattributed.
+
+### Test Group 6 — Recovery and routing
+
+1. Identical local validation failures do not trigger provider failover.
+2. Missing Node is classified as a harness issue.
+3. Provider timeout follows existing provider policy.
+4. Local file-not-found errors do not trigger provider failover.
+5. Same unchanged failure is refused after the configured threshold.
+6. A changed artifact hash permits a legitimate new validation attempt.
+7. Repair attempts remain bounded.
+
+## Regression execution
+
+First run the focused tests.
+
+Then run existing relevant tests for:
+
+- Cross-file contracts.
+- File tools.
+- Recovery.
+- Mission state.
+- Evidence persistence.
+- Model failure classification.
+- Runtime integration.
+- Existing EventBus behavior.
+
+Finally run the appropriate full HERMES regression suite.
+
+Use the canonical interpreter for every test command.
+
+Do not claim a test passed unless its actual process exit code and test output establish that result.
+
+# 12. PHASE H — END-TO-END INTEGRATION
+
+After the unit and regression tests pass, verify the actual HERMES generation workflow using an isolated synthetic project.
+
+The test project must be created and modified exclusively by HERMES runtime operations, not by Antigravity.
+
+Demonstrate this pipeline:
+
+1. Submit a natural-language website/application requirement.
+2. HERMES creates the project plan.
+3. HERMES compiles the project contract before artifact generation.
+4. Every generator receives the same contract hash.
+5. HERMES generates the required artifacts.
+6. Staged JavaScript is validated under its proper extension and module mode.
+7. Validated artifacts are promoted.
+8. Cross-file verification runs.
+9. A deliberately introduced synthetic inconsistency is detected and assigned to the correct repair target.
+10. HERMES repairs the inconsistency.
+11. Contract validation passes.
+12. Application startup succeeds.
+13. API checks pass.
+14. Browser workflows pass where browser tooling is available.
+15. Mission state becomes consistent.
+16. Evidence and artifact provenance are recorded.
+17. The mission report distinguishes passed, failed, warning and unverified checks.
+
+Do not simulate a successful tool operation or fabricate test evidence.
+
+Do not count file creation as application completion.
+
+# 13. PHASE I — FINAL TASKFORGE QUALIFICATION
+
+Only after all applicable HERMES infrastructure acceptance tests pass, prepare HERMES for a new application-generation mission.
+
+Use the existing TaskForge workspace:
+
+`C:\Users\SUBBU\Downloads\testing 2`
+
+Antigravity must not access it for editing or repair.
+
+HERMES must independently:
+
+1. Inspect the existing workspace.
+2. Establish the correct active mission contract.
+3. Detect the existing `static/` frontend layout.
+4. Reconcile the old contract and stale mission state.
+5. Preserve existing usable artifacts.
+6. Generate or repair only the files HERMES determines necessary.
+7. Validate the generated source.
+8. Promote validated artifacts.
+9. Align HTML, CSS, JavaScript, backend API and SQLite contracts.
+10. Run isolated tests.
+11. Start the application on port 8001, without interfering with HERMES port 8765 or CampusFlow port 8000.
+12. Perform actual browser workflows.
+13. Produce an honest evidence and provenance report.
+
+Do not force TaskForge completion if the backend contract or browser workflow reveals a real defect.
+
+Report actual failures and continue only through targeted recovery.
+
+The first successful end-to-end mission is the primary acceptance target. Additional repeated missions are qualification enhancements, not a reason to destabilize a working result.
+
+# 14. FILE AND ARCHITECTURE SAFETY
+
+Before modifying an HERMES source file:
+
+- Inspect its current implementation.
+- Inspect all important callers.
+- Inspect existing tests.
+- Preserve unrelated behavior.
+- Keep the patch minimal.
+- Add regression coverage.
+
+Do not introduce unnecessary dependencies.
+
+Do not replace mature components with large speculative new modules.
+
+Do not copy code snippets from the supplied forensic notes without checking API compatibility, Python correctness, Windows behavior and existing architecture.
+
+In particular, avoid these implementation defects:
+
+1. Use `Path.is_absolute()`, never `Path.is_Absolute()`.
+2. Never hide an out-of-workspace path by returning its basename.
+3. Do not map arbitrary files to canonical artifacts by basename alone.
+4. Do not validate ES modules under the wrong module type.
+5. Do not put staged files in a different package-resolution context without accounting for module configuration.
+6. Do not promote files as an incidental side effect of mission-state reconciliation.
+7. Do not silently convert invalid validation evidence into artifact-write evidence.
+8. Do not default missing validation exit codes to success.
+9. Do not make regex-only static analysis the final authority for complex JavaScript, CSS or SQL structures.
+10. Do not add broad UI/API work before the core generation, validation and recovery pipeline is proven.
+
+# 15. FINAL ACCEPTANCE CRITERIA
+
+The repair is complete only when the following are demonstrated:
+
+| ID | Acceptance condition |
+|---|---|
+| A1 | Staged JavaScript is validated without extension-related false failures |
+| A2 | Actual JavaScript syntax defects produce reliable diagnostics |
+| A3 | Failed staged validation preserves existing valid artifacts |
+| B1 | Root and nested project layouts resolve consistently |
+| B2 | Stale contracts cannot override active mission paths |
+| B3 | All relevant file tools use the same canonical resolver |
+| C1 | Generators share a versioned, mission-bound project contract |
+| C2 | Cross-file checks detect genuine integration mismatches |
+| C3 | Dynamic constructs and uncertain checks do not create false hard failures |
+| D1 | Mission state has one authoritative source |
+| D2 | Progress and recovery checkpoints cannot silently contradict it |
+| E1 | File writes and validations have distinct evidence types |
+| E2 | Validation evidence is tied to the exact artifact hash |
+| F1 | Local errors do not trigger model-provider failover |
+| F2 | Repeated unchanged operations are blocked |
+| F3 | Repairs are bounded and evidence-driven |
+| G1 | All focused regression tests pass |
+| G2 | Relevant existing regression tests remain healthy |
+| H1 | HERMES completes an end-to-end synthetic project generation |
+| H2 | HERMES detects and repairs at least one planted cross-file inconsistency |
+| I1 | TaskForge can be generated/repaired and verified by HERMES alone |
+
+If an acceptance criterion cannot be completed, report it accurately. Never fabricate completion.
+
+# 16. FINAL REPORT
+
+Produce a concise but technically complete HERMES engineering report containing:
+
+1. Initial forensic findings.
+2. Confirmed root causes.
+3. Existing architecture reused.
+4. Actual HERMES files modified.
+5. Actual integration points changed.
+6. New regression tests.
+7. Focused test results.
+8. Full regression results.
+9. End-to-end generation results.
+10. Cross-file gate results.
+11. Browser verification results.
+12. Provenance results.
+13. Remaining limitations.
+14. Exact HERMES commands required to start and demonstrate the system.
+
+Preserve the user's existing Git modifications.
+
+Do not stage or commit.
+
+Do not modify generated application workspaces.
+
+---
+
+# FINAL DIRECTIVE
+
+Do not optimize for the appearance of a successful mission.
+
+Optimize for a demonstrably correct autonomous software-engineering pipeline.
+
+**HERMES must be able to plan, generate, integrate, diagnose, repair, execute and verify applications through its own runtime.**
+
+Antigravity's responsibility ends at improving HERMES's own source code and tests.
+
+HERMES alone owns the generation and repair of its application artifacts.
+
+Start with the forensic audit, implement the repairs in priority order, run the regression tests, and report actual evidence.
+</USER_REQUEST>
+<ADDITIONAL_METADATA>
+The current local time is: 2026-11-02T19:12:18+05:30.
+</ADDITIONAL_METADATA>

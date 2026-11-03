@@ -364,6 +364,11 @@ class VerificationProfileEvaluator:
                     ast.parse(f.read_text(encoding="utf-8", errors="replace"), filename=str(f))
                 except SyntaxError as e:
                     issues.append(f"Python syntax error in {f.name}:{e.lineno}: {e.msg}")
+            elif f.suffix in (".js", ".mjs", ".cjs"):
+                from core.js_syntax_validator import validate_javascript_file
+                js_ok, js_err, _ = validate_javascript_file(f)
+                if not js_ok:
+                    issues.append(f"JavaScript syntax error in {f.name}: {js_err}")
             elif f.suffix == ".json":
                 try:
                     json.loads(f.read_text(encoding="utf-8", errors="replace"))

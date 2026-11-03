@@ -79,3 +79,6 @@ alert*
 deep nested/
 phase*.txt
 phase*.json
+
+# HERMES local mission telemetry
+/artifacts/observability/

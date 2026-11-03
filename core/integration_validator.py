@@ -238,6 +238,22 @@ class CrossArtifactValidator:
             except Exception:
                 pass
 
+        # 7. Cross-File Fullstack Contract Validation (Section 9.1 & 9.2)
+        has_fullstack = (ws / "main.py").exists() or (ws / "app.py").exists() or (ws / "server.py").exists()
+        if has_fullstack:
+            try:
+                from core.cross_file_contract import CrossFileContractValidator
+                cf_rep = CrossFileContractValidator.validate_workspace(ws)
+                if not cf_rep.valid:
+                    for em in cf_rep.endpoint_mismatches:
+                        issues.append(em)
+                    for am in cf_rep.html_asset_mismatches:
+                        issues.append(am)
+                    for sm in cf_rep.startup_mismatches:
+                        issues.append(sm)
+            except Exception as exc:
+                logger.debug(f"CrossArtifactValidator fullstack contract check notice: {exc}")
+
         # Convert issues to StructuredDefects
         defects: List[StructuredDefect] = []
         for iss in issues:

@@ -58,7 +58,25 @@ class ErrorClassification(str, Enum):
     INVALID_JSON = "INVALID_JSON"                   # Corrupt response payload
     INVALID_TOOL_CALL = "INVALID_TOOL_CALL"         # Malformed tool call
     CONTEXT_OVERFLOW = "CONTEXT_OVERFLOW"           # Exceeded context window
+    MODEL_TTFT_TIMEOUT = "MODEL_TTFT_TIMEOUT"       # First token timeout
+    MODEL_STREAM_STALL = "MODEL_STREAM_STALL"       # In-flight stream stall
+    MODEL_REQUEST_TIMEOUT = "MODEL_REQUEST_TIMEOUT" # Overall request attempt timeout
     UNKNOWN_ERROR = "UNKNOWN_ERROR"
+
+
+class TTFTTimeoutError(TimeoutError):
+    """Raised when first token (TTFT) exceeds deadline."""
+    pass
+
+
+class StreamStallError(TimeoutError):
+    """Raised when an active stream stops producing tokens."""
+    pass
+
+
+class AttemptTimeoutError(TimeoutError):
+    """Raised when a single provider attempt exceeds deadline."""
+    pass
 
 
 @dataclass
@@ -87,6 +105,29 @@ def classify_provider_error(
     body_lower = body_text.lower()
 
     # 1. HTTP Status Code Mapping
+    if status_code == 400:
+        if "invalid_model" in body_lower or ("model" in body_lower and "not found" in body_lower):
+            return ProviderErrorInfo(
+                classification=ErrorClassification.MODEL_NOT_FOUND,
+                status_code=400,
+                message="Model not found or invalid model ID",
+                is_transient=False,
+                is_quota_exhausted=False,
+                is_unauthorized=False,
+                is_model_unavailable=True,
+                raw_response=body_text,
+            )
+        return ProviderErrorInfo(
+            classification=ErrorClassification.INVALID_REQUEST,
+            status_code=400,
+            message="Invalid request or unsupported parameters",
+            is_transient=False,
+            is_quota_exhausted=False,
+            is_unauthorized=False,
+            is_model_unavailable=False,
+            raw_response=body_text,
+        )
+
     if status_code == 401:
         return ProviderErrorInfo(
             classification=ErrorClassification.AUTH_FAILURE,
@@ -211,6 +252,42 @@ def classify_provider_error(
         )
 
     # 2. Exception type & message matching
+    if isinstance(exc, TTFTTimeoutError) or "ttft" in body_lower or "first token" in body_lower:
+        return ProviderErrorInfo(
+            classification=ErrorClassification.MODEL_TTFT_TIMEOUT,
+            status_code=408,
+            message=f"Model TTFT timeout: {exc}",
+            is_transient=True,
+            is_quota_exhausted=False,
+            is_unauthorized=False,
+            is_model_unavailable=False,
+            raw_response=body_text,
+        )
+
+    if isinstance(exc, StreamStallError) or "stream stall" in body_lower or "stream idle" in body_lower:
+        return ProviderErrorInfo(
+            classification=ErrorClassification.MODEL_STREAM_STALL,
+            status_code=408,
+            message=f"Model stream stall: {exc}",
+            is_transient=True,
+            is_quota_exhausted=False,
+            is_unauthorized=False,
+            is_model_unavailable=False,
+            raw_response=body_text,
+        )
+
+    if isinstance(exc, AttemptTimeoutError) or "attempt timeout" in body_lower or "attempt exceeded" in body_lower:
+        return ProviderErrorInfo(
+            classification=ErrorClassification.MODEL_REQUEST_TIMEOUT,
+            status_code=408,
+            message=f"Model request timeout: {exc}",
+            is_transient=True,
+            is_quota_exhausted=False,
+            is_unauthorized=False,
+            is_model_unavailable=False,
+            raw_response=body_text,
+        )
+
     if isinstance(exc, (asyncio.TimeoutError, TimeoutError, httpx.TimeoutException)):
         return ProviderErrorInfo(
             classification=ErrorClassification.REQUEST_TIMEOUT,
@@ -369,8 +446,11 @@ class CommonProviderAdapter(ModelProvider):
         base_url: str,
         api_key: str,
         tier: int = 1,
-        timeout_seconds: float = 60.0,
+        timeout_seconds: float = 45.0,
         extra_headers: Optional[Dict[str, str]] = None,
+        first_token_timeout_seconds: float = 15.0,
+        stream_idle_timeout_seconds: float = 15.0,
+        attempt_timeout_seconds: float = 45.0,
     ) -> None:
         self.provider_name = provider_name
         self.model_name = model_name
@@ -378,18 +458,50 @@ class CommonProviderAdapter(ModelProvider):
         self.api_key = api_key or ""
         self.tier = tier
         self.timeout_seconds = timeout_seconds
+        self.first_token_timeout_seconds = first_token_timeout_seconds
+        self.stream_idle_timeout_seconds = stream_idle_timeout_seconds
+        self.attempt_timeout_seconds = attempt_timeout_seconds
         self.extra_headers = extra_headers or {}
         self._client: Optional[httpx.AsyncClient] = None
-        # Provider-specific concurrency limit (Z.ai free tier is strictly 1 concurrency)
-        max_concurrency = 1 if self.provider_name in ("zai", "z_ai", "bigmodel") else 3
-        self._semaphore = asyncio.Semaphore(max_concurrency)
+        self._client_loop: Optional[asyncio.AbstractEventLoop] = None
+        self._sem: Optional[asyncio.Semaphore] = None
+        self._semaphore_loop: Optional[asyncio.AbstractEventLoop] = None
+
+    @property
+    def _semaphore(self) -> asyncio.Semaphore:
+        """Loop-aware semaphore preventing 'Event loop is closed' errors across tests or tasks."""
+        try:
+            curr_loop = asyncio.get_running_loop()
+        except RuntimeError:
+            return getattr(self, "_sem", None) or asyncio.Semaphore(3)
+        cached_loop = getattr(self, "_semaphore_loop", None)
+        if getattr(self, "_sem", None) is None or cached_loop is not curr_loop or (cached_loop and cached_loop.is_closed()):
+            max_concurrency = 1 if self.provider_name in ("zai", "z_ai", "bigmodel") else 3
+            self._sem = asyncio.Semaphore(max_concurrency)
+            self._semaphore_loop = curr_loop
+        return self._sem
 
     async def _get_client(self) -> httpx.AsyncClient:
-        if self._client is None or self._client.is_closed:
+        """Loop-aware AsyncClient retrieval preventing stale closed event loop binding."""
+        curr_loop = asyncio.get_running_loop()
+        cached_loop = getattr(self, "_client_loop", None)
+        if (
+            self._client is None
+            or self._client.is_closed
+            or cached_loop is None
+            or cached_loop is not curr_loop
+            or cached_loop.is_closed()
+        ):
+            if self._client and not self._client.is_closed and (cached_loop and not cached_loop.is_closed()):
+                try:
+                    await self._client.aclose()
+                except Exception:
+                    pass
             self._client = httpx.AsyncClient(
                 timeout=httpx.Timeout(self.timeout_seconds, connect=10.0),
                 limits=httpx.Limits(max_keepalive_connections=20, max_connections=50),
             )
+            self._client_loop = curr_loop
         return self._client
 
     async def close(self) -> None:
@@ -469,7 +581,8 @@ class CommonProviderAdapter(ModelProvider):
         active_model = model or self.model_name
         req_id = kwargs.get("request_id") or f"req_{uuid.uuid4().hex[:8]}"
         mid = kwargs.get("mission_id") or ""
-        timeout_val = float(kwargs.get("timeout_seconds") or self.timeout_seconds)
+        passed_to = float(kwargs.get("timeout_seconds") or self.timeout_seconds)
+        timeout_val = min(passed_to, getattr(self, "attempt_timeout_seconds", 45.0))
 
         telemetry = RequestTelemetry(
             mission_id=mid,
@@ -496,7 +609,7 @@ class CommonProviderAdapter(ModelProvider):
                 text="",
                 model=active_model,
                 provider=self.provider_name,
-                error=err_info.message,
+                error=f"{err_info.classification.value}: {err_info.message}",
                 success=False,
                 raw_timing_metadata=telemetry.to_dict(),
             )
@@ -514,9 +627,9 @@ class CommonProviderAdapter(ModelProvider):
         # Sanitize tools
         sanitized_tools = self._sanitize_tool_definitions(tools)
 
-        effective_max = max_tokens or 8192
+        effective_max = max_tokens if max_tokens is not None else 8192
         if self.provider_name == "groq":
-            effective_max = min(effective_max, 900) if "qwen" in active_model.lower() else min(effective_max, 2048)
+            effective_max = min(max_tokens if max_tokens is not None else 4096, 8192)
             # Groq free tier has strict request payload / TPM limits.
             # Truncate overly large single messages by retaining head (task requirements)
             # and tail (recent observations).
@@ -544,6 +657,10 @@ class CommonProviderAdapter(ModelProvider):
             payload["transforms"] = []
         if "reasoning_effort" in kwargs and kwargs["reasoning_effort"] is not None:
             payload["reasoning_effort"] = kwargs["reasoning_effort"]
+        elif self.provider_name == "mistral":
+            # Default reasoning_effort none per Part 6.D if reasoning model
+            if "small" in active_model or "2603" in active_model:
+                payload["reasoning_effort"] = "none"
 
         headers: Dict[str, str] = {
             "Authorization": f"Bearer {self.api_key}",
@@ -637,7 +754,30 @@ class CommonProviderAdapter(ModelProvider):
                     norm_err._retry_after = retry_val
                     return norm_err
 
-                async for line in response.aiter_lines():
+                first_token_to = getattr(self, "first_token_timeout_seconds", 15.0)
+                stream_idle_to = getattr(self, "stream_idle_timeout_seconds", 15.0)
+                aiter = response.aiter_lines().__aiter__()
+
+                while True:
+                    rem_time = timeout - (time.monotonic() - t0)
+                    if rem_time <= 0:
+                        raise AttemptTimeoutError(f"Request attempt exceeded deadline of {timeout:.1f}s")
+
+                    chunk_to = min(first_token_to, rem_time) if first_token_ts is None else min(stream_idle_to, rem_time)
+                    try:
+                        line = await asyncio.wait_for(aiter.__anext__(), timeout=max(0.01, chunk_to))
+                    except StopAsyncIteration:
+                        break
+                    except asyncio.TimeoutError:
+                        if first_token_ts is None:
+                            if (time.monotonic() - t0) >= timeout:
+                                raise AttemptTimeoutError(f"Request attempt exceeded deadline of {timeout:.1f}s")
+                            raise TTFTTimeoutError(f"First token not received within {first_token_to:.1f}s")
+                        elif (time.monotonic() - t0) >= timeout:
+                            raise AttemptTimeoutError(f"Request attempt exceeded deadline of {timeout:.1f}s")
+                        else:
+                            raise StreamStallError(f"Stream idle timeout exceeded {stream_idle_to:.1f}s")
+
                     if not line:
                         continue
                     if line.startswith("data: "):
@@ -727,9 +867,22 @@ class CommonProviderAdapter(ModelProvider):
         telemetry.tool_call_count = len(normalized_calls)
 
         full_text = "".join(accumulated_text)
+        has_invalid_tool_args = any(
+            isinstance(tc.get("arguments"), dict) and "raw" in tc.get("arguments", {})
+            for tc in normalized_calls
+        )
+        is_length_truncated = finish_reason in ("length", "max_tokens")
+        is_truncated = is_length_truncated or has_invalid_tool_args
+
+        error_msg = None
+        if is_length_truncated:
+            error_msg = "MODEL_OUTPUT_TRUNCATED: Response truncated by token length limit"
+        elif has_invalid_tool_args:
+            error_msg = "INVALID_TOOL_CALL: Tool arguments could not be parsed as valid JSON"
+
         return NormalizedModelResponse(
             text=full_text,
-            tool_calls=normalized_calls,
+            tool_calls=normalized_calls if not is_truncated else [],
             finish_reason=finish_reason,
             model=payload["model"],
             provider=self.provider_name,
@@ -738,7 +891,8 @@ class CommonProviderAdapter(ModelProvider):
             total_tokens=input_tokens + (output_tokens or len(full_text.split())),
             latency_ms=total_lat,
             ttfb_ms=telemetry.ttft_ms,
-            success=True,
+            success=not is_truncated,
+            error=error_msg,
             raw_timing_metadata=telemetry.to_dict(),
         )
 
@@ -753,7 +907,10 @@ class CommonProviderAdapter(ModelProvider):
     ) -> NormalizedModelResponse:
         t0 = time.monotonic()
         try:
-            resp = await client.post(url, headers=headers, json=payload, timeout=timeout)
+            resp = await asyncio.wait_for(
+                client.post(url, headers=headers, json=payload, timeout=timeout),
+                timeout=timeout,
+            )
             telemetry.connection_time = (time.monotonic() - t0) * 1000
             telemetry.total_latency_ms = (time.monotonic() - t0) * 1000
 
@@ -775,7 +932,7 @@ class CommonProviderAdapter(ModelProvider):
                     provider=self.provider_name,
                     error=f"{err_info.classification.value}: {err_info.message}",
                     success=False,
-                    raw_response=resp.text,
+                    raw_response=resp.text if isinstance(getattr(resp, "text", None), str) else "",
                     raw_timing_metadata=telemetry.to_dict(),
                 )
                 norm_err._retry_after = retry_val
@@ -806,9 +963,22 @@ class CommonProviderAdapter(ModelProvider):
             telemetry.input_tokens = in_tok
             telemetry.output_tokens = out_tok
 
+            has_invalid_tool_args = any(
+                isinstance(tc.get("arguments"), dict) and "raw" in tc.get("arguments", {})
+                for tc in normalized_calls
+            )
+            is_length_truncated = finish_reason in ("length", "max_tokens")
+            is_truncated = is_length_truncated or has_invalid_tool_args
+
+            error_msg = None
+            if is_length_truncated:
+                error_msg = "MODEL_OUTPUT_TRUNCATED: Response truncated by token length limit"
+            elif has_invalid_tool_args:
+                error_msg = "INVALID_TOOL_CALL: Tool arguments could not be parsed as valid JSON"
+
             return NormalizedModelResponse(
                 text=content,
-                tool_calls=normalized_calls,
+                tool_calls=normalized_calls if not is_truncated else [],
                 finish_reason=finish_reason,
                 model=payload["model"],
                 provider=self.provider_name,
@@ -817,8 +987,9 @@ class CommonProviderAdapter(ModelProvider):
                 total_tokens=in_tok + out_tok,
                 latency_ms=telemetry.total_latency_ms,
                 ttfb_ms=telemetry.total_latency_ms,
-                success=True,
-                raw_response=resp.text,
+                success=not is_truncated,
+                error=error_msg,
+                raw_response=resp.text if isinstance(getattr(resp, "text", None), str) else "",
                 raw_timing_metadata=telemetry.to_dict(),
             )
         except Exception as exc:
@@ -884,8 +1055,8 @@ class CommonProviderAdapter(ModelProvider):
         # Test simple chat completion (1 token ping)
         try:
             resp = await self.generate(
-                prompt="ping",
-                max_tokens=2,
+                prompt="Respond with only the word PONG.",
+                max_tokens=32,
                 stream=False,
                 timeout_seconds=5.0,
             )
@@ -894,6 +1065,25 @@ class CommonProviderAdapter(ModelProvider):
             if resp.success:
                 result["healthy"] = True
                 result["status"] = "HEALTHY"
+                test_tool = [{
+                    "type": "function",
+                    "function": {
+                        "name": "test_tool",
+                        "description": "Test tool",
+                        "parameters": {"type": "object", "properties": {"q": {"type": "string"}}, "required": ["q"]},
+                    }
+                }]
+                try:
+                    tool_resp = await self.generate(
+                        prompt="Call test_tool with q='hello'",
+                        tools=test_tool,
+                        max_tokens=64,
+                        stream=False,
+                        timeout_seconds=10.0,
+                    )
+                    result["tool_call_supported"] = bool(tool_resp.success and tool_resp.tool_calls)
+                except Exception:
+                    result["tool_call_supported"] = False
             else:
                 result["healthy"] = False
                 result["status"] = "UNAVAILABLE"
@@ -916,7 +1106,7 @@ _adapter_cache: Dict[str, CommonProviderAdapter] = {}
 def get_provider_adapter(
     provider_name: str,
     model_name: Optional[str] = None,
-    tier: int = 1,
+    tier: Optional[int] = None,
 ) -> CommonProviderAdapter:
     """Retrieve or construct the canonical adapter for the requested provider."""
     from config.model_config import (
@@ -927,6 +1117,7 @@ def get_provider_adapter(
     )
 
     p_norm = provider_name.lower().replace("-", "_")
+    eff_tier = tier if tier is not None else (2 if p_norm in ("mistral", "mistral_ai", "mistralai", "groq", "groq_api") else (3 if p_norm in ("nvidia_nim", "nvidia", "nim", "openrouter", "open_router") else 1))
 
     # ── Gemini (Tier 1) ────────────────────────────────────────────────
     if p_norm in ("gemini", "google", "google_gemini"):
@@ -945,9 +1136,33 @@ def get_provider_adapter(
             _adapter_cache[cache_key] = adapter  # type: ignore[assignment]
         return _adapter_cache[cache_key]
 
-    # ── Groq (Tier 2, OpenAI-compatible) ──────────────────────────────
+    # ── Mistral (Tier 2, OpenAI-compatible) ───────────────────────────
+    if p_norm in ("mistral", "mistral_ai", "mistralai"):
+        m = model_name or os.getenv("TIER2_MODEL", "codestral-latest")
+        cache_key = f"mistral:{m}:{eff_tier}"
+        if cache_key not in _adapter_cache:
+            from config.model_config import (
+                MISTRAL_API_KEY,
+                HERMES_MODEL_ATTEMPT_TIMEOUT_SECONDS,
+                HERMES_MODEL_FIRST_TOKEN_TIMEOUT_SECONDS,
+                HERMES_MODEL_STREAM_IDLE_TIMEOUT_SECONDS,
+            )
+            _adapter_cache[cache_key] = CommonProviderAdapter(
+                provider_name="mistral",
+                model_name=m,
+                base_url=os.getenv("TIER2_BASE_URL", "https://api.mistral.ai/v1"),
+                api_key=MISTRAL_API_KEY or os.getenv("MISTRAL_API_KEY", ""),
+                tier=eff_tier,
+                timeout_seconds=float(os.getenv("HERMES_MODEL_ATTEMPT_TIMEOUT_SECONDS", "45.0")),
+                first_token_timeout_seconds=float(os.getenv("HERMES_MODEL_FIRST_TOKEN_TIMEOUT_SECONDS", "15.0")),
+                stream_idle_timeout_seconds=float(os.getenv("HERMES_MODEL_STREAM_IDLE_TIMEOUT_SECONDS", "15.0")),
+                attempt_timeout_seconds=float(os.getenv("HERMES_MODEL_ATTEMPT_TIMEOUT_SECONDS", "45.0")),
+            )
+        return _adapter_cache[cache_key]
+
+    # ── Groq (Legacy, OpenAI-compatible) ──────────────────────────────
     if p_norm in ("groq", "groq_api"):
-        m = model_name or os.getenv("TIER2_MODEL", "qwen/qwen3.8-27b")
+        m = model_name or os.getenv("TIER2_MODEL", "codestral-latest")
         cache_key = f"groq:{m}"
         if cache_key not in _adapter_cache:
             _adapter_cache[cache_key] = CommonProviderAdapter(

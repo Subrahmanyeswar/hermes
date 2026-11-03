@@ -400,12 +400,16 @@ class SkillEngine:
                     score_reasons.append("code review intent")
 
             elif name == "pytest-generation":
-                if has_test_intent:
-                    score += 0.50
-                    score_reasons.append("testing / pytest intent")
-                if any("test" in f or "pytest" in f for f in ws_files):
-                    score += 0.25
-                    score_reasons.append("workspace contains test files")
+                if (has_vanilla_intent or any(f.endswith((".html", ".css", ".js")) for f in ws_files)) and not any(w in task_lower for w in ["pytest", "python", "backend test"]):
+                    score = min(score, 0.15)
+                    rejected.append((name, "Vanilla web project without Python; suppressing pytest-generation"))
+                else:
+                    if has_test_intent:
+                        score += 0.50
+                        score_reasons.append("testing / pytest intent")
+                    if any("test" in f or "pytest" in f for f in ws_files):
+                        score += 0.25
+                        score_reasons.append("workspace contains test files")
 
             elif name == "software-architecture":
                 if has_arch_intent:
@@ -482,11 +486,32 @@ class SkillEngine:
         qualifying.sort(key=lambda x: x[1], reverse=True)
 
         selected_names = [s_name for s_name, _ in qualifying[:max_candidates]]
-        selected_metas = [self._metadata_index[s_name] for s_name in selected_names]
 
         rejection_dict = dict(rejected)
         for s_name, _ in qualifying[max_candidates:]:
             rejection_dict[s_name] = "Exceeded max candidates"
+
+        # Domain-critical skill preservation (Part 8)
+        # For vanilla web missions, vanilla-web is domain-critical and must not be pruned out
+        if (has_vanilla_intent or any(f.endswith((".html", ".css", ".js")) for f in ws_files)) and not has_react_intent:
+            if any(name == "vanilla-web" for name, _ in qualifying) and "vanilla-web" not in selected_names:
+                if selected_names:
+                    displaced = selected_names.pop()
+                    rejection_dict[displaced] = "Exceeded max candidates (displaced by domain-critical vanilla-web)"
+                selected_names.append("vanilla-web")
+                if "vanilla-web" in rejection_dict:
+                    del rejection_dict["vanilla-web"]
+
+        # For react missions, react-frontend is domain-critical
+        if has_react_intent and any(name == "react-frontend" for name, _ in qualifying) and "react-frontend" not in selected_names:
+            if selected_names:
+                displaced = selected_names.pop()
+                rejection_dict[displaced] = "Exceeded max candidates (displaced by domain-critical react-frontend)"
+            selected_names.append("react-frontend")
+            if "react-frontend" in rejection_dict:
+                del rejection_dict["react-frontend"]
+
+        selected_metas = [self._metadata_index[s_name] for s_name in selected_names]
 
         rationale = f"Selected {', '.join(selected_names)} based on task intent and workspace signals"
 

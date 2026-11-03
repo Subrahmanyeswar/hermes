@@ -475,14 +475,19 @@ class NvidiaClient(ModelProvider):
                     continue
                 raise
             except NvidiaTimeoutError as timeout_exc:
-                if attempt < 1 and timeout_exc.timeout_type != "FIRST_TOKEN_TIMEOUT":
+                elapsed = time.monotonic() - start_time
+                rem_budget = effective_timeout - elapsed
+                if attempt < 1 and timeout_exc.timeout_type != "FIRST_TOKEN_TIMEOUT" and rem_budget > 15.0:
                     logger.warning(
-                        f"NvidiaClient primary model {active_model} timed out ({timeout_exc.timeout_type}), retrying attempt 2/2 after 0.5s..."
+                        f"NvidiaClient primary model {active_model} timed out ({timeout_exc.timeout_type}), "
+                        f"retrying attempt 2/2 with remaining budget {rem_budget:.1f}s after 0.5s..."
                     )
+                    effective_timeout = rem_budget
                     await asyncio.sleep(0.5)
                     continue
                 logger.warning(
-                    f"NvidiaClient primary model {active_model} timed out ({timeout_exc.timeout_type}). Fast-path raising to orchestrator for multi-tier failover."
+                    f"NvidiaClient primary model {active_model} timed out ({timeout_exc.timeout_type}) after {elapsed:.1f}s. "
+                    f"Remaining budget {rem_budget:.1f}s. Fast-path raising to orchestrator for multi-tier failover."
                 )
                 raise
             except Exception as exc:

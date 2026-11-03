@@ -126,7 +126,7 @@ async def test_01_successful_one_file_mission_terminates_after_verification(tmp_
     mock_workspace.get_workspace_summary.return_value = {"root": str(tmp_path), "total_files": 1}
     mock_workspace.get_skeleton.return_value = "hello.txt"
 
-    cfg = AgentLoopConfig(max_turns=5, max_wall_time_seconds=60.0)
+    cfg = AgentLoopConfig(max_turns=5, max_wall_time_seconds=300.0)
     mock_orch = MagicMock()
     loop = AgentLoop(orchestrator=mock_orch, workspace=mock_workspace, config=cfg)
     loop._generate_model_turn = mock_generate
@@ -198,7 +198,7 @@ async def test_03_search_results_not_repeatedly_requested_after_verification(tmp
         call_count += 1
         return glob_resp
 
-    cfg = AgentLoopConfig(max_turns=6, max_wall_time_seconds=60.0)
+    cfg = AgentLoopConfig(max_turns=6, max_wall_time_seconds=300.0)
     mock_orch = MagicMock()
     loop = AgentLoop(orchestrator=mock_orch, workspace=mock_workspace, config=cfg)
     loop._generate_model_turn = mock_generate

@@ -1,4 +1,4 @@
-﻿# core/structured_observation.py
+# core/structured_observation.py
 """
 Structured Observation Format for HERMES
 Based on: InterCode (Yang et al., 2024)
@@ -19,11 +19,148 @@ the Thought must include an explicit risk assessment.
 
 from __future__ import annotations
 
+import re
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional, Any
+from typing import Optional, Any, Dict
 from loguru import logger
+
+
+def extract_syntax_diagnostic(text: str) -> Optional[Dict[str, Any]]:
+    """
+    Parse error output from Node.js, Python, or standard linters/compilers
+    to extract structured diagnostic information:
+    - file: file path or name
+    - line: line number (int)
+    - column: column number (int, if present)
+    - error_class: error category (e.g. 'SyntaxError', 'TypeError')
+    - message: specific error message
+    - source_line: snippet of code where error occurred
+    """
+    if not text or not isinstance(text, str):
+        return None
+
+    lines = [l.rstrip("\r\n") for l in text.splitlines()]
+    non_empty = [l for l in lines if l.strip()]
+    if not non_empty:
+        return None
+
+    file_path: Optional[str] = None
+    line_num: Optional[int] = None
+    col_num: Optional[int] = None
+    error_class: Optional[str] = None
+    message: Optional[str] = None
+    source_line: Optional[str] = None
+
+    # 1. Search for error class and message (e.g. "SyntaxError: Invalid or unexpected token")
+    error_re = re.compile(r"^(?:(?:Uncaught\s+)?([A-Za-z0-9_]+Error|[A-Za-z0-9_]+Exception)):\s*(.+)$")
+    for line in lines:
+        stripped = line.strip()
+        # Skip Node.js version banners, runtime notes, stack trace frames
+        if stripped.startswith("Node.js v") or stripped.startswith("at "):
+            continue
+        m = error_re.search(stripped)
+        if m:
+            error_class = m.group(1).strip()
+            message = m.group(2).strip()
+            break
+
+    # 2. Search for Node.js style location: "path/to/file.ext:line[:col]" or "C:\path\to\file.ext:line[:col]"
+    node_loc_re = re.compile(
+        r"^([A-Za-z]:[\\/][^:\n\r]+|\.?\.?[\\/][^:\n\r]+|[a-zA-Z0-9_\-\.]+\.[a-zA-Z0-9]+):(\d+)(?::(\d+))?"
+    )
+    for i, line in enumerate(lines):
+        m = node_loc_re.match(line.strip())
+        if m:
+            file_path = m.group(1).strip()
+            try:
+                line_num = int(m.group(2))
+            except ValueError:
+                pass
+            if m.group(3):
+                try:
+                    col_num = int(m.group(3))
+                except ValueError:
+                    pass
+            # Next line might be the source code line
+            if i + 1 < len(lines):
+                candidate_source = lines[i + 1]
+                if "^" not in candidate_source and not candidate_source.strip().startswith("SyntaxError"):
+                    source_line = candidate_source.strip()
+            break
+
+    # 3. Search for Python style location: File "path/to/file.py", line 42
+    if not file_path:
+        py_loc_re = re.compile(r'File\s+"([^"]+)",\s*line\s*(\d+)')
+        for i, line in enumerate(lines):
+            m = py_loc_re.search(line)
+            if m:
+                file_path = m.group(1).strip()
+                try:
+                    line_num = int(m.group(2))
+                except ValueError:
+                    pass
+                if i + 1 < len(lines):
+                    source_line = lines[i + 1].strip()
+                break
+
+    # 3b. Search for completeness/truncation gate pattern: File 'path.js' contains invalid or incomplete syntax
+    if not file_path:
+        trunc_re = re.compile(r"File\s+'([^']+)'\s+contains\s+invalid\s+or\s+incomplete\s+syntax:\s*(.+)", re.IGNORECASE)
+        for line in lines:
+            m = trunc_re.search(line)
+            if m:
+                file_path = m.group(1).strip()
+                message = m.group(2).strip()
+                line_m = re.search(r"line\s+(\d+)", line, re.IGNORECASE)
+                if line_m:
+                    try:
+                        line_num = int(line_m.group(1))
+                    except ValueError:
+                        pass
+                error_class = "SyntaxError"
+                break
+
+    # 4. Search for caret indicator line to determine column or source line if still missing
+    for i, line in enumerate(lines):
+        if "^" in line and not line.strip().startswith("SyntaxError"):
+            caret_pos = line.find("^")
+            if col_num is None and caret_pos >= 0:
+                col_num = caret_pos + 1
+            if source_line is None and i > 0:
+                prev_line = lines[i - 1].strip()
+                if not node_loc_re.match(prev_line) and not prev_line.startswith("File "):
+                    source_line = prev_line
+
+    if not error_class:
+        # Fallback error detection
+        for line in reversed(non_empty):
+            stripped = line.strip()
+            if stripped.startswith("Node.js v") or stripped.startswith("at "):
+                continue
+            if "error" in stripped.lower():
+                parts = stripped.split(":", 1)
+                if len(parts) == 2:
+                    error_class = parts[0].strip()
+                    message = parts[1].strip()
+                else:
+                    error_class = "Error"
+                    message = stripped
+                break
+
+    # If neither error_class nor file_path was found, return None
+    if not error_class and not file_path:
+        return None
+
+    return {
+        "file": file_path or "unknown",
+        "line": line_num or 1,
+        "column": col_num,
+        "error_class": error_class or "SyntaxError",
+        "message": message or "Syntax/runtime execution error",
+        "source_line": source_line,
+    }
 
 
 @dataclass
@@ -41,6 +178,7 @@ class StructuredObservation:
     state_delta: dict = field(default_factory=dict)
     # state_delta tracks what changed: {"files_created": [...], "files_modified": [...]}
     error_summary: Optional[str] = None
+    diagnostic: Optional[Dict[str, Any]] = None
     timestamp: float = field(default_factory=time.time)
 
     @classmethod
@@ -69,15 +207,28 @@ class StructuredObservation:
         if new_files:
             state_delta["files_created"] = sorted(new_files)
 
-        # Build error summary for failed executions
+        # Build error summary and diagnostic for failed executions
         error_summary = None
+        diagnostic = None
         exit_code = getattr(tool_result, "exit_code", 0 if getattr(tool_result, "success", True) else 1)
         success = getattr(tool_result, "success", exit_code == 0)
 
-        if not success and stderr:
-            lines = [l for l in stderr.split("\n") if l.strip()]
-            if lines:
-                error_summary = lines[-1][:200]
+        if not success:
+            raw_err = stderr if (stderr and stderr.strip()) else stdout
+            if raw_err:
+                diagnostic = extract_syntax_diagnostic(raw_err)
+                if diagnostic:
+                    f_name = Path(diagnostic["file"]).name if diagnostic.get("file") else "unknown"
+                    error_summary = f"{diagnostic['error_class']}: {diagnostic['message']} at {f_name}:{diagnostic['line']}"
+                else:
+                    # Filter out version banners and runtime noise
+                    valid_lines = [
+                        l.strip() for l in raw_err.splitlines()
+                        if l.strip() and not l.strip().startswith("Node.js v") and not l.strip().startswith("at ")
+                    ]
+                    if valid_lines:
+                        err_lines = [l for l in valid_lines if "error" in l.lower()]
+                        error_summary = err_lines[0][:200] if err_lines else valid_lines[-1][:200]
 
         return cls(
             tool_name=tool_name,
@@ -88,6 +239,7 @@ class StructuredObservation:
             duration_seconds=duration,
             state_delta=state_delta,
             error_summary=error_summary,
+            diagnostic=diagnostic,
         )
 
     def to_context_string(self) -> str:
@@ -116,6 +268,12 @@ class StructuredObservation:
         if self.error_summary:
             lines.append(f"  Summary:  {self.error_summary}")
 
+        if self.diagnostic:
+            f_name = Path(self.diagnostic.get("file", "")).name
+            lines.append(f"  Diagnostic: {self.diagnostic.get('error_class')}: {self.diagnostic.get('message')} at {f_name}:{self.diagnostic.get('line')}")
+            if self.diagnostic.get("source_line"):
+                lines.append(f"  Code:       {self.diagnostic['source_line']}")
+
         return "\n".join(lines)
 
     def is_actionable_failure(self) -> bool:
@@ -126,6 +284,8 @@ class StructuredObservation:
         """
         if self.success:
             return False
+        if self.diagnostic:
+            return True
         if not self.stderr:
             return False
         actionable_signals = [

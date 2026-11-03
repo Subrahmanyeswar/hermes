@@ -70,6 +70,7 @@ class EventBus:
                 pass
         self._history: deque[HermesEvent] = deque(maxlen=buffer_size)
         self._subscribers: List[Tuple[Callable[[HermesEvent], None], Optional[Set[EventType]]]] = []
+        self._keyed_subscribers: Dict[str, Tuple[Callable[[HermesEvent], None], Optional[Set[EventType]], Optional[str]]] = {}
         self._state_stores: Dict[str, StateStore] = {}
         self._seen_event_ids: Set[str] = set()
 
@@ -202,6 +203,49 @@ class EventBus:
         with self._lock:
             self._subscribers = [s for s in self._subscribers if s[0] != handler]
 
+    def subscribe_keyed(
+        self,
+        key: str,
+        handler: Callable[[HermesEvent], None],
+        event_types: Optional[Set[EventType]] = None,
+        owner_id: Optional[str] = None,
+    ) -> bool:
+        """
+        Atomically register a unique keyed subscriber under the EventBus lock.
+        Returns True if registered successfully, or False if the key already exists.
+        Thread-safe, non-reentrant, ownership-aware.
+        """
+        with self._lock:
+            if key in self._keyed_subscribers:
+                return False
+            self._keyed_subscribers[key] = (handler, event_types, owner_id)
+            return True
+
+    def unsubscribe_keyed(
+        self,
+        key: str,
+        owner_id: Optional[str] = None,
+    ) -> bool:
+        """
+        Atomically remove a keyed subscriber under the EventBus lock.
+        If owner_id is specified, only removes if the stored owner matches.
+        Returns True if removed, False otherwise.
+        """
+        with self._lock:
+            if key not in self._keyed_subscribers:
+                return False
+            _, _, stored_owner = self._keyed_subscribers[key]
+            if stored_owner != owner_id:
+                return False
+
+            del self._keyed_subscribers[key]
+            return True
+
+    def has_subscription(self, key: str) -> bool:
+        """Atomically check if a keyed subscription exists."""
+        with self._lock:
+            return key in self._keyed_subscribers
+
     def publish(
         self,
         event_or_type: Union[HermesEvent, EventType, str],
@@ -257,7 +301,7 @@ class EventBus:
             db_inst = self._db
             self._persist_queue.put((event, db_inst))
 
-            subscribers_snapshot = list(self._subscribers)
+            subscribers_snapshot = list(self._subscribers) + [(h, et) for h, et, _ in self._keyed_subscribers.values()]
 
         # Apply to authoritative state store
         store.apply_event(event)
@@ -323,7 +367,7 @@ class EventBus:
                 self._state_stores[event.mission_id] = StateStore(event.mission_id)
             store = self._state_stores[event.mission_id]
 
-            subscribers_snapshot = list(self._subscribers)
+            subscribers_snapshot = list(self._subscribers) + [(h, et) for h, et, _ in self._keyed_subscribers.values()]
 
         # Synchronously write and commit directly to SQLite outside lock BEFORE adding to history or broadcasting
         try:

@@ -270,7 +270,7 @@ class WorkspaceManager:
 
     # ── Locking ───────────────────────────────────────────────────────────────
 
-    def lock(self, path: str, create: bool = True) -> None:
+    def lock(self, path: str, create: bool = False) -> None:
         """
         Lock the workspace to the given directory.
         Resolves symlinks, validates existence (or creates if create=True), builds initial index.

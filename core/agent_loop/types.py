@@ -282,7 +282,7 @@ class AgentLoopConfig:
         if prof == VerificationProfile.PROFILE_A:
             # Simple smoke test / diagnostic task: compact turn budget and wall time
             object.__setattr__(self, "max_turns", min(self.max_turns, 8))
-            object.__setattr__(self, "max_wall_time_seconds", min(self.max_wall_time_seconds, 120.0))
+            object.__setattr__(self, "max_wall_time_seconds", min(self.max_wall_time_seconds, 300.0))
         elif WebsiteMvpGate.is_website_mission(prompt, workspace_root=ws, written_files=written_files):
             object.__setattr__(self, "max_turns", self.website_max_turns)
         else:

@@ -18,10 +18,14 @@ from typing import Dict, Any, Optional
 # ── Sensitive Data Redaction Patterns ────────────────────────────────────────
 
 _SECRET_PATTERNS = [
-    re.compile(r"(sk-[a-zA-Z0-9_\-]{20,})"),               # OpenAI / NIM API keys
+    re.compile(r"(sk-[a-zA-Z0-9_\-]{20,})"),               # OpenAI / Anthropic / NIM API keys
+    re.compile(r"(nvapi-[a-zA-Z0-9_\-]{20,})"),            # NVIDIA NIM API keys
+    re.compile(r"(mstrl_[a-zA-Z0-9_\-]{20,})"),            # Mistral API keys
+    re.compile(r"(AIza[0-9A-Za-z\-_]{35})"),               # Google Gemini API keys
+    re.compile(r"(github_pat_[a-zA-Z0-9_]{30,})"),          # GitHub fine-grained tokens
     re.compile(r"(ghp_[a-zA-Z0-9]{36,})"),                 # GitHub tokens
-    re.compile(r"((?:password|secret|token|api_key)['\"]?\s*[:=]\s*['\"]?)([^'\"\s,;]+)", re.IGNORECASE),
-    re.compile(r"(bearer\s+)([a-zA-Z0-9\._\-]{20,})", re.IGNORECASE),
+    re.compile(r"((?:password|secret|token|api_key|auth|credential)['\"]?\s*[:=]\s*['\"]?)([^'\"\s,;]+)", re.IGNORECASE),
+    re.compile(r"(bearer\s+)([a-zA-Z0-9\._\-]{10,})", re.IGNORECASE),
     re.compile(r"(<think>.*?</think>)", re.DOTALL | re.IGNORECASE),  # Hidden chain-of-thought
 ]
 
@@ -44,7 +48,7 @@ def redact_sensitive_str(text: str) -> str:
 def redact_sensitive_payload(payload: Dict[str, Any]) -> Dict[str, Any]:
     """Recursively redact strings and sensitive keys in dictionary payloads."""
     cleaned = {}
-    sensitive_keys = {"password", "secret", "token", "api_key", "authorization", "auth", "private_key"}
+    sensitive_keys = {"password", "secret", "token", "api_key", "authorization", "auth", "private_key", "credential"}
     for k, v in payload.items():
         if k.lower() in sensitive_keys and isinstance(v, str):
             cleaned[k] = "[REDACTED_SECRET]"
@@ -497,6 +501,9 @@ class HermesEvent:
     payload: Dict[str, Any] = field(default_factory=dict)
     severity: EventSeverity = EventSeverity.INFO
     schema_version: int = 1
+    trace_id: Optional[str] = None
+    span_id: Optional[str] = None
+    parent_span_id: Optional[str] = None
 
     def __post_init__(self):
         # Automatically redact secrets in payload upon event instantiation
