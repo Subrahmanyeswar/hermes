@@ -1165,6 +1165,33 @@ class ShellBashTool(BaseTool):
             )
 
             success = (exit_code == 0)
+            obs_output = shaped.to_observation_text()
+
+            # P0 Test Execution Gate: Parse and record structured test diagnostics
+            cmd_lower = command.lower()
+            is_test_cmd = any(tc in cmd_lower for tc in ("npm test", "npm run test", "npx jest", "pytest", "node --test", "mocha"))
+            test_evidence_dict = None
+            primary_cat = None
+            if is_test_cmd:
+                try:
+                    from core.test_diagnostics import TestOutputParser
+                    t_ev = TestOutputParser.parse(
+                        command=command,
+                        working_dir=str(cwd_path),
+                        exit_code=exit_code,
+                        stdout=stdout,
+                        stderr=stderr,
+                        duration_seconds=duration,
+                        start_timestamp=start_t,
+                        end_timestamp=time.monotonic(),
+                    )
+                    test_evidence_dict = t_ev.to_dict()
+                    primary_cat = t_ev.primary_failure_category
+                    if not success and t_ev.repair_brief:
+                        obs_output = f"{t_ev.repair_brief}\n\n[RAW TEST OUTPUT]\n{obs_output}"
+                except Exception as ex:
+                    pass
+
             details = {
                 "command": command,
                 "cmd_to_run": cmd_to_run,
@@ -1175,10 +1202,15 @@ class ShellBashTool(BaseTool):
                 "timed_out": False,
                 "stdout_chars": len(stdout),
                 "stderr_chars": len(stderr),
+                "raw_stdout": stdout,
+                "raw_stderr": stderr,
+                "is_validation_command": is_test_cmd,
+                "test_evidence": test_evidence_dict,
+                "primary_failure_category": primary_cat,
             }
             return ToolResult(
                 success=success,
-                output=shaped.to_observation_text(),
+                output=obs_output,
                 error=f"Command failed with exit code {exit_code}" if not success else None,
                 exit_code=exit_code,
                 duration_seconds=duration,

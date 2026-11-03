@@ -2586,6 +2586,64 @@ class AgentLoop:
                             self._record_observation(cached_obs)
                             continue
 
+                    # ── P0 Duplicate Validation Guard ──
+                    # Block repeating identical failed test commands when no source files have been edited
+                    if call_name in ("shell.bash", "bash", "run_shell", "shell_bash") and isinstance(call_args, dict):
+                        sh_cmd = call_args.get("command", "").strip()
+                        cmd_low = sh_cmd.lower()
+                        is_val_cmd = any(tc in cmd_low for tc in ("npm test", "npm run test", "npx jest", "pytest", "node --test", "mocha"))
+                        if is_val_cmd:
+                            current_src_digest = self._compute_workspace_source_digest()
+                            last_val_cmd = getattr(self, "_last_validation_command", "")
+                            last_val_digest = getattr(self, "_last_validation_source_digest", "")
+                            last_val_failed = getattr(self, "_last_validation_failed", False)
+                            last_repair_brief = getattr(self, "_last_validation_repair_brief", "")
+
+                            if last_val_failed and sh_cmd == last_val_cmd and current_src_digest == last_val_digest:
+                                dup_count = getattr(self, "_duplicate_validation_count", 0) + 1
+                                self._duplicate_validation_count = dup_count
+
+                                if dup_count >= 2:
+                                    logger.error(f"AgentLoop: Unresolved contract contradiction: repeated failing validation '{sh_cmd}' without code repair.")
+                                    term_reason = (
+                                        f"UNRESOLVED_CONTRACT_CONTRADICTION: Validation command '{sh_cmd}' failed repeatedly "
+                                        f"without intervening source edits to resolve the diagnosed failure: {last_repair_brief[:200]}"
+                                    )
+                                    await self._publish_event(
+                                        EventType.MISSION_FAILED,
+                                        turn_id=turn_id,
+                                        severity=EventSeverity.CRITICAL,
+                                        payload={
+                                            "error": term_reason,
+                                            "failure_category": getattr(self, "_last_validation_error_class", "TEST_FAILURE"),
+                                            "command": sh_cmd,
+                                            "consecutive_failures": consecutive_failures,
+                                        }
+                                    )
+                                    break_to_terminal = True
+                                    break
+
+                                obs = Observation(
+                                    observation_id=f"obs_duplicate_val_blocked_{uuid.uuid4().hex[:6]}",
+                                    mission_id=self._mission_id,
+                                    turn_id=turn_id,
+                                    source_type="governor",
+                                    source_id="duplicate_validation_guard",
+                                    success=False,
+                                    summary=f"Duplicate validation attempt: '{sh_cmd}' blocked. No workspace source files were modified since last test failure.",
+                                    content=(
+                                        f"[DUPLICATE_VALIDATION_ATTEMPT]\n"
+                                        f"Command: {sh_cmd}\n\n"
+                                        f"You ran this exact test command and it failed. No source files, contracts, or tests have been modified since.\n"
+                                        f"Running unchanged tests repeatedly does not fix failures.\n\n"
+                                        f"Previous Test Diagnosis:\n{last_repair_brief or 'Tests failed with non-zero exit code.'}\n\n"
+                                        f"Action Required: You MUST edit the application files (using fs.edit or fs.write) to repair the diagnosed contract or test issue before re-running tests."
+                                    ),
+                                )
+                                turn.observation_ids.append(obs.observation_id)
+                                self._record_observation(obs)
+                                continue
+
                     # Redundancy Guard (Section 10): block repeated identical failed attempts (>= 2)
 
                     if getattr(self, "_tool_failure_counts", {}).get(action_key, 0) >= 2:
@@ -2628,8 +2686,9 @@ class AgentLoop:
 
                         self._record_observation(obs)
 
-                        consecutive_failures += 1
-                        self._record_failure_entry(turn_id=turn_id, category="TOOL_FAILURE", error_class="REDUNDANCY_GUARD_BLOCKED", operation=call_name)
+                        last_err = self._failure_ledger[-1].error_class if (hasattr(self, "_failure_ledger") and self._failure_ledger) else "REDUNDANCY_GUARD_BLOCKED"
+                        last_cat = self._failure_ledger[-1].category if (hasattr(self, "_failure_ledger") and self._failure_ledger) else "TOOL_FAILURE"
+                        self._record_failure_entry(turn_id=turn_id, category=last_cat, error_class=last_err, operation=call_name)
 
                         continue
 
@@ -3971,6 +4030,8 @@ class AgentLoop:
                             self._category_failures = {"PROVIDER_FAILURE": 0, "TOOL_FAILURE": 0, "VALIDATION_FAILURE": 0, "NO_PROGRESS": 0}
                             self._consecutive_empty_turns = 0
                             self._no_progress_streak = 0
+                            self._last_validation_failed = False
+                            self._duplicate_validation_count = 0
 
                             # Successful file mutation clears failure tracker and resets no-progress recovery
 
@@ -4585,11 +4646,27 @@ class AgentLoop:
                                 break
 
                         else:
+                            is_val = False
+                            val_cat = "TOOL_EXECUTION_ERROR"
+                            val_cmd = ""
+                            if getattr(obs, "details", None) and isinstance(obs.details, dict):
+                                is_val = obs.details.get("is_validation_command", False)
+                                val_cmd = obs.details.get("command", "")
+                                if is_val:
+                                    val_cat = obs.details.get("primary_failure_category") or "TEST_FAILURE"
+                                    self._last_validation_command = val_cmd
+                                    self._last_validation_source_digest = self._compute_workspace_source_digest()
+                                    self._last_validation_failed = True
+                                    self._last_validation_error_class = val_cat
+                                    t_ev = obs.details.get("test_evidence")
+                                    if t_ev and isinstance(t_ev, dict):
+                                        self._last_validation_repair_brief = t_ev.get("repair_brief", "")
+
                             consecutive_failures += 1
                             self._record_failure_entry(
                                 turn_id=turn_id,
-                                category="TOOL_FAILURE",
-                                error_class="TOOL_EXECUTION_ERROR",
+                                category="VALIDATION_FAILURE" if is_val else "TOOL_FAILURE",
+                                error_class=val_cat if is_val else "TOOL_EXECUTION_ERROR",
                                 operation=call_name,
                                 actual_result=getattr(obs, "summary", "") or getattr(obs, "content", ""),
                             )
@@ -5751,6 +5828,35 @@ class AgentLoop:
         self._failure_ledger.append(entry)
         self._category_failures[category] = self._category_failures.get(category, 0) + 1
         return entry
+
+    def _compute_workspace_source_digest(self) -> str:
+        """Compute deterministic digest of all relevant source and test files in workspace."""
+        if not self.workspace or not hasattr(self.workspace, "workspace_root") or not self.workspace.workspace_root:
+            return ""
+        ws_root = Path(self.workspace.workspace_root)
+        if not ws_root.exists():
+            return ""
+        hasher = hashlib.sha256()
+        try:
+            for p in sorted(ws_root.rglob("*")):
+                if not p.is_file():
+                    continue
+                try:
+                    rel_parts = p.relative_to(ws_root).parts
+                except ValueError:
+                    continue
+                if any(part in (".git", "node_modules", ".venv", "venv", ".hermes", ".artifacts", "__pycache__", "coverage", ".pytest_cache") for part in rel_parts):
+                    continue
+                if p.suffix.lower() in (".js", ".ts", ".html", ".css", ".json", ".py", ".sql", ".md"):
+                    hasher.update(str(p.relative_to(ws_root)).encode("utf-8"))
+                    try:
+                        hasher.update(str(p.stat().st_mtime_ns).encode("utf-8"))
+                        hasher.update(str(p.stat().st_size).encode("utf-8"))
+                    except Exception:
+                        pass
+        except Exception:
+            pass
+        return hasher.hexdigest()
 
     def _record_observation(self, obs: Observation) -> None:
 

@@ -191,13 +191,26 @@ def verify_deliverables_and_test_execution(
         if test_cmd:
             try:
                 import subprocess
-                run_res = subprocess.run(
-                    test_cmd,
-                    cwd=str(ws_root),
-                    capture_output=True,
-                    text=True,
-                    timeout=30.0,
-                )
+                import os
+                test_env = os.environ.copy()
+                isolated_db_path = ws_root / ".test_isolated.db"
+                test_env["BHARATBRIDGE_DB_PATH"] = str(isolated_db_path)
+                test_env["NODE_ENV"] = "test"
+                try:
+                    run_res = subprocess.run(
+                        test_cmd,
+                        cwd=str(ws_root),
+                        env=test_env,
+                        capture_output=True,
+                        text=True,
+                        timeout=30.0,
+                    )
+                finally:
+                    if isolated_db_path.exists():
+                        try:
+                            isolated_db_path.unlink()
+                        except Exception:
+                            pass
                 if run_res.returncode != 0:
                     err_sample = (run_res.stderr or run_res.stdout or "")[-300:]
                     return (
@@ -301,13 +314,16 @@ class CompletionPolicy:
                             + cross_rep.database_mismatches
                             + cross_rep.startup_mismatches
                             + cross_rep.response_shape_mismatches
+                            + cross_rep.module_graph_mismatches
+                            + cross_rep.api_client_mismatches
+                            + cross_rep.form_enum_mismatches
+                            + cross_rep.test_export_mismatches
+                        ) or [cross_rep.summary]
+                        return (
+                            False,
+                            f"Fast verification rejected: Cross-file contract validation failed ({len(err_msgs)} error(s)): {cross_rep.summary}",
+                            err_msgs,
                         )
-                        if err_msgs:
-                            return (
-                                False,
-                                f"Fast verification rejected: Cross-file contract validation failed ({len(err_msgs)} error(s)): {cross_rep.summary}",
-                                err_msgs,
-                            )
                     # Deliverables and Automated Test Execution
                     d_ok, d_reason, d_issues = verify_deliverables_and_test_execution(
                         ws_root=ws_root,
@@ -500,13 +516,16 @@ class CompletionPolicy:
                     + cross_report.database_mismatches
                     + cross_report.startup_mismatches
                     + cross_report.response_shape_mismatches
+                    + cross_report.module_graph_mismatches
+                    + cross_report.api_client_mismatches
+                    + cross_report.form_enum_mismatches
+                    + cross_report.test_export_mismatches
+                ) or [cross_report.summary]
+                return (
+                    False,
+                    f"Completion rejected: Cross-file contract validation failed ({len(err_msgs)} error(s)): {cross_report.summary}",
+                    err_msgs,
                 )
-                if err_msgs:
-                    return (
-                        False,
-                        f"Completion rejected: Cross-file contract validation failed ({len(err_msgs)} error(s)): {cross_report.summary}",
-                        err_msgs,
-                    )
 
             from core.alignment_verifier import verify_project_alignment
             bp = getattr(runtime_state, "blueprint", None) if runtime_state else None

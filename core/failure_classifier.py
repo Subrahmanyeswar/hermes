@@ -1,8 +1,8 @@
 """
 core/failure_classifier.py
-Hermes 2.x - Failure Classification and Model Failover Decider (Section 17 / Test Group H).
+Hermes 2.x - Failure Classification and Model Failover Decider.
 
-Classifies errors into 14 distinct categories and ensures that ONLY genuine
+Classifies errors into distinct categories and ensures that ONLY genuine
 transient provider errors trigger model failover. Local code, contract,
 environment, and test failures are directed to deterministic repair owners.
 """
@@ -32,6 +32,18 @@ class FailureCategory(str, Enum):
     TEST_FAILURE_API = "TEST_FAILURE_API"
     BROWSER_RUNTIME_ERROR = "BROWSER_RUNTIME_ERROR"
     STUCK_LOOP_ERROR = "STUCK_LOOP_ERROR"
+
+    # Granular Test Execution Failure Categories
+    TEST_HARNESS_FAILURE = "TEST_HARNESS_FAILURE"
+    TEST_DISCOVERY_FAILURE = "TEST_DISCOVERY_FAILURE"
+    TEST_IMPORT_FAILURE = "TEST_IMPORT_FAILURE"
+    TEST_ASSERTION_FAILURE = "TEST_ASSERTION_FAILURE"
+    APPLICATION_RUNTIME_FAILURE = "APPLICATION_RUNTIME_FAILURE"
+    APPLICATION_VALIDATION_FAILURE = "APPLICATION_VALIDATION_FAILURE"
+    DATABASE_TEST_FAILURE = "DATABASE_TEST_FAILURE"
+    DEPENDENCY_FAILURE = "DEPENDENCY_FAILURE"
+    TEST_TIMEOUT = "TEST_TIMEOUT"
+    UNKNOWN_TEST_FAILURE = "UNKNOWN_TEST_FAILURE"
 
 
 # Set of failure categories that are genuinely transient provider errors
@@ -82,7 +94,6 @@ class FailureClassifier:
                 return FailureCategory.SYNTAX_ERROR_PYTHON
             if any(k in combined for k in ("javascript", "node", ".js", "unexpected token", "missing ) after argument")):
                 return FailureCategory.SYNTAX_ERROR_JS
-            # Default python if syntaxerror without node
             return FailureCategory.SYNTAX_ERROR_PYTHON
 
         if any(k in combined for k in ("unexpected identifier", "unexpected token", "missing semicolon", "referenceerror", "node --check")):
@@ -100,8 +111,16 @@ class FailureClassifier:
         if any(k in combined for k in ("node executable not found", "command not found", "executable not found", "permission denied", "environment_error", "eacces", "eperm")):
             return FailureCategory.ENVIRONMENT_ERROR
 
-        # 6. Test failures
-        if any(k in combined for k in ("assertionerror", "pytest", "test failed", "test_failure", "failing tests")):
+        # 6. Granular Test failures
+        if any(k in combined for k in ("app.address is not a function", "server.address is not a function")):
+            return FailureCategory.TEST_IMPORT_FAILURE
+        if "sqlite_constraint" in combined or "check constraint failed" in combined:
+            return FailureCategory.DATABASE_TEST_FAILURE
+        if "cannot find module" in combined or "module_not_found" in combined:
+            return FailureCategory.DEPENDENCY_FAILURE
+        if any(k in combined for k in ("assertionerror", "pytest", "test failed", "test_failure", "failing tests", "expected:", "received:")):
+            if "expected" in combined and "received" in combined:
+                return FailureCategory.TEST_ASSERTION_FAILURE
             return FailureCategory.TEST_FAILURE_API
 
         # 7. Browser runtime
