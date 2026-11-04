@@ -267,6 +267,14 @@ class GoalDecomposer:
             if cid == "req.car" and is_aerospace_mission and not re.search(r"\b(?:hypercar|automobile|car\s+brand)\b", lower_prompt):
                 continue
 
+            # Check explicit exclusions / negative constraints
+            if cid == "req.persistence" and re.search(r"\b(?:no|without|zero|not\s+needed|no\s+need\s+for)\s+[^.!?\n]*\b(?:database|backend|persistence|storage)\b", lower_prompt):
+                continue
+            if cid == "req.auth" and re.search(r"\b(?:no|without|zero|not\s+needed|no\s+need\s+for)\s+[^.!?\n]*\b(?:auth|authentication|login)\b", lower_prompt):
+                continue
+            if cid == "req.backend" and re.search(r"\b(?:no|without|zero|not\s+needed|no\s+need\s+for)\s+[^.!?\n]*\b(?:backend|server)\b", lower_prompt):
+                continue
+
             matches = False
             for pat in concept["patterns"]:
                 if re.search(pat, lower_prompt):

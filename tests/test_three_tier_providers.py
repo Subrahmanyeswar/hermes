@@ -44,6 +44,14 @@ from models.common_adapter import (
 )
 from models.provider import NormalizedModelResponse
 from core.orchestrator import MultiTierRoutingExhaustedError
+from core.adaptive_routing import get_adaptive_router
+
+
+@pytest.fixture(autouse=True)
+def reset_router():
+    get_adaptive_router().reset()
+    yield
+    get_adaptive_router().reset()
 
 
 # ==============================================================================

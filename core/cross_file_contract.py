@@ -423,13 +423,20 @@ class CrossFileContractValidator:
         # Discover all relevant frontend JavaScript files
         frontend_js_files: List[Path] = []
         if ws.exists():
-            for f in ws.glob("**/*.js"):
-                rel_parts = f.relative_to(ws).parts
-                if any(p in ("node_modules", ".git", ".venv", "venv", ".hermes", ".artifacts", "tests", "test", "coverage") for p in rel_parts):
-                    continue
-                if be_file and f.resolve() == be_file.resolve():
-                    continue
-                frontend_js_files.append(f)
+            import os
+            ignored_dirs = {
+                "node_modules", ".git", ".venv", "venv", ".hermes", ".artifacts",
+                "tests", "test", "coverage", "__pycache__", "data", "benchmarks",
+                "docs", "workspaces", "generated_projects", ".temp_chrome_cdp_cycle"
+            }
+            for root, dirs, files in os.walk(ws):
+                dirs[:] = [d for d in dirs if d not in ignored_dirs and not d.startswith(".")]
+                for fn in files:
+                    if fn.endswith(".js"):
+                        full_p = Path(root) / fn
+                        if be_file and full_p.resolve() == be_file.resolve():
+                            continue
+                        frontend_js_files.append(full_p)
 
         if frontend_js_files and check_backend and backend_routes:
             for js_f in frontend_js_files:

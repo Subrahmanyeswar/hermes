@@ -508,6 +508,13 @@ class AgentLoop:
         self._provider_failure_counts: Dict[str, int] = {}
 
         self._total_recovery_budget: int = 2
+        self._inference_history: List[Dict[str, Any]] = []
+        self._in_recovery: bool = False
+        self._consecutive_empty_turns: int = 0
+        self._last_turn_durations: Dict[str, Any] = {
+            "provider_latency_seconds": 0.0,
+            "tool_execution_latency_seconds": 0.0,
+        }
 
         # Reliability & convergence remediation tracking structures (P0)
 
@@ -524,6 +531,40 @@ class AgentLoop:
         self.stuck_detector = StuckLoopDetector(max_identical_errors=2, max_history=50)
 
 
+
+    def record_inference_telemetry(
+        self,
+        requested_tier: int,
+        actual_provider: str,
+        actual_model: str,
+        start_time: float,
+        completion_time: float,
+        success: bool,
+        tool_call_count: int,
+        finish_reason: Optional[str] = None,
+        turn_id: Optional[str] = None,
+        duration_ms: Optional[float] = None,
+        error: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Record authoritative telemetry for every model inference (P0)."""
+        dur = duration_ms if duration_ms is not None else max(0.0, (completion_time - start_time) * 1000.0)
+        rec = {
+            "turn_id": turn_id or "",
+            "requested_tier": int(requested_tier),
+            "actual_provider": str(actual_provider),
+            "actual_model_id": str(actual_model),
+            "start_time": float(start_time),
+            "completion_time": float(completion_time),
+            "duration_ms": float(dur),
+            "success": bool(success),
+            "tool_call_count": int(tool_call_count),
+            "finish_reason": finish_reason or ("stop" if success else "error"),
+            "error": error,
+        }
+        if not hasattr(self, "_inference_history"):
+            self._inference_history = []
+        self._inference_history.append(rec)
+        return rec
 
     async def _ensure_active_task(self) -> None:
 
@@ -1363,12 +1404,14 @@ class AgentLoop:
 
 
 
+        # Ensure mission begins on primary configured tier
+        if hasattr(self, "orchestrator") and self.orchestrator:
+            setattr(self.orchestrator, "_active_tier", 1)
+
         # ── The Agent Loop ────────────────────────────────────────────────────
 
         while True:
 
-            if hasattr(self, "orchestrator") and self.orchestrator:
-                setattr(self.orchestrator, "_active_tier", 1)
             await self._ensure_active_task()
 
             # 1. Check Abort / Cancellation
@@ -1799,6 +1842,8 @@ class AgentLoop:
             # 7. Invoke Model (T1)
 
             t1_start = time.monotonic()
+            t1_start_wall = time.time()
+            requested_tier = getattr(self.orchestrator, "_active_tier", 1) if hasattr(self, "orchestrator") else 1
 
             await self._publish_event(
 
@@ -1973,12 +2018,32 @@ class AgentLoop:
                     break
 
                 t1_latency = time.monotonic() - t1_start
+                t1_end_wall = time.time()
 
                 resp_model = getattr(model_response, "model", None) or TIER1_MODEL
+                resp_provider = getattr(model_response, "provider", None) or TIER1_PROVIDER
+                finish_reason = getattr(model_response, "finish_reason", None) or ("stop" if getattr(model_response, "success", True) else "error")
+                tool_calls_list = getattr(model_response, "tool_calls", []) or []
+                tool_call_count = len(tool_calls_list)
+                is_success = bool(getattr(model_response, "success", True))
 
                 from config.model_config import TIER1_MODEL as C_T1, TIER2_MODEL as C_T2, TIER3_MODEL as C_T3
+                resp_tier = 1 if resp_model == C_T1 else (2 if resp_model == C_T2 else (3 if resp_model == C_T3 else requested_tier))
 
-                resp_tier = 1 if resp_model == C_T1 else (2 if resp_model == C_T2 else 3)
+                # Record authoritative inference telemetry for every model invocation (P0)
+                self.record_inference_telemetry(
+                    requested_tier=requested_tier,
+                    actual_provider=resp_provider,
+                    actual_model=resp_model,
+                    start_time=t1_start_wall,
+                    completion_time=t1_end_wall,
+                    duration_ms=t1_latency * 1000.0,
+                    success=is_success,
+                    tool_call_count=tool_call_count,
+                    finish_reason=finish_reason,
+                    turn_id=turn_id,
+                    error=getattr(model_response, "error", None) if not is_success else None,
+                )
 
                 durations = getattr(self, "_last_turn_durations", {}) or {}
                 t1_dur = durations.get("tier1_duration_ms", int(t1_latency * 1000) if resp_tier == 1 else 0)
@@ -1992,6 +2057,11 @@ class AgentLoop:
                     payload={
                         "model": resp_model,
                         "tier": resp_tier,
+                        "requested_tier": requested_tier,
+                        "actual_provider": resp_provider,
+                        "actual_model_id": resp_model,
+                        "start_time": t1_start_wall,
+                        "completion_time": t1_end_wall,
                         "latency": t1_latency,
                         "duration_ms": total_model_dur,
                         "headline": f"Thought for {t1_latency:.1f}s",
@@ -2000,11 +2070,12 @@ class AgentLoop:
                         "tier2_duration_ms": t2_dur,
                         "tier3_duration_ms": t3_dur,
                         "total_model_duration_ms": total_model_dur,
-                        "responding_provider": getattr(model_response, "provider", TIER1_PROVIDER),
+                        "responding_provider": resp_provider,
                         "responding_model": resp_model,
                         "response_received": True,
-                        "finish_reason": getattr(model_response, "finish_reason", None),
-                        "tool_call_count": len(getattr(model_response, "tool_calls", []) or []),
+                        "finish_reason": finish_reason,
+                        "tool_call_count": tool_call_count,
+                        "success": is_success,
                     }
                 )
 
@@ -2376,6 +2447,7 @@ class AgentLoop:
 
             if decision.decision_type == AgentDecisionType.ACT:
 
+                tool_exec_start = time.monotonic()
                 self._consecutive_empty_turns = 0
 
                 calls_to_run = getattr(decision, "tool_calls", None) or [
@@ -4056,6 +4128,13 @@ class AgentLoop:
                             self._consecutive_browser_failures = 0
                         consecutive_failures = 0
                         unchanged_read_governor_blocks = 0
+                        self._consecutive_empty_turns = 0
+                        if getattr(self, "_in_recovery", False):
+                            logger.info(f"AgentLoop: Tool '{call_name}' succeeded during recovery. Clearing recovery state and restoring active tier to 1.")
+                            self._in_recovery = False
+                            self._recovery_attempt_count = 0
+                            if hasattr(self, "orchestrator") and self.orchestrator:
+                                setattr(self.orchestrator, "_active_tier", 1)
                         self._mutations_since_last_search = getattr(self, "_mutations_since_last_search", 0) + (1 if is_mutating else 0)
                         if is_mutating:
                             self._category_failures = {"PROVIDER_FAILURE": 0, "TOOL_FAILURE": 0, "VALIDATION_FAILURE": 0, "NO_PROGRESS": 0}
@@ -4727,6 +4806,17 @@ class AgentLoop:
 
                 )
 
+                # Measure tool execution duration separately from provider latency (P0)
+                tool_exec_duration = time.monotonic() - tool_exec_start
+                self._last_turn_durations = {
+                    "provider_latency_seconds": t1_latency,
+                    "tool_execution_latency_seconds": tool_exec_duration,
+                    "provider_duration_ms": t1_latency * 1000.0,
+                    "tool_execution_duration_ms": tool_exec_duration * 1000.0,
+                }
+                turn.provider_latency_seconds = t1_latency
+                turn.tool_execution_latency_seconds = tool_exec_duration
+
 
 
             elif decision.decision_type == AgentDecisionType.ASK_USER:
@@ -5228,13 +5318,13 @@ class AgentLoop:
 
 
 
-                if self._consecutive_empty_turns >= 2 and consecutive_failures >= 2:
+                if self._consecutive_empty_turns >= 2:
 
                     logger.warning(
 
-                        f"AgentLoop: {self._consecutive_empty_turns} consecutive empty turns with {consecutive_failures} failures. "
+                        f"AgentLoop: {self._consecutive_empty_turns} consecutive empty turns without tool actions. "
 
-                        "Triggering bounded recovery transition."
+                        "Triggering bounded recovery transition to escalate model provider."
 
                     )
 
@@ -5250,7 +5340,9 @@ class AgentLoop:
 
                     if not rec_ok:
 
-                        termination_reason = "FAILED_NO_ACTION_STALL: Exhausted recovery transitions while in reasoning-only loop"
+                        termination_reason = "FAILED_NO_ACTION_STALL: Exhausted recovery transitions while in reasoning-only loop (all model providers failed to invoke executable tools)"
+
+                        logger.error(f"AgentLoop: {termination_reason}")
 
                         await self._publish_event(
 
@@ -5546,7 +5638,12 @@ class AgentLoop:
 
                 turn_id=turn_id,
 
-                payload={"turn_id": turn_id, "duration": turn.completed_at - turn.started_at}
+                payload={
+                    "turn_id": turn_id,
+                    "duration": turn.completed_at - turn.started_at,
+                    "provider_latency_seconds": getattr(turn, "provider_latency_seconds", 0.0),
+                    "tool_execution_latency_seconds": getattr(turn, "tool_execution_latency_seconds", 0.0),
+                }
 
             )
 
@@ -6545,8 +6642,10 @@ class AgentLoop:
 
 
         # Track visited tiers per incident failure fingerprint
-
-        fp = f"{rejection_reason.strip()[:80]}|{','.join(sorted(unmet_reqs or []))}"
+        # Strip dynamic turn counters and variable counts so turns 2, 3, etc. share visited history
+        norm_reason = re.sub(r'\b\d+\s*(?:turns?|attempts?|times?)\b', 'N turns', rejection_reason.strip(), flags=re.IGNORECASE)
+        norm_reason = re.sub(r'\(\s*\d+\s+turns.*?\)', '(N turns)', norm_reason)
+        fp = f"{norm_reason[:80]}|{','.join(sorted(unmet_reqs or []))}"
 
         if not hasattr(self, "_incident_visited_tiers"):
 
@@ -6714,6 +6813,29 @@ class AgentLoop:
 
 
 
+        # Prevent duplicate transition to the same tier
+        if next_tier == current_tier:
+            logger.warning(f"AgentLoop: Next tier ({next_tier}) is identical to current tier ({current_tier}). Advancing to next unvisited tier.")
+            for cand in [current_tier + 1, current_tier + 2]:
+                if cand <= 4 and cand not in visited:
+                    next_tier = cand
+                    break
+            else:
+                next_tier = None
+            target_provider, target_model = provider_map.get(next_tier, (None, None))
+
+        # Prevent repeating the exact same recovery transition consecutively
+        last_trans = getattr(self, "_last_recovery_transition", None)
+        if last_trans and last_trans == (current_tier, next_tier):
+            logger.warning(f"AgentLoop: Duplicate recovery transition {current_tier} -> {next_tier} prevented. Advancing to next unvisited tier.")
+            for cand in [current_tier + 1, current_tier + 2, 4]:
+                if cand <= 4 and cand not in visited and cand != next_tier:
+                    next_tier = cand
+                    break
+            else:
+                next_tier = None
+            target_provider, target_model = provider_map.get(next_tier, (None, None))
+
         if next_tier and target_model:
 
             logger.info(
@@ -6724,6 +6846,9 @@ class AgentLoop:
 
             )
 
+            visited.add(next_tier)
+            self._in_recovery = True
+            self._last_recovery_transition = (current_tier, next_tier)
             setattr(self.orchestrator, "_active_tier", next_tier)
 
             await self._publish_event(
@@ -6752,11 +6877,9 @@ class AgentLoop:
 
         else:
 
-            logger.warning(f"AgentLoop: No further tier available for recovery escalation from Tier {current_tier}.")
+            logger.warning(f"AgentLoop: No further tier available for recovery escalation from Tier {current_tier} (all candidate tiers/providers exhausted).")
 
-            if current_tier >= 3:
-
-                return False
+            return False
 
 
 
@@ -6796,13 +6919,12 @@ class AgentLoop:
 
             try:
 
-                gate = getattr(self, "mvp_gate", None) or WebsiteMvpGate(workspace_root=ws_dir)
-
-                ok_scaff, missing_items = gate.evaluate(ws_dir)
-
-                if not ok_scaff and missing_items:
-
-                    unmet_reqs = missing_items
+                # Only evaluate workspace if it is an actual locked application workspace
+                if self.workspace and getattr(self.workspace, "is_locked", False):
+                    gate = getattr(self, "mvp_gate", None) or WebsiteMvpGate(workspace_root=ws_dir)
+                    ok_scaff, missing_items = gate.evaluate(ws_dir)
+                    if not ok_scaff and missing_items:
+                        unmet_reqs = missing_items
 
             except Exception:
 
@@ -7069,11 +7191,26 @@ class AgentLoop:
 
         """
 
-        # 1. Recovery escalation
+        prompt_lower = (user_message or "").lower()
 
-        if getattr(self, "_recovery_triggered_this_turn", False) or getattr(self, "_in_recovery", False) or getattr(self, "_consecutive_empty_turns", 0) > 0:
+        mission_prompt = ""
 
-            return "high", 8192
+        if hasattr(self, "mission") and self.mission and getattr(self.mission, "user_prompt", None):
+
+            mission_prompt = str(self.mission.user_prompt).lower()
+
+        is_static_web = any(k in mission_prompt for k in [
+            "html, css and vanilla javascript", "no database", "no backend",
+            "static website", "pure frontend", "no external api"
+        ])
+
+        # 1. Empty-action loops / reasoning-only stalls: enforce LOW effort to prevent 20s thinking stalls (P0)
+        if getattr(self, "_consecutive_empty_turns", 0) > 0 or getattr(self, "_in_recovery", False) or getattr(self, "_recovery_triggered_this_turn", False):
+            return "low", 4096
+
+        # 2. Static website missions: avoid deep architectural thinking loops
+        if is_static_web:
+            return "low", 4096
 
 
 
@@ -7162,6 +7299,37 @@ class AgentLoop:
         )
 
 
+
+        from config.model_config import TIER4_PROVIDER, TIER4_MODEL
+
+        # Tier 4 dispatch when recovery escalation reached Tier 4
+        if active_tier == 4 and TIER4_MODEL:
+            await self._publish_event(
+                EventType.TIER_SELECTED,
+                turn_id=turn_id,
+                payload={
+                    "tier": 4,
+                    "provider": TIER4_PROVIDER,
+                    "model": TIER4_MODEL,
+                    "reason": "recovery_escalated_tier_4",
+                },
+            )
+            t4_kwargs = {
+                "prompt": user_message,
+                "system": system_prompt,
+                "mission_id": self._mission_id,
+                "turn_id": turn_id or "",
+                "temperature": self.config.temperature,
+                "model": TIER4_MODEL,
+                "tools": native_tools,
+            }
+            if timeout_seconds is not None:
+                t4_kwargs["timeout_seconds"] = timeout_seconds
+            tier4_client = getattr(self.orchestrator, "tier4", None) or getattr(self.orchestrator, "_tier4", None) or getattr(self.orchestrator, "ollama", None)
+            if tier4_client and hasattr(tier4_client, "generate"):
+                t4_gen = getattr(tier4_client, "generate")
+                res = t4_gen(**t4_kwargs)
+                return (await res) if asyncio.iscoroutine(res) else res
 
         # Tier 3 dispatch when recovery escalation reached Tier 3
 
