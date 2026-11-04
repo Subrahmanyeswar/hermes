@@ -196,10 +196,13 @@ class StructuredObservation:
         """
         output = getattr(tool_result, "output", "") or ""
         error = getattr(tool_result, "error", "") or ""
+        details = getattr(tool_result, "details", {}) or {}
 
-        # Separate stdout from stderr heuristically
-        stdout = output
-        stderr = error
+        # Separate stdout from stderr cleanly using recorded raw channels if available
+        raw_stdout = details.get("raw_stdout") if isinstance(details, dict) else None
+        raw_stderr = details.get("raw_stderr") if isinstance(details, dict) else None
+        stdout = raw_stdout if raw_stdout is not None else output
+        stderr = raw_stderr if raw_stderr is not None else error
 
         # Compute state delta
         new_files = files_after - files_before
@@ -214,28 +217,43 @@ class StructuredObservation:
         success = getattr(tool_result, "success", exit_code == 0)
 
         if not success:
-            raw_err = stderr if (stderr and stderr.strip()) else stdout
-            if raw_err:
-                diagnostic = extract_syntax_diagnostic(raw_err)
-                if diagnostic:
-                    f_name = Path(diagnostic["file"]).name if diagnostic.get("file") else "unknown"
-                    error_summary = f"{diagnostic['error_class']}: {diagnostic['message']} at {f_name}:{diagnostic['line']}"
-                else:
-                    # Filter out version banners and runtime noise
-                    valid_lines = [
-                        l.strip() for l in raw_err.splitlines()
-                        if l.strip() and not l.strip().startswith("Node.js v") and not l.strip().startswith("at ")
-                    ]
-                    if valid_lines:
-                        err_lines = [l for l in valid_lines if "error" in l.lower()]
-                        error_summary = err_lines[0][:200] if err_lines else valid_lines[-1][:200]
+            t_ev = details.get("test_evidence") if isinstance(details, dict) else None
+            if t_ev and isinstance(t_ev, dict):
+                if t_ev.get("failures"):
+                    f0 = t_ev["failures"][0]
+                    t_name = f0.get("test_name") or f0.get("suite_name") or ""
+                    diag = f0.get("diagnosis") or f0.get("error_message") or ""
+                    cat = t_ev.get("primary_failure_category") or "TEST_FAILURE"
+                    error_summary = f"{cat}: {diag or t_name}"
+                elif t_ev.get("repair_brief"):
+                    first_l = [l.strip() for l in t_ev["repair_brief"].splitlines() if l.strip()]
+                    error_summary = first_l[0] if first_l else "Test execution failed"
+
+            if not error_summary:
+                raw_err = stderr if (stderr and stderr.strip()) else stdout
+                if raw_err:
+                    diagnostic = extract_syntax_diagnostic(raw_err)
+                    if diagnostic:
+                        f_name = Path(diagnostic["file"]).name if diagnostic.get("file") else "unknown"
+                        error_summary = f"{diagnostic['error_class']}: {diagnostic['message']} at {f_name}:{diagnostic['line']}"
+                    else:
+                        valid_lines = [
+                            l.strip() for l in raw_err.splitlines()
+                            if l.strip() and not l.strip().startswith("Node.js v") and not l.strip().startswith("at ")
+                        ]
+                        if valid_lines:
+                            err_lines = [l for l in valid_lines if "error" in l.lower() or "fail" in l.lower()]
+                            error_summary = err_lines[0][:200] if err_lines else valid_lines[-1][:200]
+
+            if not error_summary and error:
+                error_summary = error[:200]
 
         return cls(
             tool_name=tool_name,
             exit_code=exit_code,
             success=success,
-            stdout=stdout[:1000],
-            stderr=stderr[:500],
+            stdout=stdout[:4000],
+            stderr=stderr[:2000],
             duration_seconds=duration,
             state_delta=state_delta,
             error_summary=error_summary,
@@ -255,10 +273,10 @@ class StructuredObservation:
         ]
 
         if self.stdout.strip():
-            lines.append(f"  Output:   {self.stdout.strip()[:300]}")
+            lines.append(f"  Output:   {self.stdout.strip()[:2500]}")
 
         if self.stderr.strip():
-            lines.append(f"  Error:    {self.stderr.strip()[:200]}")
+            lines.append(f"  Error:    {self.stderr.strip()[:1500]}")
 
         if self.state_delta:
             created = self.state_delta.get("files_created", [])

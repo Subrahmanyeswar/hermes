@@ -1113,11 +1113,30 @@ class ShellBashTool(BaseTool):
         # 4. Subprocess execution with process tracking
         try:
             from core.runtime_identity import get_canonical_subprocess_env
+            cmd_lower = command.lower()
+            is_test_cmd = any(tc in cmd_lower for tc in ("npm test", "npm run test", "npx jest", "pytest", "node --test", "mocha"))
+            extra_env = {"PWD": str(cwd_path)}
+            if is_test_cmd:
+                test_db_dir = cwd_path / ".hermes"
+                try:
+                    test_db_dir.mkdir(parents=True, exist_ok=True)
+                except Exception:
+                    pass
+                test_db_path = str(test_db_dir / "test_isolated.sqlite")
+                extra_env.update({
+                    "GLOBALTRADE_TEST_DB_PATH": test_db_path,
+                    "BHARATBRIDGE_DB_PATH": test_db_path,
+                    "TEST_DB_PATH": test_db_path,
+                    "SQLITE_DB_PATH": test_db_path,
+                    "DATABASE_URL": f"sqlite:///{test_db_path}",
+                    "NODE_ENV": "test",
+                })
+
             proc = subprocess.Popen(
                 cmd_to_run,
                 shell=True,
                 cwd=str(cwd_path),
-                env=get_canonical_subprocess_env({"PWD": str(cwd_path)}),
+                env=get_canonical_subprocess_env(extra_env),
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
@@ -1208,10 +1227,25 @@ class ShellBashTool(BaseTool):
                 "test_evidence": test_evidence_dict,
                 "primary_failure_category": primary_cat,
             }
+            err_msg = None
+            if not success:
+                if test_evidence_dict and test_evidence_dict.get("failures"):
+                    f0 = test_evidence_dict["failures"][0]
+                    t_name = f0.get("test_name") or f0.get("suite_name") or "test"
+                    cat = primary_cat or "TEST_FAILURE"
+                    diag = f0.get("diagnosis") or f0.get("error_message") or ""
+                    err_msg = f"Test failure ({cat}) in '{t_name}' (exit code {exit_code}): {diag[:160]}"
+                elif stderr and stderr.strip():
+                    first_err = next((l.strip() for l in stderr.splitlines() if l.strip() and not l.strip().startswith("at ")), "")
+                    err_msg = f"Command failed (exit code {exit_code}): {first_err[:160]}" if first_err else f"Command failed with exit code {exit_code}"
+                else:
+                    first_out = next((l.strip() for l in stdout.splitlines() if "fail" in l.lower() or "error" in l.lower()), "")
+                    err_msg = f"Command failed (exit code {exit_code}): {first_out[:160]}" if first_out else f"Command failed with exit code {exit_code}"
+
             return ToolResult(
                 success=success,
                 output=obs_output,
-                error=f"Command failed with exit code {exit_code}" if not success else None,
+                error=err_msg,
                 exit_code=exit_code,
                 duration_seconds=duration,
                 details=details,

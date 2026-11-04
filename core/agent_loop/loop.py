@@ -3496,9 +3496,15 @@ class AgentLoop:
 
                                         )
 
+                                        if recovery_handled:
+                                            # Bounded multi-tier escalation succeeded; reset consecutive counters and continue loop
+                                            self._consecutive_no_progress_blocks = 0
+                                            self._cycle_no_progress_blocks = 0
+                                            self._recovery_triggered_this_turn = False
+                                            continue
+
+                                        # Only terminate when recovery transitions / tiers are genuinely exhausted
                                         self._consecutive_no_progress_blocks = max(self._consecutive_no_progress_blocks, saved_blocks)
-
-
 
                                         termination_reason = (
 
@@ -6824,6 +6830,19 @@ class AgentLoop:
 
 
 
+        # Extract recent test diagnostics so Tier failover preserves failure history
+        test_fail_summary = ""
+        for obs in reversed(getattr(self, "_observation_history", [])):
+            if not getattr(obs, "success", True):
+                obs_meta = getattr(obs, "metadata", {}) or {}
+                t_ev = obs_meta.get("test_evidence") or (obs_meta.get("details", {}) if isinstance(obs_meta, dict) else {}).get("test_evidence")
+                if t_ev and isinstance(t_ev, dict) and t_ev.get("repair_brief"):
+                    test_fail_summary = f"\nRECENT TEST FAILURE DIAGNOSIS:\n{t_ev['repair_brief']}\n"
+                    break
+                elif getattr(obs, "content", None) and any(w in str(obs.content).lower() for w in ("fail", "error", "expected", "received")):
+                    test_fail_summary = f"\nRECENT TEST FAILURE:\n{str(obs.content)[:800]}\n"
+                    break
+
         compact_recovery_msg = (
 
             f"=== MANDATORY SYSTEM RECOVERY DIRECTIVE ===\n"
@@ -6843,6 +6862,8 @@ class AgentLoop:
             f"PROHIBITION: Do NOT call fs.read or rewrite already completed files ({', '.join(completed_files)}). Write the missing deliverable '{target_repair_file or 'missing file'}' directly using fs.write.\n"
 
             f"{dom_summary}"
+
+            f"{test_fail_summary}"
 
             f"============================================"
 

@@ -1076,6 +1076,215 @@ class CrossFileContractValidator:
             except Exception as e:
                 uncertainties.append(f"Could not parse package.json for startup verification: {e}")
 
+        # 8.5 Cross-File Test and Integration Contract Analysis (Scenarios A through I)
+        test_files = []
+        if (ws / "tests").exists():
+            test_files.extend(list((ws / "tests").glob("*.js")) + list((ws / "tests").glob("*.ts")) + list((ws / "tests").glob("*.py")))
+        if (ws / "test").exists():
+            test_files.extend(list((ws / "test").glob("*.js")) + list((ws / "test").glob("*.ts")) + list((ws / "test").glob("*.py")))
+
+        for tf in test_files:
+            try:
+                t_txt = tf.read_text(encoding='utf-8', errors='ignore')
+
+                # Scenario A: Health status contract mismatch ({ status: 'healthy' } vs { status: 'ok' })
+                if be_content and '/api/health' in be_content:
+                    exp_status_m = re.search(r'expect\s*\(\s*res\.body\.status\s*\)\.toEqual\s*\(\s*["\']([^"\']+)["\']\s*\)', t_txt)
+                    if exp_status_m:
+                        expected_status = exp_status_m.group(1)
+                        health_match = re.search(r"/api/health.*?res\.(?:json|send)\s*\(\s*\{([^}]+)\}\s*\)", be_content, re.DOTALL)
+                        if health_match:
+                            h_body = health_match.group(1)
+                            actual_status_m = re.search(r'status\s*:\s*["\']([^"\']+)["\']', h_body)
+                            if actual_status_m:
+                                actual_status = actual_status_m.group(1)
+                                if actual_status != expected_status:
+                                    msg = (
+                                        f"API contract mismatch: GET /api/health in {be_file.name} returns "
+                                        f"status '{actual_status}', but {tf.name} expects '{expected_status}'."
+                                    )
+                                    response_shape_mismatches.append(msg)
+                                    discrepancies.append(ContractDiscrepancy(
+                                        type="API_RESPONSE_VALUE_MISMATCH",
+                                        responsible_artifact=be_file.name,
+                                        consuming_artifact=tf.name,
+                                                                                mismatch=msg,
+                                        suggested_repair=f"Align {be_file.name} or {tf.name} so both agree on status '{expected_status}'.",
+                                    ))
+
+                # Scenario B: Enquiry request payload field mismatch (companyName vs company_name, etc.)
+                if be_content and ('/api/enquiries' in be_content or '/api/inquiries' in be_content):
+                    test_post_enquiry = re.search(r'post\s*\(\s*["\']/api/(?:enquiries|inquiries)["\']\s*\)\s*\.send', t_txt)
+                    if test_post_enquiry:
+                        payload_str = t_txt
+                        camel_fields = [f for f in ["companyName", "contactPerson", "productName", "destinationOrOrigin", "additionalRequirements"] if f in payload_str]
+                        snake_backend = [f for f in ["company_name", "contact_person", "product", "country", "trade_direction", "requirements"] if f in be_content]
+                        if camel_fields and snake_backend:
+                            msg = (
+                                f"Enquiry request payload mismatch: {tf.name} sends camelCase fields "
+                                f"{sorted(list(set(camel_fields)))} but {be_file.name} expects snake_case fields "
+                                f"{sorted(list(set(snake_backend)))}."
+                            )
+                            endpoint_mismatches.append(msg)
+                            discrepancies.append(ContractDiscrepancy(
+                                type="REQUEST_PAYLOAD_FIELD_MISMATCH",
+                                responsible_artifact=tf.name,
+                                consuming_artifact=be_file.name,
+                                                                mismatch=msg,
+                                suggested_repair="Standardize enquiry field naming between test payloads and backend request body parsing.",
+                            ))
+
+                # Scenario C: Reference format prefix mismatch (GT-ENQ- vs GTC-ENQ-)
+                ref_pattern_m = re.search(r"expect\s*\(\s*res\.body\.reference\s*\)\.toMatch\s*\(\s*/\^([A-Z0-9_-]+)/", t_txt)
+                if ref_pattern_m and be_content:
+                    exp_prefix = ref_pattern_m.group(1)
+                    actual_prefix_m = re.search(r'["\']([A-Z0-9_-]+ENQ-)["\']', be_content)
+                    if actual_prefix_m:
+                        actual_prefix = actual_prefix_m.group(1)
+                        if actual_prefix != exp_prefix:
+                            msg = (
+                                f"Enquiry reference format mismatch: {be_file.name} generates '{actual_prefix}', "
+                                f"but {tf.name} expects pattern '{exp_prefix}'."
+                            )
+                            endpoint_mismatches.append(msg)
+                            discrepancies.append(ContractDiscrepancy(
+                                type="REFERENCE_FORMAT_MISMATCH",
+                                responsible_artifact=be_file.name,
+                                consuming_artifact=tf.name,
+                                                                mismatch=msg,
+                                suggested_repair=f"Align enquiry reference generator in {be_file.name} to match expected prefix '{exp_prefix}'.",
+                            ))
+
+                # Scenario D: Shipment tracking reference mismatch (GT-SHP-88210 vs GTC-SHP-8821)
+                test_shp_m = re.search(r"/api/shipments/([A-Z0-9_-]+)", t_txt)
+                if test_shp_m and be_content:
+                    test_shp_ref = test_shp_m.group(1)
+                    if test_shp_ref not in be_content:
+                        seed_shp_m = re.search(r'["\']([A-Z0-9_-]*SHP-[A-Z0-9_-]+)["\']', be_content)
+                        seed_ref = seed_shp_m.group(1) if seed_shp_m else "unknown"
+                        msg = (
+                            f"Shipment tracking mismatch: {tf.name} queries tracking reference '{test_shp_ref}', "
+                            f"which is not seeded or recognized in {be_file.name} (seeded '{seed_ref}')."
+                        )
+                        endpoint_mismatches.append(msg)
+                        discrepancies.append(ContractDiscrepancy(
+                            type="TRACKING_DATA_CONTRACT_MISMATCH",
+                            responsible_artifact=be_file.name,
+                            consuming_artifact=tf.name,
+                                                        mismatch=msg,
+                            suggested_repair=f"Seed '{test_shp_ref}' in database initialization or update test to query '{seed_ref}'.",
+                        ))
+
+                # Scenario E: Admin authentication credentials mismatch
+                test_pwd_m = re.search(r'password\s*:\s*["\']([^"\']+)["\']', t_txt)
+                if test_pwd_m and be_content and '/api/admin/login' in be_content:
+                    test_pwd = test_pwd_m.group(1)
+                    be_pwd_m = re.search(r'password\s*(?:===|==)\s*["\']([^"\']+)["\']', be_content)
+                    if be_pwd_m:
+                        be_pwd = be_pwd_m.group(1)
+                        if test_pwd != be_pwd:
+                            msg = (
+                                f"Admin authentication mismatch: {be_file.name} checks password '{be_pwd}', "
+                                f"but {tf.name} submits '{test_pwd}'."
+                            )
+                            endpoint_mismatches.append(msg)
+                            discrepancies.append(ContractDiscrepancy(
+                                type="AUTH_CREDENTIALS_MISMATCH",
+                                responsible_artifact=be_file.name,
+                                consuming_artifact=tf.name,
+                                                                mismatch=msg,
+                                suggested_repair="Synchronize admin credentials between backend authentication handler and test suite.",
+                            ))
+
+                # Scenario I: Test discovery & DB isolation
+                has_sqlite_in_backend = be_content and ("sqlite" in be_content.lower() or "TEST_DB_PATH" in be_content or "GLOBALTRADE_TEST_DB_PATH" in be_content)
+                lines_tf = t_txt.splitlines()
+                server_req_line = -1
+                db_env_line = -1
+                for idx, line in enumerate(lines_tf):
+                    if 'require(' in line and 'server' in line:
+                        server_req_line = idx
+                    if 'GLOBALTRADE_TEST_DB_PATH' in line or 'TEST_DB_PATH' in line or 'DB_PATH' in line:
+                        db_env_line = idx
+                if has_sqlite_in_backend and server_req_line != -1 and (db_env_line == -1 or db_env_line > server_req_line):
+                    msg = (
+                        f"Test database isolation warning in {tf.name}: Server module is imported "
+                        f"before test database environment variable is set. May pollute demo database."
+                    )
+                    warnings.append(msg)
+                    discrepancies.append(ContractDiscrepancy(
+                        type="TEST_DB_ISOLATION_WARNING",
+                        responsible_artifact=tf.name,
+                        consuming_artifact=be_file.name if be_file else "server.js",
+                                                mismatch=msg,
+                        suggested_repair="Set process.env.TEST_DB_PATH / GLOBALTRADE_TEST_DB_PATH before require('../server').",
+                    ))
+
+            except Exception as e:
+                uncertainties.append(f"Notice analyzing test file {tf.name}: {e}")
+
+        # Scenario F: HTML and JS DOM contract mismatch (productGrid vs product-grid, etc.)
+        if html_file and html_file.exists() and frontend_js_files:
+            h_raw = html_file.read_text(encoding='utf-8', errors='ignore')
+            for js_f in frontend_js_files:
+                js_raw = js_f.read_text(encoding='utf-8', errors='ignore')
+                for camel, kebab in [
+                    ("productGrid", "product-grid"),
+                    ("searchInput", "search-input"),
+                    ("categoryFilter", "category-filter"),
+                    ("tradeTypeFilter", "type-filter"),
+                    ("resetFiltersBtn", "reset-filters"),
+                    ("content-section", "app-section"),
+                ]:
+                    if (f"#{camel}" in h_raw or f'id="{camel}"' in h_raw) and (f"#{kebab}" in js_raw or f"getElementById('{kebab}')" in js_raw or f'getElementById("{kebab}")' in js_raw):
+                        msg = (
+                            f"DOM contract mismatch: {html_file.name} defines element with id/class '{camel}', "
+                            f"but {js_f.name} queries '{kebab}'."
+                        )
+                        dom_id_mismatches.append(msg)
+                        discrepancies.append(ContractDiscrepancy(
+                            type="DOM_REFERENCE_MISMATCH",
+                            responsible_artifact=js_f.name,
+                            consuming_artifact=html_file.name,
+                                                        mismatch=msg,
+                            suggested_repair=f"Align DOM selectors: use '#{camel}' in {js_f.name} or '#{kebab}' in {html_file.name}.",
+                        ))
+
+        # Scenario G & H: Admin routes & Event property checks
+        if frontend_js_files and be_content:
+            for js_f in frontend_js_files:
+                js_raw = js_f.read_text(encoding='utf-8', errors='ignore')
+                # Scenario G: Separate enquiry/shipment endpoints vs combined dashboard
+                if '/api/admin/enquiries' in js_raw and '/api/admin/enquiries' not in be_content and '/api/admin/dashboard' in be_content:
+                    msg = (
+                        f"Admin API contract mismatch: {js_f.name} attempts to call 'GET /api/admin/enquiries', "
+                        f"but {be_file.name} only exposes combined endpoint '/api/admin/dashboard'."
+                    )
+                    endpoint_mismatches.append(msg)
+                    discrepancies.append(ContractDiscrepancy(
+                        type="ADMIN_ROUTE_CONTRACT_MISMATCH",
+                        responsible_artifact=js_f.name,
+                        consuming_artifact=be_file.name,
+                                                mismatch=msg,
+                        suggested_repair="Expose '/api/admin/enquiries' in backend or update client to use '/api/admin/dashboard'.",
+                    ))
+
+                # Scenario H: Shipment event missing required fields (event_title, event_date vs title, description)
+                if '/api/admin/shipments' in js_raw or '/api/shipments' in js_raw:
+                    if 'event_date' in be_content and 'event_date' not in js_raw and 'event_title' in be_content:
+                        msg = (
+                            f"Shipment event contract mismatch: {be_file.name} requires 'event_date' and 'event_title', "
+                            f"which are not supplied by {js_f.name} event creation form."
+                        )
+                        endpoint_mismatches.append(msg)
+                        discrepancies.append(ContractDiscrepancy(
+                            type="EVENT_CONTRACT_MISMATCH",
+                            responsible_artifact=js_f.name,
+                            consuming_artifact=be_file.name,
+                                                        mismatch=msg,
+                            suggested_repair="Ensure client sends all required shipment event fields including 'event_date'.",
+                        ))
+
         # 9. Determine Overall Gate Severity
         has_fatal = bool(
             endpoint_mismatches

@@ -126,7 +126,10 @@ class ProgressController:
             self._last_fingerprint = fingerprint
             self._consecutive_identical_fingerprints = 0
             if event_summary:
-                self.progress.last_meaningful_change = event_summary
+                event_lower = str(event_summary).lower()
+                is_read_only = any(ro in event_lower for ro in ("fs.read", "read file", "read_file", "directory_list", "search.glob"))
+                if not is_read_only:
+                    self.progress.last_meaningful_change = event_summary
         else:
             self._consecutive_identical_fingerprints += 1
 

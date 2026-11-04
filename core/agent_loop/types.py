@@ -151,8 +151,9 @@ class Observation:
             lines.append(f"  Summary: {self.summary}")
         if self.content:
             trimmed = self.content.strip()
-            if len(trimmed) > 800:
-                trimmed = trimmed[:800] + "... [truncated]"
+            max_len = 3500 if not self.success else 1200
+            if len(trimmed) > max_len:
+                trimmed = trimmed[:max_len] + "... [truncated]"
             lines.append(f"  Output:\n{trimmed}")
         if self.error_message:
             lines.append(f"  Error: {self.error_message}")

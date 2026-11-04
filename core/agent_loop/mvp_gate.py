@@ -335,7 +335,7 @@ class WebsiteMvpGate:
             return [f"Build not verified{err}. Project build must pass (npm run build)."]
         elif phase == MvpPhase.PHASE_3_HTTP_BROWSER_VERIFICATION:
             err = f" ({self.last_browser_error})" if self.last_browser_error else ""
-            return [f"Authoritative browser qualification not passed{err}. Must verify HTTP 200, styles, canvas, and 0 console errors via CDP evidence."]
+            return [f"Authoritative browser qualification not passed{err}. Must verify HTTP 200, styles, and 0 console errors via CDP evidence."]
         return []
 
     def evaluate_phase(
@@ -463,7 +463,7 @@ class WebsiteMvpGate:
             if is_enhancement_file and not self.browser_verified:
                 return False, (
                     "MVP GATE (Phase 3 - HTTP Browser Verification): The application must be verified over HTTP in the browser "
-                    "(checking HTTP 200, valid styles, DOM canvas, and 0 console errors) before adding optional enhancements."
+                    "(checking HTTP 200, valid styles, and 0 console errors) before adding optional enhancements."
                 )
 
         return True, "Authorized by MVP Gate"

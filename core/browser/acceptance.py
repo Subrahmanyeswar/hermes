@@ -97,8 +97,19 @@ class BrowserAcceptanceVerifier:
         """Determines if the workspace contains an interactive web application."""
         if not workspace_root.exists():
             return False
-        has_html = any(workspace_root.glob("*.html")) or any(workspace_root.glob("public/*.html"))
-        has_js = any(workspace_root.glob("*.js")) or any(workspace_root.glob("public/*.js")) or any(workspace_root.glob("src/*.js"))
+        has_html = (
+            any(workspace_root.glob("*.html"))
+            or any(workspace_root.glob("public/*.html"))
+            or any(workspace_root.glob("static/*.html"))
+            or any(workspace_root.glob("dist/*.html"))
+        )
+        has_js = (
+            any(workspace_root.glob("*.js"))
+            or any(workspace_root.glob("public/*.js"))
+            or any(workspace_root.glob("static/*.js"))
+            or any(workspace_root.glob("src/*.js"))
+            or (workspace_root / "package.json").exists()
+        )
         return has_html and has_js
 
     @classmethod
@@ -164,7 +175,12 @@ class BrowserAcceptanceVerifier:
         main_py = ws_root / "main.py"
         index_html = ws_root / "index.html"
         if not index_html.exists():
-            for alt in (ws_root / "public" / "index.html", ws_root / "dist" / "index.html"):
+            for alt in (
+                ws_root / "public" / "index.html",
+                ws_root / "static" / "index.html",
+                ws_root / "dist" / "index.html",
+                ws_root / "templates" / "index.html",
+            ):
                 if alt.exists():
                     index_html = alt
                     break
@@ -172,6 +188,20 @@ class BrowserAcceptanceVerifier:
         backend_proc: Optional[subprocess.Popen] = None
         target_port = preferred_port
         server_started_by_verifier = False
+
+        # Dynamically detect port from server.js / package.json / .env
+        if server_js.exists():
+            try:
+                s_txt = server_js.read_text(encoding="utf-8", errors="ignore")
+                port_m = re.search(r'(?:PORT|port)\s*=\s*process\.env\.PORT\s*\|\|\s*([0-9]{4,5})', s_txt)
+                if not port_m:
+                    port_m = re.search(r'const\s+PORT\s*=\s*([0-9]{4,5})', s_txt)
+                if not port_m:
+                    port_m = re.search(r'\.listen\(\s*([0-9]{4,5})', s_txt)
+                if port_m:
+                    target_port = int(port_m.group(1))
+            except Exception:
+                pass
 
         if not cls.is_port_in_use(target_port):
             if server_js.exists():
@@ -183,7 +213,7 @@ class BrowserAcceptanceVerifier:
                         stderr=subprocess.PIPE,
                     )
                     server_started_by_verifier = True
-                    for _ in range(15):
+                    for _ in range(30):
                         await asyncio.sleep(0.2)
                         if cls.is_port_in_use(target_port):
                             break
@@ -200,7 +230,7 @@ class BrowserAcceptanceVerifier:
                         stderr=subprocess.PIPE,
                     )
                     server_started_by_verifier = True
-                    for _ in range(15):
+                    for _ in range(30):
                         await asyncio.sleep(0.2)
                         if cls.is_port_in_use(target_port):
                             break
@@ -213,10 +243,27 @@ class BrowserAcceptanceVerifier:
             or (ws_root / "main.py").exists()
             or ((ws_root / "package.json").exists() and not (ws_root / "test.js").exists())
         )
-        if backend_proc is not None or (has_backend and cls.is_port_in_use(target_port)):
-            target_url = f"http://localhost:{target_port}"
+        if has_backend:
+            # Backend applications strictly require HTTP navigation - file:// prohibited
+            found_live_port = None
+            for p_cand in (target_port, 3000, 5000, 8000, 8080):
+                if cls.is_port_in_use(p_cand):
+                    found_live_port = p_cand
+                    break
+            if found_live_port:
+                target_url = f"http://127.0.0.1:{found_live_port}"
+            else:
+                return BrowserAcceptanceResult(
+                    passed=False,
+                    status="FAIL",
+                    issues=[f"Backend server failed to start or listen on port {target_port}. file:// navigation prohibited for backend applications."],
+                    details={"target_port": target_port, "has_backend": True}
+                )
         else:
-            target_url = index_html.as_uri()
+            if index_html and index_html.exists():
+                target_url = index_html.as_uri()
+            else:
+                target_url = f"http://127.0.0.1:{target_port}" 
 
         cdp_port = cls.find_free_port()
         temp_profile = tempfile.mkdtemp(prefix="hermes_cdp_")
@@ -468,7 +515,7 @@ class BrowserAcceptanceVerifier:
         status = "PASS" if passed else "FAIL"
         ws_digest = cls.compute_workspace_digest(ws_root)
 
-        # Write acceptance evidence signature
+        # Write acceptance evidence signature & authoritative evidence
         try:
             ev_dir = ws_root / ".hermes"
             ev_dir.mkdir(parents=True, exist_ok=True)
@@ -477,11 +524,41 @@ class BrowserAcceptanceVerifier:
                 "timestamp": time.time(),
                 "passed": passed,
                 "status": status,
+                "target_url": target_url,
                 "screenshot": screenshot_path,
                 "workflow_results": workflow_results,
                 "issues": issues,
             }
             (ev_dir / "acceptance_evidence.json").write_text(json.dumps(ev_payload, indent=2), encoding="utf-8")
+
+            from core.browser.evidence import AuthoritativeBrowserEvidence, BrowserEvidenceLifecycle, compute_workspace_artifact_hashes
+            hashes = compute_workspace_artifact_hashes(ws_root)
+            auth_ev = AuthoritativeBrowserEvidence(
+                evidence_id=f"ev_browser_{uuid.uuid4().hex[:8]}",
+                mission_id=getattr(acceptance_ledger, "mission_id", "") or "mission_active",
+                workspace_root=str(ws_root),
+                status=BrowserEvidenceLifecycle.PASSED if passed else BrowserEvidenceLifecycle.FAILED,
+                tested_url=target_url,
+                server_origin=f"http://127.0.0.1:{target_port}" if has_backend else "file://",
+                verification_timestamp=time.time(),
+                artifact_hashes=hashes,
+                viewports_tested=[{"width": 1280, "height": 800, "device_scale_factor": 1.0}],
+                browser_result={
+                    "interactions_passed": passed,
+                    "dom_elements_verified": len(missing_rendered) == 0,
+                    "failure_reason": "; ".join(issues) if issues else None,
+                },
+                console_audit={
+                    "uncaught_errors": len(unhandled_exceptions),
+                    "errors": console_errors,
+                },
+                network_audit={
+                    "failed_requests": sum(1 for iss in issues if "HTTP" in iss or "404" in iss or "500" in iss),
+                },
+                provenance="hermes.cdp.verifier.v2",
+                details=details,
+            )
+            (ev_dir / "browser_verified.json").write_text(json.dumps(auth_ev.to_dict(), indent=2), encoding="utf-8")
         except Exception:
             pass
 

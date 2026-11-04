@@ -22,10 +22,13 @@ class TestFailureCategory:
     TEST_HARNESS_FAILURE = "TEST_HARNESS_FAILURE"
     TEST_DISCOVERY_FAILURE = "TEST_DISCOVERY_FAILURE"
     TEST_IMPORT_FAILURE = "TEST_IMPORT_FAILURE"
+    JAVASCRIPT_SYNTAX_ERROR = "JAVASCRIPT_SYNTAX_ERROR"
     TEST_ASSERTION_FAILURE = "TEST_ASSERTION_FAILURE"
     APPLICATION_RUNTIME_FAILURE = "APPLICATION_RUNTIME_FAILURE"
+    SERVER_STARTUP_ERROR = "SERVER_STARTUP_ERROR"
     APPLICATION_VALIDATION_FAILURE = "APPLICATION_VALIDATION_FAILURE"
     DATABASE_TEST_FAILURE = "DATABASE_TEST_FAILURE"
+    DATABASE_ERROR = "DATABASE_ERROR"
     DEPENDENCY_FAILURE = "DEPENDENCY_FAILURE"
     TEST_TIMEOUT = "TEST_TIMEOUT"
     UNKNOWN_TEST_FAILURE = "UNKNOWN_TEST_FAILURE"
@@ -37,6 +40,7 @@ class TestFailureCategory:
 
 @dataclass
 class TestFailureDetail:
+    __test__ = False
     suite_name: str = ""
     test_name: str = ""
     file_path: Optional[str] = None
@@ -52,6 +56,7 @@ class TestFailureDetail:
 
 @dataclass
 class TestExecutionEvidence:
+    __test__ = False
     command: str
     working_dir: str
     exit_code: int
@@ -141,22 +146,26 @@ class TestOutputParser:
         t_low = text.lower()
         if "app.address is not a function" in t_low or "server.address is not a function" in t_low:
             return TestFailureCategory.TEST_IMPORT_FAILURE
-        if "cannot find module" in t_low or "module_not_found" in t_low:
+        if "cannot find module" in t_low or "module_not_found" in t_low or "err_module_not_found" in t_low:
             return TestFailureCategory.DEPENDENCY_FAILURE
-        if "sqlite_constraint" in t_low or "check constraint failed" in t_low:
+        if "eaddrinuse" in t_low or "address already in use" in t_low:
+            return TestFailureCategory.SERVER_STARTUP_ERROR
+        if "sqlite_constraint" in t_low or "check constraint failed" in t_low or "sqlite_busy" in t_low or "no such table" in t_low:
             return TestFailureCategory.DATABASE_TEST_FAILURE
-        if "syntaxerror" in t_low:
-            return TestFailureCategory.TEST_IMPORT_FAILURE
-        if "timeout" in t_low and ("exceeded" in t_low or "timed out" in t_low):
+        if "syntaxerror" in t_low or "unexpected token" in t_low or "unexpected identifier" in t_low:
+            return TestFailureCategory.JAVASCRIPT_SYNTAX_ERROR
+        if "timeout" in t_low and ("exceeded" in t_low or "timed out" in t_low or "callback was not invoked" in t_low):
             return TestFailureCategory.TEST_TIMEOUT
-        if "no tests found" in t_low or "0 passed" in t_low and "0 failed" in t_low:
+        if "no tests found" in t_low or "no test files found" in t_low or ("0 passed" in t_low and "0 failed" in t_low):
             return TestFailureCategory.TEST_DISCOVERY_FAILURE
         if "expected" in t_low and "received" in t_low:
             return TestFailureCategory.TEST_ASSERTION_FAILURE
-        if "assertionerror" in t_low:
+        if "assertionerror" in t_low or "expect(" in t_low or "toequal" in t_low:
             return TestFailureCategory.TEST_ASSERTION_FAILURE
         if "missing script: test" in t_low or "npm err! missing script" in t_low:
             return TestFailureCategory.TEST_HARNESS_FAILURE
+        if "econnrefused" in t_low or "failed to connect" in t_low:
+            return TestFailureCategory.APPLICATION_RUNTIME_FAILURE
         return TestFailureCategory.UNKNOWN_TEST_FAILURE
 
     @classmethod
@@ -232,28 +241,37 @@ class TestOutputParser:
                 exp_val = None
                 rec_val = None
 
-                exp_m = re.search(r'Expected:\s*(.*?)(?=\n\s*Received:|\n\s*at|\Z)', b_text, re.DOTALL)
-                rec_m = re.search(r'Received:\s*(.*?)(?=\n\s*at|\Z)', b_text, re.DOTALL)
-                if exp_m:
-                    exp_val = exp_m.group(1).strip()
-                if rec_m:
-                    rec_val = rec_m.group(1).strip()
+                exp_line_m = re.search(r'Expected:\s*([^\n]+)', b_text)
+                exp_val = exp_line_m.group(1).strip() if exp_line_m else None
+                if not exp_val:
+                    exp_m = re.search(r'Expected:\s*(.*?)(?=\n\s*Received:|\n\s*at|\Z)', b_text, re.DOTALL)
+                    if exp_m:
+                        exp_val = exp_m.group(1).strip()
 
-                stack_m = re.search(r'at\s+.*?\((.*?):([0-9]+):[0-9]+\)', b_text)
+                rec_line_m = re.search(r'Received:\s*([^\n]+)', b_text)
+                rec_val = rec_line_m.group(1).strip() if rec_line_m else None
+                if not rec_val:
+                    rec_m = re.search(r'Received:\s*(.*?)(?=\n\s*at|\Z)', b_text, re.DOTALL)
+                    if rec_m:
+                        rec_val = rec_m.group(1).strip()
+
+                stack_m = re.search(r'at\s+(?:.*?\()?(.*?):([0-9]+):[0-9]+\)?', b_text)
                 file_p = None
                 line_n = None
                 if stack_m:
-                    file_p = stack_m.group(1)
+                    file_p = stack_m.group(1).strip()
                     line_n = int(stack_m.group(2))
 
                 diag = ""
                 sugg = ""
                 if exp_val and rec_val:
-                    diag = f"Assertion mismatch in '{test_name or suite_name}': expected {exp_val[:60]}, but received {rec_val[:60]}."
-                    sugg = "Inspect both the backend route response and the test assertion to resolve the contract alignment."
-                elif cat == TestFailureCategory.TEST_IMPORT_FAILURE:
+                    cat = TestFailureCategory.TEST_ASSERTION_FAILURE
+                    diag = f"Assertion mismatch in '{test_name or suite_name}': expected {exp_val[:80]}, but received {rec_val[:80]}."
+                    loc_str = f" at {file_p}:{line_n}" if file_p else ""
+                    sugg = f"Inspect both the backend route handler response and test assertion{loc_str} to resolve contract alignment."
+                elif cat in (TestFailureCategory.TEST_IMPORT_FAILURE, TestFailureCategory.JAVASCRIPT_SYNTAX_ERROR):
                     diag = f"Import or syntax failure in test suite: {lines[1] if len(lines) > 1 else header}"
-                    sugg = "Verify exported module shape matches test require/import statement."
+                    sugg = "Verify exported module shape matches test require/import statement and syntax is valid."
 
                 detail = TestFailureDetail(
                     suite_name=suite_name,

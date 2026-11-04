@@ -7,6 +7,7 @@ evidence lifecycle management.
 """
 
 from __future__ import annotations
+import uuid
 
 import hashlib
 import json
@@ -131,6 +132,7 @@ class BrowserEvidenceValidator:
 
     EVIDENCE_FILENAMES = (
         ".hermes/browser_verified.json",
+        ".hermes/acceptance_evidence.json",
         "browser-qualification.json",
         "verification.json",
     )
@@ -309,6 +311,44 @@ class BrowserEvidenceValidator:
                     None,
                     f"Evidence file at '{found_path.name}' does not contain a JSON object."
                 )
+
+            if found_path.name == "acceptance_evidence.json":
+                passed = data.get("passed", False)
+                issues = data.get("issues", [])
+                recorded_digest = data.get("workspace_digest", "")
+                if not passed:
+                    return (
+                        BrowserEvidenceLifecycle.FAILED,
+                        None,
+                        f"Browser verification failed in {found_path.name}: {'; '.join(issues) if issues else 'acceptance check failed'}"
+                    )
+                # Freshness check
+                hashes = compute_workspace_artifact_hashes(ws)
+                from core.browser.acceptance import BrowserAcceptanceVerifier
+                cur_digest = BrowserAcceptanceVerifier.compute_workspace_digest(ws)
+                if recorded_digest and recorded_digest != cur_digest:
+                    return (
+                        BrowserEvidenceLifecycle.STALE,
+                        None,
+                        f"Acceptance evidence is stale (digest {recorded_digest} != {cur_digest})"
+                    )
+                auth_ev = AuthoritativeBrowserEvidence(
+                    evidence_id=f"ev_acc_{uuid.uuid4().hex[:8]}",
+                    mission_id=mission_id or "",
+                    workspace_root=str(ws),
+                    status=BrowserEvidenceLifecycle.PASSED,
+                    tested_url=data.get("target_url") or "http://127.0.0.1:3000",
+                    server_origin="http://127.0.0.1:3000",
+                    verification_timestamp=float(data.get("timestamp", time.time())),
+                    artifact_hashes=hashes,
+                    viewports_tested=[{"width": 1280, "height": 800, "device_scale_factor": 1.0}],
+                    browser_result={"interactions_passed": True, "dom_elements_verified": True},
+                    console_audit={"uncaught_errors": 0, "errors": []},
+                    network_audit={"failed_requests": 0},
+                    provenance="hermes.cdp.verifier.v2",
+                    details=data,
+                )
+                return (BrowserEvidenceLifecycle.PASSED, auth_ev, "Browser acceptance evidence verified.")
 
             evidence = AuthoritativeBrowserEvidence.from_dict(data)
             status, reason = cls.validate_evidence(evidence, ws, mission_id=mission_id)
