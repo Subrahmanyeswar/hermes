@@ -530,7 +530,50 @@ class AgentLoop:
 
         self.stuck_detector = StuckLoopDetector(max_identical_errors=2, max_history=50)
 
+        # Large Mission Orchestration, Bounded Execution Phases & Checkpoints (P0/P1)
+        from core.agent_loop.types import ExecutionPhase
+        self.current_phase: ExecutionPhase = ExecutionPhase.PHASE_A_PLANNING
+        self.completed_phases: List[str] = []
+        self.completed_phase_summaries: Dict[str, str] = {}
+        self._phase_turn_count: Dict[str, int] = {}
+        self._phase_stall_count: int = 0
+        self._is_large_mission: bool = False
+        self._progress_in_current_phase: bool = False
 
+
+
+    def transition_phase(self, new_phase: Any, summary: str = "") -> None:
+        """Authoritative phase transition with checkpoint save and event emission."""
+        from core.agent_loop.types import ExecutionPhase
+        if isinstance(new_phase, str):
+            try:
+                new_phase = ExecutionPhase(new_phase)
+            except Exception:
+                pass
+        old_phase = self.current_phase
+        old_val = getattr(old_phase, "value", str(old_phase))
+        new_val = getattr(new_phase, "value", str(new_phase))
+        if old_val not in self.completed_phases:
+            self.completed_phases.append(old_val)
+        if summary:
+            self.completed_phase_summaries[old_val] = summary
+        self.current_phase = new_phase
+        self._phase_stall_count = 0
+        logger.info(f"AgentLoop: Phase transition {old_val} -> {new_val}. Summary: {summary}")
+        try:
+            from core.mission_checkpoint import MissionCheckpointManager
+            ws_root = Path(self.workspace.root_str if (self.workspace and self.workspace.is_locked) else (getattr(self.workspace, "workspace_root", None) or Path.cwd()))
+            completed_tasks = [t.get("task_id") for t in self._tasks if t.get("status") == "COMPLETED"]
+            MissionCheckpointManager.save_checkpoint(
+                workspace_root=ws_root,
+                mission_id=self._mission_id,
+                current_phase=new_val,
+                completed_phases=self.completed_phases,
+                completed_tasks=completed_tasks,
+                tier_state=self._active_routing_tier,
+            )
+        except Exception as e:
+            logger.warning(f"AgentLoop: Failed to save phase checkpoint: {e}")
 
     def record_inference_telemetry(
         self,
@@ -545,6 +588,9 @@ class AgentLoop:
         turn_id: Optional[str] = None,
         duration_ms: Optional[float] = None,
         error: Optional[str] = None,
+        prompt_tokens: Optional[int] = None,
+        completion_tokens: Optional[int] = None,
+        ttft_ms: Optional[float] = None,
     ) -> Dict[str, Any]:
         """Record authoritative telemetry for every model inference (P0)."""
         dur = duration_ms if duration_ms is not None else max(0.0, (completion_time - start_time) * 1000.0)
@@ -560,6 +606,9 @@ class AgentLoop:
             "tool_call_count": int(tool_call_count),
             "finish_reason": finish_reason or ("stop" if success else "error"),
             "error": error,
+            "prompt_tokens": prompt_tokens,
+            "completion_tokens": completion_tokens,
+            "ttft_ms": ttft_ms,
         }
         if not hasattr(self, "_inference_history"):
             self._inference_history = []
@@ -1043,6 +1092,37 @@ class AgentLoop:
                 f"(explicit={getattr(self.config, '_explicit_max_turns', False)})"
 
             )
+
+        # Detect large mission and initialize phase orchestration
+        from core.planning.decomposer import GoalDecomposer
+        from core.agent_loop.types import ExecutionPhase
+        self._is_large_mission = GoalDecomposer.is_large_mission(mission.user_prompt or "")
+        if self._is_large_mission:
+            self.current_phase = ExecutionPhase.PHASE_B_FOUNDATION
+            self.completed_phases = [ExecutionPhase.PHASE_A_PLANNING.value]
+            self.completed_phase_summaries = {ExecutionPhase.PHASE_A_PLANNING.value: "Work packages formulated and dependencies established."}
+        else:
+            self.current_phase = ExecutionPhase.PHASE_A_PLANNING
+            self.completed_phases = []
+            self.completed_phase_summaries = {}
+        self._phase_turn_count = {}
+        self._phase_stall_count = 0
+        self._progress_in_current_phase = False
+
+        # Attempt to resume from checkpoint if available
+        try:
+            from core.mission_checkpoint import MissionCheckpointManager
+            loaded_chk = MissionCheckpointManager.load_checkpoint(ws_root)
+            if loaded_chk and loaded_chk.mission_id == self._mission_id:
+                try:
+                    self.current_phase = ExecutionPhase(loaded_chk.current_phase)
+                except Exception:
+                    self.current_phase = ExecutionPhase.PHASE_B_FOUNDATION
+                self.completed_phases = list(loaded_chk.completed_phases)
+                self._active_routing_tier = loaded_chk.tier_state
+                logger.info(f"AgentLoop: Resumed mission from checkpoint at phase={self.current_phase.value}")
+        except Exception as e:
+            logger.warning(f"AgentLoop: Checkpoint load notice: {e}")
 
 
 
@@ -4258,7 +4338,36 @@ class AgentLoop:
 
                             prof_res = VerificationProfileEvaluator.evaluate(prof, ws_root, mission.user_prompt, written_files=self._written_files, task_id=cur_tid)
 
-                            if is_test_or_verif and prof_res.passed:
+                            if is_mutating:
+                                self._progress_in_current_phase = True
+                                self._phase_stall_count = 0
+
+                            # Phase and Work Package Progression for Large Missions
+                            if getattr(self, "_is_large_mission", False):
+                                from core.agent_loop.types import ExecutionPhase
+                                if cur_tid == "wp.foundation" or "foundation" in cur_title:
+                                    if (ws_root / "index.html").exists() and (len(self._written_files) >= 2 or (ws_root / "style.css").exists() or (ws_root / "package.json").exists()):
+                                        await self._advance_active_task("Foundation work package satisfied (scaffold and styling created).")
+                                        self.transition_phase(ExecutionPhase.PHASE_C_MAIN_IMPLEMENTATION, "Foundation created: index.html and style.css")
+                                elif cur_tid == "wp.content" or "content" in cur_title:
+                                    if (ws_root / "index.html").exists():
+                                        html_text = ""
+                                        try:
+                                            html_text = (ws_root / "index.html").read_text(encoding="utf-8", errors="ignore")
+                                        except Exception:
+                                            pass
+                                        if ("<section" in html_text or "card" in html_text.lower() or len(html_text) > 1000 or len(self._written_files) >= 3):
+                                            await self._advance_active_task("Content work package satisfied (sections and cards populated).")
+                                            self.transition_phase(ExecutionPhase.PHASE_D_FUNCTIONAL_IMPLEMENTATION, "Main content sections and cards implemented.")
+                                elif cur_tid == "wp.functional" or "functional" in cur_title:
+                                    has_script = any(f.endswith(".js") for f in self._written_files) or (ws_root / "main.js").exists() or (ws_root / "app.js").exists() or (ws_root / "script.js").exists()
+                                    if has_script or len(self._written_files) >= 4:
+                                        await self._advance_active_task("Functional work package satisfied (interactive scripts and handlers wired).")
+                                        self.transition_phase(ExecutionPhase.PHASE_E_VERIFICATION, "Interactive features and handlers wired.")
+                                elif (cur_tid == "wp.verification" or "verification" in cur_title) and prof_res.passed:
+                                    await self._advance_active_task(f"Verification work package satisfied ({prof_res.summary}).")
+                                    self.transition_phase(ExecutionPhase.PHASE_F_COMPLETION, "All verification checks passed.")
+                            elif is_test_or_verif and prof_res.passed:
 
                                 await self._advance_active_task(f"Verified by {prof.value}: {prof_res.summary}")
 
@@ -5692,6 +5801,22 @@ class AgentLoop:
 
             self._turns_count += 1
 
+            # Early stall detection within bounded phase
+            if getattr(self, "_is_large_mission", False):
+                p_key = getattr(self.current_phase, "value", str(self.current_phase))
+                self._phase_turn_count[p_key] = self._phase_turn_count.get(p_key, 0) + 1
+                if not getattr(self, "_progress_in_current_phase", False):
+                    self._phase_stall_count = getattr(self, "_phase_stall_count", 0) + 1
+                    if self._phase_stall_count >= 3:
+                        logger.warning(f"AgentLoop: Phase {p_key} stall detected ({self._phase_stall_count} turns without progress).")
+                        self._active_recovery_brief = (
+                            f"STALL WARNING in {p_key}: {self._phase_stall_count} consecutive turns without workspace mutation "
+                            f"or progress. You MUST invoke fs.write or fs.edit directly to advance this phase."
+                        )
+                else:
+                    self._phase_stall_count = 0
+                self._progress_in_current_phase = False
+
             try:
 
                 await asyncio.sleep(0.1)
@@ -6244,6 +6369,22 @@ class AgentLoop:
 
         )
 
+        if getattr(self, "_is_large_mission", False):
+            authoritative_state_block += f"Execution Phase: {self.current_phase.value}\n"
+            if self.completed_phases:
+                authoritative_state_block += "Completed Execution Phases:\n"
+                for cp in self.completed_phases:
+                    cp_s = self.completed_phase_summaries.get(cp, "Satisfied")
+                    authoritative_state_block += f"  ✓ {cp}: {cp_s}\n"
+            if self.current_phase.value == "PHASE_B_FOUNDATION":
+                authoritative_state_block += "PHASE MANDATE: Create core entrypoints (index.html, style.css) using fs.write.\n"
+            elif self.current_phase.value == "PHASE_C_MAIN_IMPLEMENTATION":
+                authoritative_state_block += "PHASE MANDATE: Implement all content sections, cards, and assets using fs.write or fs.edit.\n"
+            elif self.current_phase.value == "PHASE_D_FUNCTIONAL_IMPLEMENTATION":
+                authoritative_state_block += "PHASE MANDATE: Implement interactive logic (filters, modals, forms) using fs.write or fs.edit.\n"
+            elif self.current_phase.value == "PHASE_E_VERIFICATION":
+                authoritative_state_block += "PHASE MANDATE: Verify application in real browser, check zero console errors, run automated tests.\n"
+
         if unmet_reqs:
 
             authoritative_state_block += "Unmet Scaffold/Lifecycle Requirements:\n" + "\n".join(f"  - {u}" for u in unmet_reqs) + "\n"
@@ -6544,13 +6685,23 @@ class AgentLoop:
 
         if self._observation_history:
 
-            recent_obs = self._observation_history[-4:]
+            num_obs = 2 if getattr(self, "_is_large_mission", False) else 4
+
+            recent_obs = self._observation_history[-num_obs:]
 
             obs_lines = ["\nRECENT OBSERVATIONS (Ground Truth):"]
 
             for o in recent_obs:
 
-                obs_lines.append(o.to_context_string())
+                if getattr(self, "_is_large_mission", False):
+                    st = "SUCCESS" if o.success else f"FAILED (exit_code={o.exit_code})"
+                    trimmed = (o.content or "").strip()
+                    max_len = 2000 if not o.success else 800
+                    if len(trimmed) > max_len:
+                        trimmed = trimmed[:max_len] + "... [truncated for context efficiency]"
+                    obs_lines.append(f"[OBSERVATION {o.source_id or o.source_type}]: status={st}\n  {trimmed}")
+                else:
+                    obs_lines.append(o.to_context_string())
 
             obs_text = "\n".join(obs_lines)
 

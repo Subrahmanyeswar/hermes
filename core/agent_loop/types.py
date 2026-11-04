@@ -43,6 +43,39 @@ class LifecycleDimension(str, Enum):
     COMPLETE = "COMPLETE"
 
 
+class ExecutionPhase(str, Enum):
+    """
+    Authoritative bounded execution phases for large mission orchestration.
+    Phase A: Planning and Work Package Setup
+    Phase B: Foundation and Architecture (scaffold, layout, data structures)
+    Phase C: Main Implementation (sections, cards, content, assets)
+    Phase D: Functional Implementation (interactions, filters, modals, forms)
+    Phase E: Verification (browser preview, zero errors, test execution)
+    Phase F: Completion (authoritative evidence logged, final response)
+    """
+    PHASE_A_PLANNING = "PHASE_A_PLANNING"
+    PHASE_B_FOUNDATION = "PHASE_B_FOUNDATION"
+    PHASE_C_MAIN_IMPLEMENTATION = "PHASE_C_MAIN_IMPLEMENTATION"
+    PHASE_D_FUNCTIONAL_IMPLEMENTATION = "PHASE_D_FUNCTIONAL_IMPLEMENTATION"
+    PHASE_E_VERIFICATION = "PHASE_E_VERIFICATION"
+    PHASE_F_COMPLETION = "PHASE_F_COMPLETION"
+
+
+def get_phase_budget(phase: Any, total_budget: int = 80) -> int:
+    """Return recommended turn budget allocation for a given execution phase."""
+    phase_str = getattr(phase, "value", str(phase))
+    scale = total_budget / 80.0
+    mapping = {
+        ExecutionPhase.PHASE_A_PLANNING.value: max(1, int(round(2 * scale))),
+        ExecutionPhase.PHASE_B_FOUNDATION.value: max(2, int(round(8 * scale))),
+        ExecutionPhase.PHASE_C_MAIN_IMPLEMENTATION.value: max(5, int(round(25 * scale))),
+        ExecutionPhase.PHASE_D_FUNCTIONAL_IMPLEMENTATION.value: max(5, int(round(25 * scale))),
+        ExecutionPhase.PHASE_E_VERIFICATION.value: max(3, int(round(15 * scale))),
+        ExecutionPhase.PHASE_F_COMPLETION.value: max(1, int(round(5 * scale))),
+    }
+    return mapping.get(phase_str, max(2, int(round(10 * scale))))
+
+
 class AgentDecisionType(str, Enum):
     """
     Semantic classification of model-directed choices.
@@ -284,7 +317,7 @@ class AgentLoopConfig:
             # Simple smoke test / diagnostic task: compact turn budget and wall time
             object.__setattr__(self, "max_turns", min(self.max_turns, 8))
             object.__setattr__(self, "max_wall_time_seconds", min(self.max_wall_time_seconds, 300.0))
-        elif WebsiteMvpGate.is_website_mission(prompt, workspace_root=ws, written_files=written_files):
+        elif WebsiteMvpGate.is_website_mission(prompt, workspace_root=ws, written_files=written_files) or (len(prompt) > 600):
             object.__setattr__(self, "max_turns", self.website_max_turns)
         else:
             object.__setattr__(self, "max_turns", DEFAULT_MISSION_MAX_TURNS)

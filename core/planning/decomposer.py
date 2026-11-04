@@ -232,12 +232,249 @@ class GoalDecomposer:
     }
 
     @classmethod
+    def is_large_mission(cls, prompt: str) -> bool:
+        """
+        Detect whether a user prompt represents a large/complex software mission
+        requiring structured Work Package decomposition and bounded phased execution.
+        """
+        p = (prompt or "").strip()
+        p_lower = p.lower()
+
+        # Check negative/smoke indicators
+        if len(p) < 300 and any(k in p_lower for k in ("smoke", "single file", "profile a", "quick check", "hello world", "prints 'hello")):
+            return False
+
+        words = p.split()
+        structural_cues = [
+            r"\b(?:sections?|hero\s+section|destinations?|packages?|catalog|showcase|cards?|directory)\b",
+            r"\b(?:modals?|dialogs?|popups?)\b",
+            r"\b(?:filters?|filtering|search|calculator)\b",
+            r"\b(?:forms?|booking|inquiry|consultation|questionnaire|appointment)\b",
+            r"\b(?:assets?|photographic|images?|gallery)\b",
+            r"\b(?:responsive|mobile\s+and\s+desktop|viewports?)\b",
+            r"\b(?:browser|preview|acceptance|zero\s+console\s+errors)\b",
+        ]
+        matches = sum(1 for pat in structural_cues if re.search(pat, p_lower))
+        if len(p) > 500 or (len(words) >= 20 and matches >= 3) or (matches >= 4):
+            return True
+        return False
+
+    @classmethod
+    def _decompose_large_mission(
+        cls,
+        goal_id: str,
+        user_prompt: str,
+        explicit_constraints: Optional[List[str]] = None,
+    ) -> Tuple[Dict[str, RequirementState], List[AcceptanceCheck]]:
+        """
+        Synthesize cohesive, high-level Work Packages for large missions.
+        Groups requirements into Foundation, Content, Functional, and Verification packages.
+        """
+        requirements: Dict[str, RequirementState] = {}
+        all_checks: List[AcceptanceCheck] = []
+        lower_prompt = user_prompt.lower()
+
+        # Check negative constraints
+        no_persistence = bool(re.search(r"\b(?:no|without|zero|not\s+needed|no\s+need\s+for)\s+[^.!?\n]*\b(?:database|backend|persistence|storage)\b", lower_prompt))
+        no_auth = bool(re.search(r"\b(?:no|without|zero|not\s+needed|no\s+need\s+for)\s+[^.!?\n]*\b(?:auth|authentication|login)\b", lower_prompt))
+
+        # 1. Foundation Work Package
+        wp_found = RequirementState(
+            requirement_id="wp.foundation",
+            goal_id=goal_id,
+            title="Foundation & Architecture Work Package",
+            description="HTML semantic layout scaffold, base CSS design system and theming, linked assets and scripts structure, data contracts.",
+            category=RequirementCategory.FUNCTIONAL,
+            priority=RequirementPriority.CRITICAL,
+            status=RequirementStatus.PENDING,
+            dependencies=[],
+        )
+        chk_found_1 = AcceptanceCheck(
+            check_id="chk.foundation.scaffold",
+            requirement_id="wp.foundation",
+            description="Foundation & Architecture: semantic html layout scaffold created",
+            status=AcceptanceCheckStatus.NOT_RUN,
+            critical=True,
+            verification_method="filesystem",
+        )
+        chk_found_2 = AcceptanceCheck(
+            check_id="chk.foundation.styles",
+            requirement_id="wp.foundation",
+            description="Foundation & Architecture: base css styling and layout system linked",
+            status=AcceptanceCheckStatus.NOT_RUN,
+            critical=True,
+            verification_method="filesystem",
+        )
+        chk_found_3 = AcceptanceCheck(
+            check_id="chk.foundation.data",
+            requirement_id="wp.foundation",
+            description="Foundation & Architecture: core data structures and contracts defined",
+            status=AcceptanceCheckStatus.NOT_RUN,
+            critical=False,
+            verification_method="command",
+        )
+        wp_found.acceptance_check_ids.extend([chk_found_1.check_id, chk_found_2.check_id, chk_found_3.check_id])
+        requirements["wp.foundation"] = wp_found
+        all_checks.extend([chk_found_1, chk_found_2, chk_found_3])
+
+        # 2. Content & Visual Layout Work Package
+        wp_content = RequirementState(
+            requirement_id="wp.content",
+            goal_id=goal_id,
+            title="Content & Visual Layout Work Package",
+            description="Implement all requested content sections, feature/destination cards, packages/items, and visual media assets.",
+            category=RequirementCategory.UI,
+            priority=RequirementPriority.HIGH,
+            status=RequirementStatus.PENDING,
+            dependencies=["wp.foundation"],
+        )
+        chk_cont_1 = AcceptanceCheck(
+            check_id="chk.content.sections",
+            requirement_id="wp.content",
+            description="Content & Visual Layout: all requested structural content sections rendered",
+            status=AcceptanceCheckStatus.NOT_RUN,
+            critical=True,
+            verification_method="filesystem",
+        )
+        chk_cont_2 = AcceptanceCheck(
+            check_id="chk.content.cards",
+            requirement_id="wp.content",
+            description="Content & Visual Layout: cards and package details populated with data",
+            status=AcceptanceCheckStatus.NOT_RUN,
+            critical=True,
+            verification_method="filesystem",
+        )
+        chk_cont_3 = AcceptanceCheck(
+            check_id="chk.content.assets",
+            requirement_id="wp.content",
+            description="Content & Visual Layout: visual photographic media assets integrated",
+            status=AcceptanceCheckStatus.NOT_RUN,
+            critical=False,
+            verification_method="filesystem",
+        )
+        wp_content.acceptance_check_ids.extend([chk_cont_1.check_id, chk_cont_2.check_id, chk_cont_3.check_id])
+        requirements["wp.content"] = wp_content
+        all_checks.extend([chk_cont_1, chk_cont_2, chk_cont_3])
+
+        # 3. Functional Interactions & State Work Package
+        wp_func = RequirementState(
+            requirement_id="wp.functional",
+            goal_id=goal_id,
+            title="Functional Interactions & State Work Package",
+            description="Implement interactive search/filter logic, modal dialog lifecycles, booking/inquiry forms, and client validation.",
+            category=RequirementCategory.FUNCTIONAL,
+            priority=RequirementPriority.HIGH,
+            status=RequirementStatus.PENDING,
+            dependencies=["wp.content"],
+        )
+        chk_func_1 = AcceptanceCheck(
+            check_id="chk.functional.filters",
+            requirement_id="wp.functional",
+            description="Functional Interactions: interactive search and category filtering operational",
+            status=AcceptanceCheckStatus.NOT_RUN,
+            critical=True,
+            verification_method="command",
+        )
+        chk_func_2 = AcceptanceCheck(
+            check_id="chk.functional.modals",
+            requirement_id="wp.functional",
+            description="Functional Interactions: modal dialogs open/close with proper focus and dismissal",
+            status=AcceptanceCheckStatus.NOT_RUN,
+            critical=True,
+            verification_method="command",
+        )
+        chk_func_3 = AcceptanceCheck(
+            check_id="chk.functional.forms",
+            requirement_id="wp.functional",
+            description="Functional Interactions: form input validation and submission feedback verified",
+            status=AcceptanceCheckStatus.NOT_RUN,
+            critical=False,
+            verification_method="command",
+        )
+        wp_func.acceptance_check_ids.extend([chk_func_1.check_id, chk_func_2.check_id, chk_func_3.check_id])
+        requirements["wp.functional"] = wp_func
+        all_checks.extend([chk_func_1, chk_func_2, chk_func_3])
+
+        # Optional 3D Graphics / Simulation Work Package if requested
+        if re.search(r"\b(?:three\.?js|webgl|3d|geometry|mesh)\b", lower_prompt):
+            wp_3d = RequirementState(
+                requirement_id="wp.3d_graphics",
+                goal_id=goal_id,
+                title="Interactive 3D Graphics & Scene Rendering",
+                description="Initialize 3D canvas, rendering loop, and interactive camera/object controls.",
+                category=RequirementCategory.FUNCTIONAL,
+                priority=RequirementPriority.HIGH,
+                status=RequirementStatus.PENDING,
+                dependencies=["wp.foundation"],
+            )
+            chk_3d_1 = AcceptanceCheck(
+                check_id="chk.3d.scene",
+                requirement_id="wp.3d_graphics",
+                description="3D Graphics: scene and rendering loop operational",
+                status=AcceptanceCheckStatus.NOT_RUN,
+                critical=True,
+                verification_method="command",
+            )
+            wp_3d.acceptance_check_ids.append(chk_3d_1.check_id)
+            requirements["wp.3d_graphics"] = wp_3d
+            all_checks.append(chk_3d_1)
+            wp_func.dependencies.append("wp.3d_graphics")
+
+        # 4. Comprehensive Acceptance & Browser Qualification Work Package
+        wp_verif = RequirementState(
+            requirement_id="wp.verification",
+            goal_id=goal_id,
+            title="Comprehensive Acceptance & Browser Qualification",
+            description="Browser qualification, zero console errors, responsive layout verification, and automated tests.",
+            category=RequirementCategory.VERIFICATION,
+            priority=RequirementPriority.CRITICAL,
+            status=RequirementStatus.PENDING,
+            dependencies=["wp.functional"],
+        )
+        chk_verif_1 = AcceptanceCheck(
+            check_id="chk.verification.browser",
+            requirement_id="wp.verification",
+            description="Acceptance & Browser: browser preview rendering passed",
+            status=AcceptanceCheckStatus.NOT_RUN,
+            critical=True,
+            verification_method="command",
+        )
+        chk_verif_2 = AcceptanceCheck(
+            check_id="chk.verification.errors",
+            requirement_id="wp.verification",
+            description="Acceptance & Browser: zero console or runtime errors",
+            status=AcceptanceCheckStatus.NOT_RUN,
+            critical=True,
+            verification_method="command",
+        )
+        chk_verif_3 = AcceptanceCheck(
+            check_id="chk.verification.responsive",
+            requirement_id="wp.verification",
+            description="Acceptance & Browser: responsive layout with zero horizontal overflow",
+            status=AcceptanceCheckStatus.NOT_RUN,
+            critical=True,
+            verification_method="command",
+        )
+        wp_verif.acceptance_check_ids.extend([chk_verif_1.check_id, chk_verif_2.check_id, chk_verif_3.check_id])
+        requirements["wp.verification"] = wp_verif
+        all_checks.extend([chk_verif_1, chk_verif_2, chk_verif_3])
+
+        # Deduplicate, break cycles, validate DAG
+        requirements, all_checks = cls.deduplicate_requirements(requirements, all_checks)
+        cls.break_cycles(requirements)
+        cls.validate_dependencies(requirements)
+
+        return requirements, all_checks
+
+    @classmethod
     def decompose(
         cls,
         goal_id: str,
         user_prompt: str,
         explicit_constraints: Optional[List[str]] = None,
     ) -> Tuple[Dict[str, RequirementState], List[AcceptanceCheck]]:
+        if cls.is_large_mission(user_prompt):
+            return cls._decompose_large_mission(goal_id, user_prompt, explicit_constraints)
         """
         Synthesize requirements and acceptance checks from prompt and constraints.
         Returns: (requirements_dict, list_of_acceptance_checks)
