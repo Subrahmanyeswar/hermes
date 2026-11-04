@@ -11,6 +11,7 @@ import asyncio
 import hashlib
 import logging
 import os
+import re
 import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
@@ -196,10 +197,23 @@ class BrowserManager:
         )
 
         # Identity check: verify server serves the requested directory
-        if server.workspace_dir != target_ws:
+        if Path(server.workspace_dir).resolve() != target_ws:
             raise RuntimeError(
                 f"Preview identity mismatch: server serves {server.workspace_dir}, expected {target_ws}"
             )
+
+        # Check expected workspace entrypoint title
+        expected_title = None
+        for cand in [target_ws / "index.html", target_ws / "static" / "index.html", target_ws / "public" / "index.html"]:
+            if cand.exists():
+                try:
+                    h_txt = cand.read_text(encoding="utf-8", errors="ignore")
+                    t_match = re.search(r'<title>([^<]+)</title>', h_txt, re.I)
+                    if t_match:
+                        expected_title = t_match.group(1).strip()
+                        break
+                except Exception:
+                    pass
 
         clean_path = url_path.lstrip("/\\")
         target_url = f"{server.url}/{clean_path}" if clean_path else server.url
@@ -208,14 +222,29 @@ class BrowserManager:
             await self.launch()
 
         nav_res = await self.navigate(target_url)
+
+        # Verify preview target correctness
+        preview_success = nav_res.success
+        preview_error = nav_res.error
+        if preview_success and expected_title and nav_res.title:
+            actual_t = nav_res.title.strip()
+            # If actual title is completely different (e.g. "Hello 2", "Document", "Webpack App")
+            if actual_t != expected_title and not any(w.lower() in actual_t.lower() for w in expected_title.split()[:3]):
+                preview_success = False
+                preview_error = (
+                    f"INCORRECT_PREVIEW_TARGET: Preview loaded page with title '{actual_t}', "
+                    f"but generated HTML specifies '{expected_title}'. "
+                    f"Serving target is invalid or belongs to an unmanaged stale process."
+                )
+
         return {
-            "success": nav_res.success,
+            "success": preview_success,
             "url": target_url,
             "port": server.port,
             "workspace_dir": str(target_ws),
             "title": nav_res.title,
             "status": nav_res.status,
-            "error": nav_res.error,
+            "error": preview_error,
             "mission_id": mission_id,
         }
 

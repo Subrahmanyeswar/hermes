@@ -17,6 +17,7 @@ import hashlib
 import json
 import logging
 import os
+import re
 import shutil
 import socket
 import subprocess
@@ -378,6 +379,69 @@ class BrowserAcceptanceVerifier:
                 details["body_length"] = len(body_html)
                 if len(body_html.strip()) < 50:
                     missing_rendered.append("Document body is empty or unrendered.")
+
+                # Inspect Document Title
+                expected_title = None
+                for cand in [ws_root / "index.html", ws_root / "static" / "index.html", ws_root / "public" / "index.html"]:
+                    if cand.exists():
+                        try:
+                            h_content = cand.read_text(encoding="utf-8", errors="ignore")
+                            t_m = re.search(r'<title>([^<]+)</title>', h_content, re.I)
+                            if t_m:
+                                expected_title = t_m.group(1).strip()
+                                break
+                        except Exception:
+                            pass
+
+                await ws.send(json.dumps({
+                    "id": 11,
+                    "method": "Runtime.evaluate",
+                    "params": {"expression": "document.title", "returnByValue": True}
+                }))
+                doc_title = ""
+                while True:
+                    try:
+                        raw = await asyncio.wait_for(ws.recv(), timeout=1.0)
+                        msg = json.loads(raw)
+                        if msg.get("id") == 11:
+                            doc_title = msg.get("result", {}).get("result", {}).get("value", "")
+                            break
+                    except Exception:
+                        break
+
+                details["doc_title"] = doc_title
+                details["expected_title"] = expected_title
+                if expected_title and doc_title:
+                    if doc_title != expected_title and not any(w.lower() in doc_title.lower() for w in expected_title.split()[:3]):
+                        issues.append(
+                            f"INCORRECT_PREVIEW_TARGET: Browser page title '{doc_title}' does not match "
+                            f"generated workspace HTML title '{expected_title}'. Serving target does not match application."
+                        )
+
+                # Inspect Rendered Images
+                await ws.send(json.dumps({
+                    "id": 12,
+                    "method": "Runtime.evaluate",
+                    "params": {
+                        "expression": "Array.from(document.querySelectorAll('img')).map(i => ({ src: i.src, naturalWidth: i.naturalWidth, complete: i.complete }))",
+                        "returnByValue": True
+                    }
+                }))
+                images_info = []
+                while True:
+                    try:
+                        raw = await asyncio.wait_for(ws.recv(), timeout=1.0)
+                        msg = json.loads(raw)
+                        if msg.get("id") == 12:
+                            images_info = msg.get("result", {}).get("result", {}).get("value", []) or []
+                            break
+                    except Exception:
+                        break
+
+                if isinstance(images_info, list) and images_info:
+                    broken_imgs = [i["src"] for i in images_info if i.get("complete") and i.get("naturalWidth") == 0]
+                    if broken_imgs:
+                        issues.append(f"BROKEN_IMAGE_ASSETS: {len(broken_imgs)} image(s) failed to render (naturalWidth == 0): {broken_imgs[:2]}")
 
                 # Capture screenshot
                 shot_file = ws_root / ".hermes" / "acceptance_screenshot.png"

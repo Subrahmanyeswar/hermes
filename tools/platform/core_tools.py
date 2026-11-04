@@ -1132,6 +1132,27 @@ class ShellBashTool(BaseTool):
                     "NODE_ENV": "test",
                 })
 
+            # Redundant dependency installation prevention (Section 8)
+            install_match = re.search(r'npm\s+(?:install|i|add)\s+([a-zA-Z0-9_\-@/]+)', command)
+            if install_match:
+                pkg_to_install = install_match.group(1).split("@")[0].strip()
+                pkg_json = cwd_path / "package.json"
+                if pkg_json.exists() and not pkg_to_install.startswith("-"):
+                    try:
+                        pj_data = json.loads(pkg_json.read_text(encoding="utf-8", errors="ignore"))
+                        deps = pj_data.get("dependencies", {})
+                        dev_deps = pj_data.get("devDependencies", {})
+                        if (pkg_to_install in deps or pkg_to_install in dev_deps) and (cwd_path / "node_modules" / pkg_to_install).exists():
+                            return ToolResult(
+                                success=True,
+                                output=f"Dependency '{pkg_to_install}' is already declared in package.json and installed in node_modules. Skipping redundant installation command.",
+                                exit_code=0,
+                                duration_seconds=time.monotonic() - start_t,
+                                details={"skipped_redundant_install": pkg_to_install},
+                            )
+                    except Exception:
+                        pass
+
             # Background server process lifecycle handling (Section 7)
             clean_cmd = command.strip().rstrip("&").strip()
             is_bg_server_cmd = command.strip().endswith("&") and any(s_term in clean_cmd.lower() for s_term in ("server", "node", "npm start", "python", "app", "main"))

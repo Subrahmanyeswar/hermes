@@ -1097,34 +1097,54 @@ class CrossFileContractValidator:
             except Exception as e:
                 uncertainties.append(f"Notice inspecting CSS variables in {css_file.name}: {e}")
 
-        # 7. Verify Database Schema Alignment
+        # 7. Verify Database Schema Alignment via DatabaseMigrator
+        from core.database_migrator import DatabaseMigrator
         db_files = list(ws.glob("*.db")) + list(ws.glob("*.sqlite")) + list(ws.glob("*.sqlite3"))
         if db_files:
             target_db = db_files[0]
             try:
-                db_uri = f"file:{target_db.as_posix()}?mode=ro"
-                try:
-                    conn = sqlite3.connect(db_uri, uri=True)
-                except Exception:
-                    conn = sqlite3.connect(str(target_db))
-                cursor = conn.cursor()
-                cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
-                existing_tables = set(r[0] for r in cursor.fetchall() if not r[0].startswith("sqlite_"))
-                details["database_tables"] = sorted(list(existing_tables))
+                actual_schema = DatabaseMigrator.inspect_sqlite_schema(target_db)
+                details["database_tables"] = sorted(list(actual_schema.keys()))
 
+                # Extract expected schema from backend code
+                expected_schema = DatabaseMigrator.extract_expected_schema_from_code(be_content) if be_content else {}
                 if getattr(contract, "database_tables", None):
-                    for exp_table, exp_cols in contract.database_tables.items():
-                        if exp_table not in existing_tables:
-                            database_mismatches.append(f"Expected database table '{exp_table}' missing from {target_db.name}")
-                        elif exp_cols:
-                            cursor.execute(f"PRAGMA table_info({exp_table});")
-                            actual_cols = set(r[1] for r in cursor.fetchall())
-                            for ec in exp_cols:
-                                if ec not in actual_cols:
-                                    database_mismatches.append(f"Column '{ec}' missing from table '{exp_table}' in {target_db.name}")
-                conn.close()
+                    for t_name, c_list in contract.database_tables.items():
+                        if t_name not in expected_schema:
+                            expected_schema[t_name] = {c: "TEXT" for c in c_list}
+
+                if expected_schema and actual_schema:
+                    discs = DatabaseMigrator.detect_schema_discrepancies(actual_schema, expected_schema)
+                    for d in discs:
+                        msg = d["message"]
+                        database_mismatches.append(msg)
+                        discrepancies.append(ContractDiscrepancy(
+                            type="DATABASE_SCHEMA_STALE" if d["type"] == "STALE_SCHEMA_COLUMNS" else "DATABASE_TABLE_MISSING",
+                            responsible_artifact=target_db.name,
+                            consuming_artifact=be_file.name if be_file else "server.js",
+                            mismatch=msg,
+                            confidence="HIGH",
+                            failure_class="DATABASE_SCHEMA_STALE",
+                            suggested_repair="Apply non-destructive schema migration using DatabaseMigrator without dropping tables.",
+                        ))
             except Exception as e:
-                uncertainties.append(f"Notice during read-only SQLite schema inspection of {target_db.name}: {e}")
+                uncertainties.append(f"Notice during SQLite schema inspection of {target_db.name}: {e}")
+
+        # Verify async database initialization safety
+        if be_content:
+            from core.database_migrator import DatabaseMigrator
+            is_safe, db_async_err = DatabaseMigrator.verify_async_db_initialization(be_content)
+            if not is_safe and db_async_err:
+                startup_mismatches.append(db_async_err)
+                discrepancies.append(ContractDiscrepancy(
+                    type="ASYNC_DB_READINESS_RACE",
+                    responsible_artifact=be_file.name if be_file else "server.js",
+                    consuming_artifact="tests",
+                    mismatch=db_async_err,
+                    confidence="HIGH",
+                    failure_class="ASYNC_DB_READINESS_RACE",
+                    suggested_repair="Await database initialization before invoking app.listen().",
+                ))
 
         # 8. Verify Startup Instructions
         pkg_path = ws / "package.json"
@@ -1283,6 +1303,96 @@ class CrossFileContractValidator:
                         suggested_repair="Set process.env.TEST_DB_PATH / GLOBALTRADE_TEST_DB_PATH before require('../server').",
                     ))
 
+                # Test DB isolation check (only when backend actually employs SQLite or database paths)
+                if has_sqlite_in_backend:
+                    from core.database_migrator import DatabaseMigrator
+                    is_iso_safe, iso_err = DatabaseMigrator.verify_test_db_isolation(t_txt, be_file.stem if be_file else 'server')
+                    if not is_iso_safe and iso_err:
+                        test_export_mismatches.append(iso_err)
+                        discrepancies.append(ContractDiscrepancy(
+                            type="TEST_DB_ISOLATION_FAILURE",
+                            responsible_artifact=tf.name,
+                            consuming_artifact=be_file.name if be_file else "server.js",
+                            mismatch=iso_err,
+                            confidence="HIGH",
+                            failure_class="TEST_DB_ISOLATION_FAILURE",
+                            suggested_repair="Set process.env.GLOBALTRADE_TEST_DB_PATH before importing server module.",
+                        ))
+
+                # Test Enquiry Payload Check
+                t_txt_clean = re.sub(r'//.*', '', t_txt)
+                if "api/enquiries" in t_txt and be_content and "api/enquiries" in be_content:
+                    if "destinationOrOriginCountry" in t_txt_clean and "destinationCountry" in be_content:
+                        msg = f"Test payload mismatch: {tf.name} sends 'destinationOrOriginCountry', but backend requires 'destinationCountry'."
+                        test_export_mismatches.append(msg)
+                        discrepancies.append(ContractDiscrepancy(
+                            type="TEST_PAYLOAD_MISMATCH",
+                            responsible_artifact=tf.name,
+                            consuming_artifact=be_file.name if be_file else "server.js",
+                            mismatch=msg,
+                            confidence="HIGH",
+                            failure_class="TEST_PAYLOAD_MISMATCH",
+                            suggested_repair="Change 'destinationOrOriginCountry' in test payload to 'destinationCountry'.",
+                        ))
+                    elif ("direction" in be_content or "destinationCountry" in be_content or "country" in be_content) and not any(k in t_txt_clean for k in ("direction", "destinationCountry", "country", "destinationOrOriginCountry")):
+                        msg = f"Test payload mismatch: {tf.name} posts enquiry without required trade direction or country fields."
+                        test_export_mismatches.append(msg)
+                        discrepancies.append(ContractDiscrepancy(
+                            type="TEST_PAYLOAD_MISMATCH",
+                            responsible_artifact=tf.name,
+                            consuming_artifact=be_file.name if be_file else "server.js",
+                            mismatch=msg,
+                            confidence="HIGH",
+                            failure_class="TEST_PAYLOAD_MISMATCH",
+                            suggested_repair="Include 'direction' and 'country' in test enquiry payload.",
+                        ))
+
+                # Test Route Check: /api/tracking/ or /api/shipments/ vs /api/track/:ref
+                if be_content and ("/api/track" in be_content or "/api/shipments" in be_content):
+                    if "/api/shipments/" in t_txt and "/api/track" in be_content and "/api/shipments/" not in be_content:
+                        msg = f"Test route mismatch: {tf.name} calls '/api/shipments/', but backend route is '/api/track/:ref'."
+                        test_export_mismatches.append(msg)
+                        discrepancies.append(ContractDiscrepancy(
+                            type="TEST_ROUTE_MISMATCH",
+                            responsible_artifact=tf.name,
+                            consuming_artifact=be_file.name if be_file else "server.js",
+                            mismatch=msg,
+                            confidence="HIGH",
+                            failure_class="TEST_ROUTE_MISMATCH",
+                            suggested_repair="Update test route call to '/api/track/:ref' matching server router.",
+                        ))
+                    elif "/api/tracking/" in t_txt and "/api/tracking/" not in be_content:
+                        target_r = "/api/shipments/:reference" if "/api/shipments" in be_content else "/api/track/:ref"
+                        msg = f"Test route mismatch: {tf.name} calls '/api/tracking/:reference', but backend route is '{target_r}'."
+                        test_export_mismatches.append(msg)
+                        discrepancies.append(ContractDiscrepancy(
+                            type="TEST_ROUTE_MISMATCH",
+                            responsible_artifact=tf.name,
+                            consuming_artifact=be_file.name if be_file else "server.js",
+                            mismatch=msg,
+                            confidence="HIGH",
+                            failure_class="TEST_ROUTE_MISMATCH",
+                            suggested_repair=f"Update test route call to '{target_r}' matching server router.",
+                        ))
+
+                # Test Seed Reference Check
+                if be_content and ("GT-SHP-" in be_content or "GTC-SHP-" in be_content):
+                    prefix = "GTC-SHP-" if "GTC-SHP-" in be_content else "GT-SHP-"
+                    seeded_refs = set(re.findall(rf'{prefix}[0-9A-Za-z-]+', be_content))
+                    test_refs = set(re.findall(rf'{prefix}[0-9A-Za-z-]+|[A-Z]+-[A-Z]+-[0-9A-Za-z-]+', t_txt))
+                    unseeded = [tr for tr in test_refs if tr not in seeded_refs and not tr.startswith("TEST-")]
+                    if unseeded and seeded_refs:
+                        msg = f"Test seed reference mismatch: {tf.name} tests reference '{unseeded[0]}', which is not among seeded shipments {sorted(list(seeded_refs))}."
+                        test_export_mismatches.append(msg)
+                        discrepancies.append(ContractDiscrepancy(
+                            type="TEST_SEED_REFERENCE_MISMATCH",
+                            responsible_artifact=tf.name,
+                            consuming_artifact=be_file.name if be_file else "server.js",
+                            mismatch=msg,
+                            confidence="HIGH",
+                            failure_class="TEST_SEED_REFERENCE_MISMATCH",
+                            suggested_repair=f"Update test to query seeded shipment reference (e.g. '{sorted(list(seeded_refs))[0]}').",
+                        ))
             except Exception as e:
                 uncertainties.append(f"Notice analyzing test file {tf.name}: {e}")
 
@@ -1364,12 +1474,21 @@ class CrossFileContractValidator:
                         "image_url": "image",
                         "indicative_price": "price",
                         "min_order_qty": "moq",
+                        "min_order_quantity": "moq",
                         "availability": "status",
                     }
-                    mismatched_props = [
-                        (fe, be) for fe, be in prop_map.items()
-                        if fe in fe_prod_props and (f"{be} TEXT" in be_content or f"{be} NOT NULL" in be_content or f"'{be}'" in be_content or f'"{be}"' in be_content or f",{be}," in be_content or f" {be} " in be_content)
-                    ]
+                    mismatched_props = []
+                    for fe, be in prop_map.items():
+                        if fe in fe_prod_props:
+                            fe_in_be = bool(re.search(rf"\b{re.escape(fe)}\b", be_content))
+                            be_in_be = bool(re.search(rf"\b{re.escape(be)}\b", be_content))
+                            if not fe_in_be and be_in_be:
+                                mismatched_props.append((fe, be))
+                        elif be in fe_prod_props:
+                            fe_in_be = bool(re.search(rf"\b{re.escape(fe)}\b", be_content))
+                            be_in_be = bool(re.search(rf"\b{re.escape(be)}\b", be_content))
+                            if fe_in_be and not be_in_be:
+                                mismatched_props.append((be, fe))
                     if mismatched_props:
                         details_list = [f"'{fe}' (database/backend schema uses '{be}')" for fe, be in mismatched_props]
                         msg = (
@@ -1539,6 +1658,43 @@ class CrossFileContractValidator:
                                 suggested_repair="Change status update method in frontend to 'PATCH' or add 'PUT' handler in backend.",
                             ))
 
+                    # Admin authentication mechanism check: JSON body vs Basic Auth
+                    sends_json_pwd = bool(re.search(r'''body:\s*JSON\.stringify\(\s*\{[^}]*password''', js_raw))
+                    expects_basic_auth = "authorization" in be_content.lower() and "basic " in be_content.lower()
+                    if sends_json_pwd and expects_basic_auth and "authorization" not in js_raw.lower():
+                        msg = (
+                            f"Admin authentication mechanism mismatch: {js_f.name} sends password in JSON body, "
+                            f"but backend {be_file.name if be_file else 'server.js'} requires 'Authorization: Basic ...' header in checkAdmin middleware."
+                        )
+                        endpoint_mismatches.append(msg)
+                        discrepancies.append(ContractDiscrepancy(
+                            type="AUTH_MECHANISM_MISMATCH",
+                            responsible_artifact=js_f.name,
+                            consuming_artifact=be_file.name if be_file else "server.js",
+                            mismatch=msg,
+                            confidence="HIGH",
+                            failure_class="AUTH_MECHANISM_MISMATCH",
+                            suggested_repair="Update frontend admin API calls to send 'Authorization: Basic ...' header.",
+                        ))
+
+                    # Admin route parameter mismatch: /api/admin/enquiries/${id}/status vs :reference
+                    has_id_param = bool(re.search(r'''/api/admin/enquiries/(?:\$\{id\}|:[a-zA-Z0-9_]+|[0-9]+)/status''', js_raw))
+                    if has_id_param and (":reference" in be_content or "shipmentReference" in be_content or "enquiries SET status = ? WHERE reference = ?" in be_content):
+                        msg = (
+                            f"Admin route parameter mismatch: {js_f.name} updates enquiry status via '/api/admin/enquiries/${{id}}/status' "
+                            f"using numeric id, but backend route expects ':reference' (e.g. GT-ENQ-XXXXX)."
+                        )
+                        endpoint_mismatches.append(msg)
+                        discrepancies.append(ContractDiscrepancy(
+                            type="ADMIN_ROUTE_PARAM_MISMATCH",
+                            responsible_artifact=js_f.name,
+                            consuming_artifact=be_file.name if be_file else "server.js",
+                            mismatch=msg,
+                            confidence="HIGH",
+                            failure_class="ADMIN_ROUTE_PARAM_MISMATCH",
+                            suggested_repair="Update status update URL in frontend to use enquiry reference instead of numeric id.",
+                        ))
+
         # 7. HTML Admin Credentials vs Backend Verification
         if html_file and html_file.exists() and be_content:
             h_raw = html_file.read_text(encoding='utf-8', errors='ignore')
@@ -1579,6 +1735,73 @@ class CrossFileContractValidator:
                     failure_class="CSS_CLASS_MISMATCH",
                     suggested_repair=f"Add '.hero-section' to {css_file.name} or use class 'hero' in {html_file.name}.",
                 ))
+
+        # Category values and casing consistency
+        if be_content and html_file and html_file.exists():
+            h_raw = html_file.read_text(encoding='utf-8', errors='ignore')
+            cat_seeds = set(re.findall(r'''['"](Agricultural products|Spices|Textiles|Engineering goods|Food products|Import products)['"]''', be_content, re.IGNORECASE))
+            for cs in cat_seeds:
+                title_cased = cs.title()
+                if title_cased != cs and (f'value="{title_cased}"' in h_raw or f"value='{title_cased}'" in h_raw or f'>{title_cased}<' in h_raw):
+                    msg = (
+                        f"Category value mismatch: HTML/frontend uses category '{title_cased}', "
+                        f"but database seeds use '{cs}'. Exact matching against differently capitalized category values will return zero products."
+                    )
+                    endpoint_mismatches.append(msg)
+                    discrepancies.append(ContractDiscrepancy(
+                        type="CATEGORY_VALUE_MISMATCH",
+                        responsible_artifact=html_file.name,
+                        consuming_artifact=be_file.name if be_file else "server.js",
+                        mismatch=msg,
+                        confidence="HIGH",
+                        failure_class="CATEGORY_VALUE_MISMATCH",
+                        suggested_repair=f"Align category casing: use '{cs}' in HTML/frontend filters.",
+                    ))
+
+        # Check stylesheet completeness & Bootstrap framework dependency
+        if css_file and css_file.exists() and html_file and html_file.exists():
+            h_raw = html_file.read_text(encoding='utf-8', errors='ignore')
+            has_rich_components = any(k in h_raw for k in ("card-body", "nav-tabs", "tab-content", "hero", "product-card", "modal-dialog"))
+            if has_rich_components:
+                c_raw = css_file.read_text(encoding='utf-8', errors='ignore')
+                c_lines = [l for l in c_raw.splitlines() if l.strip()]
+                if len(c_lines) < 25:
+                    msg = (
+                        f"Insufficient stylesheet: {css_file.name} has only {len(c_lines)} lines and lacks "
+                        f"complete component styling (navbar, hero, product cards, filters, forms, modal, tracking, responsive layout)."
+                    )
+                    warnings.append(msg)
+                    discrepancies.append(ContractDiscrepancy(
+                        type="INSUFFICIENT_STYLESHEET",
+                        responsible_artifact=css_file.name,
+                        consuming_artifact=html_file.name,
+                        mismatch=msg,
+                        confidence="LOW",
+                        failure_class="INSUFFICIENT_STYLESHEET",
+                        suggested_repair="Expand stylesheet to provide complete responsive styling for all UI components.",
+                    ))
+
+        if html_file and html_file.exists():
+            h_raw = html_file.read_text(encoding='utf-8', errors='ignore')
+            has_bootstrap_classes = any(bc in h_raw for bc in ("col-md-4", "col-12", "nav-tabs", "tab-content", "btn-primary", "card-body"))
+            has_bootstrap_link = "bootstrap" in h_raw.lower()
+            if has_bootstrap_classes and not has_bootstrap_link:
+                c_defines_bs = css_file and css_file.exists() and "col-md-4" in css_file.read_text(encoding='utf-8', errors='ignore')
+                if not c_defines_bs:
+                    msg = (
+                        f"Missing CSS framework: {html_file.name} uses Bootstrap grid and component classes ('col-md-4', 'nav-tabs', 'btn-primary'), "
+                        f"but Bootstrap stylesheet is not loaded and {css_file.name if css_file else 'style.css'} does not define them."
+                    )
+                    css_mismatches.append(msg)
+                    discrepancies.append(ContractDiscrepancy(
+                        type="MISSING_CSS_FRAMEWORK",
+                        responsible_artifact=html_file.name,
+                        consuming_artifact=css_file.name if css_file else "style.css",
+                        mismatch=msg,
+                        confidence="HIGH",
+                        failure_class="MISSING_CSS_FRAMEWORK",
+                        suggested_repair="Add Bootstrap CSS link in HTML head or implement grid classes in stylesheet.",
+                    ))
 
         # Static Mount vs Asset Path Discrepancy
         if be_content:
@@ -1626,6 +1849,7 @@ class CrossFileContractValidator:
             or response_shape_mismatches
             or html_asset_mismatches
             or dom_id_mismatches
+            or any(d.type == "MISSING_CSS_FRAMEWORK" for d in discrepancies)
             or database_mismatches
             or startup_mismatches
             or module_graph_mismatches

@@ -361,7 +361,7 @@ class CompletionPolicy:
                                     f"Fast verification rejected: {fresh_msg}",
                                     [fresh_msg],
                                 )
-                    if is_interactive_app and (runtime_state or acceptance_ledger or evidence_store):
+                    if runtime_state or acceptance_ledger or evidence_store:
                         guard_ok, guard_reason, guard_issues = GoalCompleteGuard.evaluate(
                             state=runtime_state,
                             ledger=acceptance_ledger,
@@ -371,20 +371,11 @@ class CompletionPolicy:
                         if not guard_ok:
                             return (
                                 False,
-                                f"Fast verification {prof.value} passed static checks, but GoalCompleteGuard rejected completion: {guard_reason}",
+                                f"Goal completion rejected: {guard_reason}",
                                 guard_issues,
                             )
 
-                    # Synchronize runtime_state and ledger to prevent downstream guard mismatch
-                    if runtime_state and hasattr(runtime_state, "requirements"):
-                        for req in runtime_state.requirements.values():
-                            if req.status != RequirementStatus.VERIFIED:
-                                req.transition_status(RequirementStatus.VERIFIED, reason=f"Verified by {prof.value}", actor="completion_policy")
-                    if acceptance_ledger and hasattr(acceptance_ledger, "checks"):
-                        for chk in acceptance_ledger.checks.values():
-                            if chk.status != AcceptanceCheckStatus.PASS:
-                                chk.status = AcceptanceCheckStatus.PASS
-                    return (True, f"All requirements satisfied via fast verification {prof.value}: {prof_res.summary}", [])
+                    return (True, f"All requirements satisfied via verified verification {prof.value}: {prof_res.summary}", [])
                 elif prof_res.issues:
                     for iss in prof_res.issues:
                         if iss not in issues:

@@ -4138,21 +4138,20 @@ class AgentLoop:
 
                             is_test_file = any("test" in Path(f).name.lower() for f in delta_files)
 
-                            if not is_test_or_verif or is_test_file:
+                            # A file-write event ONLY establishes that an artifact was created or modified.
+                            # It must NEVER independently mark an application feature as completed or verified.
+                            if cur_task:
+                                if cur_task.get("status") in ("NOT_STARTED", "PENDING", None):
+                                    cur_task["status"] = "IN_PROGRESS"
+                                elif any(f.endswith((".js", ".py", ".html", ".css")) for f in delta_files):
+                                    cur_task["status"] = "IMPLEMENTED"
 
-                                # For website missions, verify scaffold deliverables exist before advancing requirements
-
-                                if hasattr(self, "mvp_gate") and self.mvp_gate and WebsiteMvpGate.is_website_mission(mission.user_prompt or "", ws_dir_p, set(self._written_files)):
-
-                                    scaffold_ok, _ = self.mvp_gate.check_scaffold_complete(ws_dir_p)
-
-                                    if scaffold_ok or any(f.endswith((".js", ".html")) for f in delta_files):
-
-                                        await self._advance_active_task(f"Progress recorded by {call_name}: {obs.summary}")
-
-                                else:
-
-                                    await self._advance_active_task(f"Progress recorded by {call_name}: {obs.summary}")
+                            if hasattr(self, "planning_service") and self.planning_service and cur_tid in self.planning_service.requirements:
+                                req = self.planning_service.requirements[cur_tid]
+                                if req.status in (RequirementStatus.PENDING, RequirementStatus.NOT_STARTED, RequirementStatus.READY):
+                                    req.transition_status(RequirementStatus.IN_PROGRESS, reason=f"Artifact modified by {call_name}", actor="agent_loop")
+                                elif req.status == RequirementStatus.IN_PROGRESS and any(f.endswith((".js", ".py", ".html", ".css")) for f in delta_files):
+                                    req.transition_status(RequirementStatus.IMPLEMENTED, reason=f"Implementation code written by {call_name}", actor="agent_loop")
 
                         elif call_name in ("search.glob", "search.grep", "fs.read", "list_directory", "search_files", "verify"):
 
@@ -7715,4 +7714,3 @@ class AgentLoop:
             except Exception:
 
                 pass
-
