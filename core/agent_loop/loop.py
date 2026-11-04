@@ -1773,25 +1773,25 @@ class AgentLoop:
 
 
 
-                    # Escalate repeated stalls to consecutive_failures so the loop can terminate
-
+                    # Escalate repeated stalls to recovery transition, then consecutive_failures
                     self._stall_consecutive_count = getattr(self, "_stall_consecutive_count", 0) + 1
-
-                    if self._stall_consecutive_count >= 3:
-
-                        consecutive_failures += 1
-
-                        self._stall_consecutive_count = 0
-
+                    if self._stall_consecutive_count >= 2:
                         logger.warning(
-
-                            f"AgentLoop: Stall repeated {self._stall_consecutive_count + 3}x "
-
-                            f"— escalated to consecutive failure "
-
-                            f"({consecutive_failures}/{self.config.max_consecutive_failures})"
-
+                            f"AgentLoop: Stall repeated {self._stall_consecutive_count}x — attempting recovery transition"
                         )
+                        rec_ok = await self._trigger_recovery_transition(
+                            turn_id=f"stall_{self._turns_count}",
+                            rejection_reason=f"Agent progress stalled ({stall_msg})",
+                            unmet_reqs=[r.title for r in self._unmet_requirements] if hasattr(self, "_unmet_requirements") else [],
+                            mission=self._mission_model,
+                        )
+                        if not rec_ok:
+                            consecutive_failures += 1
+                            self._stall_consecutive_count = 0
+                            logger.warning(
+                                f"AgentLoop: Stall recovery exhausted — escalated to consecutive failure "
+                                f"({consecutive_failures}/{self.config.max_consecutive_failures})"
+                            )
 
             else:
 
@@ -4726,21 +4726,28 @@ class AgentLoop:
 
                                 # ── Case C: Repeated loop without progress -> bounds loop with failure identifying unmet criteria ──
 
-                                logger.error(
+                                logger.warning(
 
-                                    f"AgentLoop: Case C Recovery: bounded failure after {unchanged_read_governor_blocks} unchanged read blocks. Issues: {issues}"
-
-                                )
-
-                                termination_reason = (
-
-                                    f"No-progress loop terminated: unmet criteria after repeated unchanged reads: {'; '.join(issues)}"
+                                    f"AgentLoop: Case C Recovery: bounded recovery transition after {unchanged_read_governor_blocks} unchanged read blocks. Issues: {issues}"
 
                                 )
 
-                                await self._publish_event(
+                                rec_ok = await self._trigger_recovery_transition(
+                                    turn_id=turn_id,
+                                    rejection_reason=f"Repeated unchanged read blocks ({unchanged_read_governor_blocks}): {'; '.join(issues)}",
+                                    unmet_reqs=[r.title for r in self._unmet_requirements] if hasattr(self, "_unmet_requirements") else [],
+                                    mission=self._mission_model,
+                                )
+                                if not rec_ok:
+                                    termination_reason = (
 
-                                    EventType.MISSION_FAILED,
+                                        f"No-progress loop terminated: unmet criteria after repeated unchanged reads: {'; '.join(issues)}"
+
+                                    )
+
+                                    await self._publish_event(
+
+                                        EventType.MISSION_FAILED,
 
                                     turn_id=turn_id,
 
@@ -4793,6 +4800,40 @@ class AgentLoop:
                 if not has_mutated_in_turn:
 
                     self._consecutive_non_mutating_turns += 1
+                    if self._consecutive_non_mutating_turns == 3:
+                        logger.warning(
+                            f"AgentLoop: {self._consecutive_non_mutating_turns} consecutive non-mutating turns detected. "
+                            f"Injecting mandatory mutation directive."
+                        )
+                        if hasattr(self, "context_engine") and self.context_engine:
+                            try:
+                                from core.context.models import ContextItem, ContextSectionType, ContextSourceType, ContextPriority, ContextProvenance
+                                self.context_engine.register_item(ContextItem(
+                                    id=f"mutation_directive_{turn_id}",
+                                    section=ContextSectionType.SYSTEM,
+                                    content=(
+                                        f"CRITICAL ACTION REQUIRED (Turn {self._turns_count}):\n"
+                                        f"You have performed {self._consecutive_non_mutating_turns} consecutive turns without mutating or creating files. "
+                                        "You are FORBIDDEN from calling fs.read or exploratory commands on the next turn. "
+                                        "You MUST proceed IMMEDIATELY to editing or writing the necessary code/styles using fs.edit or fs.write."
+                                    ),
+                                    provenance=ContextProvenance(source_type=ContextSourceType.SYSTEM, source_id="mutation_governor"),
+                                    priority=ContextPriority.MANDATORY,
+                                    pinned=True,
+                                ))
+                            except Exception:
+                                pass
+                    elif self._consecutive_non_mutating_turns >= 4:
+                        logger.warning(
+                            f"AgentLoop: {self._consecutive_non_mutating_turns} consecutive non-mutating turns reached threshold. "
+                            f"Triggering recovery transition."
+                        )
+                        await self._trigger_recovery_transition(
+                            turn_id=turn_id,
+                            rejection_reason=f"Model performed {self._consecutive_non_mutating_turns} consecutive non-mutating turns without code modifications",
+                            unmet_reqs=[r.title for r in self._unmet_requirements] if hasattr(self, "_unmet_requirements") else [],
+                            mission=self._mission_model,
+                        )
 
 
 
@@ -5898,6 +5939,10 @@ class AgentLoop:
                 if is_genuinely_empty:
 
                     return True, "Repeated inspection on empty workspace.", "Implement the project entrypoint or required files using write_file."
+
+        # Non-mutating read/inspection loop on existing workspace
+        if getattr(self, "_consecutive_non_mutating_turns", 0) >= 4:
+            return True, f"Repeated inspection without code modifications ({self._consecutive_non_mutating_turns} non-mutating turns).", "Modify or edit the target code or styling files using fs.edit or fs.write immediately."
 
 
 
