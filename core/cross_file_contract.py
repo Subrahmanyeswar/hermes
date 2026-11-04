@@ -234,8 +234,11 @@ class CrossFileContractValidator:
                 html_txt_s = html_file.read_text(encoding="utf-8", errors="ignore")
                 for sm in re.findall(r'<script[^>]+src=["\']([^"\']+\.js)["\']', html_txt_s, re.I):
                     if not sm.startswith(("http://", "https://", "//")):
-                        js_candidates.insert(0, ws / sm.lstrip("./"))
+                        if html_file:
+                            js_candidates.insert(0, html_file.parent / sm.lstrip("./"))
+                        js_candidates.insert(0, ws / "public" / sm.lstrip("./"))
                         js_candidates.insert(0, ws / "static" / sm.lstrip("./"))
+                        js_candidates.insert(0, ws / sm.lstrip("./"))
             except Exception:
                 pass
         js_file = next((f for f in js_candidates if f and f.exists() and f.stat().st_size > 20), None)
@@ -314,26 +317,42 @@ class CrossFileContractValidator:
                     uncertainties.append(f"Failed to fully parse {be_file.name} Python AST: {e}")
 
             elif be_file.suffix == ".js":
-                # Node.js / Express route extraction
-                route_matches = re.findall(
-                    r"""(?:app|router)\.(get|post|put|delete|patch)\s*\(\s*['"`]([^'"`]+)['"`](.*?)(?=(?:app|router)\.(?:get|post|put|delete|patch)|$)""",
+                # Node.js / Express route extraction with router mount detection
+                router_mounts: Dict[str, str] = {}
+                for mount_m in re.finditer(r'app\.use\s*\(\s*["\'`]([^"\'`]+)["\'`]\s*,\s*([a-zA-Z0-9_]+)\s*\)', be_content):
+                    router_mounts[mount_m.group(2)] = mount_m.group(1).rstrip("/")
+
+                route_matches = re.finditer(
+                    r"""(?:app|([a-zA-Z0-9_]*router))\.(get|post|put|delete|patch)\s*\(\s*['"`]([^'"`]+)['"`](.*?)(?=(?:app|[a-zA-Z0-9_]*router)\.(?:get|post|put|delete|patch)|$)""",
                     be_content,
-                    re.DOTALL
+                    re.DOTALL | re.I
                 )
-                for m, p, body in route_matches:
+                for rm in route_matches:
+                    r_var = rm.group(1) or ""
+                    m = rm.group(2)
+                    p_orig = rm.group(3)
+                    body = rm.group(4)
                     method = m.upper()
-                    norm_p = re.sub(r'/:[a-zA-Z0-9_]+', '/{id}', p)
-                    backend_routes.setdefault(norm_p, set()).add(method)
-                    backend_routes.setdefault(p, set()).add(method)
+
+                    mount_prefix = router_mounts.get(r_var, "")
+                    paths_to_register = [p_orig]
+                    if mount_prefix and not p_orig.startswith(mount_prefix):
+                        paths_to_register.append(f"{mount_prefix}/{p_orig.lstrip('/')}")
+                    elif not p_orig.startswith("/api") and any(r_var.lower().startswith(x) for x in ("api", "v1")):
+                        paths_to_register.append(f"/api/{p_orig.lstrip('/')}")
+
+                    for p in paths_to_register:
+                        norm_p = re.sub(r'/:[a-zA-Z0-9_]+', '/{id}', p)
+                        backend_routes.setdefault(norm_p, set()).add(method)
+                        backend_routes.setdefault(p, set()).add(method)
 
                     # Extract res.json(...) or res.status(...).json(...) shape
                     json_calls = re.findall(r'res(?:\.status\([0-9]+\))?\.(?:json|send)\s*\(\s*(\{.*?\}|\[.*?\]|[a-zA-Z0-9_]+)\s*\)', body, re.DOTALL)
+                    detected_shape = None
                     for jc in json_calls:
                         jc_str = jc.strip()
                         if jc_str.startswith("{") and jc_str.endswith("}"):
                             props = re.findall(r'([a-zA-Z0-9_]+)\s*:', jc_str)
-                            # Also check shorthand property definitions e.g. { success: true, reference, inquiry_id }
-                            # Match keys that don't have colon (e.g. shorthand identifiers)
                             tokens = [t.strip() for t in jc_str.strip("{}").split(",") if t.strip()]
                             for tok in tokens:
                                 if ":" in tok:
@@ -344,26 +363,40 @@ class CrossFileContractValidator:
                                     k = tok.strip()
                                     if re.match(r'^[a-zA-Z0-9_]+$', k) and k not in props:
                                         props.append(k)
-
-                            backend_response_shapes[(method, norm_p)] = {
+                            detected_shape = {
                                 "root_type": "object",
                                 "envelope_properties": props,
                             }
                         elif jc_str.startswith("[") and jc_str.endswith("]"):
-                            backend_response_shapes[(method, norm_p)] = {
+                            detected_shape = {
                                 "root_type": "array",
                                 "envelope_properties": [],
                             }
-                        elif "db.all" in body or "findAll" in body:
-                            backend_response_shapes[(method, norm_p)] = {
+                        elif "db.all" in body or "findAll" in body or jc_str in ("rows", "items", "products", "list", "results", "records") or re.search(rf'(?:const|let|var)\s+{re.escape(jc_str)}\s*=\s*\[', body):
+                            detected_shape = {
                                 "root_type": "array",
                                 "envelope_properties": [],
                             }
                         elif "db.get" in body or "findOne" in body:
-                            backend_response_shapes[(method, norm_p)] = {
+                            detected_shape = {
                                 "root_type": "object",
                                 "envelope_properties": [],
                             }
+                        elif re.search(rf'(?:const|let|var)\s+{re.escape(jc_str)}\s*=\s*\{{', body):
+                            obj_def = re.search(rf'(?:const|let|var)\s+{re.escape(jc_str)}\s*=\s*(\{{.*?\}});', body, re.DOTALL)
+                            props = []
+                            if obj_def:
+                                props = re.findall(r'([a-zA-Z0-9_]+)\s*:', obj_def.group(1))
+                            detected_shape = {
+                                "root_type": "object",
+                                "envelope_properties": props,
+                            }
+
+                        if detected_shape:
+                            for p_reg in paths_to_register:
+                                norm_p_reg = re.sub(r'/:[a-zA-Z0-9_]+', '/{id}', p_reg)
+                                backend_response_shapes[(method, norm_p_reg)] = detected_shape
+                                backend_response_shapes[(method, p_reg)] = detected_shape
 
                     # Extract required request body fields
                     req_fields = set()
@@ -402,17 +435,24 @@ class CrossFileContractValidator:
             for js_f in frontend_js_files:
                 js_content = js_f.read_text(encoding="utf-8", errors="ignore")
                 # Extract fetch and api calls
-                raw_calls = re.findall(r"""(?:api\.(get|post|put|delete|patch)|fetch)\s*\(\s*[`'"]([^`'"]+)[`'"]""", js_content, re.I)
-                template_calls = re.findall(r'(?:api\.(get|post|put|delete|patch)|fetch)\s*\(\s*`([^`]+)`', js_content, re.I)
-
                 all_calls = set()
-                for method, path in raw_calls:
-                    norm_p = re.sub(r'\$\{[^}]+\}', '{id}', path)
-                    all_calls.add((method.upper() if method else "GET", norm_p))
+                # 1. api.get/post/put/delete/patch
+                for m in re.finditer(r"""api\.(get|post|put|delete|patch)\s*\(\s*(['"`])(.*?)\2""", js_content, re.I):
+                    method = m.group(1).upper()
+                    raw_p = m.group(3)
+                    norm_p = re.sub(r'\$\{[^}]+\}', '{id}', raw_p)
+                    all_calls.add((method, norm_p))
 
-                for method, path in template_calls:
-                    norm_path = re.sub(r'\$\{[^}]+\}', '{id}', path)
-                    all_calls.add((method.upper() if method else "GET", norm_path))
+                # 2. fetch(url, options) or fetch(url)
+                for m in re.finditer(r"""fetch\s*\(\s*(['"`])(.*?)\1(\s*,\s*\{.*?\})?""", js_content, re.DOTALL):
+                    raw_p = m.group(2)
+                    opts = m.group(3) or ""
+                    method = "GET"
+                    meth_m = re.search(r"""method\s*:\s*['"`](GET|POST|PUT|DELETE|PATCH)['"`]""", opts, re.I)
+                    if meth_m:
+                        method = meth_m.group(1).upper()
+                    norm_p = re.sub(r'\$\{[^}]+\}', '{id}', raw_p)
+                    all_calls.add((method, norm_p))
 
                 for method, path in all_calls:
                     if not path.startswith("/api"):
@@ -588,11 +628,33 @@ class CrossFileContractValidator:
 
                     elif root_type == "array":
                         if target_var:
-                            accessed_props = re.findall(rf'\b{target_var}\.([a-zA-Z0-9_]+)\.(forEach|map|filter)\b', snippet)
-                            if accessed_props:
+                            # Check if frontend accesses an envelope property on the array e.g. data.products or data.items or data.results
+                            env_access = re.findall(rf'\b{target_var}\.([a-zA-Z0-9_]+)\b', snippet)
+                            destruct_props = re.findall(rf'\{{\s*([^}}]+)\s*\}}\s*=\s*{target_var}\b', snippet)
+                            destruct_direct = re.findall(r'\{\s*([^}]+)\s*\}\s*=\s*await\s+[a-zA-Z0-9_]+\.json\(\)', snippet)
+
+                            bad_props = []
+                            array_methods = {
+                                "length", "map", "filter", "forEach", "reduce", "find", "findIndex",
+                                "slice", "some", "every", "includes", "indexOf", "concat", "join",
+                                "flat", "flatMap", "sort", "reverse", "entries", "values", "keys",
+                                "push", "pop", "shift", "unshift", "splice"
+                            }
+                            for prop in env_access:
+                                if prop not in array_methods:
+                                    bad_props.append(prop)
+                            for dp in destruct_props + destruct_direct:
+                                for p_item in dp.split(","):
+                                    pi = p_item.strip().split(":")[0].strip()
+                                    if pi and pi not in ("length",):
+                                        bad_props.append(pi)
+
+                            if bad_props:
+                                bad_prop = bad_props[0]
                                 msg = (
-                                    f"API_RESPONSE_SHAPE_MISMATCH: Backend route '{req_method} {norm_url}' returns a raw Array, "
-                                    f"but frontend {js_f.name} accesses envelope property '{accessed_props[0][0]}'."
+                                    f"API_RESPONSE_SHAPE_MISMATCH: Backend route '{req_method} {norm_url}' returns a raw JSON Array, "
+                                    f"but frontend {js_f.name} expects an Object envelope property '{bad_prop}' (reads '{target_var}.{bad_prop}'). "
+                                    f"The array should be consumed directly or backend should wrap it as '{{ {bad_prop}: rows }}'."
                                 )
                                 response_shape_mismatches.append(msg)
                                 discrepancies.append(
@@ -603,6 +665,7 @@ class CrossFileContractValidator:
                                         mismatch=msg,
                                         confidence="HIGH",
                                         failure_class="API_RESPONSE_SHAPE_MISMATCH",
+                                        suggested_repair=f"Update {js_f.name} to treat response as array directly ('{target_var}') or wrap backend response as '{{ {bad_prop}: rows }}'."
                                     )
                                 )
 
@@ -1284,6 +1347,278 @@ class CrossFileContractValidator:
                                                         mismatch=msg,
                             suggested_repair="Ensure client sends all required shipment event fields including 'event_date'.",
                         ))
+
+        # ==============================================================================
+        # Section 8.6: Deep Integration Intelligence (Product, DOM Target, Filters, Tracking, Admin, Assets, DB Readiness)
+        # ==============================================================================
+        if frontend_js_files:
+            for js_f in frontend_js_files:
+                js_raw = js_f.read_text(encoding='utf-8', errors='ignore')
+
+                # 1. Product Property Mismatch across DB Schema, Backend API & Frontend Rendering
+                if be_content and ("products" in be_content.lower() or "CREATE TABLE IF NOT EXISTS products" in be_content):
+                    fe_prod_props = set(re.findall(r"\bp\.([a-zA-Z0-9_]+)\b", js_raw))
+                    prop_map = {
+                        "classification": "type",
+                        "origin_country": "origin",
+                        "image_url": "image",
+                        "indicative_price": "price",
+                        "min_order_qty": "moq",
+                        "availability": "status",
+                    }
+                    mismatched_props = [
+                        (fe, be) for fe, be in prop_map.items()
+                        if fe in fe_prod_props and (f"{be} TEXT" in be_content or f"{be} NOT NULL" in be_content or f"'{be}'" in be_content or f'"{be}"' in be_content or f",{be}," in be_content or f" {be} " in be_content)
+                    ]
+                    if mismatched_props:
+                        details_list = [f"'{fe}' (database/backend schema uses '{be}')" for fe, be in mismatched_props]
+                        msg = (
+                            f"Product property mismatch: {js_f.name} renders product cards accessing {', '.join(details_list)}. "
+                            f"These properties do not match the database schema in {be_file.name if be_file else 'backend'}."
+                        )
+                        endpoint_mismatches.append(msg)
+                        discrepancies.append(ContractDiscrepancy(
+                            type="PRODUCT_PROPERTY_MISMATCH",
+                            responsible_artifact=js_f.name,
+                            consuming_artifact=be_file.name if be_file else "server.js",
+                            mismatch=msg,
+                            confidence="HIGH",
+                            failure_class="PRODUCT_PROPERTY_MISMATCH",
+                            suggested_repair="Align product property names between frontend rendering template and database schema columns.",
+                        ))
+
+                # 2. Incorrect DOM Rendering Target (e.g. rendering into #catalogue section instead of #productGrid / .product-grid)
+                if html_file and html_file.exists():
+                    h_raw = html_file.read_text(encoding='utf-8', errors='ignore')
+                    cat_target_m = re.search(r'''document\.getElementById\(['"]([a-zA-Z0-9_]+)['"]\)\.innerHTML\s*=\s*[a-zA-Z0-9_]+\.map''', js_raw)
+                    if cat_target_m:
+                        target_id = cat_target_m.group(1)
+                        # Check if target_id in HTML is a section with filter/search controls and contains an inner dedicated grid
+                        if (f'<section id="{target_id}"' in h_raw or f'<section class="{target_id}"' in h_raw or f'id="{target_id}"' in h_raw):
+                            grid_candidates = ["productGrid", "product-grid", "productsGrid", "products-grid", "productsContainer"]
+                            found_grid = [g for g in grid_candidates if f'id="{g}"' in h_raw or f'class="{g}"' in h_raw or f'class="product-grid"' in h_raw]
+                            if found_grid and target_id not in found_grid:
+                                msg = (
+                                    f"Incorrect DOM rendering target: {js_f.name} writes product cards directly into '#{target_id}'. "
+                                    f"This destroys other section controls (search input, filters, headings). "
+                                    f"Dynamic product cards must be rendered into dedicated grid element '#{found_grid[0]}' instead."
+                                )
+                                dom_id_mismatches.append(msg)
+                                discrepancies.append(ContractDiscrepancy(
+                                    type="INCORRECT_DOM_TARGET",
+                                    responsible_artifact=js_f.name,
+                                    consuming_artifact=html_file.name,
+                                    mismatch=msg,
+                                    confidence="HIGH",
+                                    failure_class="INCORRECT_DOM_TARGET",
+                                    suggested_repair=f"Change DOM target in {js_f.name} from '#{target_id}' to '#{found_grid[0]}'.",
+                                ))
+
+                    # 3. Filter Selector Discrepancy (e.g. JS expects classFilter, HTML provides typeFilter)
+                    js_filter_matches = re.findall(r'''document\.getElementById\(['"]([a-zA-Z0-9_]*Filter[a-zA-Z0-9_]*)['"]\)''', js_raw)
+                    html_filter_ids = set(re.findall(r'id=["\']([a-zA-Z0-9_]*Filter[a-zA-Z0-9_]*)["\']', h_raw))
+                    for jf in js_filter_matches:
+                        if jf not in html_filter_ids:
+                            alt_filter = [hf for hf in html_filter_ids if "type" in hf.lower() or "class" in hf.lower() or "category" in hf.lower()]
+                            alt_hint = f" (HTML provides {alt_filter})" if alt_filter else ""
+                            msg = (
+                                f"DOM filter selector mismatch: {js_f.name} queries element '#{jf}' which is missing in {html_file.name}{alt_hint}."
+                            )
+                            dom_id_mismatches.append(msg)
+                            discrepancies.append(ContractDiscrepancy(
+                                type="DOM_REFERENCE_MISMATCH",
+                                responsible_artifact=js_f.name,
+                                consuming_artifact=html_file.name,
+                                mismatch=msg,
+                                confidence="HIGH",
+                                failure_class="DOM_REFERENCE_MISMATCH",
+                                suggested_repair=f"Synchronize filter ID between {js_f.name} and {html_file.name}.",
+                            ))
+
+                # 4. Enquiry Payload Field Discrepancy
+                if be_content and "/enquiries" in js_raw:
+                    fe_enq_fields = set(re.findall(r'''formData\.get\(['"]([a-zA-Z0-9_]+)['"]\)''', js_raw))
+                    if not fe_enq_fields:
+                        fe_enq_fields = set(re.findall(r'''['"]?(company_name|contact_person|destination_country|trade_direction|additional_requirements)['"]?\s*:''', js_raw))
+                    be_destruct = re.findall(r"const\s*\{\s*([^}]+)\s*\}\s*=\s*req\.body", be_content)
+                    be_enq_fields = set([f.strip() for f in be_destruct[0].split(",")]) if be_destruct else set()
+                    enq_mismatches = []
+                    if "company_name" in fe_enq_fields and "company" in be_enq_fields:
+                        enq_mismatches.append("company_name (backend expects 'company')")
+                    if "contact_person" in fe_enq_fields and "contact" in be_enq_fields:
+                        enq_mismatches.append("contact_person (backend expects 'contact')")
+                    if "destination_country" in fe_enq_fields and "country" in be_enq_fields:
+                        enq_mismatches.append("destination_country (backend expects 'country')")
+                    if "trade_direction" in fe_enq_fields and "direction" in be_enq_fields:
+                        enq_mismatches.append("trade_direction (backend expects 'direction')")
+                    if enq_mismatches:
+                        msg = (
+                            f"Enquiry payload field mismatch: {js_f.name} sends {', '.join(enq_mismatches)}. "
+                            f"Backend {be_file.name if be_file else 'server.js'} will reject submission with 400 Bad Request."
+                        )
+                        endpoint_mismatches.append(msg)
+                        discrepancies.append(ContractDiscrepancy(
+                            type="REQUEST_PAYLOAD_FIELD_MISMATCH",
+                            responsible_artifact=js_f.name,
+                            consuming_artifact=be_file.name if be_file else "server.js",
+                            mismatch=msg,
+                            confidence="HIGH",
+                            failure_class="REQUEST_PAYLOAD_FIELD_MISMATCH",
+                            suggested_repair="Synchronize enquiry form field names with backend req.body parser.",
+                        ))
+
+                # 5. Shipment Tracking Contract Mismatch (Route, Fields, Method)
+                if be_content and ("track" in js_raw.lower() or "shipment" in js_raw.lower()):
+                    fe_trk_m = re.findall(r'''fetch\(['"`](/[^'"`]*track[^'"`]*)[`'"]''', js_raw, re.I)
+                    for trk_call in fe_trk_m:
+                        norm_call = re.sub(r'/\$\{[^}]+\}', '/{id}', trk_call).split("?")[0]
+                        norm_call = re.sub(r'/:[a-zA-Z0-9_]+', '/{id}', norm_call)
+                        if norm_call not in backend_routes and f"/api{norm_call}" not in backend_routes:
+                            msg = (
+                                f"Shipment tracking route mismatch: {js_f.name} queries endpoint '{trk_call}', "
+                                f"which is not implemented in {be_file.name if be_file else 'backend'}."
+                            )
+                            endpoint_mismatches.append(msg)
+                            discrepancies.append(ContractDiscrepancy(
+                                type="API_ROUTE_MISMATCH",
+                                responsible_artifact=js_f.name,
+                                consuming_artifact=be_file.name if be_file else "server.js",
+                                mismatch=msg,
+                                confidence="HIGH",
+                                failure_class="API_ROUTE_MISMATCH",
+                                suggested_repair="Synchronize tracking route between frontend fetch and backend router.",
+                            ))
+                    # Shipment response fields
+                    if "product_description" in js_raw and "description TEXT" in be_content:
+                        msg = (
+                            f"Shipment property mismatch: {js_f.name} expects 'product_description' and 'estimated_delivery', "
+                            f"but database schema defines 'description' and 'eta'."
+                        )
+                        endpoint_mismatches.append(msg)
+                        discrepancies.append(ContractDiscrepancy(
+                            type="SHIPMENT_PROPERTY_MISMATCH",
+                            responsible_artifact=js_f.name,
+                            consuming_artifact=be_file.name if be_file else "server.js",
+                            mismatch=msg,
+                            confidence="HIGH",
+                            failure_class="SHIPMENT_PROPERTY_MISMATCH",
+                            suggested_repair="Update frontend shipment rendering to match database column names ('description', 'eta').",
+                        ))
+
+                # 6. Admin API Mismatches (Separate vs Combined, PUT vs PATCH, Credentials)
+                if be_content and "/api/admin" in js_raw:
+                    if "/api/admin/data" in js_raw and "/api/admin/data" not in be_content:
+                        msg = (
+                            f"Admin API route mismatch: {js_f.name} calls 'GET /api/admin/data', "
+                            f"but {be_file.name if be_file else 'backend'} provides separate '/api/admin/stats', '/api/admin/enquiries', '/api/admin/shipments'."
+                        )
+                        endpoint_mismatches.append(msg)
+                        discrepancies.append(ContractDiscrepancy(
+                            type="ADMIN_ROUTE_CONTRACT_MISMATCH",
+                            responsible_artifact=js_f.name,
+                            consuming_artifact=be_file.name if be_file else "server.js",
+                            mismatch=msg,
+                            confidence="HIGH",
+                            failure_class="ADMIN_ROUTE_CONTRACT_MISMATCH",
+                            suggested_repair="Expose '/api/admin/data' or update frontend to query individual admin endpoints.",
+                        ))
+                    if re.search(r'''fetch\([^)]*/api/admin/enquiries/[^)]*status[^)]*method:\s*['"]PUT['"]''', js_raw, re.I):
+                        if "patch(" in be_content.lower() and "/status" in be_content:
+                            msg = (
+                                f"Admin API method mismatch: {js_f.name} updates enquiry status via 'PUT', "
+                                f"but {be_file.name if be_file else 'backend'} handles enquiry status with 'PATCH'."
+                            )
+                            endpoint_mismatches.append(msg)
+                            discrepancies.append(ContractDiscrepancy(
+                                type="API_METHOD_MISMATCH",
+                                responsible_artifact=js_f.name,
+                                consuming_artifact=be_file.name if be_file else "server.js",
+                                mismatch=msg,
+                                confidence="HIGH",
+                                failure_class="API_METHOD_MISMATCH",
+                                suggested_repair="Change status update method in frontend to 'PATCH' or add 'PUT' handler in backend.",
+                            ))
+
+        # 7. HTML Admin Credentials vs Backend Verification
+        if html_file and html_file.exists() and be_content:
+            h_raw = html_file.read_text(encoding='utf-8', errors='ignore')
+            html_pwd_m = re.findall(r'id=["\']adminPass["\'][^>]*value=["\']([^"\']+)["\']', h_raw)
+            be_pwd_m = re.findall(r'''password\s*===\s*['"]([^'"]+)['"]''', be_content)
+            if html_pwd_m and be_pwd_m and html_pwd_m[0] != be_pwd_m[0]:
+                msg = (
+                    f"Admin authentication credential mismatch: {html_file.name} displays demo password '{html_pwd_m[0]}', "
+                    f"but {be_file.name if be_file else 'backend'} authenticates password '{be_pwd_m[0]}'."
+                )
+                endpoint_mismatches.append(msg)
+                discrepancies.append(ContractDiscrepancy(
+                    type="AUTH_CREDENTIALS_MISMATCH",
+                    responsible_artifact=html_file.name,
+                    consuming_artifact=be_file.name if be_file else "server.js",
+                    mismatch=msg,
+                    confidence="HIGH",
+                    failure_class="AUTH_CREDENTIALS_MISMATCH",
+                    suggested_repair=f"Synchronize admin credentials: use '{be_pwd_m[0]}' in {html_file.name}.",
+                ))
+
+        # 8. Visual Asset, Stylesheet & Static Directory Mismatches
+        if html_file and html_file.exists() and css_file and css_file.exists():
+            h_raw = html_file.read_text(encoding='utf-8', errors='ignore')
+            c_raw = css_file.read_text(encoding='utf-8', errors='ignore')
+            if ('.hero {' in c_raw or '.hero ' in c_raw) and 'hero-section' in h_raw and 'class="hero"' not in h_raw:
+                msg = (
+                    f"CSS class selector mismatch: {css_file.name} defines '.hero', "
+                    f"but {html_file.name} uses 'class=\"hero-section\"'. Hero section styling will fail to render."
+                )
+                css_mismatches.append(msg)
+                discrepancies.append(ContractDiscrepancy(
+                    type="CSS_CLASS_MISMATCH",
+                    responsible_artifact=css_file.name,
+                    consuming_artifact=html_file.name,
+                    mismatch=msg,
+                    confidence="HIGH",
+                    failure_class="CSS_CLASS_MISMATCH",
+                    suggested_repair=f"Add '.hero-section' to {css_file.name} or use class 'hero' in {html_file.name}.",
+                ))
+
+        # Static Mount vs Asset Path Discrepancy
+        if be_content:
+            mount_public = "express.static(path.join(__dirname, 'public'))" in be_content or "express.static('public')" in be_content
+            if mount_public and html_file and html_file.exists():
+                h_raw = html_file.read_text(encoding='utf-8', errors='ignore')
+                if "static/style.css" in h_raw or "static/main.js" in h_raw or (ws / "static").exists():
+                    msg = (
+                        f"Static asset directory mismatch: {be_file.name if be_file else 'server.js'} mounts directory 'public' "
+                        f"via express.static, but HTML references or workspace assets are located in 'static/'."
+                    )
+                    html_asset_mismatches.append(msg)
+                    discrepancies.append(ContractDiscrepancy(
+                        type="STATIC_DIRECTORY_MISMATCH",
+                        responsible_artifact=be_file.name if be_file else "server.js",
+                        consuming_artifact=html_file.name,
+                        mismatch=msg,
+                        confidence="HIGH",
+                        failure_class="STATIC_DIRECTORY_MISMATCH",
+                        suggested_repair="Consolidate static directory to 'public/' matching express.static mount.",
+                    ))
+
+        # 9. Asynchronous SQLite Readiness Race Detection
+        if be_content and "new sqlite3.Database" in be_content and "initDb" in be_content and "app.listen" in be_content:
+            if not re.search(r"initDb\([^)]*\)\s*\{[^}]*app\.listen", be_content):
+                msg = (
+                    f"Asynchronous database readiness race: {be_file.name if be_file else 'server.js'} calls app.listen() "
+                    f"synchronously before asynchronous sqlite3 database initialization (initDb) finishes. "
+                    f"Early HTTP requests and test executions will encounter uninitialized or unseeded tables."
+                )
+                warnings.append(msg)
+                discrepancies.append(ContractDiscrepancy(
+                    type="ASYNC_DB_READINESS_RACE",
+                    responsible_artifact=be_file.name if be_file else "server.js",
+                    consuming_artifact="tests",
+                    mismatch=msg,
+                    confidence="MEDIUM",
+                    failure_class="ASYNC_DB_READINESS_RACE",
+                    suggested_repair="Await database initialization before invoking app.listen or export a database ready promise.",
+                ))
 
         # 9. Determine Overall Gate Severity
         has_fatal = bool(

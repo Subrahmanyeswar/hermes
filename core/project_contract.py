@@ -403,14 +403,17 @@ class ProjectContract:
         # Check backend files first
         backend_file = None
         has_static_mount = False
+        has_public_mount = False
         for b_cand in ("main.py", "app.py", "server.py", "server.js"):
             bp = ws / b_cand
             if bp.exists() and bp.stat().st_size > 30:
                 backend_file = b_cand
                 try:
                     b_txt = bp.read_text(encoding="utf-8", errors="ignore")
-                    if re.search(r'mount\s*\(\s*["\']/static["\']', b_txt) or 'directory="static"' in b_txt or "directory='static'" in b_txt:
+                    if re.search(r'mount\s*\(\s*["\']/static["\']', b_txt) or 'directory="static"' in b_txt or "directory='static'" in b_txt or "express.static('static')" in b_txt or 'express.static("static")' in b_txt:
                         has_static_mount = True
+                    if "express.static('public')" in b_txt or 'express.static("public")' in b_txt or "express.static(path.join(__dirname, 'public'))" in b_txt or 'express.static(path.join(__dirname, "public"))' in b_txt or re.search(r'mount\s*\(\s*["\']/public["\']', b_txt):
+                        has_public_mount = True
                 except Exception:
                     pass
                 break
@@ -423,47 +426,46 @@ class ProjectContract:
                     break
 
         # Check existing actual entrypoints on disk
+        has_public_index = (ws / "public" / "index.html").exists() and (ws / "public" / "index.html").stat().st_size > 10
         has_static_index = (ws / "static" / "index.html").exists() and (ws / "static" / "index.html").stat().st_size > 10
         has_root_index = (ws / "index.html").exists() and (ws / "index.html").stat().st_size > 10
 
-        # Handle ambiguity without creating duplicates
-        if has_static_index and has_root_index:
+        # Handle disambiguation and layout selection prioritizing explicit backend mounts
+        if has_public_mount or (has_public_index and not has_static_mount):
+            selected_layout = "public"
+        elif has_static_mount:
+            selected_layout = "static"
+        elif has_static_index and has_root_index:
             logger.info("ProjectContract: Both root and static index.html exist. Inspecting mounts and backend files to disambiguate.")
-            if has_static_mount or ("static" in p_lower and "root" not in p_lower):
+            if ("static" in p_lower and "root" not in p_lower) or backend_file:
                 selected_layout = "static"
             elif "root" in p_lower and "static" not in p_lower:
                 selected_layout = "root"
-            elif backend_file:
-                # Backend file (FastAPI/Flask) disambiguates conflicting entrypoints to static/
-                selected_layout = "static"
-            elif not has_static_mount and not ("static" in p_lower or "root" in p_lower):
-                # Pure frontend with conflicting entrypoints and no prompt cues is ambiguous
-                canonical_js_name = cls.determine_canonical_js(prompt, ws, layout="root")
-                return "ambiguous", {
-                    "error": "WORKSPACE_LAYOUT_AMBIGUOUS",
-                    "message": "Both root and static index.html exist without mount or prompt cues to disambiguate.",
-                    "canonical_html": "index.html",
-                    "canonical_css": "style.css",
-                    "canonical_js": canonical_js_name,
-                }
             else:
-                selected_layout = "static" if (has_static_mount or backend_file) else "root"
+                selected_layout = "static" if backend_file else "root"
+        elif has_public_index:
+            selected_layout = "public"
         elif has_static_index:
             selected_layout = "static"
         elif has_root_index:
             selected_layout = "root"
-        elif has_static_mount:
-            selected_layout = "static"
         elif backend_file or any(k in p_lower for k in ("fastapi", "fullstack", "full-stack", "backend", "sqlite")):
-            # Fullstack / backend projects conventionally host static frontend in static/
-            selected_layout = "static"
+            # If Express explicitly mounts public, use public, else default to static
+            selected_layout = "public" if has_public_mount else "static"
         else:
             selected_layout = "root"
 
         # Determine canonical JS entrypoint name
         canonical_js_name = cls.determine_canonical_js(prompt, ws, layout=selected_layout)
 
-        if selected_layout == "static":
+        if selected_layout == "public":
+            paths = {
+                "canonical_html": "public/index.html",
+                "canonical_css": "public/style.css",
+                "canonical_js": f"public/{canonical_js_name}",
+                "canonical_backend": backend_file,
+            }
+        elif selected_layout == "static":
             paths = {
                 "canonical_html": "static/index.html",
                 "canonical_css": "static/style.css",
@@ -508,10 +510,12 @@ class ProjectContract:
         # 2. Existing index.html on disk
         if ws:
             html_candidates = [
+                ws / layout / "index.html" if layout in ("public", "static") else None,
+                ws / "public" / "index.html",
                 ws / "static" / "index.html",
                 ws / "index.html",
             ]
-            for html_path in html_candidates:
+            for html_path in filter(None, html_candidates):
                 if html_path.exists():
                     try:
                         html_txt = html_path.read_text(encoding="utf-8", errors="ignore")
@@ -524,23 +528,27 @@ class ProjectContract:
                     except Exception:
                         pass
 
-        # 3. Existing package.json 'main'
+        # 3. Existing package.json 'main' (client JS only, excluding backend server files)
         if ws and (ws / "package.json").exists():
             try:
                 pkg = json.loads((ws / "package.json").read_text(encoding="utf-8", errors="ignore"))
                 main_val = pkg.get("main")
                 if main_val and isinstance(main_val, str) and main_val.endswith(".js"):
-                    return Path(main_val.lstrip("./")).name
+                    clean_main = Path(main_val.lstrip("./")).name
+                    if clean_main not in ("server.js", "server.py", "app.py", "main.py"):
+                        return clean_main
             except Exception:
                 pass
 
         # 4. Existing file on disk
         if ws:
-            search_dirs = [ws / "static", ws] if layout == "static" else [ws, ws / "static"]
+            search_dirs = [ws / layout] if layout in ("public", "static") else []
+            search_dirs.extend([ws / "public", ws / "static", ws])
             for sdir in search_dirs:
-                for cand in ("app.js", "main.js", "index.js"):
-                    if (sdir / cand).exists() and (sdir / cand).stat().st_size > 40:
-                        return cand
+                if sdir.exists():
+                    for cand in ("app.js", "main.js", "index.js", "script.js"):
+                        if (sdir / cand).exists() and (sdir / cand).stat().st_size > 20:
+                            return cand
 
         return "app.js" if has_app_js else ("main.js" if has_main_js else "app.js")
 

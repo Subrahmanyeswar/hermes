@@ -2599,7 +2599,7 @@ class AgentLoop:
                             last_val_failed = getattr(self, "_last_validation_failed", False)
                             last_repair_brief = getattr(self, "_last_validation_repair_brief", "")
 
-                            if last_val_failed and sh_cmd == last_val_cmd and current_src_digest == last_val_digest:
+                            if last_val_failed and current_src_digest == last_val_digest:
                                 dup_count = getattr(self, "_duplicate_validation_count", 0) + 1
                                 self._duplicate_validation_count = dup_count
 
@@ -2643,6 +2643,29 @@ class AgentLoop:
                                 turn.observation_ids.append(obs.observation_id)
                                 self._record_observation(obs)
                                 continue
+
+                    # Browser Inactive Repetition Guard (Section 6 & 8)
+                    if call_name.startswith("browser_") or call_name in ("browser_inspect", "browser_preview"):
+                        browser_fail_count = getattr(self, "_consecutive_browser_failures", 0)
+                        if browser_fail_count >= 2:
+                            logger.warning(f"AgentLoop: Browser session guard blocking repeated failed browser action '{call_name}'")
+                            obs = Observation(
+                                observation_id=f"obs_browser_guard_{uuid.uuid4().hex[:6]}",
+                                mission_id=self._mission_id,
+                                turn_id=turn_id,
+                                source_type="governor",
+                                source_id="browser_session_guard",
+                                success=False,
+                                summary=f"Browser action '{call_name}' blocked: Browser session is inactive after repeated failures.",
+                                content=(
+                                    f"[BROWSER_SESSION_GUARD]\n"
+                                    f"Action '{call_name}' was blocked because recent browser evaluations failed due to inactive session or unreachable server.\n"
+                                    f"Ensure the application server is running (e.g. 'node server.js &' or verify port is active) before re-running browser preview or DOM inspection."
+                                ),
+                            )
+                            turn.observation_ids.append(obs.observation_id)
+                            self._record_observation(obs)
+                            continue
 
                     # Redundancy Guard (Section 10): block repeated identical failed attempts (>= 2)
 
@@ -4029,6 +4052,8 @@ class AgentLoop:
 
                     if obs.success:
 
+                        if call_name.startswith("browser_") or call_name in ("browser_inspect", "browser_preview"):
+                            self._consecutive_browser_failures = 0
                         consecutive_failures = 0
                         unchanged_read_governor_blocks = 0
                         self._mutations_since_last_search = getattr(self, "_mutations_since_last_search", 0) + (1 if is_mutating else 0)
@@ -4652,6 +4677,8 @@ class AgentLoop:
                                 break
 
                         else:
+                            if call_name.startswith("browser_") or call_name in ("browser_inspect", "browser_preview"):
+                                self._consecutive_browser_failures = getattr(self, "_consecutive_browser_failures", 0) + 1
                             is_val = False
                             val_cat = "TOOL_EXECUTION_ERROR"
                             val_cmd = ""

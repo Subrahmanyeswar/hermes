@@ -95,25 +95,40 @@ class BrowserManager:
         logger.info("BrowserManager: launched Simulated browser driver")
         return True
 
+    async def _ensure_active_session(self) -> None:
+        """Bounded session recovery: reinitialize browser driver and restore URL if session dropped."""
+        if not self.is_active or self.driver is None:
+            logger.info("BrowserManager: recovering inactive browser session...")
+            await self.launch()
+            last_url = getattr(self, "_last_navigated_url", None)
+            if last_url and self.driver is not None:
+                try:
+                    await self.driver.navigate(last_url)
+                except Exception as e:
+                    logger.warning(f"BrowserManager: re-navigating to {last_url} after session recovery failed: {e}")
+
     async def navigate(self, url: str) -> NavigationResult:
         """Navigate active browser session to URL."""
         if not self.is_active:
             await self.launch()
         assert self.driver is not None
+        self._last_navigated_url = url
         return await self.driver.navigate(url)
 
     async def click(self, target: str) -> ActionResult:
         """Click an element identified by selector, ID, or visible text."""
         if not self.is_active:
+            await self._ensure_active_session()
+        if not self.is_active or self.driver is None:
             raise RuntimeError("Browser session is not active")
-        assert self.driver is not None
         return await self.driver.click(target)
 
     async def type_text(self, target: str, text: str, is_secret: bool = False) -> ActionResult:
         """Type text into an input field or textarea."""
         if not self.is_active:
+            await self._ensure_active_session()
+        if not self.is_active or self.driver is None:
             raise RuntimeError("Browser session is not active")
-        assert self.driver is not None
         return await self.driver.type_text(target, text, is_secret=is_secret)
 
     type = type_text
@@ -121,8 +136,9 @@ class BrowserManager:
     async def inspect(self, selector: Optional[str] = None) -> InspectResult:
         """Inspect visible DOM tree and interactive elements."""
         if not self.is_active:
+            await self._ensure_active_session()
+        if not self.is_active or self.driver is None:
             raise RuntimeError("Browser session is not active")
-        assert self.driver is not None
         return await self.driver.inspect_dom(selector)
 
     async def capture_screenshot(
@@ -132,6 +148,8 @@ class BrowserManager:
     ) -> ScreenshotArtifact:
         """Capture screenshot and store it in artifacts directory with SHA-256 digest."""
         if not self.is_active:
+            await self._ensure_active_session()
+        if not self.is_active or self.driver is None:
             raise RuntimeError("Browser session is not active")
         assert self.driver is not None
 
@@ -223,8 +241,9 @@ class BrowserManager:
     async def press_key(self, key: str) -> ActionResult:
         """Dispatch a keyboard key press on the active browser session."""
         if not self.is_active:
+            await self._ensure_active_session()
+        if not self.is_active or self.driver is None:
             raise RuntimeError("Browser session is not active")
-        assert self.driver is not None
         return await self.driver.press_key(key)
 
     async def check_layout(

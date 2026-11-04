@@ -170,10 +170,101 @@ class DevServerManager:
         logger.info(f"Dev server '{name}' ready at {server_url} (PID {process.pid})")
         return info
 
+    async def start_managed_application_server(
+        self,
+        command: str,
+        directory: Path | str,
+        name: str = "app_server",
+        port: Optional[int] = None,
+        health_endpoint: str = "/api/health",
+        env: Optional[Dict[str, str]] = None,
+        timeout: float = 15.0,
+    ) -> DevServerInfo:
+        """
+        Start an application server (Node, Python, etc.) as a managed background process.
+        Polls until the server port / HTTP health endpoint responds.
+        """
+        import os
+        dir_path = Path(directory).resolve()
+        if not dir_path.exists():
+            raise FileNotFoundError(f"Target directory '{dir_path}' does not exist")
+
+        existing = self._servers.get(name)
+        if existing and existing.is_alive and existing.workspace_dir == dir_path:
+            logger.info(f"Managed server '{name}' reused at {existing.url} (PID {existing.process.pid if existing.process else 'ext'})")
+            return existing
+
+        assigned_port = port or 3000
+        from core.runtime_identity import get_canonical_subprocess_env
+        server_env = get_canonical_subprocess_env(env or {})
+        server_env["PORT"] = str(assigned_port)
+
+        creationflags = subprocess.CREATE_NEW_PROCESS_GROUP if os.name == "nt" else 0
+
+        process = subprocess.Popen(
+            command,
+            shell=True,
+            cwd=str(dir_path),
+            env=server_env,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            creationflags=creationflags,
+        )
+
+        server_url = f"http://{self.default_host}:{assigned_port}"
+        info = DevServerInfo(
+            name=name,
+            port=assigned_port,
+            url=server_url,
+            process=process,
+            workspace_dir=dir_path,
+            started_at=time.time(),
+        )
+
+        start_t = time.monotonic()
+        ready = False
+        while time.monotonic() - start_t < timeout:
+            if process.poll() is not None:
+                raise RuntimeError(f"Managed server process exited unexpectedly with code {process.returncode}")
+            try:
+                async with httpx.AsyncClient(timeout=1.0) as client:
+                    r = await client.get(f"{server_url}{health_endpoint}")
+                    if r.status_code in (200, 404, 301, 302):
+                        ready = True
+                        break
+            except Exception:
+                try:
+                    async with httpx.AsyncClient(timeout=1.0) as client:
+                        r = await client.get(server_url)
+                        if r.status_code in (200, 404, 301, 302):
+                            ready = True
+                            break
+                except Exception:
+                    pass
+                await asyncio.sleep(0.3)
+
+        if not ready:
+            try:
+                process.terminate()
+            except Exception:
+                pass
+            raise TimeoutError(f"Managed server failed to respond at {server_url} within {timeout}s")
+
+        self._servers[name] = info
+        logger.info(f"Managed application server '{name}' ready at {server_url} (PID {process.pid})")
+        return info
+
     def stop_server(self, name: str) -> None:
-        """Terminate a specific server by name."""
+        """Terminate a specific server by name and its entire process tree."""
+        import os
         info = self._servers.pop(name, None)
         if info and info.process:
+            pid = info.process.pid
+            if os.name == "nt":
+                try:
+                    subprocess.run(["taskkill", "/F", "/T", "/PID", str(pid)], capture_output=True, timeout=3.0)
+                except Exception:
+                    pass
             try:
                 info.process.kill()
                 info.process.wait(timeout=2.0)
@@ -182,7 +273,7 @@ class DevServerManager:
                     info.process.kill()
                 except Exception:
                     pass
-            logger.info(f"Dev server '{name}' stopped.")
+            logger.info(f"Dev server '{name}' (PID {pid}) stopped.")
 
     def stop_all(self) -> None:
         """Cleanly stop all servers managed by this instance."""

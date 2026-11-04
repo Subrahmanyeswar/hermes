@@ -1132,6 +1132,42 @@ class ShellBashTool(BaseTool):
                     "NODE_ENV": "test",
                 })
 
+            # Background server process lifecycle handling (Section 7)
+            clean_cmd = command.strip().rstrip("&").strip()
+            is_bg_server_cmd = command.strip().endswith("&") and any(s_term in clean_cmd.lower() for s_term in ("server", "node", "npm start", "python", "app", "main"))
+            if is_bg_server_cmd:
+                creationflags = subprocess.CREATE_NEW_PROCESS_GROUP if os.name == "nt" else 0
+                proc = subprocess.Popen(
+                    clean_cmd,
+                    shell=True,
+                    cwd=str(cwd_path),
+                    env=get_canonical_subprocess_env(extra_env),
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    text=True,
+                    encoding="utf-8",
+                    errors="replace",
+                    creationflags=creationflags,
+                )
+                register_active_subprocess(proc)
+                time.sleep(1.5)
+                poll_res = proc.poll()
+                if poll_res is not None and poll_res != 0:
+                    err_out = proc.stderr.read() if proc.stderr else f"Process exited with {poll_res}"
+                    return ToolResult(
+                        success=False,
+                        error=f"Server failed to start (exit code {poll_res}): {err_out[:300]}",
+                        exit_code=poll_res,
+                        duration_seconds=time.monotonic() - start_t,
+                    )
+                return ToolResult(
+                    success=True,
+                    output=f"Managed background application server started successfully (PID: {proc.pid}). Process is running and active in background.",
+                    exit_code=0,
+                    duration_seconds=time.monotonic() - start_t,
+                    details={"pid": proc.pid, "managed_background": True, "command": clean_cmd},
+                )
+
             proc = subprocess.Popen(
                 cmd_to_run,
                 shell=True,
@@ -1206,7 +1242,12 @@ class ShellBashTool(BaseTool):
                     )
                     test_evidence_dict = t_ev.to_dict()
                     primary_cat = t_ev.primary_failure_category
-                    if not success and t_ev.repair_brief:
+                    if t_ev.discovery_result == "TESTS_NOT_DISCOVERED":
+                        success = False
+                        exit_code = 1
+                        primary_cat = "TEST_DISCOVERY_FAILURE"
+                        obs_output = f"[ZERO TESTS DISCOVERED]\nTest runner executed with 0 tests discovered (e.g. via --passWithNoTests).\nA test run with 0 tests cannot qualify as a passing verification.\nEnsure test files match test discovery patterns (e.g. tests/*.test.js or test/app.test.js)."
+                    elif not success and t_ev.repair_brief:
                         obs_output = f"{t_ev.repair_brief}\n\n[RAW TEST OUTPUT]\n{obs_output}"
                 except Exception as ex:
                     pass
