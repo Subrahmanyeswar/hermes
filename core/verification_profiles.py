@@ -550,7 +550,7 @@ class VerificationProfileEvaluator:
                 issues.append(f"Required dependency '{dep}' missing: {dep_msg}")
         # 8. Check 3D Canvas / Three.js runtime if requested
         p_lower = prompt.lower()
-        wants_3d = any(k in p_lower for k in ("three", "3d", "canvas", "webgl", "rocket", "orbit", "simulation", "spacecraft"))
+        wants_3d = any(k in p_lower for k in ("three.js", "threejs", "3d", "canvas", "webgl", "rocket", "orbit", "simulation", "spacecraft"))
         if wants_3d:
             checks_run.append("threejs_canvas_initialization")
             has_canvas_tag = "<canvas" in lower

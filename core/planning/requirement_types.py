@@ -22,8 +22,8 @@ from core.runtime_state.models import RequirementType
 
 # Canonical lists of known libraries, runtimes, and tools
 KNOWN_DEPENDENCIES: Set[str] = {
-    "three.js", "three", "orbitcontrols", "react.js", "react", "vue.js", "vue",
-    "angular.js", "angular", "svelte.js", "svelte", "next.js", "next",
+    "three.js", "threejs", "orbitcontrols", "react.js", "react", "vue.js", "vue",
+    "angular.js", "angular", "svelte.js", "svelte", "next.js", "nextjs",
     "nuxt.js", "nuxt", "express.js", "express", "d3.js", "d3", "chart.js",
     "babylon.js", "babylon", "anime.js", "gsap.js", "gsap", "moment.js",
     "lodash.js", "lodash", "axios.js", "axios", "electron.js", "electron",
