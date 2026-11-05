@@ -24,6 +24,7 @@ import subprocess
 import tempfile
 import time
 import urllib.request
+import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
@@ -238,11 +239,13 @@ class BrowserAcceptanceVerifier:
                 except Exception as ex:
                     logger.warning(f"Could not start python backend: {ex}")
 
+        pkg_json = ws_root / "package.json"
+        pkg_text = pkg_json.read_text(encoding="utf-8", errors="ignore") if pkg_json.exists() else ""
         has_backend = (
             (ws_root / "server.js").exists()
             or (ws_root / "app.py").exists()
             or (ws_root / "main.py").exists()
-            or ((ws_root / "package.json").exists() and any(k in (ws_root / "package.json").read_text(encoding="utf-8", errors="ignore") for k in ("express", "fastify", "\"dev\":", "\"start\":")))
+            or any(k in pkg_text for k in ("express", "fastify", "koa", "@nestjs/core"))
         )
         if has_backend:
             # Backend applications strictly require HTTP navigation - file:// prohibited
@@ -327,7 +330,7 @@ class BrowserAcceptanceVerifier:
                 )
 
             import websockets
-            async with websockets.connect(ws_url, ping_interval=None) as ws:
+            async with websockets.connect(ws_url, ping_interval=None, max_size=32 * 1024 * 1024) as ws:
                 await ws.send(json.dumps({"id": 1, "method": "Runtime.enable"}))
                 await ws.send(json.dumps({"id": 2, "method": "Page.enable"}))
                 await ws.send(json.dumps({"id": 3, "method": "Console.enable"}))
@@ -443,26 +446,111 @@ class BrowserAcceptanceVerifier:
                     if broken_imgs:
                         issues.append(f"BROKEN_IMAGE_ASSETS: {len(broken_imgs)} image(s) failed to render (naturalWidth == 0): {broken_imgs[:2]}")
 
-                # Capture screenshot
-                shot_file = ws_root / ".hermes" / "acceptance_screenshot.png"
-                shot_file.parent.mkdir(parents=True, exist_ok=True)
-                await ws.send(json.dumps({
-                    "id": 20,
-                    "method": "Page.captureScreenshot",
-                    "params": {"format": "png"}
-                }))
-                while True:
-                    try:
-                        raw = await asyncio.wait_for(ws.recv(), timeout=2.0)
-                        msg = json.loads(raw)
-                        if msg.get("id") == 20:
-                            data_b64 = msg.get("result", {}).get("data")
-                            if data_b64:
-                                shot_file.write_bytes(base64.b64decode(data_b64))
-                                screenshot_path = str(shot_file)
+                # ── Multi-Viewport Responsive QA Matrix (Desktop, Tablet, Mobile) ──
+                TARGET_VIEWPORTS = [
+                    {"name": "desktop", "width": 1440, "height": 900, "scale": 1.0, "is_mobile": False},
+                    {"name": "tablet", "width": 1024, "height": 768, "scale": 1.0, "is_mobile": False},
+                    {"name": "mobile", "width": 390, "height": 844, "scale": 2.0, "is_mobile": True},
+                ]
+
+                shot_dir = ws_root / ".hermes" / "screenshots"
+                shot_dir.mkdir(parents=True, exist_ok=True)
+                viewports_tested_records = []
+
+                for vp_idx, vp in enumerate(TARGET_VIEWPORTS):
+                    vp_name = vp["name"]
+                    vp_w = vp["width"]
+                    vp_h = vp["height"]
+
+                    # 1. Emulate viewport
+                    em_msg_id = 20 + vp_idx * 3
+                    await ws.send(json.dumps({
+                        "id": em_msg_id,
+                        "method": "Emulation.setDeviceMetricsOverride",
+                        "params": {
+                            "width": vp_w,
+                            "height": vp_h,
+                            "deviceScaleFactor": vp["scale"],
+                            "mobile": vp["is_mobile"],
+                        }
+                    }))
+                    while True:
+                        try:
+                            raw_em = await asyncio.wait_for(ws.recv(), timeout=1.0)
+                            msg_em = json.loads(raw_em)
+                            if msg_em.get("id") == em_msg_id:
+                                break
+                        except Exception:
                             break
-                    except Exception:
-                        break
+                    await asyncio.sleep(0.3)
+
+                    # 2. Check layout dimensions & horizontal overflow
+                    metrics_id = 21 + vp_idx * 3
+                    await ws.send(json.dumps({
+                        "id": metrics_id,
+                        "method": "Runtime.evaluate",
+                        "params": {
+                            "expression": "({ innerWidth: window.innerWidth, clientWidth: document.documentElement.clientWidth, scrollWidth: document.documentElement.scrollWidth })",
+                            "returnByValue": True
+                        }
+                    }))
+                    vp_metrics = {}
+                    while True:
+                        try:
+                            raw = await asyncio.wait_for(ws.recv(), timeout=1.0)
+                            msg = json.loads(raw)
+                            if msg.get("id") == metrics_id:
+                                vp_metrics = msg.get("result", {}).get("result", {}).get("value", {})
+                                break
+                        except Exception:
+                            break
+
+                    cw = vp_metrics.get("clientWidth", vp_w)
+                    sw = vp_metrics.get("scrollWidth", vp_w)
+                    has_overflow = sw > cw
+                    if has_overflow:
+                        issues.append(
+                            f"RESPONSIVE_OVERFLOW: Horizontal scroll detected on {vp_name} ({vp_w}x{vp_h}): "
+                            f"scrollWidth ({sw}) > clientWidth ({cw})."
+                        )
+
+                    # 3. Capture screenshot for this viewport
+                    vp_shot_file = shot_dir / f"screenshot_{vp_name}_{vp_w}x{vp_h}.png"
+                    shot_id = 22 + vp_idx * 3
+                    await ws.send(json.dumps({
+                        "id": shot_id,
+                        "method": "Page.captureScreenshot",
+                        "params": {"format": "png"}
+                    }))
+                    while True:
+                        try:
+                            raw = await asyncio.wait_for(ws.recv(), timeout=2.0)
+                            msg = json.loads(raw)
+                            if msg.get("id") == shot_id:
+                                data_b64 = msg.get("result", {}).get("data")
+                                if data_b64:
+                                    vp_shot_file.write_bytes(base64.b64decode(data_b64))
+                                break
+                        except Exception:
+                            break
+
+                    viewports_tested_records.append({
+                        "name": vp_name,
+                        "width": vp_w,
+                        "height": vp_h,
+                        "scroll_width": sw,
+                        "client_width": cw,
+                        "device_scale_factor": vp["scale"],
+                        "has_overflow": has_overflow,
+                        "screenshot": str(vp_shot_file),
+                    })
+
+                # Set primary screenshot to desktop or first available
+                if viewports_tested_records:
+                    screenshot_path = viewports_tested_records[0]["screenshot"]
+                    acc_shot = ws_root / ".hermes" / "acceptance_screenshot.png"
+                    if Path(screenshot_path).exists():
+                        shutil.copyfile(screenshot_path, acc_shot)
 
                 # ── Execute Functional Workflows (if provided) ────────────────
                 cmd_id = 100
@@ -590,9 +678,11 @@ class BrowserAcceptanceVerifier:
                 "status": status,
                 "target_url": target_url,
                 "screenshot": screenshot_path,
+                "viewports": viewports_tested_records,
                 "workflow_results": workflow_results,
                 "issues": issues,
             }
+            details["viewports"] = viewports_tested_records
             (ev_dir / "acceptance_evidence.json").write_text(json.dumps(ev_payload, indent=2), encoding="utf-8")
 
             from core.browser.evidence import AuthoritativeBrowserEvidence, BrowserEvidenceLifecycle, compute_workspace_artifact_hashes
@@ -606,7 +696,7 @@ class BrowserAcceptanceVerifier:
                 server_origin=f"http://127.0.0.1:{target_port}" if has_backend else "file://",
                 verification_timestamp=time.time(),
                 artifact_hashes=hashes,
-                viewports_tested=[{"width": 1280, "height": 800, "device_scale_factor": 1.0}],
+                viewports_tested=viewports_tested_records if viewports_tested_records else [{"width": 1280, "height": 800, "device_scale_factor": 1.0}],
                 browser_result={
                     "interactions_passed": passed,
                     "dom_elements_verified": len(missing_rendered) == 0,
@@ -642,6 +732,30 @@ class BrowserAcceptanceVerifier:
                 evidence_ref=screenshot_path,
                 error="; ".join(issues) if issues else None,
             )
+            checks_map = getattr(acceptance_ledger, "checks", {})
+            if "chk.verification.browser" in checks_map:
+                acceptance_ledger.record_result(
+                    check_id="chk.verification.browser",
+                    status=AcceptanceCheckStatus.PASS if passed else AcceptanceCheckStatus.FAIL,
+                    evidence_ref=screenshot_path,
+                    error="; ".join(issues) if issues else None,
+                )
+            if "chk.verification.errors" in checks_map:
+                err_pass = (len(unhandled_exceptions) == 0 and len(console_errors) == 0)
+                acceptance_ledger.record_result(
+                    check_id="chk.verification.errors",
+                    status=AcceptanceCheckStatus.PASS if err_pass else AcceptanceCheckStatus.FAIL,
+                    evidence_ref=screenshot_path,
+                    error="; ".join(console_errors + unhandled_exceptions) if not err_pass else None,
+                )
+            if "chk.verification.responsive" in checks_map:
+                resp_errs = [iss for iss in issues if "RESPONSIVE" in iss or "OVERFLOW" in iss]
+                acceptance_ledger.record_result(
+                    check_id="chk.verification.responsive",
+                    status=AcceptanceCheckStatus.PASS if len(resp_errs) == 0 else AcceptanceCheckStatus.FAIL,
+                    evidence_ref=screenshot_path,
+                    error="; ".join(resp_errs) if resp_errs else None,
+                )
 
         return BrowserAcceptanceResult(
             passed=passed,

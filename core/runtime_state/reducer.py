@@ -460,6 +460,19 @@ class StateReducer:
             state.model_execution.status = ModelStatus.TIMED_OUT
             state.model_execution.error_message = "Model call timed out"
 
+        elif et in {EventType.TIER_SELECTED, EventType.TIER_FAILOVER_STARTED}:
+            raw_tier = payload.get("to_tier") or payload.get("tier")
+            if raw_tier is not None:
+                try:
+                    state.model_execution.tier = int(raw_tier)
+                except Exception:
+                    pass
+            if "model" in payload and payload["model"]:
+                state.model_execution.model = payload["model"]
+            if "provider" in payload and payload["provider"]:
+                state.model_execution.provider = payload["provider"]
+                state.network.provider = payload["provider"]
+
         elif et == EventType.MODEL_DISCONNECTED:
             state.model_execution.status = ModelStatus.DISCONNECTED
             state.network.connectivity = NetworkConnectivity.DISCONNECTED

@@ -176,7 +176,14 @@ def verify_deliverables_and_test_execution(
             try:
                 pkg_data = json.loads(pkg_json.read_text(encoding="utf-8", errors="ignore"))
                 scripts = pkg_data.get("scripts", {})
-                if "test" in scripts and "no test specified" not in scripts["test"]:
+                if "test" in scripts:
+                    raw_test = str(scripts["test"]).lower()
+                    if ("echo" in raw_test and "exit 0" in raw_test) or "no test specified" in raw_test:
+                        return (
+                            False,
+                            f"Deliverable check failed: Fake npm test script ('{scripts['test']}') rejected. Not valid acceptance evidence.",
+                            [f"Fake npm test script: {scripts['test']}"]
+                        )
                     if (ws_root / "node_modules").exists():
                         test_cmd = ["npm", "test"]
             except Exception:
@@ -377,6 +384,16 @@ class CompletionPolicy:
                                 guard_issues,
                             )
 
+                    try:
+                        from core.skill_evidence_ledger import SkillEvidenceLedger
+                        sk_ledger = SkillEvidenceLedger.load_from_workspace(ws_root)
+                        if sk_ledger:
+                            sk_ledger.evaluate_physical_evidence(ws_root)
+                            if 'cross_rep' in locals() and cross_rep:
+                                sk_ledger.evaluate_independent_verification(cross_rep)
+                            sk_ledger.save_to_workspace(ws_root)
+                    except Exception:
+                        pass
                     return (True, f"All requirements satisfied via verified verification {prof.value}: {prof_res.summary}", [])
                 elif prof_res.issues:
                     for iss in prof_res.issues:

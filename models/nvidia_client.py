@@ -560,20 +560,54 @@ class NvidiaClient(ModelProvider):
                         success=False,
                     )
 
-                async for line in response.aiter_lines():
+                from core.latency_governor import latency_governor
+                budget = latency_governor.get_budget(is_streaming=True, custom_timeout_cap=timeout_limit)
+                first_token_limit = budget.first_token_timeout or 7.5
+                idle_limit = budget.stream_idle_timeout or 10.0
+
+                aiter = response.aiter_lines().__aiter__()
+                while True:
                     now_time = time.monotonic()
+                    rem_time = timeout_limit - (now_time - start_time)
+                    if rem_time <= 0:
+                        logger.warning(f"NvidiaClient: stream exceeded timeout threshold ({timeout_limit}s)")
+                        raise NvidiaTimeoutError(
+                            f"NVIDIA NIM stream exceeded total allowed duration ({now_time - start_time:.1f}s > {timeout_limit:.1f}s)",
+                            timeout_type="TOTAL_GENERATION_TIMEOUT",
+                            duration=now_time - start_time,
+                        )
+                    chunk_to = min(first_token_limit, rem_time) if first_token_time is None else min(idle_limit, rem_time)
+                    try:
+                        line = await asyncio.wait_for(aiter.__anext__(), timeout=max(0.01, chunk_to))
+                    except StopAsyncIteration:
+                        break
+                    except (asyncio.TimeoutError, TimeoutError) as to_err:
+                        elapsed = time.monotonic() - start_time
+                        if first_token_time is None:
+                            logger.warning(f"NvidiaClient: first token deadline exceeded ({elapsed:.1f}s > {first_token_limit:.1f}s)")
+                            raise NvidiaTimeoutError(
+                                f"NVIDIA NIM first token timed out after {elapsed:.1f}s (deadline: {first_token_limit:.1f}s)",
+                                timeout_type="FIRST_TOKEN_TIMEOUT",
+                                duration=elapsed,
+                            ) from to_err
+                        elif elapsed >= timeout_limit:
+                            raise NvidiaTimeoutError(
+                                f"NVIDIA NIM stream exceeded total allowed duration ({elapsed:.1f}s > {timeout_limit:.1f}s)",
+                                timeout_type="TOTAL_GENERATION_TIMEOUT",
+                                duration=elapsed,
+                            ) from to_err
+                        else:
+                            raise NvidiaTimeoutError(
+                                f"NVIDIA NIM stream idle watchdog timed out after {idle_limit:.1f}s",
+                                timeout_type="STREAM_IDLE_TIMEOUT",
+                                duration=elapsed,
+                            ) from to_err
+
                     chunk_idle = (now_time - last_chunk_time) * 1000.0
                     if chunk_idle > max_idle_interval_ms:
                         max_idle_interval_ms = chunk_idle
                     last_chunk_time = now_time
-                    elapsed = now_time - start_time
-                    if elapsed > timeout_limit:
-                        logger.warning(f"NvidiaClient: stream exceeded timeout threshold ({timeout_limit}s)")
-                        raise NvidiaTimeoutError(
-                            f"NVIDIA NIM stream exceeded total allowed duration ({elapsed:.1f}s > {timeout_limit}s)",
-                            timeout_type="TOTAL_GENERATION_TIMEOUT",
-                            duration=elapsed,
-                        )
+
                     if not line:
                         continue
                     line_stripped = line.strip()
@@ -704,6 +738,26 @@ class NvidiaClient(ModelProvider):
 
                                 if first_token_time is None and (c or r or tc_deltas):
                                     first_token_time = time.monotonic()
+                                    try:
+                                        from core.event_bus import event_bus
+                                        from core.runtime_state.events import HermesEvent, EventType
+                                        if event_bus is not None and mission_id:
+                                            ttft = (first_token_time - start_time) * 1000.0
+                                            event_bus.publish(HermesEvent(
+                                                event_type=EventType.MODEL_PROGRESS,
+                                                mission_id=mission_id,
+                                                turn_id=str(turn_index or ""),
+                                                source="nvidia_client",
+                                                payload={
+                                                    "stage": "first_token_received",
+                                                    "provider": "nvidia_nim",
+                                                    "model": active_model,
+                                                    "ttft_ms": round(ttft, 2),
+                                                    "headline": f"First token received from NVIDIA NIM ({ttft/1000.0:.2f}s)",
+                                                }
+                                            ))
+                                    except Exception:
+                                        pass
 
                                 # First Useful Action detection (TTFU)
                                 if first_useful_action_time is None:

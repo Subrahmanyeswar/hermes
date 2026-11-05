@@ -62,28 +62,16 @@ Each phase begins with an inspection, makes a bounded set of changes, runs focus
 
 Set-Location "C:\Users\SUBBU\Downloads\hermes"
 
-& ".\venv\Scripts\python.exe" -m core.server.launcher launch
+& ".\venv\Scripts\python.exe" -m core.server.launcher status
 
+& ".\venv\Scripts\python.exe" -m core.server.launcher stop
+
+& ".\scripts\launch_gui.ps1"
 
 
 Invoke-RestMethod "http://127.0.0.1:8765/api/health" |
-    Format-List
+    ConvertTo-Json -Depth 8
 
-
-
-cd C:\Users\SUBBU\Downloads\hermes
-
-.\scripts\watch_mission_logs.ps1 -Latest
-
-
-
-
-
-.\scripts\watch_mission_logs.ps1 -Latest -Stream models
-
-
-
-.\scripts\watch_mission_logs.ps1 -MissionId m_cbdeafec -NoFollow
 
 
 

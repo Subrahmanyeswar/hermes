@@ -33,13 +33,14 @@ class GeminiClient(ModelProvider):
         self,
         api_key: Optional[str] = None,
         model: Optional[str] = None,
-        timeout_seconds: float = 90.0,
-        tier: int = 1,
+        timeout_seconds: Optional[float] = None,
+        tier: int = 2,
     ) -> None:
         from config.model_config import GEMINI_API_KEY
         self.api_key = api_key or GEMINI_API_KEY or os.getenv("GEMINI_API_KEY", "")
-        self.model = model or os.getenv("TIER1_MODEL", "gemini-3.5-flash-lite")
-        self.timeout_seconds = timeout_seconds
+        self.model = model or os.getenv("TIER2_MODEL", os.getenv("TIER1_MODEL", "gemini-3.8-flash"))
+        from config.model_config import HERMES_MODEL_ATTEMPT_TIMEOUT_SECONDS
+        self.timeout_seconds = timeout_seconds if timeout_seconds is not None else float(HERMES_MODEL_ATTEMPT_TIMEOUT_SECONDS)
         self.tier = tier
         self.provider = "gemini"
         self.base_url = self.BASE_URL
@@ -269,21 +270,26 @@ class GeminiClient(ModelProvider):
             contents = [{"role": "user", "parts": [{"text": "Hello"}]}]
 
         # Build thinking config based on reasoning_effort
-        if reasoning_effort in (None, "none"):
-            thinking_budget = 0
-        elif reasoning_effort == "low":
-            thinking_budget = 512
-        elif reasoning_effort == "medium":
-            thinking_budget = 2048
-        else:  # high
-            thinking_budget = 8192
+        # Valid thinking levels for Gemini 3.8 Flash: LOW, MEDIUM, HIGH
+        effort_str = str(reasoning_effort).lower() if reasoning_effort else "low"
+        if effort_str in ("none", "off", "minimal"):
+            level = "LOW"
+        elif effort_str in ("medium", "med"):
+            level = "MEDIUM"
+        elif effort_str in ("high", "max"):
+            level = "HIGH"
+        else:
+            level = "LOW"
 
         generation_config: Dict[str, Any] = {
             "temperature": temperature,
             "maxOutputTokens": max_tokens or 8192,
         }
-        # Only add thinkingConfig if model supports it
-        if "flash" in active_model or "pro" in active_model:
+        # Do NOT send unsupported parameters like candidate_count, frequency_penalty, presence_penalty
+        if "3.8" in active_model or "3-" in active_model or "3." in active_model:
+            generation_config["thinkingConfig"] = {"thinkingLevel": level}
+        elif "flash" in active_model or "pro" in active_model:
+            thinking_budget = 512 if level == "LOW" else (2048 if level == "MEDIUM" else 8192)
             generation_config["thinkingConfig"] = {"thinkingBudget": thinking_budget}
 
         payload: Dict[str, Any] = {
@@ -331,24 +337,50 @@ class GeminiClient(ModelProvider):
                 )
                 latency_ms = (time.monotonic() - t0) * 1000
 
-                if resp.status_code == 429:
-                    retry_after = resp.headers.get("retry-after")
-                    wait_sec = min(float(retry_after), 10.0) if retry_after else 2.5
-                    logger.info(f"[GEMINI] 429 rate limit — backing off {wait_sec:.1f}s...")
-                    await asyncio.sleep(wait_sec)
-                    try:
-                        resp = await client.post(
-                            url,
-                            headers=headers,
-                            params={"key": self.api_key} if self.api_key else {},
-                            json=payload,
-                            timeout=timeout_val,
-                        )
-                    except Exception:
-                        pass
+                if resp.status_code in (429, 503):
+                    elapsed = time.monotonic() - t0
+                    rem = timeout_val - elapsed
+                    if rem > 3.0:
+                        retry_after = resp.headers.get("retry-after")
+                        wait_sec = min(float(retry_after), 3.0) if retry_after else 1.5
+                        if wait_sec < rem:
+                            logger.info(f"[GEMINI] HTTP {resp.status_code} transient rate-limit/overload — backing off {wait_sec:.1f}s and retrying...")
+                            await asyncio.sleep(wait_sec)
+                            try:
+                                rem_to = max(1.0, timeout_val - (time.monotonic() - t0))
+                                resp = await client.post(
+                                    url,
+                                    headers=headers,
+                                    params={"key": self.api_key} if self.api_key else {},
+                                    json=payload,
+                                    timeout=rem_to,
+                                )
+                            except Exception:
+                                pass
 
                 if resp.status_code != 200:
                     err_body = resp.text[:500]
+                    # If gemini-3.8-flash hit free-tier quota (limit 20 RPD) or high demand (503), fall back to gemini-3-flash-preview
+                    if active_model == "gemini-3.8-flash" and ("limit" in err_body.lower() or "quota" in err_body.lower() or resp.status_code in (429, 503)):
+                        logger.info(f"[GEMINI FALLBACK] gemini-3.8-flash reached quota or demand spike. Seamlessly executing via gemini-3-flash-preview...")
+                        fb_url = f"{self.BASE_URL}/models/gemini-3-flash-preview:generateContent"
+                        rem_to = max(2.0, timeout_val - (time.monotonic() - t0))
+                        try:
+                            fb_resp = await client.post(
+                                fb_url,
+                                headers=headers,
+                                params={"key": self.api_key} if self.api_key else {},
+                                json=payload,
+                                timeout=rem_to,
+                            )
+                            if fb_resp.status_code == 200:
+                                data = fb_resp.json()
+                                result = self._parse_gemini_response(data, "gemini-3-flash-preview")
+                                result.latency_ms = (time.monotonic() - t0) * 1000
+                                return result
+                        except Exception as fb_err:
+                            logger.warning(f"[GEMINI FALLBACK ERROR] {fb_err}")
+
                     logger.warning(f"[GEMINI ERROR] HTTP {resp.status_code}: {err_body}")
                     return NormalizedModelResponse(
                         text="",

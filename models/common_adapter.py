@@ -445,18 +445,30 @@ def classify_provider_error(
 @dataclass
 class RequestTelemetry:
     mission_id: str = ""
+    phase_id: str = ""
     request_id: str = ""
     provider: str = ""
     model: str = ""
     tier: int = 1
+    purpose: str = "general"
+    prompt_chars: int = 0
     start_time: float = 0.0
+    start_timestamp: float = 0.0
     connection_time: float = 0.0
+    queue_wait_ms: float = 0.0
     ttft_ms: float = 0.0
+    streaming_duration_ms: float = 0.0
+    parse_validation_ms: float = 0.0
+    tool_execution_ms: float = 0.0
     total_latency_ms: float = 0.0
     input_tokens: int = 0
     output_tokens: int = 0
     tool_call_count: int = 0
+    timeout_config: float = float(os.getenv("HERMES_MODEL_ATTEMPT_TIMEOUT_SECONDS", "25.0"))
+    actual_timeout_result: Optional[str] = None
+    cancellation_result: Optional[str] = None
     retry_count: int = 0
+    failover_reason: Optional[str] = None
     error_classification: Optional[str] = None
     routing_transition: Optional[str] = None
     final_result: str = "PENDING"
@@ -464,16 +476,28 @@ class RequestTelemetry:
     def to_dict(self) -> Dict[str, Any]:
         return {
             "mission_id": self.mission_id,
+            "phase_id": self.phase_id,
             "request_id": self.request_id,
             "provider": self.provider,
             "model": self.model,
             "tier": self.tier,
+            "purpose": self.purpose,
+            "prompt_chars": self.prompt_chars,
+            "start_timestamp": self.start_timestamp or self.start_time,
+            "queue_wait_ms": round(self.queue_wait_ms or self.connection_time, 2),
             "ttft_ms": round(self.ttft_ms, 2),
+            "streaming_duration_ms": round(self.streaming_duration_ms, 2),
+            "parse_validation_ms": round(self.parse_validation_ms, 2),
+            "tool_execution_ms": round(self.tool_execution_ms, 2),
             "total_latency_ms": round(self.total_latency_ms, 2),
             "input_tokens": self.input_tokens,
             "output_tokens": self.output_tokens,
             "tool_call_count": self.tool_call_count,
+            "timeout_config": self.timeout_config,
+            "actual_timeout_result": self.actual_timeout_result,
+            "cancellation_result": self.cancellation_result,
             "retry_count": self.retry_count,
+            "failover_reason": self.failover_reason,
             "error_classification": self.error_classification,
             "routing_transition": self.routing_transition,
             "final_result": self.final_result,
@@ -502,9 +526,9 @@ class CommonProviderAdapter(ModelProvider):
         tier: int = 1,
         timeout_seconds: float = 45.0,
         extra_headers: Optional[Dict[str, str]] = None,
-        first_token_timeout_seconds: float = 15.0,
-        stream_idle_timeout_seconds: float = 15.0,
-        attempt_timeout_seconds: float = 45.0,
+        first_token_timeout_seconds: float = 7.5,
+        stream_idle_timeout_seconds: float = 10.0,
+        attempt_timeout_seconds: float = 25.0,
     ) -> None:
         self.provider_name = provider_name
         self.model_name = model_name
@@ -632,19 +656,28 @@ class CommonProviderAdapter(ModelProvider):
         Send completion request to provider with streaming, tool parsing,
         metrics capture, and error handling.
         """
+        from core.latency_governor import latency_governor, RequestPurpose
         active_model = model or self.model_name
         req_id = kwargs.get("request_id") or f"req_{uuid.uuid4().hex[:8]}"
         mid = kwargs.get("mission_id") or ""
         passed_to = float(kwargs.get("timeout_seconds") or self.timeout_seconds)
-        timeout_val = min(passed_to, getattr(self, "attempt_timeout_seconds", 45.0))
+        purpose = kwargs.get("purpose") or latency_governor.classify_purpose(prompt=prompt, system=system, tools=tools)
+        budget = latency_governor.get_budget(purpose=purpose, is_streaming=stream, custom_timeout_cap=passed_to)
+        default_attempt_to = float(os.getenv("HERMES_MODEL_ATTEMPT_TIMEOUT_SECONDS", "25.0"))
+        timeout_val = min(passed_to, budget.total_timeout, getattr(self, "attempt_timeout_seconds", default_attempt_to))
 
         telemetry = RequestTelemetry(
             mission_id=mid,
+            phase_id=str(kwargs.get("phase_id") or ""),
             request_id=req_id,
             provider=self.provider_name,
             model=active_model,
             tier=self.tier,
+            purpose=str(purpose),
+            prompt_chars=len(prompt) + len(system),
             start_time=time.monotonic(),
+            start_timestamp=time.time(),
+            timeout_config=timeout_val,
         )
 
         if not self.api_key:
@@ -683,17 +716,25 @@ class CommonProviderAdapter(ModelProvider):
 
         effective_max = max_tokens if max_tokens is not None else 8192
         if self.provider_name == "groq":
-            effective_max = min(max_tokens if max_tokens is not None else 4096, 8192)
-            # Groq free tier has strict request payload / TPM limits.
-            # Truncate overly large single messages by retaining head (task requirements)
-            # and tail (recent observations).
+            effective_max = min(max_tokens if max_tokens is not None else 1536, 1536)
+            # Groq free tier has strict 8,000 TPM limit (where Groq reserves prompt_tokens + max_tokens).
+            # To stay safely below 8,000 TPM:
+            # 1) If message list is long, keep system message + initial prompt + last 4 messages
+            if len(payload_messages) > 6:
+                sys_msgs = [m for m in payload_messages if m.get("role") == "system"]
+                non_sys = [m for m in payload_messages if m.get("role") != "system"]
+                first_prompt = non_sys[:1]
+                recent_history = non_sys[-4:]
+                payload_messages = sys_msgs + first_prompt + recent_history
+
+            # 2) Truncate overly large single messages (especially long file reads or system instructions)
             for msg in payload_messages:
                 content = msg.get("content", "")
-                if isinstance(content, str) and len(content) > 18000:
+                if isinstance(content, str) and len(content) > 5000:
                     msg["content"] = (
-                        content[:6000]
-                        + "\n\n[... earlier context trimmed for length ...]\n\n"
-                        + content[-8000:]
+                        content[:2000]
+                        + "\n\n[... earlier context trimmed for Groq token budget ...]\n\n"
+                        + content[-2000:]
                     )
         payload: Dict[str, Any] = {
             "model": active_model,
@@ -737,11 +778,22 @@ class CommonProviderAdapter(ModelProvider):
         async with self._semaphore:
             max_attempts = 3 if self.provider_name in ("zai", "z_ai", "bigmodel") else 1
             for attempt in range(max_attempts):
-                if effective_stream:
-                    resp = await self._execute_streaming(client, url, headers, payload, telemetry, timeout_val)
-                else:
-                    payload["stream"] = False
-                    resp = await self._execute_non_streaming(client, url, headers, payload, telemetry, timeout_val)
+                try:
+                    if effective_stream:
+                        resp = await self._execute_streaming(client, url, headers, payload, telemetry, timeout_val)
+                    else:
+                        payload["stream"] = False
+                        resp = await self._execute_non_streaming(client, url, headers, payload, telemetry, timeout_val)
+                except Exception as exc:
+                    telemetry.final_result = "STREAM_ERROR"
+                    telemetry.error_classification = type(exc).__name__
+                    return NormalizedModelResponse(
+                        text="",
+                        success=False,
+                        error=str(exc),
+                        provider=self.provider_name,
+                        model=self.model_name,
+                    )
 
                 if resp.success:
                     return resp
@@ -1208,36 +1260,46 @@ def get_provider_adapter(
     )
 
     p_norm = provider_name.lower().replace("-", "_")
-    eff_tier = tier if tier is not None else (2 if p_norm in ("mistral", "mistral_ai", "mistralai", "codestral", "groq", "groq_api") else (3 if p_norm in ("nvidia_nim", "nvidia", "nim", "openrouter", "open_router") else 1))
+    eff_tier = tier if tier is not None else (1 if p_norm in ("groq", "groq_api") else (2 if p_norm in ("gemini", "google", "google_gemini", "mistral", "mistral_ai", "mistralai", "codestral") else (3 if p_norm in ("nvidia_nim", "nvidia", "nim", "openrouter", "open_router") else 1)))
 
-    # ── Gemini (Tier 1) ────────────────────────────────────────────────
+    # ── Groq (Tier 1, OpenAI-compatible) ──────────────────────────────
+    if p_norm in ("groq", "groq_api"):
+        m = model_name or os.getenv("TIER1_MODEL", "qwen/qwen3.8-27b")
+        cache_key = f"groq:{m}:{eff_tier}"
+        if cache_key not in _adapter_cache:
+            _adapter_cache[cache_key] = CommonProviderAdapter(
+                provider_name="groq",
+                model_name=m,
+                base_url=os.getenv("TIER1_BASE_URL", "https://api.groq.com/openai/v1"),
+                api_key=GROQ_API_KEY or os.getenv("GROQ_API_KEY", ""),
+                tier=eff_tier,
+                timeout_seconds=float(os.getenv("HERMES_MODEL_ATTEMPT_TIMEOUT_SECONDS", "25.0")),
+                first_token_timeout_seconds=float(os.getenv("HERMES_MODEL_FIRST_TOKEN_TIMEOUT_SECONDS", "7.5")),
+                stream_idle_timeout_seconds=float(os.getenv("HERMES_MODEL_STREAM_IDLE_TIMEOUT_SECONDS", "10.0")),
+                attempt_timeout_seconds=float(os.getenv("HERMES_MODEL_ATTEMPT_TIMEOUT_SECONDS", "25.0")),
+            )
+        return _adapter_cache[cache_key]
+
+    # ── Gemini (Tier 2) ────────────────────────────────────────────────
     if p_norm in ("gemini", "google", "google_gemini"):
-        m = model_name or os.getenv("TIER1_MODEL", "gemini-2.5-flash")
-        cache_key = f"gemini:{m}"
+        m = model_name or os.getenv("TIER2_MODEL", "gemini-3.8-flash")
+        cache_key = f"gemini:{m}:{eff_tier}"
         if cache_key not in _adapter_cache:
             from models.gemini_client import GeminiClient
             adapter = GeminiClient(
                 api_key=GEMINI_API_KEY or os.getenv("GEMINI_API_KEY", ""),
                 model=m,
-                tier=tier,
+                tier=eff_tier,
+                timeout_seconds=float(os.getenv("HERMES_MODEL_ATTEMPT_TIMEOUT_SECONDS", "25.0")),
             )
-            # Wrap in a thin shim so the rest of HERMES gets the same interface.
-            # GeminiClient exposes .generate() natively; we store it under the
-            # GeminiClient type but cast to Any so the cache typing stays uniform.
             _adapter_cache[cache_key] = adapter  # type: ignore[assignment]
         return _adapter_cache[cache_key]
 
-    # ── Mistral (Tier 2, OpenAI-compatible) ───────────────────────────
+    # ── Mistral (Tier 2 Fallback, OpenAI-compatible) ───────────────────
     if p_norm in ("mistral", "mistral_ai", "mistralai", "codestral"):
         m = model_name or os.getenv("TIER2_MODEL", "codestral-latest")
         cache_key = f"mistral:{m}:{eff_tier}"
         if cache_key not in _adapter_cache:
-            from config.model_config import (
-                MISTRAL_API_KEY,
-                HERMES_MODEL_ATTEMPT_TIMEOUT_SECONDS,
-                HERMES_MODEL_FIRST_TOKEN_TIMEOUT_SECONDS,
-                HERMES_MODEL_STREAM_IDLE_TIMEOUT_SECONDS,
-            )
             _adapter_cache[cache_key] = CommonProviderAdapter(
                 provider_name="mistral",
                 model_name=m,
@@ -1248,21 +1310,6 @@ def get_provider_adapter(
                 first_token_timeout_seconds=float(os.getenv("HERMES_MODEL_FIRST_TOKEN_TIMEOUT_SECONDS", "15.0")),
                 stream_idle_timeout_seconds=float(os.getenv("HERMES_MODEL_STREAM_IDLE_TIMEOUT_SECONDS", "15.0")),
                 attempt_timeout_seconds=float(os.getenv("HERMES_MODEL_ATTEMPT_TIMEOUT_SECONDS", "45.0")),
-            )
-        return _adapter_cache[cache_key]
-
-    # ── Groq (Legacy, OpenAI-compatible) ──────────────────────────────
-    if p_norm in ("groq", "groq_api"):
-        m = model_name or os.getenv("TIER2_MODEL", "codestral-latest")
-        cache_key = f"groq:{m}"
-        if cache_key not in _adapter_cache:
-            _adapter_cache[cache_key] = CommonProviderAdapter(
-                provider_name="groq",
-                model_name=m,
-                base_url=os.getenv("TIER2_BASE_URL", "https://api.groq.com/openai/v1"),
-                api_key=GROQ_API_KEY or os.getenv("GROQ_API_KEY", ""),
-                tier=tier,
-                timeout_seconds=60.0,
             )
         return _adapter_cache[cache_key]
 

@@ -273,6 +273,11 @@ def normalize_tool_call(tool_name: str, arguments: Any, workspace_root: Optional
 
 
 
+class InvalidModelStateError(ValueError):
+    """Raised when an invalid model state transition or uninitialized model access occurs."""
+    pass
+
+
 class AgentLoop:
 
     """
@@ -507,7 +512,7 @@ class AgentLoop:
 
         self._provider_failure_counts: Dict[str, int] = {}
 
-        self._total_recovery_budget: int = 2
+        self._total_recovery_budget: int = 3
         self._inference_history: List[Dict[str, Any]] = []
         self._in_recovery: bool = False
         self._consecutive_empty_turns: int = 0
@@ -539,8 +544,194 @@ class AgentLoop:
         self._phase_stall_count: int = 0
         self._is_large_mission: bool = False
         self._progress_in_current_phase: bool = False
+        from core.progress_governor import ProgressGovernor
+        self.progress_governor: ProgressGovernor = ProgressGovernor(threshold=3)
+
+        # Authoritative Model State & Routing Ownership (P0 Runtime Stabilization)
+        from config.model_config import (
+            TIER1_PROVIDER, TIER1_MODEL,
+            TIER2_PROVIDER, TIER2_MODEL,
+            TIER3_PROVIDER, TIER3_MODEL,
+            TIER4_PROVIDER, TIER4_MODEL,
+        )
+        self._provider_tier_map: Dict[int, Tuple[str, str]] = {
+            1: (TIER1_PROVIDER, TIER1_MODEL),
+            2: (TIER2_PROVIDER, TIER2_MODEL),
+            3: (TIER3_PROVIDER, TIER3_MODEL),
+            4: (TIER4_PROVIDER, TIER4_MODEL),
+        }
+
+        # Inherit initial active tier if orchestrator has an existing valid integer setting
+        initial_tier = 1
+        raw_orch_tier = getattr(self.orchestrator, "_active_tier", None)
+        if isinstance(raw_orch_tier, int) and raw_orch_tier in (1, 2, 3, 4):
+            initial_tier = raw_orch_tier
+        elif isinstance(raw_orch_tier, str) and raw_orch_tier.isdigit() and int(raw_orch_tier) in (1, 2, 3, 4):
+            initial_tier = int(raw_orch_tier)
+
+        self._active_routing_tier: int = initial_tier
+        self._active_provider: str = self._provider_tier_map.get(initial_tier, (TIER1_PROVIDER, TIER1_MODEL))[0]
+        self._active_model_name: str = self._provider_tier_map.get(initial_tier, (TIER1_PROVIDER, TIER1_MODEL))[1]
+        self._mission: Optional[Any] = None
+        self._active_model_override: Optional[str] = None
+        self._active_provider_override: Optional[str] = None
+
+        # Synchronize orchestrator active tier atomically
+        if hasattr(self, "orchestrator") and self.orchestrator is not None:
+            try:
+                setattr(self.orchestrator, "_active_tier", self._active_routing_tier)
+            except Exception:
+                pass
+
+        # Synchronize runtime state store atomically
+        if hasattr(self, "state_store") and self.state_store is not None:
+            try:
+                if hasattr(self.state_store, "current_model"):
+                    self.state_store.current_model = self._active_model_name
+                if hasattr(self.state_store, "_state") and hasattr(self.state_store._state, "model_execution"):
+                    m_exec = self.state_store._state.model_execution
+                    m_exec.tier = self._active_routing_tier
+                    m_exec.provider = self._active_provider
+                    m_exec.model = self._active_model_name
+            except Exception:
+                pass
 
 
+
+    @property
+    def active_tier(self) -> int:
+        """Authoritative active routing tier (1, 2, 3, or 4)."""
+        if not hasattr(self, "_provider_tier_map"):
+            from config.model_config import (
+                TIER1_PROVIDER, TIER1_MODEL,
+                TIER2_PROVIDER, TIER2_MODEL,
+                TIER3_PROVIDER, TIER3_MODEL,
+                TIER4_PROVIDER, TIER4_MODEL,
+            )
+            self._provider_tier_map = {
+                1: (TIER1_PROVIDER, TIER1_MODEL),
+                2: (TIER2_PROVIDER, TIER2_MODEL),
+                3: (TIER3_PROVIDER, TIER3_MODEL),
+                4: (TIER4_PROVIDER, TIER4_MODEL),
+            }
+        current_tier = getattr(self, "_active_routing_tier", 1)
+        raw_orch_tier = getattr(self.orchestrator, "_active_tier", None) if hasattr(self, "orchestrator") else None
+        if isinstance(raw_orch_tier, int) and raw_orch_tier in (1, 2, 3, 4) and raw_orch_tier != current_tier:
+            self._active_routing_tier = raw_orch_tier
+            prov, mod = self._provider_tier_map.get(raw_orch_tier, (None, None))
+            if prov and mod and not getattr(self, "_active_provider_override", None):
+                self._active_provider = prov
+                self._active_model_name = mod
+        elif not hasattr(self, "_active_routing_tier"):
+            self._active_routing_tier = current_tier
+        return self._active_routing_tier
+
+    @active_tier.setter
+    def active_tier(self, tier: int) -> None:
+        self.set_active_model_state(tier=tier)
+
+    @property
+    def active_provider(self) -> str:
+        """Authoritative provider ID for the currently active tier."""
+        if getattr(self, "_active_provider_override", None):
+            return self._active_provider_override
+        tier = self.active_tier
+        return self._provider_tier_map.get(tier, ("", ""))[0] or getattr(self, "_active_provider", "")
+
+    @property
+    def active_model(self) -> str:
+        """Authoritative model ID for the currently active tier."""
+        if getattr(self, "_active_model_override", None):
+            return self._active_model_override
+        tier = self.active_tier
+        return self._provider_tier_map.get(tier, ("", ""))[1] or getattr(self, "_active_model_name", "")
+
+    @property
+    def mission_model(self) -> str:
+        """Authoritative active mission model name."""
+        return self.active_model
+
+    @mission_model.setter
+    def mission_model(self, model: str) -> None:
+        self.set_active_model_state(tier=self.active_tier, model=model)
+
+    @property
+    def _mission_model(self) -> str:
+        """Private accessor alias for backwards compatibility and recovery transitions."""
+        return self.active_model
+
+    @_mission_model.setter
+    def _mission_model(self, model: str) -> None:
+        self.set_active_model_state(tier=self.active_tier, model=model)
+
+    @property
+    def mission(self) -> Optional[Any]:
+        """Authoritative Mission domain model object."""
+        return getattr(self, "_mission", None)
+
+    @mission.setter
+    def mission(self, m: Optional[Any]) -> None:
+        self._mission = m
+        if m and hasattr(m, "mission_id") and not getattr(self, "_mission_id", None):
+            self._mission_id = m.mission_id
+
+    def set_active_model_state(
+        self,
+        tier: int,
+        provider: Optional[str] = None,
+        model: Optional[str] = None,
+        reason: str = "",
+    ) -> None:
+        """
+        Atomically update active model state across AgentLoop, Orchestrator, and StateStore.
+        Preserves single source of truth during failovers, recovery, and checkpoint resumption.
+        """
+        if not isinstance(tier, int) or tier not in (1, 2, 3, 4):
+            raise InvalidModelStateError(f"Invalid model tier: {tier!r}. Authoritative tiers are 1, 2, 3, or 4.")
+
+        if not hasattr(self, "_provider_tier_map"):
+            from config.model_config import (
+                TIER1_PROVIDER, TIER1_MODEL,
+                TIER2_PROVIDER, TIER2_MODEL,
+                TIER3_PROVIDER, TIER3_MODEL,
+                TIER4_PROVIDER, TIER4_MODEL,
+            )
+            self._provider_tier_map = {
+                1: (TIER1_PROVIDER, TIER1_MODEL),
+                2: (TIER2_PROVIDER, TIER2_MODEL),
+                3: (TIER3_PROVIDER, TIER3_MODEL),
+                4: (TIER4_PROVIDER, TIER4_MODEL),
+            }
+
+        default_prov, default_mod = self._provider_tier_map.get(tier, ("", ""))
+        target_prov = provider or default_prov
+        target_mod = model or default_mod
+
+        self._active_routing_tier = tier
+        self._active_provider = target_prov
+        self._active_model_name = target_mod
+        self._active_provider_override = provider
+        self._active_model_override = model
+
+        # Synchronize orchestrator active tier atomically
+        if hasattr(self, "orchestrator") and self.orchestrator is not None:
+            try:
+                setattr(self.orchestrator, "_active_tier", tier)
+            except Exception:
+                pass
+
+        # Synchronize runtime state store atomically
+        if hasattr(self, "state_store") and self.state_store is not None:
+            try:
+                if hasattr(self.state_store, "current_model"):
+                    self.state_store.current_model = target_mod
+                if hasattr(self.state_store, "_state") and hasattr(self.state_store._state, "model_execution"):
+                    m_exec = self.state_store._state.model_execution
+                    m_exec.tier = tier
+                    m_exec.provider = target_prov
+                    m_exec.model = target_mod
+            except Exception:
+                pass
 
     def transition_phase(self, new_phase: Any, summary: str = "") -> None:
         """Authoritative phase transition with checkpoint save and event emission."""
@@ -570,7 +761,7 @@ class AgentLoop:
                 current_phase=new_val,
                 completed_phases=self.completed_phases,
                 completed_tasks=completed_tasks,
-                tier_state=self._active_routing_tier,
+                tier_state=self.active_tier,
                 active_skills=list(getattr(self, "_active_skill_names", [])),
                 skill_telemetry=getattr(self, "_skill_telemetry", {}),
                 design_brief=getattr(self, "_design_brief_dict", {}),
@@ -959,6 +1150,7 @@ class AgentLoop:
 
         self._start_time = time.monotonic()
 
+        self.mission = mission
         self._mission_id = mission.mission_id
 
         try:
@@ -1119,6 +1311,9 @@ class AgentLoop:
         self._content_coverage = None
         self._content_coverage_dict: Dict[str, Any] = {}
         self._last_frontend_validation = None
+        self._last_frontend_validation_report = None
+        self._frontend_contract = None
+        self._skill_evidence_ledger = None
         self._asset_manifest = None
 
         # Attempt to resume from checkpoint if available
@@ -1131,7 +1326,7 @@ class AgentLoop:
                 except Exception:
                     self.current_phase = ExecutionPhase.PHASE_B_FOUNDATION
                 self.completed_phases = list(loaded_chk.completed_phases)
-                self._active_routing_tier = loaded_chk.tier_state
+                self.set_active_model_state(tier=int(loaded_chk.tier_state or 1))
                 if loaded_chk.active_skills:
                     self._active_skill_names = list(loaded_chk.active_skills)
                 if loaded_chk.skill_telemetry:
@@ -1150,6 +1345,14 @@ class AgentLoop:
                         self._content_coverage = ContentCoverageMap.from_dict(self._content_coverage_dict)
                     except Exception:
                         pass
+                try:
+                    from core.frontend_contract import FrontendImplementationContract
+                    from core.skill_evidence_ledger import SkillEvidenceLedger
+                    ws_active = self.workspace_root or Path.cwd()
+                    self._frontend_contract = FrontendImplementationContract.load_from_workspace(ws_active)
+                    self._skill_evidence_ledger = SkillEvidenceLedger.load_from_workspace(ws_active)
+                except Exception as _c_err:
+                    logger.debug(f"AgentLoop: Contract/ledger checkpoint resume notice: {_c_err}")
                 logger.info(f"AgentLoop: Resumed mission from checkpoint at phase={self.current_phase.value} (skills={self._active_skill_names})")
         except Exception as e:
             logger.warning(f"AgentLoop: Checkpoint load notice: {e}")
@@ -1234,6 +1437,27 @@ class AgentLoop:
                     if not self._content_coverage:
                         self._content_coverage = ContentCoverageMap.from_prompt(mission.user_prompt or "")
                         self._content_coverage_dict = self._content_coverage.to_dict()
+
+                    from core.frontend_contract import FrontendContractBuilder
+                    from core.skill_evidence_ledger import SkillEvidenceLedger
+                    if not self._frontend_contract:
+                        self._frontend_contract = FrontendContractBuilder.build_initial_contract(
+                            task=mission.user_prompt or "",
+                            mission_id=mission.mission_id,
+                            design_brief=self._design_brief,
+                        )
+                    if not self._skill_evidence_ledger:
+                        self._skill_evidence_ledger = SkillEvidenceLedger(mission_id=mission.mission_id)
+                        for s_name in self._active_skill_names:
+                            self._skill_evidence_ledger.record_discovered(s_name)
+                            self._skill_evidence_ledger.record_selected(s_name, reason="Mandatory frontend bundle / Intent routing")
+                            if s_name in getattr(self, "_active_skills", {}):
+                                sk_obj = self._active_skills[s_name]
+                                self._skill_evidence_ledger.record_loaded(
+                                    s_name,
+                                    source_path=getattr(sk_obj, "source_path", ""),
+                                    content=getattr(sk_obj, "content", ""),
+                                )
 
                 except Exception as d_exc:
                     logger.warning(f"AgentLoop: design intelligence initialization notice: {d_exc}")
@@ -1526,11 +1750,22 @@ class AgentLoop:
 
 
         # For website missions, provision photographic assets and persist design brief artifacts after preflight passes
-        if ws_root and ws_root.exists() and hasattr(self, "_design_brief") and self._design_brief:
-            try:
-                self._design_brief.persist_artifacts(ws_root)
-            except Exception as p_err:
-                logger.debug(f"AgentLoop: design brief persist notice: {p_err}")
+        if ws_root and ws_root.exists():
+            if hasattr(self, "_design_brief") and self._design_brief:
+                try:
+                    self._design_brief.persist_artifacts(ws_root)
+                except Exception as p_err:
+                    logger.debug(f"AgentLoop: design brief persist notice: {p_err}")
+            if getattr(self, "_frontend_contract", None):
+                try:
+                    self._frontend_contract.save_to_workspace(ws_root)
+                except Exception as c_err:
+                    logger.debug(f"AgentLoop: frontend contract persist notice: {c_err}")
+            if getattr(self, "_skill_evidence_ledger", None):
+                try:
+                    self._skill_evidence_ledger.save_to_workspace(ws_root)
+                except Exception as l_err:
+                    logger.debug(f"AgentLoop: skill evidence ledger persist notice: {l_err}")
             try:
                 from core.asset_pipeline import AssetPipeline
                 self._asset_manifest = AssetPipeline.provision_assets(
@@ -1542,9 +1777,12 @@ class AgentLoop:
             except Exception as a_err:
                 logger.debug(f"AgentLoop: asset pipeline provision notice: {a_err}")
 
-        # Ensure mission begins on primary configured tier
-        if hasattr(self, "orchestrator") and self.orchestrator:
-            setattr(self.orchestrator, "_active_tier", 1)
+        # Ensure mission begins on primary configured tier (preserving checkpoint tier if resumed)
+        is_chk_resume = bool(loaded_chk and getattr(loaded_chk, "mission_id", None) == self._mission_id and getattr(loaded_chk, "tier_state", 1) > 1)
+        if not is_chk_resume:
+            self.set_active_model_state(tier=1)
+        else:
+            self.set_active_model_state(tier=getattr(loaded_chk, "tier_state", 1))
 
         # ── The Agent Loop ────────────────────────────────────────────────────
 
@@ -1636,9 +1874,10 @@ class AgentLoop:
 
                 from core.verification_profiles import classify_verification_profile, VerificationProfileEvaluator
 
-                prof = classify_verification_profile(mission.user_prompt, workspace_path=str(ws_root), written_files=self._written_files)
+                existing_written = [f for f in self._written_files if (ws_root / f).exists()]
+                prof = classify_verification_profile(mission.user_prompt, workspace_path=str(ws_root), written_files=existing_written)
 
-                prof_res = VerificationProfileEvaluator.evaluate(prof, ws_root, mission.user_prompt, written_files=self._written_files)
+                prof_res = VerificationProfileEvaluator.evaluate(prof, ws_root, mission.user_prompt, written_files=existing_written)
 
                 if prof_res.passed and (bool(self._written_files) or (self._tasks and all(t.get("status") == "COMPLETED" for t in self._tasks))):
 
@@ -1822,6 +2061,24 @@ class AgentLoop:
                 last_fail = self._failure_ledger[-1] if getattr(self, "_failure_ledger", None) else None
                 primary_cat = max(self._category_failures.items(), key=lambda x: x[1])[0] if getattr(self, "_category_failures", None) else "UNKNOWN"
                 fail_detail = last_fail.error_class or last_fail.actual_result if last_fail else "failure limit reached"
+
+                # Check if failures were caused by transient network disconnect (DNS, socket, 11001)
+                is_transient_net = any(
+                    k in str(fail_detail).lower() or (last_fail and k in str(last_fail.error_class).lower())
+                    for k in ("getaddrinfo", "dns_failure", "11001", "network is unreachable", "connection reset", "connection refused", "connecterror")
+                )
+                if is_transient_net:
+                    logger.warning(f"AgentLoop: Consecutive failure limit hit due to network disconnect ({fail_detail}). Pausing 5s for network recovery...")
+                    await asyncio.sleep(5.0)
+                    try:
+                        import socket
+                        socket.gethostbyname("generativelanguage.googleapis.com")
+                        logger.info("AgentLoop: Network connectivity restored. Resetting failure counter and continuing mission.")
+                        consecutive_failures = 0
+                        continue
+                    except Exception:
+                        logger.warning("AgentLoop: Network remains unreachable after 5s.")
+
                 termination_reason = (
                     f"Consecutive failure budget exceeded ({consecutive_failures} failures) | "
                     f"Primary Category: {primary_cat} ({fail_detail})"
@@ -1917,11 +2174,11 @@ class AgentLoop:
                         logger.warning(
                             f"AgentLoop: Stall repeated {self._stall_consecutive_count}x — attempting recovery transition"
                         )
-                        rec_ok = await self._trigger_recovery_transition(
+                        rec_ok = await self._trigger_agent_no_progress_recovery(
                             turn_id=f"stall_{self._turns_count}",
                             rejection_reason=f"Agent progress stalled ({stall_msg})",
                             unmet_reqs=[r.title for r in self._unmet_requirements] if hasattr(self, "_unmet_requirements") else [],
-                            mission=self._mission_model,
+                            mission=self._mission,
                         )
                         if not rec_ok:
                             consecutive_failures += 1
@@ -1981,7 +2238,9 @@ class AgentLoop:
 
             t1_start = time.monotonic()
             t1_start_wall = time.time()
-            requested_tier = getattr(self.orchestrator, "_active_tier", 1) if hasattr(self, "orchestrator") else 1
+            requested_tier = self.active_tier
+            curr_model = self.active_model
+            curr_prov = self.active_provider
 
             await self._publish_event(
 
@@ -1991,13 +2250,13 @@ class AgentLoop:
 
                 payload={
 
-                    "tier": 1,
+                    "tier": requested_tier,
 
-                    "model": TIER1_MODEL,
+                    "model": curr_model,
 
-                    "provider": TIER1_PROVIDER,
+                    "provider": curr_prov,
 
-                    "headline": f"Selected Tier 1 ({TIER1_MODEL})",
+                    "headline": f"Selected Tier {requested_tier} ({curr_model})",
 
                 }
 
@@ -2009,7 +2268,17 @@ class AgentLoop:
 
                 turn_id=turn_id,
 
-                payload={"model": TIER1_MODEL, "provider": TIER1_PROVIDER}
+                payload={
+
+                    "tier": requested_tier,
+
+                    "model": curr_model,
+
+                    "provider": curr_prov,
+
+                    "headline": f"Waiting for {curr_prov} ({curr_model})...",
+
+                }
 
             )
 
@@ -2185,6 +2454,15 @@ class AgentLoop:
                     error=getattr(model_response, "error", None) if not is_success else None,
                 )
 
+                resp_tier = getattr(model_response, "tier", None)
+                if resp_tier is not None and resp_tier in (1, 2, 3, 4) and resp_tier != self.active_tier:
+                    self.set_active_model_state(
+                        tier=resp_tier,
+                        provider=getattr(model_response, "provider", None) or self.active_provider,
+                        model=getattr(model_response, "model", None) or self.active_model,
+                        reason="sticky_failover_latched",
+                    )
+
                 durations = getattr(self, "_last_turn_durations", {}) or {}
                 t1_dur = durations.get("tier1_duration_ms", int(t1_latency * 1000) if resp_tier == 1 else 0)
                 t2_dur = durations.get("tier2_duration_ms", int(t1_latency * 1000) if resp_tier == 2 else 0)
@@ -2204,7 +2482,11 @@ class AgentLoop:
                         "completion_time": t1_end_wall,
                         "latency": t1_latency,
                         "duration_ms": total_model_dur,
-                        "headline": f"Thought for {t1_latency:.1f}s",
+                        "headline": (
+                            f"{resp_provider} ({resp_model}) responded in {t1_latency:.1f}s"
+                            + (f" (TTFT {getattr(model_response, 'raw_timing_metadata', {}).get('ttft_ms', 0)/1000.0:.2f}s)"
+                               if getattr(model_response, 'raw_timing_metadata', {}).get('ttft_ms') else "")
+                        ),
                         "turn_id": turn_id,
                         "tier1_duration_ms": t1_dur,
                         "tier2_duration_ms": t2_dur,
@@ -2323,6 +2605,7 @@ class AgentLoop:
 
                 logger.error(f"AgentLoop: model generation failed ({t1_exc})")
 
+                target_t2_label = getattr(self, "_provider_tier_map", {}).get(2, (None, "Tier 2"))[1] or "Tier 2"
                 await self._publish_event(
 
                     EventType.TIER_FAILOVER_STARTED,
@@ -2335,7 +2618,7 @@ class AgentLoop:
 
                         "to_tier": 2,
 
-                        "headline": "Failover: Tier 1 -> Tier 2 (Ollama 120b)",
+                        "headline": f"Failover: Tier 1 -> Tier 2 ({target_t2_label})",
 
                         "error": str(t1_exc),
 
@@ -2603,6 +2886,8 @@ class AgentLoop:
                 self._recovery_triggered_this_turn = False
 
                 seen_signatures_in_turn: Set[str] = set()
+                turn_has_successful_tool = False
+                turn_has_failed_tool = False
 
 
 
@@ -2718,7 +3003,7 @@ class AgentLoop:
 
                             self._record_observation(obs)
 
-                            consecutive_failures += 1
+                            turn_has_failed_tool = True
                             self._record_failure_entry(turn_id=turn_id, category="VALIDATION_FAILURE", error_class="MVP_GATE_BLOCKED", operation=call_name)
                             self._record_failure_entry(turn_id=turn_id, category="TOOL_FAILURE", error_class="TOOL_PERMISSION_DENIED", operation=call_name)
 
@@ -2967,7 +3252,7 @@ class AgentLoop:
 
                             self._record_observation(obs)
 
-                            consecutive_failures += 1
+                            turn_has_failed_tool = True
 
                             continue
 
@@ -3178,8 +3463,20 @@ class AgentLoop:
                                 from core.agent_loop.mvp_gate import WebsiteMvpGate
 
                                 target_repair, action_inst = WebsiteMvpGate.parse_scaffold_target(unmet_reqs_cur[0])
+                                is_non_file_target = target_repair in ("npm run build", "browser_open_preview", "open_preview")
 
-                                if target_repair and norm_target != target_repair.lower() and not any(kw in norm_target for kw in ('test', 'spec', 'readme')):
+                                # Check if contract validation report has pending defects on this file type
+                                fc_report = getattr(self, "_last_frontend_validation_report", None)
+                                has_pending_contract_issues = False
+                                if fc_report and getattr(fc_report, "errors", None):
+                                    if norm_target.endswith(".css") and any(w in err.lower() for err in fc_report.errors for w in ("css", "style", "layout", "rule", "color")):
+                                        has_pending_contract_issues = True
+                                    elif norm_target.endswith(".html") and any(w in err.lower() for err in fc_report.errors for w in ("html", "tag", "id", "class")):
+                                        has_pending_contract_issues = True
+                                    elif norm_target.endswith(".js") and any(w in err.lower() for err in fc_report.errors for w in ("js", "javascript", "filter", "dom", "form", "script", "orphan")):
+                                        has_pending_contract_issues = True
+
+                                if target_repair and not is_non_file_target and not has_pending_contract_issues and norm_target != target_repair.lower() and not any(kw in norm_target for kw in ('test', 'spec', 'readme')) and not (norm_target.endswith((".js", ".ts")) and target_repair.lower().endswith((".js", ".ts"))):
 
                                     target_disk = ws_dir_p / target_write_path
 
@@ -3188,6 +3485,8 @@ class AgentLoop:
                                         if not any(norm_target in u.lower() for u in unmet_reqs_cur):
 
                                             logger.warning(f"AgentLoop: blocking redundant write on completed file '{target_write_path}' while '{target_repair}' needs attention")
+
+                                            next_hint = "call tool browser_open_preview(file_path='index.html') to verify the rendered website." if target_repair in ("browser_open_preview", "open_preview") else (f"call fs.write or fs.edit on '{target_repair}'." if target_repair != "npm run build" else "run 'npm run build' via bash.")
 
                                             gov_obs = Observation(
 
@@ -3213,7 +3512,7 @@ class AgentLoop:
 
                                                     f"Do NOT edit or overwrite '{target_write_path}' again. "
 
-                                                    f"Next step: call fs.write or fs.edit on '{target_repair}'."
+                                                    f"Next step: {next_hint}"
 
                                                 )
 
@@ -4178,7 +4477,15 @@ class AgentLoop:
 
                                         )
 
-                    is_mutating = bool(obs.success and (call_name in ("fs.write", "fs.edit", "write_file", "edit_file", "write_files_batch", "download_image", "fetch_image") or bool(delta_files)))
+                    is_noop_unchanged = bool(
+                        getattr(obs, "details", None)
+                        and (obs.details.get("code") == "UNCHANGED" or obs.details.get("status") == "UNCHANGED" or obs.details.get("noop") is True)
+                    ) or (getattr(obs, "output", "") or "").startswith("UNCHANGED")
+                    if is_noop_unchanged:
+                        obs.summary = "UNCHANGED (+0 -0): Content already matches exactly. No mutation performed."
+                        obs.content = (getattr(obs, "content", "") or "") + "\n[NO-PROGRESS NOTICE] File content was already identical (0 bytes changed). Provide real code changes to satisfy requirements."
+
+                    is_mutating = bool(obs.success and not is_noop_unchanged and (call_name in ("fs.write", "fs.edit", "write_file", "edit_file", "write_files_batch", "download_image", "fetch_image") or bool(delta_files)))
 
                     if is_mutating:
 
@@ -4263,6 +4570,7 @@ class AgentLoop:
 
 
                     if obs.success:
+                        turn_has_successful_tool = True
 
                         if call_name.startswith("browser_") or call_name in ("browser_inspect", "browser_preview"):
                             self._consecutive_browser_failures = 0
@@ -4273,8 +4581,7 @@ class AgentLoop:
                             logger.info(f"AgentLoop: Tool '{call_name}' succeeded during recovery. Clearing recovery state and restoring active tier to 1.")
                             self._in_recovery = False
                             self._recovery_attempt_count = 0
-                            if hasattr(self, "orchestrator") and self.orchestrator:
-                                setattr(self.orchestrator, "_active_tier", 1)
+                            self.set_active_model_state(tier=1)
                         self._mutations_since_last_search = getattr(self, "_mutations_since_last_search", 0) + (1 if is_mutating else 0)
                         if is_mutating:
                             self._category_failures = {"PROVIDER_FAILURE": 0, "TOOL_FAILURE": 0, "VALIDATION_FAILURE": 0, "NO_PROGRESS": 0}
@@ -4347,6 +4654,9 @@ class AgentLoop:
 
                         if is_mutating:
 
+                            self._progress_in_current_phase = True
+                            self._phase_stall_count = 0
+
                             cur_task = self._tasks[self._active_task_idx] if (self._tasks and 0 <= self._active_task_idx < len(self._tasks)) else {}
 
                             cur_tid = cur_task.get("task_id", "")
@@ -4372,67 +4682,128 @@ class AgentLoop:
                                 elif req.status == RequirementStatus.IN_PROGRESS and any(f.endswith((".js", ".py", ".html", ".css")) for f in delta_files):
                                     req.transition_status(RequirementStatus.IMPLEMENTED, reason=f"Implementation code written by {call_name}", actor="agent_loop")
 
-                        elif call_name in ("search.glob", "search.grep", "fs.read", "list_directory", "search_files", "verify"):
+                        # Unified Work Package and Verification evaluation for mutating and inspection actions
+                        cur_task = self._tasks[self._active_task_idx] if (self._tasks and 0 <= self._active_task_idx < len(self._tasks)) else {}
+                        cur_tid = cur_task.get("task_id", "")
+                        cur_title = cur_task.get("title", "").lower()
+                        is_test_or_verif = any(w in cur_tid.lower() or w in cur_title for w in ("test", "verif", "qualification", "check", "inspect", "summary"))
 
-                            # If active task is a verification, test, or qualification requirement,
+                        from core.verification_profiles import classify_verification_profile, VerificationProfileEvaluator, VerificationProfile
+                        ws_root = Path(getattr(mission, "workspace_root", None) or (self.workspace.root_str if (self.workspace and self.workspace.is_locked) else (getattr(self.workspace, "workspace_root", None) or Path.cwd())))
+                        existing_written = [f for f in self._written_files if (ws_root / f).exists()]
+                        prof = classify_verification_profile(mission.user_prompt, workspace_path=str(ws_root), written_files=existing_written, task_id=cur_tid)
+                        prof_res = VerificationProfileEvaluator.evaluate(prof, ws_root, mission.user_prompt, written_files=existing_written, task_id=cur_tid)
 
-                            # or if target files exist and pass verification profile, advance task.
+                        # Phase and Work Package Progression for Large Missions
+                        if getattr(self, "_is_large_mission", False):
+                            from core.agent_loop.types import ExecutionPhase
+                            from core.work_package_gate import WorkPackageGater
+                            from core.frontend_contract import FrontendImplementationContract
 
-                            cur_task = self._tasks[self._active_task_idx] if (self._tasks and 0 <= self._active_task_idx < len(self._tasks)) else {}
+                            contract = getattr(self, "_frontend_contract", None)
+                            if not contract and ws_root:
+                                contract = FrontendImplementationContract.load_from_workspace(ws_root)
 
-                            cur_tid = cur_task.get("task_id", "")
-
-                            cur_title = cur_task.get("title", "").lower()
-
-                            is_test_or_verif = any(w in cur_tid.lower() or w in cur_title for w in ("test", "verif", "qualification", "check", "inspect", "summary"))
-
-
-
-                            from core.verification_profiles import classify_verification_profile, VerificationProfileEvaluator, VerificationProfile
-
-                            prof = classify_verification_profile(mission.user_prompt, written_files=self._written_files, task_id=cur_tid)
-
-                            ws_root = Path(self.workspace.workspace_root) if (self.workspace and hasattr(self.workspace, "workspace_root") and self.workspace.workspace_root) else Path(".")
-
-
-
-                            prof_res = VerificationProfileEvaluator.evaluate(prof, ws_root, mission.user_prompt, written_files=self._written_files, task_id=cur_tid)
-
-                            if is_mutating:
-                                self._progress_in_current_phase = True
-                                self._phase_stall_count = 0
-
-                            # Phase and Work Package Progression for Large Missions
-                            if getattr(self, "_is_large_mission", False):
-                                from core.agent_loop.types import ExecutionPhase
-                                if cur_tid == "wp.foundation" or "foundation" in cur_title:
-                                    has_html = (ws_root / "index.html").exists()
-                                    has_css = (ws_root / "style.css").exists() and (ws_root / "style.css").stat().st_size > 50
-                                    if has_html and (has_css or (ws_root / "package.json").exists()):
-                                        await self._advance_active_task("Foundation work package satisfied (scaffold and styling created).")
-                                        self.transition_phase(ExecutionPhase.PHASE_C_MAIN_IMPLEMENTATION, "Foundation created: index.html and style.css")
-                                elif cur_tid == "wp.content" or "content" in cur_title:
-                                    if (ws_root / "index.html").exists():
-                                        html_text = ""
-                                        try:
-                                            html_text = (ws_root / "index.html").read_text(encoding="utf-8", errors="ignore")
-                                        except Exception:
-                                            pass
-                                        has_cards = "card" in html_text.lower() or "destination" in html_text.lower()
-                                        if ("<section" in html_text and (has_cards or len(html_text) > 800) and len(self._written_files) >= 2):
-                                            await self._advance_active_task("Content work package satisfied (sections and cards populated).")
-                                            self.transition_phase(ExecutionPhase.PHASE_D_FUNCTIONAL_IMPLEMENTATION, "Main content sections and cards implemented.")
-                                elif cur_tid == "wp.functional" or "functional" in cur_title:
-                                    has_script = any(f.endswith(".js") for f in self._written_files) or (ws_root / "main.js").exists() or (ws_root / "app.js").exists() or (ws_root / "script.js").exists()
-                                    if has_script or len(self._written_files) >= 4:
-                                        await self._advance_active_task("Functional work package satisfied (interactive scripts and handlers wired).")
-                                        self.transition_phase(ExecutionPhase.PHASE_E_VERIFICATION, "Interactive features and handlers wired.")
-                                elif (cur_tid == "wp.verification" or "verification" in cur_title) and prof_res.passed:
+                            if cur_tid == "wp.foundation" or "foundation" in cur_title:
+                                f_gate = WorkPackageGater.evaluate_foundation_gate(
+                                    ws_root,
+                                    contract=contract,
+                                    design_brief=getattr(self, "_design_brief", None),
+                                )
+                                if f_gate.passed:
+                                    await self._advance_active_task("Foundation work package satisfied (scaffold, styling, and contract established).")
+                                    self.transition_phase(ExecutionPhase.PHASE_C_MAIN_IMPLEMENTATION, "Foundation created: contract, index.html, style.css")
+                                else:
+                                    logger.info(f"AgentLoop: Foundation gate pending: {f_gate.missing_criteria}")
+                                    self._active_recovery_brief = (
+                                        "CURRENT WORK PACKAGE OBJECTIVE (FOUNDATION):\n"
+                                        + "\n".join(f"- {c}" for c in f_gate.missing_criteria)
+                                        + "\nExecute fs.write to create missing foundation files (e.g. style.css) immediately."
+                                    )
+                            elif cur_tid == "wp.content" or "content" in cur_title:
+                                c_gate = WorkPackageGater.evaluate_content_gate(ws_root, contract=contract)
+                                if c_gate.passed:
+                                    await self._advance_active_task("Content work package satisfied (sections, data, and visual assets populated).")
+                                    self.transition_phase(ExecutionPhase.PHASE_D_FUNCTIONAL_IMPLEMENTATION, "Main content sections and cards implemented.")
+                                else:
+                                    logger.info(f"AgentLoop: Content gate pending: {c_gate.missing_criteria}")
+                                    self._active_recovery_brief = (
+                                        "CURRENT WORK PACKAGE OBJECTIVE (CONTENT):\n"
+                                        + "\n".join(f"- {c}" for c in c_gate.missing_criteria)
+                                        + "\nExecute fs.write or fs.edit to render destination cards, packages, and sections."
+                                    )
+                            elif cur_tid == "wp.functional" or "functional" in cur_title:
+                                fn_gate = WorkPackageGater.evaluate_functionality_gate(ws_root, contract=contract)
+                                if fn_gate.passed:
+                                    await self._advance_active_task("Functional work package satisfied (interactive scripts, handlers, and state wired).")
+                                    self.transition_phase(ExecutionPhase.PHASE_E_VERIFICATION, "Interactive features and handlers wired.")
+                                else:
+                                    logger.info(f"AgentLoop: Functionality gate pending: {fn_gate.missing_criteria}")
+                                    contract_js = getattr(contract, "canonical_js", "app.js") if contract else "app.js"
+                                    self._active_recovery_brief = (
+                                        "CURRENT WORK PACKAGE OBJECTIVE (FUNCTIONALITY):\n"
+                                        + "\n".join(f"- {c}" for c in fn_gate.missing_criteria)
+                                        + f"\nExecute fs.write or fs.edit to update {contract_js} with search, filter, and modal interaction logic. If orphan competing scripts exist on disk, remove them or link them in index.html."
+                                    )
+                            elif (cur_tid == "wp.verification" or "verification" in cur_title):
+                                fc_report = None
+                                if ws_root:
+                                    try:
+                                        from core.frontend_contract_validator import FrontendContractValidator
+                                        fc_report = FrontendContractValidator(ws_root).validate_all()
+                                        self._last_frontend_validation_report = fc_report
+                                        self._last_frontend_validation = fc_report.to_dict()
+                                    except Exception:
+                                        pass
+                                v_gate = WorkPackageGater.evaluate_verification_gate(ws_root, validation_report=fc_report, test_result=prof_res)
+                                if v_gate.passed and prof_res.passed:
                                     await self._advance_active_task(f"Verification work package satisfied ({prof_res.summary}).")
                                     self.transition_phase(ExecutionPhase.PHASE_F_COMPLETION, "All verification checks passed.")
-                            elif is_test_or_verif and prof_res.passed:
-
-                                await self._advance_active_task(f"Verified by {prof.value}: {prof_res.summary}")
+                                    if self._tasks and all(t.get("status") == "COMPLETED" for t in self._tasks):
+                                        logger.info(f"AgentLoop: All work packages completed and verified by {prof.value} ✓")
+                                        mission_success = True
+                                        await self._publish_event(
+                                            EventType.VERIFICATION_COMPLETED,
+                                            payload={"verdict": "PASSED", "confidence": 1.0, "reason": prof_res.summary}
+                                        )
+                                        is_web_proj = WebsiteMvpGate.is_website_mission(mission.user_prompt or "", ws_root, set(self._written_files))
+                                        launch_inst = (
+                                            "- Open `index.html` in your browser or run a local web server to explore the application."
+                                            if is_web_proj else
+                                            "- Run tests with `pytest` or execute the package using the canonical Python interpreter."
+                                        )
+                                        created_list = "\n".join(f"- `{f}`" for f in (self._written_files or (["index.html"] if is_web_proj else [])))
+                                        walkthrough = (
+                                            f"### Mission Completed Successfully\n\n"
+                                            f"**Objective:** {mission.user_prompt}\n\n"
+                                            f"**Outcome & Deliverables:**\n"
+                                            f"{created_list}\n\n"
+                                            f"**Verification Status:**\n"
+                                            f"- All core requirements and behavioral contracts verified.\n"
+                                            f"- Details: {prof_res.summary}\n\n"
+                                            f"**Launch Instructions:**\n"
+                                            f"{launch_inst}\n"
+                                        )
+                                        await self._complete_all_tasks(prof_res.summary)
+                                        await self._publish_event(
+                                            EventType.MISSION_COMPLETED,
+                                            payload={
+                                                "reason": prof_res.summary,
+                                                "files_created": self._written_files,
+                                                "final_output": walkthrough,
+                                            }
+                                        )
+                                        break_to_terminal = True
+                                        break
+                                else:
+                                    logger.info(f"AgentLoop: Verification gate pending: {v_gate.missing_criteria}")
+                                    self._active_recovery_brief = (
+                                        "CURRENT WORK PACKAGE OBJECTIVE (VERIFICATION):\n"
+                                        + "\n".join(f"- {c}" for c in v_gate.missing_criteria)
+                                        + "\nExecute fs.edit or fs.write to resolve the specific contract issues listed above."
+                                    )
+                        elif is_test_or_verif and prof_res.passed and not is_mutating:
+                            await self._advance_active_task(f"Verified by {prof.value}: {prof_res.summary}")
 
 
 
@@ -4904,11 +5275,11 @@ class AgentLoop:
 
                                 )
 
-                                rec_ok = await self._trigger_recovery_transition(
+                                rec_ok = await self._trigger_agent_no_progress_recovery(
                                     turn_id=turn_id,
                                     rejection_reason=f"Repeated unchanged read blocks ({unchanged_read_governor_blocks}): {'; '.join(issues)}",
                                     unmet_reqs=[r.title for r in self._unmet_requirements] if hasattr(self, "_unmet_requirements") else [],
-                                    mission=self._mission_model,
+                                    mission=self._mission,
                                 )
                                 if not rec_ok:
                                     termination_reason = (
@@ -4952,7 +5323,7 @@ class AgentLoop:
                                     if t_ev and isinstance(t_ev, dict):
                                         self._last_validation_repair_brief = t_ev.get("repair_brief", "")
 
-                            consecutive_failures += 1
+                            turn_has_failed_tool = True
                             self._record_failure_entry(
                                 turn_id=turn_id,
                                 category="VALIDATION_FAILURE" if is_val else "TOOL_FAILURE",
@@ -4967,11 +5338,26 @@ class AgentLoop:
 
                     break
 
-
+                # Batch-aware failure accounting: update consecutive_failures once per turn
+                if turn_has_successful_tool:
+                    consecutive_failures = 0
+                elif turn_has_failed_tool:
+                    consecutive_failures += 1
 
                 if not has_mutated_in_turn:
 
                     self._consecutive_non_mutating_turns += 1
+                else:
+                    self._consecutive_non_mutating_turns = 0
+                    if getattr(self, "_skill_evidence_ledger", None) and ws_root:
+                        try:
+                            self._skill_evidence_ledger.evaluate_physical_evidence(
+                                ws_root,
+                                getattr(self, "_design_brief", None),
+                                getattr(self, "_frontend_contract", None),
+                            )
+                        except Exception as _sk_e:
+                            logger.debug(f"AgentLoop: skill evidence update notice: {_sk_e}")
                     if self._consecutive_non_mutating_turns == 3:
                         logger.warning(
                             f"AgentLoop: {self._consecutive_non_mutating_turns} consecutive non-mutating turns detected. "
@@ -5000,11 +5386,11 @@ class AgentLoop:
                             f"AgentLoop: {self._consecutive_non_mutating_turns} consecutive non-mutating turns reached threshold. "
                             f"Triggering recovery transition."
                         )
-                        await self._trigger_recovery_transition(
+                        await self._trigger_agent_no_progress_recovery(
                             turn_id=turn_id,
                             rejection_reason=f"Model performed {self._consecutive_non_mutating_turns} consecutive non-mutating turns without code modifications",
                             unmet_reqs=[r.title for r in self._unmet_requirements] if hasattr(self, "_unmet_requirements") else [],
-                            mission=self._mission_model,
+                            mission=self._mission,
                         )
 
 
@@ -5864,6 +6250,25 @@ class AgentLoop:
 
             self._turns_count += 1
 
+            if hasattr(self, "progress_governor") and self.progress_governor:
+                p_eval = self.progress_governor.evaluate_turn(
+                    turn_id=turn_id,
+                    actions=[{"name": a[0], "arguments": a[1]} for a in getattr(self, "_recent_actions", [])[-1:]],
+                    file_modifications=[{"path": f} for f in getattr(self, "_written_files", set())],
+                    tool_results=[],
+                    requirements_progressed=bool(getattr(self, "_progress_in_current_phase", False)),
+                    work_package_completed=False,
+                    test_or_browser_passed=False,
+                    error_context=None,
+                )
+                if self.progress_governor.should_trigger_diagnosis():
+                    await self._publish_event(
+                        EventType.WARNING,
+                        turn_id=turn_id,
+                        severity=EventSeverity.WARNING,
+                        payload=self.progress_governor.get_diagnostic_payload(),
+                    )
+
             # Early stall detection within bounded phase
             if getattr(self, "_is_large_mission", False):
                 p_key = getattr(self.current_phase, "value", str(self.current_phase))
@@ -5872,10 +6277,13 @@ class AgentLoop:
                     self._phase_stall_count = getattr(self, "_phase_stall_count", 0) + 1
                     if self._phase_stall_count >= 3:
                         logger.warning(f"AgentLoop: Phase {p_key} stall detected ({self._phase_stall_count} turns without progress).")
-                        self._active_recovery_brief = (
-                            f"STALL WARNING in {p_key}: {self._phase_stall_count} consecutive turns without workspace mutation "
-                            f"or progress. You MUST invoke fs.write or fs.edit directly to advance this phase."
-                        )
+                        stall_hdr = f"STALL WARNING in {p_key}: {self._phase_stall_count} consecutive turns without progress.\n"
+                        if getattr(self, "_active_recovery_brief", None) and not self._active_recovery_brief.startswith("STALL WARNING"):
+                            self._active_recovery_brief = f"{stall_hdr}{self._active_recovery_brief}"
+                        elif not getattr(self, "_active_recovery_brief", None):
+                            self._active_recovery_brief = (
+                                f"{stall_hdr}You MUST invoke fs.write or fs.edit directly to advance this phase."
+                            )
                 else:
                     self._phase_stall_count = 0
                 self._progress_in_current_phase = False
@@ -6434,7 +6842,11 @@ class AgentLoop:
                 authoritative_state_block += "PHASE MANDATE: Create core entrypoints (index.html, style.css) using fs.write.\n"
                 if hasattr(self, "_design_brief") and self._design_brief:
                     authoritative_state_block += "\n" + self._design_brief.to_compact_directive() + "\n"
+                if getattr(self, "_frontend_contract", None):
+                    authoritative_state_block += "\n" + self._frontend_contract.to_compact_directive() + "\n"
+                if getattr(self, "_skill_evidence_ledger", None):
                     for sk in getattr(self, "_active_skill_names", []):
+                        self._skill_evidence_ledger.record_injected(sk, turn_id=str(self._turns_count), phase=self.current_phase.value)
                         if sk in getattr(self, "_skill_telemetry", {}):
                             self._skill_telemetry[sk]["status"] = "INJECTED"
                 if getattr(self, "_asset_manifest", None):
@@ -6444,6 +6856,8 @@ class AgentLoop:
                 authoritative_state_block += "PHASE MANDATE: Implement all content sections, cards, and assets using fs.write or fs.edit.\n"
                 if hasattr(self, "_design_brief") and self._design_brief:
                     authoritative_state_block += "\n" + self._design_brief.to_compact_directive() + "\n"
+                if getattr(self, "_frontend_contract", None):
+                    authoritative_state_block += "\n" + self._frontend_contract.to_compact_directive() + "\n"
                 if hasattr(self, "_content_coverage") and self._content_coverage:
                     self._content_coverage.audit_workspace(ws_dir_active)
                     authoritative_state_block += "\n" + self._content_coverage.to_summary_block() + "\n"
@@ -6451,7 +6865,11 @@ class AgentLoop:
                 authoritative_state_block += "PHASE MANDATE: Implement interactive logic (filters, modals, forms) using fs.write or fs.edit.\n"
                 if hasattr(self, "_design_brief") and self._design_brief:
                     authoritative_state_block += "\n" + self._design_brief.to_compact_directive() + "\n"
+                if getattr(self, "_frontend_contract", None):
+                    authoritative_state_block += "\n" + self._frontend_contract.to_compact_directive() + "\n"
                 authoritative_state_block += "\nFUNCTIONAL CONTRACT: Implement interactive filtering (category pills + search input), modal dialog display/dismissal with detailed destination data, and booking enquiry form validation. Zero missing DOM IDs.\n"
+            elif self.current_phase.value == "PHASE_F_COMPLETION":
+                authoritative_state_block += "PHASE MANDATE: All work packages and verification gates are satisfied! Summarize deliverables and conclude the mission.\n"
             elif self.current_phase.value == "PHASE_E_VERIFICATION":
                 authoritative_state_block += "PHASE MANDATE: Verify application in real browser, check zero console errors, run automated tests.\n"
                 try:
@@ -6459,6 +6877,7 @@ class AgentLoop:
                     fc_validator = FrontendContractValidator(ws_dir_active)
                     fc_rep = fc_validator.validate_all()
                     self._last_frontend_validation = fc_rep.to_dict()
+                    self._last_frontend_validation_report = fc_rep
                     authoritative_state_block += "\n" + fc_rep.to_summary_block() + "\n"
                     evidence_map = fc_validator.evaluate_skill_application_evidence(
                         workspace_root=ws_dir_active,
@@ -6852,6 +7271,95 @@ class AgentLoop:
 
 
 
+    async def _trigger_agent_no_progress_recovery(
+        self,
+        turn_id: str,
+        rejection_reason: str,
+        unmet_reqs: Optional[List[str]] = None,
+        mission: Optional[Any] = None,
+    ) -> bool:
+        """
+        Handle agent no-progress (stalls, repeated reads, non-mutating turns)
+        using the current healthy provider tier.
+        Does NOT trigger provider failover or escalate to Tier 4.
+        Enforces a bounded recovery budget (max 3 turns).
+        """
+        count = getattr(self, "_agent_no_progress_recovery_count", 0)
+        max_budget = getattr(self, "_max_agent_no_progress_budget", 3)
+        if count >= max_budget:
+            logger.warning(
+                f"AgentLoop: Agent no-progress recovery budget exhausted ({count} >= {max_budget}). "
+                "Terminating cleanly with NO_PROGRESS_BUDGET_EXCEEDED without tier escalation."
+            )
+            return False
+
+        self._agent_no_progress_recovery_count = count + 1
+        current_tier = self.active_tier
+        prov, model = self._provider_tier_map.get(current_tier, ("", ""))
+
+        logger.info(
+            f"AgentLoop: In-tier agent recovery {self._agent_no_progress_recovery_count}/{max_budget} "
+            f"on Tier {current_tier} ({prov}/{model}) | reason: {rejection_reason}"
+        )
+
+        self._consecutive_non_mutating_turns = 0
+        self._stall_consecutive_count = 0
+
+        # Build focused repair directive from workspace state and contracts
+        try:
+            ws_dir = Path(self.workspace.root_str if (self.workspace and self.workspace.is_locked) else Path.cwd())
+            existing_files = [f.name for f in ws_dir.iterdir() if f.is_file() and not f.name.startswith(".")] if ws_dir.exists() else []
+        except Exception:
+            existing_files = []
+
+        from core.agent_loop.mvp_gate import WebsiteMvpGate
+        if not unmet_reqs:
+            try:
+                if self.workspace and getattr(self.workspace, "is_locked", False):
+                    gate = getattr(self, "mvp_gate", None) or WebsiteMvpGate(workspace_root=ws_dir)
+                    ok_scaff, missing_items = gate.evaluate(ws_dir)
+                    if not ok_scaff and missing_items:
+                        unmet_reqs = missing_items
+            except Exception:
+                pass
+
+        target_repair_file = None
+        target_action_hint = None
+        if unmet_reqs:
+            for req in unmet_reqs:
+                target_f, action_inst = WebsiteMvpGate.parse_scaffold_target(req)
+                if target_f and target_f not in ("npm run build", "browser_open_preview"):
+                    target_repair_file = target_f
+                    target_action_hint = action_inst
+                    break
+
+        completed_files = [f for f in existing_files if f != target_repair_file]
+        missing_desc = "; ".join(unmet_reqs) if unmet_reqs else "Missing required application deliverables."
+
+        dom_summary = ""
+        try:
+            from core.project_contract import ProjectContract
+            dom_inv = ProjectContract.extract_dom_inventory(ws_dir)
+            if dom_inv.get("ids"):
+                dom_summary = f"DOM CONTRACT: Available IDs: {', '.join(dom_inv['ids'][:35])}\n"
+        except Exception:
+            pass
+
+        compact_recovery_msg = (
+            f"=== ACTIONABLE REPAIR DIRECTIVE (In-Tier Recovery {self._agent_no_progress_recovery_count}/{max_budget}) ===\n"
+            f"FOCUS: Maintain execution on Tier {current_tier} ({model}). Action required.\n"
+            f"DIAGNOSTIC TRIGGER: {rejection_reason}\n"
+            f"COMPLETED & VALID FILES: {', '.join(completed_files) if completed_files else 'None'}\n"
+            f"UNMET REQUIREMENTS: {missing_desc}\n"
+            f"MANDATORY TARGET: '{target_repair_file or 'missing deliverable'}'\n"
+            f"DIRECTIVE: {target_action_hint or 'Create or update the target file immediately using fs.write or fs.edit.'}\n"
+            f"PROHIBITION: Do NOT call fs.read or inspect already completed files ({', '.join(completed_files)}). Write the missing deliverable '{target_repair_file or 'missing file'}' directly using fs.write.\n"
+            f"{dom_summary}"
+            f"============================================================"
+        )
+        self._active_recovery_brief = compact_recovery_msg
+        return True
+
     async def _trigger_recovery_transition(
 
         self,
@@ -6902,15 +7410,7 @@ class AgentLoop:
 
         self._recovery_attempt_count = recovery_count + 1
 
-        raw_tier = getattr(self.orchestrator, "_active_tier", 1)
-
-        try:
-
-            current_tier = int(raw_tier) if not isinstance(raw_tier, (str, bytes)) or raw_tier.isdigit() else 1
-
-        except Exception:
-
-            current_tier = 1
+        current_tier = self.active_tier
 
 
 
@@ -6962,15 +7462,15 @@ class AgentLoop:
 
             t3_st = adaptive_router.get_health(3).state
 
-            if 2 not in visited and t2_st not in (ProviderHealthState.OPEN_CIRCUIT, ProviderHealthState.DEGRADED):
+            if 2 not in visited and t2_st not in (ProviderHealthState.OPEN_CIRCUIT, ProviderHealthState.DEGRADED) and adaptive_router.is_tier_available(2):
 
                 next_tier = 2
 
-            elif 3 not in visited and t3_st not in (ProviderHealthState.OPEN_CIRCUIT, ProviderHealthState.DEGRADED):
+            elif 3 not in visited and t3_st not in (ProviderHealthState.OPEN_CIRCUIT, ProviderHealthState.DEGRADED) and adaptive_router.is_tier_available(3):
 
                 next_tier = 3
 
-            elif 4 not in visited:
+            elif 4 not in visited and adaptive_router.is_tier_healthy(4) and adaptive_router.is_tier_available(4):
 
                 next_tier = 4
 
@@ -6982,11 +7482,11 @@ class AgentLoop:
 
             t3_st = adaptive_router.get_health(3).state
 
-            if 3 not in visited and t3_st not in (ProviderHealthState.OPEN_CIRCUIT, ProviderHealthState.DEGRADED):
+            if 3 not in visited and t3_st not in (ProviderHealthState.OPEN_CIRCUIT, ProviderHealthState.DEGRADED) and adaptive_router.is_tier_available(3):
 
                 next_tier = 3
 
-            elif 4 not in visited:
+            elif 4 not in visited and adaptive_router.is_tier_healthy(4) and adaptive_router.is_tier_available(4):
 
                 next_tier = 4
 
@@ -7004,6 +7504,8 @@ class AgentLoop:
 
                 and adaptive_router.get_health(1).state == ProviderHealthState.HEALTHY
 
+                and adaptive_router.is_tier_available(1)
+
                 and (1 not in visited)
 
             )
@@ -7016,7 +7518,7 @@ class AgentLoop:
 
                 logger.info(f"[RECOVERY TRANSITION] Tier 1 verified recovered to HEALTHY; routing T3 -> T1 (rotation {self._tier_rotations}/1)")
 
-            elif 4 not in visited:
+            elif 4 not in visited and adaptive_router.is_tier_healthy(4) and adaptive_router.is_tier_available(4):
 
                 next_tier = 4
 
@@ -7106,7 +7608,7 @@ class AgentLoop:
         if next_tier == current_tier:
             logger.warning(f"AgentLoop: Next tier ({next_tier}) is identical to current tier ({current_tier}). Advancing to next unvisited tier.")
             for cand in [current_tier + 1, current_tier + 2]:
-                if cand <= 4 and cand not in visited:
+                if cand <= 4 and cand not in visited and adaptive_router.is_tier_available(cand) and adaptive_router.is_tier_healthy(cand):
                     next_tier = cand
                     break
             else:
@@ -7118,7 +7620,7 @@ class AgentLoop:
         if last_trans and last_trans == (current_tier, next_tier):
             logger.warning(f"AgentLoop: Duplicate recovery transition {current_tier} -> {next_tier} prevented. Advancing to next unvisited tier.")
             for cand in [current_tier + 1, current_tier + 2, 4]:
-                if cand <= 4 and cand not in visited and cand != next_tier:
+                if cand <= 4 and cand not in visited and cand != next_tier and adaptive_router.is_tier_available(cand) and adaptive_router.is_tier_healthy(cand):
                     next_tier = cand
                     break
             else:
@@ -7138,7 +7640,7 @@ class AgentLoop:
             visited.add(next_tier)
             self._in_recovery = True
             self._last_recovery_transition = (current_tier, next_tier)
-            setattr(self.orchestrator, "_active_tier", next_tier)
+            self.set_active_model_state(tier=next_tier, provider=target_provider, model=target_model, reason=rejection_reason)
 
             await self._publish_event(
 
@@ -7440,13 +7942,15 @@ class AgentLoop:
 
         """
 
-        Execute bounded recovery transition when model repeatedly requests no-progress operations.
+        Execute bounded in-tier agent recovery when model repeatedly requests no-progress operations.
 
-        Delegates to canonical _trigger_recovery_transition.
+        Delegates to canonical _trigger_agent_no_progress_recovery to preserve provider health
+
+        and avoid premature tier failover.
 
         """
 
-        return await self._trigger_recovery_transition(
+        return await self._trigger_agent_no_progress_recovery(
 
             turn_id=turn_id,
 
@@ -7571,6 +8075,33 @@ class AgentLoop:
 
         )
 
+        from core.adaptive_routing import adaptive_router, ProviderHealthState
+
+        if active_tier > 1:
+            rec1 = adaptive_router.get_health(1)
+            if rec1.state == ProviderHealthState.HEALTHY and adaptive_router.is_tier_available(1):
+                logger.info(f"AgentLoop: Tier 1 ({TIER1_PROVIDER}/{TIER1_MODEL}) is HEALTHY. Resuming Tier 1 dispatch.")
+                self.set_active_model_state(tier=1, provider=TIER1_PROVIDER, model=TIER1_MODEL)
+                active_tier = 1
+            elif not adaptive_router.is_tier_healthy(active_tier):
+                eligible = adaptive_router.get_eligible_tiers()
+                if eligible:
+                    best_tier = eligible[0]
+                    t_prov, t_mod = getattr(self, "_provider_tier_map", {}).get(best_tier, (None, None))
+                    logger.warning(f"AgentLoop: Active tier {active_tier} is unhealthy. Switching to eligible Tier {best_tier} ({t_prov}/{t_mod}).")
+                    self.set_active_model_state(tier=best_tier, provider=t_prov, model=t_mod)
+                    active_tier = best_tier
+
+        from config.model_config import (
+
+            TIER1_PROVIDER, TIER1_MODEL,
+
+            TIER2_PROVIDER, TIER2_MODEL,
+
+            TIER3_PROVIDER, TIER3_MODEL,
+
+        )
+
 
 
         from tools.platform.catalog import tool_catalog
@@ -7593,6 +8124,15 @@ class AgentLoop:
 
         # Tier 4 dispatch when recovery escalation reached Tier 4
         if active_tier == 4 and TIER4_MODEL:
+            tier4_client = getattr(self.orchestrator, "tier4", None) or getattr(self.orchestrator, "_tier4", None) or getattr(self.orchestrator, "ollama", None)
+            from core.adaptive_routing import adaptive_router
+            t4_avail = adaptive_router.is_tier_available(4)
+            if tier4_client and hasattr(tier4_client, "is_available_sync"):
+                t4_avail = t4_avail and tier4_client.is_available_sync()
+            if not t4_avail:
+                logger.warning("AgentLoop: Tier 4 Ollama is unavailable. Bypassing Tier 4 dispatch.")
+                raise RuntimeError("Tier 4 Ollama daemon unreachable at http://127.0.0.1:11434")
+
             await self._publish_event(
                 EventType.TIER_SELECTED,
                 turn_id=turn_id,
@@ -7672,9 +8212,37 @@ class AgentLoop:
 
                 t3_gen = getattr(tier3_client, "generate")
 
-                res = t3_gen(**t3_kwargs)
-
-                return (await res) if asyncio.iscoroutine(res) else res
+                try:
+                    res = t3_gen(**t3_kwargs)
+                    res_obj = (await res) if asyncio.iscoroutine(res) else res
+                    if getattr(res_obj, "success", True) is False:
+                        raise RuntimeError(getattr(res_obj, "error", None) or f"Tier 3 ({TIER3_PROVIDER}/{TIER3_MODEL}) failed")
+                    return res_obj
+                except Exception as t3_exc:
+                    logger.warning(f"AgentLoop: Tier 3 generation failed ({t3_exc}). Checking eligible fallback tiers...")
+                    from core.adaptive_routing import adaptive_router
+                    adaptive_router.record_failure(tier=3, error=t3_exc)
+                    eligible = [t for t in adaptive_router.get_eligible_tiers() if t != 3]
+                    if eligible:
+                        fb_tier = 1 if 1 in eligible else eligible[0]
+                        fb_prov, fb_mod = getattr(self, "_provider_tier_map", {}).get(fb_tier, (None, None))
+                        logger.warning(f"AgentLoop: Tier 3 failed. Failing over to eligible Tier {fb_tier} ({fb_prov}/{fb_mod}).")
+                        self.set_active_model_state(tier=fb_tier, provider=fb_prov, model=fb_mod, reason=str(t3_exc))
+                        if fb_tier == 2:
+                            tier2_client = getattr(self.orchestrator, "tier2", None) or getattr(self.orchestrator, "ollama", None)
+                            if tier2_client and hasattr(tier2_client, "generate"):
+                                t2_fb_kwargs = dict(t3_kwargs)
+                                t2_fb_kwargs["model"] = TIER2_MODEL
+                                res2 = tier2_client.generate(**t2_fb_kwargs)
+                                return (await res2) if asyncio.iscoroutine(res2) else res2
+                        elif fb_tier == 1:
+                            tier1_client = getattr(self.orchestrator, "tier1", None) or getattr(self.orchestrator, "active_t1_client", None)
+                            if tier1_client and hasattr(tier1_client, "generate"):
+                                t1_fb_kwargs = dict(t3_kwargs)
+                                t1_fb_kwargs["model"] = TIER1_MODEL
+                                res1 = tier1_client.generate(**t1_fb_kwargs)
+                                return (await res1) if asyncio.iscoroutine(res1) else res1
+                    raise
 
 
 
@@ -7792,7 +8360,7 @@ class AgentLoop:
 
                         raise
 
-                    setattr(self.orchestrator, "_active_tier", 3)
+                    self.set_active_model_state(tier=3, provider=TIER3_PROVIDER, model=TIER3_MODEL, reason=str(t2_exc))
 
                     await self._publish_event(
 
@@ -8088,7 +8656,8 @@ class AgentLoop:
 
         # EventBus automatically feeds StateReducer and StateStore
 
-        self.event_bus.publish(event)
+        if hasattr(self, "event_bus") and self.event_bus is not None:
+            self.event_bus.publish(event)
 
 
 

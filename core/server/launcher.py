@@ -211,6 +211,45 @@ def wait_for_health(host: str = DEFAULT_HOST, port: int = DEFAULT_PORT, timeout:
     return None
 
 
+def ensure_ollama_running() -> bool:
+    """Ensure Ollama daemon is running if ollama executable exists."""
+    if check_port_in_use("127.0.0.1", 11434):
+        return True
+
+    ollama_candidates = [
+        Path(os.environ.get("LOCALAPPDATA", "")) / "Programs" / "Ollama" / "ollama.exe",
+        Path("C:/Users/SUBBU/AppData/Local/Programs/Ollama/ollama.exe"),
+        Path("C:/Program Files/Ollama/ollama.exe"),
+    ]
+    ollama_bin = None
+    for p in ollama_candidates:
+        if p.exists():
+            ollama_bin = p
+            break
+
+    if not ollama_bin:
+        return False
+
+    try:
+        creationflags = 0
+        if sys.platform.startswith("win"):
+            creationflags = subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.DETACHED_PROCESS
+        subprocess.Popen(
+            [str(ollama_bin), "serve"],
+            creationflags=creationflags,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        for _ in range(15):
+            time.sleep(0.2)
+            if check_port_in_use("127.0.0.1", 11434):
+                print(f"[+] Ollama daemon auto-started from {ollama_bin}")
+                return True
+    except Exception as e:
+        logger.warning(f"Could not auto-start Ollama: {e}")
+    return False
+
+
 def launch_server(
     host: str = DEFAULT_HOST,
     port: int = DEFAULT_PORT,
@@ -222,6 +261,7 @@ def launch_server(
     Launch HERMES local GUI server safely on Windows / cross-platform.
     Returns 0 on success, 1 on error.
     """
+    ensure_ollama_running()
     print(f"[*] Checking status of port {port} on {host}...")
     status = get_port_status(host, port)
 

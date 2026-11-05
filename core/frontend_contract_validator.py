@@ -32,6 +32,12 @@ class FrontendValidationReport:
     token_issues: List[Dict[str, Any]] = field(default_factory=list)
     local_asset_issues: List[Dict[str, Any]] = field(default_factory=list)
     js_selector_issues: List[Dict[str, Any]] = field(default_factory=list)
+    entrypoint_issues: List[Dict[str, Any]] = field(default_factory=list)
+    form_element_issues: List[Dict[str, Any]] = field(default_factory=list)
+    content_grid_issues: List[Dict[str, Any]] = field(default_factory=list)
+    functional_interaction_issues: List[Dict[str, Any]] = field(default_factory=list)
+    test_script_issues: List[Dict[str, Any]] = field(default_factory=list)
+    structural_css_issues: List[Dict[str, Any]] = field(default_factory=list)
     browser_verification: Dict[str, Any] = field(default_factory=dict)
     visual_qa_status: str = "PENDING"
     functional_qa_status: str = "PENDING" 
@@ -111,16 +117,33 @@ class FrontendContractValidator:
     # ── 1. DOM ID Consistency ───────────────────────────────────────────────
 
     @classmethod
-    def validate_dom_ids(cls, html_text: str, js_text: str) -> List[Dict[str, Any]]:
+    def validate_dom_ids(
+        cls,
+        html_text: str,
+        js_text: str,
+        contract: Optional[Any] = None,
+    ) -> List[Dict[str, Any]]:
         """
-        Verify that all element IDs queried in JavaScript exist in HTML.
+        Verify that all element IDs queried in JavaScript exist in HTML,
+        excluding dynamically rendered IDs or optional contract selectors.
         """
         issues = []
-        # Extract HTML IDs
         html_ids = set(re.findall(r'\bid=["\']([a-zA-Z0-9_\-]+)["\']', html_text))
 
-        # Extract JS ID queries
-        # Patterns: getElementById("id"), querySelector("#id"), $('#id')
+        dynamic_contract_ids = set()
+        optional_contract_ids = set()
+        if contract and hasattr(contract, "dom_and_state"):
+            dynamic_contract_ids = set(getattr(contract.dom_and_state, "dynamic_ids", []))
+            for sel in getattr(contract.dom_and_state, "optional_selectors", []):
+                if sel.startswith("#"):
+                    optional_contract_ids.add(sel[1:])
+        elif isinstance(contract, dict):
+            dom_st = contract.get("dom_and_state", {})
+            dynamic_contract_ids = set(dom_st.get("dynamic_ids", []))
+            for sel in dom_st.get("optional_selectors", []):
+                if sel.startswith("#"):
+                    optional_contract_ids.add(sel[1:])
+
         js_id_patterns = [
             r'getElementById\(\s*["\']([a-zA-Z0-9_\-]+)["\']\s*\)',
             r'querySelector\(\s*["\']#([a-zA-Z0-9_\-]+)["\']\s*\)',
@@ -133,16 +156,16 @@ class FrontendContractValidator:
             for match in re.finditer(pat, js_text):
                 queried_ids.add(match.group(1))
 
-        # Check for missing IDs
         for q_id in sorted(queried_ids):
-            # Exclude dynamically created IDs if referenced in templates
+            if q_id in dynamic_contract_ids or q_id in optional_contract_ids:
+                continue
             if q_id not in html_ids:
-                # Check if it's created dynamically in JS template strings e.g. `id="${...}"`
-                if f'id="{q_id}"' not in js_text and f"id='{q_id}'" not in js_text:
+                if f'id="{q_id}"' not in js_text and f"id='{q_id}'" not in js_text and f'id: "{q_id}"' not in js_text:
+                    sugg = " Did you mean '#search-input' (the canonical search input ID in HTML)?" if (q_id == "search" and "search-input" in html_ids) else ""
                     issues.append({
                         "type": "MISSING_DOM_ID",
                         "id": q_id,
-                        "message": f"JavaScript queries '#{q_id}' but no element with id='{q_id}' exists in HTML.",
+                        "message": f"JavaScript queries '#{q_id}' but no element with id='{q_id}' exists in HTML.{sugg}",
                     })
         return issues
 
@@ -212,7 +235,7 @@ class FrontendContractValidator:
         issues = []
         # Key UI components to verify
         critical_components = [
-            ("btn", r'\bclass=["\'][^"\']*\b(btn|button)\b[^"\']*["\']', r'\.(?:btn|button)\b'),
+            ("btn", r'\bclass=["\'][^"\']*\b(btn|button)\b[^"\']*["\']', r'\.(?:btn|button|btn-[a-z0-9\-]+|filter-btn)\b|button\s*[\{,]|\bbutton\b'),
             ("card", r'\bclass=["\'][^"\']*\b(card|destination-card|package-card)\b[^"\']*["\']', r'\.(?:card|destination-card|package-card)\b'),
             ("navbar", r'\bclass=["\'][^"\']*\b(navbar|nav-container|site-header)\b[^"\']*["\']', r'\.(?:navbar|nav-container|site-header|nav)\b'),
             ("modal", r'\bclass=["\'][^"\']*\b(modal|dialog|popup)\b[^"\']*["\']', r'\.(?:modal|dialog|popup)\b'),
@@ -404,30 +427,305 @@ class FrontendContractValidator:
     # ── 8c. JavaScript Selector Contracts ────────────────────────────────────
 
     @classmethod
-    def validate_js_selector_contracts(cls, html_text: str, js_text: str, css_text: str) -> List[Dict[str, Any]]:
+    def validate_js_selector_contracts(
+        cls,
+        html_text: str,
+        js_text: str,
+        css_text: str,
+        contract: Optional[Any] = None,
+    ) -> List[Dict[str, Any]]:
         """
         Verifies that JavaScript class queries (.querySelector('.foo'), classList.contains('foo'))
-        match classes present in HTML or dynamically generated templates or CSS.
+        match classes present in HTML or dynamically generated templates or CSS,
+        supporting dynamic classes and optional contract selectors.
         """
         issues = []
         js_class_queries = re.findall(r'querySelector(?:All)?\(\s*["\']\.([a-zA-Z0-9_\-]+)["\']\s*\)', js_text)
         js_classlist_queries = re.findall(r'classList\.(?:contains|add|remove|toggle)\(\s*["\']([a-zA-Z0-9_\-]+)["\']\s*\)', js_text)
 
         all_js_classes = set(js_class_queries + js_classlist_queries)
-        excluded = {"active", "hidden", "open", "show", "expanded", "selected", "disabled", "loading", "visible", "fade-in", "modal-open"}
+        excluded = {"active", "hidden", "open", "show", "expanded", "selected", "disabled", "loading", "visible", "fade-in", "modal-open", "filtered-out"}
+
+        dynamic_contract_classes = set()
+        optional_contract_classes = set()
+        if contract and hasattr(contract, "dom_and_state"):
+            dynamic_contract_classes = set(getattr(contract.dom_and_state, "dynamic_classes", []))
+            for sel in getattr(contract.dom_and_state, "optional_selectors", []):
+                if sel.startswith("."):
+                    optional_contract_classes.add(sel[1:])
+        elif isinstance(contract, dict):
+            dom_st = contract.get("dom_and_state", {})
+            dynamic_contract_classes = set(dom_st.get("dynamic_classes", []))
+            for sel in dom_st.get("optional_selectors", []):
+                if sel.startswith("."):
+                    optional_contract_classes.add(sel[1:])
 
         for cls_name in sorted(all_js_classes):
-            if cls_name in excluded:
+            if cls_name in excluded or cls_name in dynamic_contract_classes or cls_name in optional_contract_classes:
                 continue
             in_html = cls_name in html_text
             in_css = f".{cls_name}" in css_text
             in_js_tmpl = f'class=' in js_text and cls_name in js_text
-            if not in_html and not in_css and not in_js_tmpl:
+            in_js_dyn = f'className' in js_text and cls_name in js_text
+            in_js_create = f'createElement' in js_text and (f'"{cls_name}"' in js_text or f"'{cls_name}'" in js_text)
+            if not in_html and not in_css and not in_js_tmpl and not in_js_dyn and not in_js_create:
                 issues.append({
                     "type": "UNKNOWN_JS_CLASS_SELECTOR",
                     "class_name": cls_name,
                     "message": f"JavaScript queries '.{cls_name}' but this class does not appear in HTML markup or CSS stylesheets.",
                 })
+        return issues
+
+    # ── 8d. Authoritative Entrypoint Integrity ──────────────────────────────
+
+    @classmethod
+    def validate_entrypoint_integrity(
+        cls,
+        workspace_root: Path | str,
+        contract: Optional[Any] = None,
+    ) -> List[Dict[str, Any]]:
+        """
+        Verify that:
+        1. One authoritative application script entrypoint is known and linked in HTML.
+        2. Competing orphan scripts (e.g. main.js when app.js is linked) are rejected.
+        3. Intentionally configured secondary modules (imported via ES modules) are preserved.
+        4. Conflicting top-level DOMContentLoaded bootstrap handlers across unlinked files are rejected.
+        """
+        ws = Path(workspace_root).resolve()
+        issues = []
+        candidate_dirs = [ws, ws / "static", ws / "public", ws / "src"]
+        js_files = []
+        for d in candidate_dirs:
+            if d.exists() and d.is_dir():
+                for f in d.iterdir():
+                    if f.is_file() and f.suffix.lower() == ".js":
+                        if not f.name.endswith(".test.js") and not f.name.endswith(".config.js"):
+                            js_files.append(f)
+
+        if not js_files:
+            return issues
+
+        html_candidates = [ws / "index.html", ws / "static" / "index.html"]
+        html_file = next((f for f in html_candidates if f.exists()), None)
+        if not html_file:
+            return issues
+
+        html_text = html_file.read_text(encoding="utf-8", errors="ignore")
+        linked_scripts = re.findall(r'<script[^>]+src=["\']([^"\']+)["\']', html_text, re.I)
+        linked_names = {Path(s.split("?")[0]).name.lower() for s in linked_scripts if not s.startswith("http")}
+
+        js_contents = {f: f.read_text(encoding="utf-8", errors="ignore") for f in js_files}
+
+        for jf in js_files:
+            fname_lower = jf.name.lower()
+            is_linked = fname_lower in linked_names
+            is_imported = False
+            for other_f, content in js_contents.items():
+                if other_f != jf:
+                    if re.search(rf'import\s+.*from\s+["\'][^"\']*{re.escape(jf.name)}["\']', content) or \
+                       re.search(rf'require\(\s*["\'][^"\']*{re.escape(jf.name)}["\']\s*\)', content):
+                        is_imported = True
+                        break
+
+            if not is_linked and not is_imported and len(js_files) > 1:
+                issues.append({
+                    "type": "ORPHAN_COMPETING_ENTRYPOINT",
+                    "file": jf.name,
+                    "message": f"Orphan competing script '{jf.name}' exists on disk but is unlinked in HTML and not imported by any module.",
+                })
+
+        bootstrap_files = []
+        for jf, content in js_contents.items():
+            if "DOMContentLoaded" in content or "window.onload" in content:
+                bootstrap_files.append(jf.name)
+
+        if len(bootstrap_files) > 1:
+            unlinked_bootstraps = [bf for bf in bootstrap_files if bf.lower() not in linked_names]
+            if unlinked_bootstraps:
+                issues.append({
+                    "type": "CONFLICTING_ENTRYPOINT_BOOTSTRAP",
+                    "files": bootstrap_files,
+                    "message": f"Conflicting application bootstrap listeners detected in unlinked script(s): {', '.join(unlinked_bootstraps)}.",
+                })
+
+        return issues
+
+    # ── 8e. Form Element Alignment ───────────────────────────────────────────
+
+    @classmethod
+    def validate_form_elements(cls, html_text: str, js_text: str) -> List[Dict[str, Any]]:
+        """
+        Verify that form input selectors referenced in JavaScript exist in the HTML form.
+        """
+        issues = []
+        has_form_in_html = bool(re.search(r'<form\b', html_text, re.I))
+        if not has_form_in_html:
+            return issues
+
+        html_input_names = set(re.findall(r'<input[^>]+name=["\']([a-zA-Z0-9_\-]+)["\']', html_text, re.I))
+        html_input_names |= set(re.findall(r'<select[^>]+name=["\']([a-zA-Z0-9_\-]+)["\']', html_text, re.I))
+        html_input_names |= set(re.findall(r'<textarea[^>]+name=["\']([a-zA-Z0-9_\-]+)["\']', html_text, re.I))
+
+        js_form_field_queries = re.findall(r'\belements\[["\']([a-zA-Z0-9_\-]+)["\']\]', js_text)
+        js_form_field_queries += re.findall(r'querySelector\(\s*["\']\[name=["\']([a-zA-Z0-9_\-]+)["\']\]["\']\s*\)', js_text)
+        js_form_field_queries += re.findall(r'e\.target\.([a-zA-Z0-9_\-]+)\.value', js_text)
+
+        for fld in set(js_form_field_queries):
+            if fld not in html_input_names and fld not in ("elements", "target", "value", "preventDefault"):
+                issues.append({
+                    "type": "MISSING_FORM_ELEMENT",
+                    "field_name": fld,
+                    "message": f"JavaScript form handler queries input with name='{fld}', but no such field exists in HTML <form>.",
+                })
+        return issues
+
+    # ── 8f. Empty Content Grid Detection ─────────────────────────────────────
+
+    @classmethod
+    def validate_empty_content_grids(cls, html_text: str, js_text: str) -> List[Dict[str, Any]]:
+        """
+        Verify that dynamic content containers/grids declared in HTML either
+        have static cards or are populated by JavaScript render functions.
+        """
+        issues = []
+        grid_tags = re.findall(r'<div[^>]*\bid=["\']([a-zA-Z0-9_\-]*(?:grid|cards|container|list|destinations|packages)[a-zA-Z0-9_\-]*)["\'][^>]*>', html_text, re.I)
+        
+        for g_id in set(grid_tags):
+            m = re.search(rf'<div[^>]*\bid=["\']{re.escape(g_id)}["\'][^>]*>(.*?)</div>', html_text, re.DOTALL | re.I)
+            if m:
+                inner = m.group(1).strip()
+                has_static_cards = bool(re.search(r'<div\b|<article\b|<li\b|<section\b', inner, re.I))
+                if has_static_cards:
+                    continue
+            
+            populates = f'"{g_id}"' in js_text or f"'{g_id}'" in js_text or f"#{g_id}" in js_text
+            has_render = "render" in js_text.lower() or "innerhtml" in js_text.lower() or "appendchild" in js_text.lower()
+
+            if not populates or not has_render:
+                issues.append({
+                    "type": "EMPTY_CONTENT_GRID",
+                    "container_id": g_id,
+                    "message": f"Content grid container '#{g_id}' is empty in HTML and JavaScript does not populate it.",
+                })
+        return issues
+
+    # ── 8g. Functional Interaction Authenticity ──────────────────────────────
+
+    @classmethod
+    def validate_functional_interactions(cls, js_text: str) -> List[Dict[str, Any]]:
+        """
+        Verify that search and filter event listeners contain genuine state or DOM logic,
+        rejecting handlers that only execute console.log().
+        """
+        issues = []
+        fake_handlers = re.findall(
+            r'addEventListener\(\s*["\'](input|change|click|submit)["\']\s*,\s*(?:\([^)]*\)|[a-zA-Z0-9_$]+)\s*=>\s*\{([^}]+)\}\s*\)',
+            js_text
+        )
+        for ev_type, body in fake_handlers:
+            body_clean = body.strip()
+            has_console = "console." in body_clean
+            has_dom_action = any(k in body_clean for k in (
+                "innerHTML", "textContent", "innerText", "classList", "style.",
+                "appendChild", "setAttribute", "display", "filter", "render",
+                "openModal", "closeModal", "show", "hide"
+            ))
+            lines = [l.strip() for l in body_clean.split(";") if l.strip() and not l.strip().startswith("//")]
+            if has_console and not has_dom_action and len(lines) <= 2:
+                issues.append({
+                    "type": "CONSOLE_LOG_SUBSTITUTE_FEATURE",
+                    "event_type": ev_type,
+                    "message": f"Event listener for '{ev_type}' only executes console.log() without updating state or DOM. Real interactive logic is required.",
+                })
+        return issues
+
+    # ── 8h. Package and Test Script Integrity ────────────────────────────────
+
+    @classmethod
+    def validate_test_script_integrity(cls, workspace_root: Path | str) -> List[Dict[str, Any]]:
+        """
+        Detect dummy/fake npm test scripts like `echo "No tests required" && exit 0`
+        and reject them as valid automated test evidence.
+        """
+        ws = Path(workspace_root).resolve()
+        issues = []
+        pkg_file = ws / "package.json"
+        if not pkg_file.exists():
+            return issues
+
+        try:
+            pkg_data = json.loads(pkg_file.read_text(encoding="utf-8", errors="ignore"))
+            scripts = pkg_data.get("scripts", {})
+            test_cmd = scripts.get("test", "")
+            if not test_cmd:
+                return issues
+
+            test_cmd_lower = test_cmd.strip().lower()
+            is_fake = (
+                ("echo" in test_cmd_lower and "exit 0" in test_cmd_lower) or
+                test_cmd_lower in ("exit 0", "true", ":") or
+                ("no tests" in test_cmd_lower and "exit 0" in test_cmd_lower) or
+                ("error: no test specified" in test_cmd_lower and "exit 0" in test_cmd_lower)
+            )
+            if is_fake:
+                issues.append({
+                    "type": "FAKE_TEST_SCRIPT_REJECTED",
+                    "script": test_cmd,
+                    "message": f"package.json test script '{test_cmd}' is a dummy pass (echo/exit 0) and is strictly rejected as automated test evidence.",
+                })
+        except Exception:
+            pass
+        return issues
+
+    # ── 8i. Structural CSS Coverage ──────────────────────────────────────────
+
+    @classmethod
+    def validate_structural_css_coverage(cls, html_text: str, css_text: str) -> List[Dict[str, Any]]:
+        """
+        Structural verification of CSS rules for major components:
+        navigation, hero, card grid, forms, and responsive behavior.
+        """
+        issues = []
+        if not css_text or not css_text.strip():
+            return [{"type": "EMPTY_STYLESHEET", "message": "No CSS rules defined in workspace."}]
+
+        has_nav_html = bool(re.search(r'<(?:nav|header)\b|class=["\'][^"\']*\bnavbar\b', html_text, re.I))
+        if has_nav_html:
+            has_nav_layout = bool(re.search(r'\.(?:navbar|nav|site-header)[^{]*\{[^}]*display\s*:\s*(?:flex|grid|inline-flex)', css_text, re.I)) or \
+                             bool(re.search(r'nav[^{]*\{[^}]*display\s*:\s*(?:flex|grid|inline-flex)', css_text, re.I))
+            if not has_nav_layout:
+                issues.append({
+                    "type": "MISSING_NAV_LAYOUT",
+                    "message": "Navigation component lacks CSS layout rules (display: flex/grid).",
+                })
+
+        has_hero_html = "hero" in html_text.lower()
+        if has_hero_html:
+            has_hero_css = bool(re.search(r'\.hero[^{]*\{[^}]*(?:min-height|height|padding|background)', css_text, re.I))
+            if not has_hero_css:
+                issues.append({
+                    "type": "MISSING_HERO_STYLING",
+                    "message": "Hero section lacks visual presentation rules in CSS (height, background, padding).",
+                })
+
+        has_cards_html = "card" in html_text.lower() or "grid" in html_text.lower()
+        if has_cards_html:
+            has_grid_css = bool(re.search(r'display\s*:\s*(?:grid|flex)', css_text, re.I))
+            if not has_grid_css:
+                issues.append({
+                    "type": "MISSING_GRID_LAYOUT",
+                    "message": "Card collection lacks CSS grid or flexbox layout rules.",
+                })
+
+        has_form_html = bool(re.search(r'<form\b', html_text, re.I))
+        if has_form_html:
+            has_input_css = bool(re.search(r'(?:input|select|textarea|\.form[-_]control)[^{]*\{[^}]*(?:padding|border|width)', css_text, re.I))
+            if not has_input_css:
+                issues.append({
+                    "type": "UNSTYLED_FORM_CONTROLS",
+                    "message": "Form input elements lack styling rules (padding, border, width).",
+                })
+
         return issues
 
     # ── 9. Browser Visual & Functional QA Verification ────────────────────────
@@ -670,7 +968,7 @@ class FrontendContractValidator:
 
             elif sk == "web-design-guidelines":
                 has_media = bool(re.search(r'@media\s*\([^)]*max-width', css_text, re.I))
-                has_overflow = bool(re.search(r'overflow-x\s*:\s*hidden', css_text, re.I))
+                has_overflow = bool(re.search(r'overflow(?:-x)?\s*:\s*hidden', css_text, re.I))
                 imgs = re.findall(r'<img\s+[^>]*>', html_text, re.I)
                 missing_alt = [img for img in imgs if 'alt=' not in img.lower()]
                 if has_media and has_overflow and not missing_alt:
@@ -771,21 +1069,36 @@ class FrontendContractValidator:
         css_text = self._read_content(css_files)
         js_text = self._read_content(js_files)
 
-        dom_issues = self.validate_dom_ids(html_text, js_text)
+        contract = None
+        try:
+            from core.frontend_contract import FrontendImplementationContract
+            contract = FrontendImplementationContract.load_from_workspace(self.workspace_root)
+        except Exception:
+            contract = None
+
+        entrypoint_issues = self.validate_entrypoint_integrity(self.workspace_root, contract)
+        dom_issues = self.validate_dom_ids(html_text, js_text, contract)
         render_issues = self.validate_render_targets(html_text, js_text)
         css_issues = self.validate_css_classes(html_text, css_text)
+        struct_css_issues = self.validate_structural_css_coverage(html_text, css_text)
         cat_issues = self.validate_category_consistency(html_text, js_text)
         resp_issues = self.validate_responsive_css(css_text)
         img_issues = self.validate_image_styling(html_text, css_text)
         modal_issues = self.validate_modal_styling(html_text, css_text)
         token_issues = self.validate_design_system_tokens(css_text)
         local_asset_issues = self.validate_local_assets(self.workspace_root)
-        js_selector_issues = self.validate_js_selector_contracts(html_text, js_text, css_text)
+        js_selector_issues = self.validate_js_selector_contracts(html_text, js_text, css_text, contract)
+        form_element_issues = self.validate_form_elements(html_text, js_text)
+        content_grid_issues = self.validate_empty_content_grids(html_text, js_text)
+        functional_interaction_issues = self.validate_functional_interactions(js_text)
+        test_script_issues = self.validate_test_script_integrity(self.workspace_root)
 
         errors = []
         warnings = []
 
         # Classify errors vs warnings
+        for iss in entrypoint_issues:
+            errors.append(iss["message"])
         for iss in dom_issues:
             errors.append(iss["message"])
         for iss in render_issues:
@@ -803,7 +1116,10 @@ class FrontendContractValidator:
             else:
                 warnings.append(iss["message"])
         for iss in img_issues:
-            warnings.append(iss["message"])
+            if iss.get("type") == "UNCONSTRAINED_IMAGES":
+                errors.append(iss["message"])
+            else:
+                warnings.append(iss["message"])
         for iss in js_selector_issues:
             errors.append(iss["message"])
         has_assets_presence = (self.workspace_root / ".hermes" / "asset_manifest.json").exists() or (self.workspace_root / "assets").exists() or any("assets/" in iss.get("asset", "") for iss in local_asset_issues)
@@ -813,6 +1129,16 @@ class FrontendContractValidator:
             else:
                 warnings.append(iss["message"])
         for iss in modal_issues:
+            errors.append(iss["message"])
+        for iss in form_element_issues:
+            errors.append(iss["message"])
+        for iss in content_grid_issues:
+            errors.append(iss["message"])
+        for iss in functional_interaction_issues:
+            errors.append(iss["message"])
+        for iss in test_script_issues:
+            errors.append(iss["message"])
+        for iss in struct_css_issues:
             errors.append(iss["message"])
 
         is_valid = len(errors) == 0
@@ -834,6 +1160,12 @@ class FrontendContractValidator:
             token_issues=token_issues,
             local_asset_issues=local_asset_issues,
             js_selector_issues=js_selector_issues,
+            entrypoint_issues=entrypoint_issues,
+            form_element_issues=form_element_issues,
+            content_grid_issues=content_grid_issues,
+            functional_interaction_issues=functional_interaction_issues,
+            test_script_issues=test_script_issues,
+            structural_css_issues=struct_css_issues,
             browser_verification=b_qa,
             visual_qa_status=b_qa.get("visual_qa_status", "PENDING"),
             functional_qa_status=b_qa.get("functional_qa_status", "PENDING"),

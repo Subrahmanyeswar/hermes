@@ -41,6 +41,9 @@ class NormalizedModelResponse(BaseModel):
     cost_usd: float = 0.0
     lifecycle_state: str = "UNKNOWN"
     success: bool = True
+    tier: Optional[int] = None
+
+    model_config = {"extra": "allow"}
 
     def __str__(self) -> str:
         return self.text

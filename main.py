@@ -373,6 +373,12 @@ def ui(
     from utils.logging import setup_logging as _setup_logging
     _setup_logging(debug=debug, tui=True)
 
+    try:
+        from core.server.launcher import ensure_ollama_running
+        ensure_ollama_running()
+    except Exception:
+        pass
+
     if workspace:
         from core.workspace import workspace_manager
         try:

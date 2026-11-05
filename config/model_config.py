@@ -5,36 +5,37 @@ load_dotenv()
 
 # ==============================================================================
 # THREE-PROVIDER PRODUCTION ARCHITECTURE
-# Tier 1: Z.ai / BigModel (glm-4.7-flash) [STATUS: WAITING_FOR_VALID_CREDENTIALS]
-# Tier 2: NVIDIA NIM (nvidia/nemotron-3.5-lightning-30b-a3b) [STATUS: OPERATIONAL]
-# Tier 3: OpenRouter (cohere/north-mini-code:free) [STATUS: OPERATIONAL]
+# Tier 1: Groq (qwen/qwen3.8-27b) [STATUS: OPERATIONAL]
+# Tier 2: Google Gemini (gemini-3.8-flash) [STATUS: OPERATIONAL]
+# Tier 3: NVIDIA NIM (nvidia/nemotron-3.5-lightning-30b-a3b) [STATUS: OPERATIONAL]
+# Tier 4: Ollama (llama3.2:latest) [STATUS: LOCAL_FALLBACK]
 # ==============================================================================
 
-TIER1_PROVIDER = os.getenv("TIER1_PROVIDER", "zai")
-TIER1_MODEL = os.getenv("TIER1_MODEL", "glm-4.7-flash")
-TIER1_BASE_URL = os.getenv("TIER1_BASE_URL", "https://api.z.ai/api/paas/v4")
-TIER1_PROVIDER_STATUS = os.getenv("TIER1_PROVIDER_STATUS", "WAITING_FOR_VALID_CREDENTIALS")
-ZAI_API_KEY = os.getenv("ZAI_API_KEY", "")
+TIER1_PROVIDER = os.getenv("TIER1_PROVIDER", "groq")
+TIER1_MODEL = os.getenv("TIER1_MODEL", "qwen/qwen3.8-27b")
+TIER1_BASE_URL = os.getenv("TIER1_BASE_URL", "https://api.groq.com/openai/v1")
+TIER1_PROVIDER_STATUS = os.getenv("TIER1_PROVIDER_STATUS", "OPERATIONAL")
+GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
 
-TIER2_PROVIDER = os.getenv("TIER2_PROVIDER", "mistral")
-TIER2_MODEL = os.getenv("TIER2_MODEL", "codestral-latest")  # Target: mistral-small-2603
-TIER2_BASE_URL = os.getenv("TIER2_BASE_URL", "https://api.mistral.ai/v1")
+TIER2_PROVIDER = os.getenv("TIER2_PROVIDER", "gemini")
+TIER2_MODEL = os.getenv("TIER2_MODEL", "gemini-3.8-flash")
+TIER2_BASE_URL = os.getenv("TIER2_BASE_URL", "https://generativelanguage.googleapis.com/v1beta")
 TIER2_PROVIDER_STATUS = os.getenv("TIER2_PROVIDER_STATUS", "OPERATIONAL")
-NVIDIA_API_KEY = os.getenv("NVIDIA_API_KEY", "")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 
-TIER3_PROVIDER = os.getenv("TIER3_PROVIDER", "openrouter")
-TIER3_MODEL = os.getenv("TIER3_MODEL", "cohere/north-mini-code:free")
-TIER3_BASE_URL = os.getenv("TIER3_BASE_URL", "https://openrouter.ai/api/v1")
+TIER3_PROVIDER = os.getenv("TIER3_PROVIDER", "nvidia_nim")
+TIER3_MODEL = os.getenv("TIER3_MODEL", "nvidia/nemotron-3.5-lightning-30b-a3b")
+TIER3_BASE_URL = os.getenv("TIER3_BASE_URL", "https://integrate.api.nvidia.com/v1")
 TIER3_PROVIDER_STATUS = os.getenv("TIER3_PROVIDER_STATUS", "OPERATIONAL")
-OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "")
+NVIDIA_API_KEY = os.getenv("NVIDIA_API_KEY", "")
 
 TIER4_PROVIDER = os.getenv("TIER4_PROVIDER", "ollama")
 TIER4_MODEL = os.getenv("TIER4_MODEL", "llama3.2:latest")
 TIER4_BASE_URL = os.getenv("TIER4_BASE_URL", "http://localhost:11434")
 TIER4_PROVIDER_STATUS = os.getenv("TIER4_PROVIDER_STATUS", "OPERATIONAL")
 
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
-GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
+ZAI_API_KEY = os.getenv("ZAI_API_KEY", "")
+OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "")
 MISTRAL_API_KEY = os.getenv("MISTRAL_API_KEY", "")
 
 def validate_timeout_config(
@@ -70,7 +71,7 @@ MODEL_FIRST_TOKEN_TIMEOUT = float(os.getenv("MODEL_FIRST_TOKEN_TIMEOUT", "30.0")
 MODEL_TOTAL_TIMEOUT = int(os.getenv("MODEL_TOTAL_TIMEOUT", "360"))
 VERIFICATION_TIMEOUT = int(os.getenv("VERIFICATION_TIMEOUT", "30"))
 ARBITRATION_TIMEOUT = int(os.getenv("ARBITRATION_TIMEOUT", "30"))
-MODEL_KEEP_ALIVE = os.getenv("MODEL_KEEP_ALIVE", "300s")
+MODEL_KEEP_ALIVE = os.getenv("MODEL_KEEP_ALIVE", "0")
 MEMORY_EXTRACTION_TIMEOUT_SECONDS = int(os.getenv("MEMORY_EXTRACTION_TIMEOUT_SECONDS", "60"))
 MEMORY_QUEUE_MAX_SIZE = int(os.getenv("MEMORY_QUEUE_MAX_SIZE", "50"))
 PROGRESSIVE_VERIFICATION_ENABLED = os.getenv("PROGRESSIVE_VERIFICATION_ENABLED", "true").lower() == "true"
@@ -112,7 +113,7 @@ TIER4_PARAMS = {"temperature": 0.0, "top_p": 1.0, "max_tokens": 4096}
 # Phase 4D Adaptive Routing & Circuit Breaker Configurations
 CIRCUIT_BREAKER_ENABLED = os.getenv("CIRCUIT_BREAKER_ENABLED", "true").lower() == "true"
 T1_CIRCUIT_BREAKER_FAILURES = int(os.getenv("T1_CIRCUIT_BREAKER_FAILURES", "3"))
-T1_CIRCUIT_BREAKER_WINDOW = float(os.getenv("T1_CIRCUIT_BREAKER_WINDOW", "120.0"))
+T1_CIRCUIT_BREAKER_WINDOW = float(os.getenv("T1_CIRCUIT_BREAKER_WINDOW", "90.0"))
 T1_PROBE_INTERVAL = float(os.getenv("T1_PROBE_INTERVAL", "15.0"))
 T2_MAX_CONCURRENCY = int(os.getenv("T2_MAX_CONCURRENCY", "1"))
 
@@ -121,6 +122,6 @@ DEFAULT_MISSION_MAX_TURNS = int(os.getenv("MISSION_MAX_TURNS", "40"))
 WEBSITE_MISSION_MAX_TURNS = int(os.getenv("WEBSITE_MISSION_MAX_TURNS", "80"))
 
 # Bounded model request & streaming timeout controls (Part 8.2)
-HERMES_MODEL_FIRST_TOKEN_TIMEOUT_SECONDS = float(os.getenv("HERMES_MODEL_FIRST_TOKEN_TIMEOUT_SECONDS", "15.0"))
-HERMES_MODEL_STREAM_IDLE_TIMEOUT_SECONDS = float(os.getenv("HERMES_MODEL_STREAM_IDLE_TIMEOUT_SECONDS", "15.0"))
-HERMES_MODEL_ATTEMPT_TIMEOUT_SECONDS = float(os.getenv("HERMES_MODEL_ATTEMPT_TIMEOUT_SECONDS", "45.0"))
+HERMES_MODEL_FIRST_TOKEN_TIMEOUT_SECONDS = float(os.getenv("HERMES_MODEL_FIRST_TOKEN_TIMEOUT_SECONDS", "7.5"))
+HERMES_MODEL_STREAM_IDLE_TIMEOUT_SECONDS = float(os.getenv("HERMES_MODEL_STREAM_IDLE_TIMEOUT_SECONDS", "10.0"))
+HERMES_MODEL_ATTEMPT_TIMEOUT_SECONDS = float(os.getenv("HERMES_MODEL_ATTEMPT_TIMEOUT_SECONDS", "25.0"))

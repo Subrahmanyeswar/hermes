@@ -129,6 +129,34 @@ class OllamaClient(ModelProvider):
         self._last_loaded_model: Optional[str] = None
         self._semaphore: Optional[asyncio.Semaphore] = semaphore
 
+    @classmethod
+    async def is_available(cls, base_url: str = "http://127.0.0.1:11434", timeout: float = 1.0) -> bool:
+        """
+        Check if the local Ollama daemon is currently running and reachable.
+        Does not hang or spawn processes during passive availability checks.
+        Returns False immediately if daemon is not responding.
+        """
+        import httpx
+        try:
+            target_url = getattr(cls, "base_url", base_url) if not isinstance(cls, type) else base_url
+            async with httpx.AsyncClient(timeout=timeout) as client:
+                r = await client.get(f"{target_url}/api/tags")
+                return r.status_code == 200
+        except Exception:
+            return False
+
+    @classmethod
+    def is_available_sync(cls, base_url: str = "http://127.0.0.1:11434", timeout: float = 1.0) -> bool:
+        """Synchronous connectivity check for Ollama endpoint."""
+        import urllib.request
+        try:
+            target_url = getattr(cls, "base_url", base_url) if not isinstance(cls, type) else base_url
+            req = urllib.request.Request(f"{target_url}/api/tags")
+            with urllib.request.urlopen(req, timeout=timeout) as resp:
+                return resp.status == 200
+        except Exception:
+            return False
+
     def get_semaphore(self) -> asyncio.Semaphore:
         """Return the single-request concurrency semaphore for Tier 2."""
         if self._semaphore is not None:

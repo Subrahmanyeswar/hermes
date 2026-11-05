@@ -58,6 +58,8 @@ class ProviderHealthRecord:
     is_auth_failure: bool = False
     is_quota_exhausted: bool = False
     retry_after_ts: Optional[float] = None
+    is_available: bool = True
+    unavailability_reason: Optional[str] = None
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -76,6 +78,8 @@ class ProviderHealthRecord:
             "probe_in_flight": self.probe_in_flight,
             "circuit_open_ts": self.circuit_open_ts,
             "circuit_close_ts": self.circuit_close_ts,
+            "is_available": self.is_available,
+            "unavailability_reason": self.unavailability_reason,
         }
 
 
@@ -144,6 +148,16 @@ class AdaptiveRouter:
         self._t2_semaphore: Optional[asyncio.Semaphore] = None
         self._probe_callback: Optional[Callable[[], Any]] = None
 
+        # Upfront preflight: if Tier 4 is Ollama and running outside pytest, check availability
+        import sys
+        if TIER4_PROVIDER == "ollama" and "pytest" not in sys.modules:
+            try:
+                from models.ollama_client import OllamaClient
+                if not OllamaClient.is_available_sync():
+                    self.mark_tier_unavailable(4, "Local Ollama daemon unreachable at http://127.0.0.1:11434")
+            except Exception:
+                pass
+
     def _ensure_concurrency_guards(self) -> None:
         if self._t2_semaphore is None:
             self._t2_semaphore = asyncio.Semaphore(T2_MAX_CONCURRENCY)
@@ -160,6 +174,8 @@ class AdaptiveRouter:
                 return record
             if getattr(record, "is_quota_exhausted", False):
                 return record
+            if getattr(record, "is_available", True) is False:
+                return record
 
             # Retry-After duration check: must respect explicit provider Retry-After duration
             if getattr(record, "retry_after_ts", None) is not None:
@@ -169,9 +185,12 @@ class AdaptiveRouter:
                     record.retry_after_ts = None
 
             reference_ts = record.circuit_open_ts or record.last_state_change_ts or record.last_failure_ts
-            if reference_ts and (now - reference_ts >= T1_CIRCUIT_BREAKER_WINDOW):
+            base_window = float(os.getenv("T1_CIRCUIT_BREAKER_WINDOW", "90.0"))
+            backoff_factor = 2 ** min(max(0, record.failure_count - 1), 3)
+            cooldown = base_window * backoff_factor
+            if reference_ts and (now - reference_ts >= cooldown):
                 logger.info(
-                    f"[ADAPTIVE ROUTING] Tier {tier} circuit breaker cooldown window expired ({now - reference_ts:.1f}s >= {T1_CIRCUIT_BREAKER_WINDOW}s). "
+                    f"[ADAPTIVE ROUTING] Tier {tier} circuit breaker cooldown window expired ({now - reference_ts:.1f}s >= {cooldown:.1f}s, backoff={backoff_factor}x). "
                     "Resetting state to HEALTHY."
                 )
                 record.state = ProviderHealthState.HEALTHY
@@ -186,7 +205,50 @@ class AdaptiveRouter:
         record = self.get_health(tier) if tier in self.providers else None
         if not record:
             return False
+        if getattr(record, "is_available", True) is False:
+            return False
         return record.state in (ProviderHealthState.HEALTHY, ProviderHealthState.RECOVERED)
+
+    def is_tier_available(self, tier: int) -> bool:
+        """Check if tier is configured with a model and marked available."""
+        record = self.providers.get(tier)
+        if not record or not record.model:
+            return False
+        return getattr(record, "is_available", True) is not False
+
+    def mark_tier_unavailable(self, tier: int, reason: str) -> None:
+        """Mark an unavailable provider as permanently ineligible for routing."""
+        record = self.providers.get(tier)
+        if record:
+            record.is_available = False
+            record.unavailability_reason = reason
+            record.state = ProviderHealthState.OPEN_CIRCUIT
+            logger.warning(f"[ADAPTIVE ROUTING] Tier {tier} ({record.provider}/{record.model}) marked UNAVAILABLE: {reason}")
+
+    def check_tier_availability_sync(self, tier: int, client: Any = None) -> bool:
+        """Synchronous availability preflight for local daemons or providers."""
+        record = self.providers.get(tier)
+        if not record or not record.model:
+            return False
+        if record.provider == "ollama":
+            if client is not None and hasattr(client, "is_available_sync"):
+                avail = client.is_available_sync()
+            else:
+                from models.ollama_client import OllamaClient
+                avail = OllamaClient().is_available_sync()
+            if not avail:
+                self.mark_tier_unavailable(tier, "Local Ollama daemon unreachable at http://127.0.0.1:11434")
+                return False
+        return True
+
+    def get_eligible_tiers(self) -> List[int]:
+        """Return all tiers that are configured, available, and not open circuit."""
+        eligible = []
+        for t in sorted(self.providers.keys()):
+            rec = self.providers[t]
+            if rec.model and self.is_tier_available(t) and rec.state != ProviderHealthState.OPEN_CIRCUIT:
+                eligible.append(t)
+        return eligible
 
     def reset_state(self) -> None:
         """Reset all provider health records to clean initial state."""
@@ -382,7 +444,7 @@ class AdaptiveRouter:
         if tier in (1, 2):
             old_state = record.state
             threshold = T1_CIRCUIT_BREAKER_FAILURES if tier == 1 else 2
-            if record.consecutive_first_token_failures >= threshold:
+            if (tier == 1 and is_severe_timeout) or record.consecutive_first_token_failures >= threshold:
                 new_state = ProviderHealthState.OPEN_CIRCUIT
             else:
                 new_state = ProviderHealthState.DEGRADED
@@ -552,6 +614,7 @@ class AdaptiveRouter:
             1: ProviderHealthRecord(tier=1, provider=TIER1_PROVIDER, model=TIER1_MODEL),
             2: ProviderHealthRecord(tier=2, provider=TIER2_PROVIDER, model=TIER2_MODEL),
             3: ProviderHealthRecord(tier=3, provider=TIER3_PROVIDER, model=TIER3_MODEL),
+            4: ProviderHealthRecord(tier=4, provider=TIER4_PROVIDER, model=TIER4_MODEL),
         }
         self.telemetry = AdaptiveRoutingTelemetry()
 

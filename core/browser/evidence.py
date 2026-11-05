@@ -272,6 +272,24 @@ class BrowserEvidenceValidator:
                 f"Invalid or missing tested URL in evidence: '{evidence.tested_url}'."
             )
 
+        # 11. Screenshot File Integrity Check
+        shots_to_check = []
+        shot_main = evidence.details.get("screenshot") or evidence.details.get("screenshot_path")
+        if shot_main:
+            shots_to_check.append(shot_main)
+        for vp in viewports:
+            if isinstance(vp, dict) and vp.get("screenshot"):
+                shots_to_check.append(vp["screenshot"])
+        for s_path in shots_to_check:
+            p = Path(s_path)
+            if not p.is_absolute():
+                p = ws / s_path
+            if not p.exists() or p.stat().st_size == 0:
+                return (
+                    BrowserEvidenceLifecycle.FAILED,
+                    f"Screenshot evidence missing: file '{p.name}' does not exist on disk or is 0 bytes."
+                )
+
         return (
             BrowserEvidenceLifecycle.PASSED,
             "Authoritative browser verification evidence passed all integrity, freshness, and behavioral checks."

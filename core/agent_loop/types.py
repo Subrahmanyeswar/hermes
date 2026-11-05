@@ -319,6 +319,7 @@ class AgentLoopConfig:
             object.__setattr__(self, "max_wall_time_seconds", min(self.max_wall_time_seconds, 300.0))
         elif WebsiteMvpGate.is_website_mission(prompt, workspace_root=ws, written_files=written_files) or (len(prompt) > 600):
             object.__setattr__(self, "max_turns", self.website_max_turns)
+            object.__setattr__(self, "max_wall_time_seconds", max(self.max_wall_time_seconds, 1200.0))
         else:
             object.__setattr__(self, "max_turns", DEFAULT_MISSION_MAX_TURNS)
         return self.max_turns

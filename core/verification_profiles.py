@@ -173,7 +173,8 @@ class VerificationProfileEvaluator:
                 summary="Workspace directory does not exist",
             )
         # 1. Identify genuine output artifacts mentioned in prompt (excluding libraries, runtimes, URLs)
-        target_files = extract_target_artifacts(prompt, written_files=written_files)
+        existing_written = {f for f in written_files if (workspace_root / f).exists()} if written_files else None
+        target_files = extract_target_artifacts(prompt, written_files=existing_written)
         if not target_files:
             target_files = list(written_files) if written_files else ["smoke_test.html", "README.md"]
         IGNORE_PARTS = frozenset({
@@ -569,7 +570,8 @@ class VerificationProfileEvaluator:
             elif not has_three_init:
                 issues.append("Three.js runtime uninitialized: entrypoint does not initialize Scene, Camera, or WebGLRenderer.")
         # 9. Check explicit additional output artifacts if requested (excluding index.html)
-        target_artifacts = extract_target_artifacts(prompt, written_files=written_files)
+        existing_written = {f for f in written_files if (workspace_root / f).exists()} if written_files else None
+        target_artifacts = extract_target_artifacts(prompt, written_files=existing_written)
         for artifact in target_artifacts:
             if artifact.lower() != "index.html":
                 art_path = workspace_root / artifact
@@ -577,18 +579,18 @@ class VerificationProfileEvaluator:
                     issues.append(f"Expected file '{artifact}' not found in workspace")
                 elif art_path.stat().st_size == 0:
                     issues.append(f"File '{artifact}' is empty (0 bytes)")
-        # 10. Check build result if package.json has build script
+        # 10. Check build and test script integrity in package.json
         pkg_json = workspace_root / "package.json"
         if pkg_json.exists():
             try:
                 pkg_data = json.loads(pkg_json.read_text(encoding="utf-8", errors="ignore"))
                 scripts = pkg_data.get("scripts", {})
+                if "test" in scripts:
+                    test_cmd = str(scripts["test"]).lower()
+                    if ("echo" in test_cmd and "exit 0" in test_cmd) or "no test specified" in test_cmd:
+                        issues.append(f"package.json test script '{scripts['test']}' is a dummy/fake test and is rejected as acceptance evidence.")
                 if "build" in scripts:
                     checks_run.append("build_check")
-                    # If build output directory or build status is recorded
-                    dist_dir = workspace_root / "dist"
-                    # Note: we can verify build if dist exists or check if build failed
-                    pass
             except Exception:
                 pass
         # 11. Cross-file Frontend Contract Validation
@@ -614,12 +616,27 @@ class VerificationProfileEvaluator:
         if demands_imagery:
             checks_run.append("imagery_demand_check")
             img_files = list(workspace_root.glob("assets/images/**/*.*")) + list(workspace_root.glob("images/**/*.*"))
-            valid_imgs = [
-                img for img in img_files
-                if img.is_file() and img.suffix.lower() in (".jpg", ".jpeg", ".png", ".webp", ".svg") and img.stat().st_size > 0
-            ]
-            if not valid_imgs:
-                issues.append("Visual asset requirement failed: Prompt demands photography and image cards, but zero image files exist in workspace assets.")
+            has_photo_verified = False
+            for img in img_files:
+                if img.is_file() and img.stat().st_size > 0:
+                    st, _ = AssetPipeline.verify_image_file(img)
+                    if st.value == "PHOTOGRAPH_VERIFIED":
+                        has_photo_verified = True
+                        break
+            if not has_photo_verified:
+                issues.append("Visual asset requirement failed: Prompt demands photography and image cards, but zero verified decodable photographs exist in workspace assets.")
+
+        # 14. Mandatory Acceptance Gate Integrity Check
+        acc_file = workspace_root / ".hermes" / "acceptance_evidence.json"
+        if acc_file.exists():
+            try:
+                acc_ev = json.loads(acc_file.read_text(encoding="utf-8"))
+                if acc_ev.get("status") == "NOT_RUN":
+                    issues.append("Mandatory acceptance check status is NOT_RUN; Profile C cannot pass with unresolved mandatory checks.")
+                elif acc_ev.get("status") == "FAIL":
+                    issues.append(f"Recorded browser acceptance check failed: {'; '.join(acc_ev.get('issues', ['Acceptance check failed']))}")
+            except Exception:
+                pass
         passed = len(issues) == 0
         summary = (
             f"Profile C passed: Verified web application deliverables (index.html, styles, scripts, canvas/3D runtime)."

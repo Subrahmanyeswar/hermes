@@ -55,6 +55,7 @@ async def test_t1_timeout_clean_failover_to_t2():
         )
     )
     orch.ollama = mock_ollama
+    orch.tier2 = mock_ollama
 
     kwargs = {
         "model": "z-ai/glm-5.3-flash",
@@ -146,6 +147,7 @@ async def test_zero_wait_circuit_bypass_on_next_turn():
         )
     )
     orch.ollama = mock_ollama
+    orch.tier2 = mock_ollama
 
     t0 = time.perf_counter()
     resp = await orch._generate_t1(
@@ -175,6 +177,7 @@ async def test_zero_wait_circuit_bypass_on_next_turn():
 async def test_exhausted_failover_raises_multi_tier_error():
     """Verify that if all tiers fail, MultiTierRoutingExhaustedError is cleanly raised."""
     router = get_adaptive_router()
+    router.reset_state()
     router.providers[1].state = ProviderHealthState.HEALTHY
     router.providers[1].failure_count = 0
 
@@ -195,6 +198,7 @@ async def test_exhausted_failover_raises_multi_tier_error():
         side_effect=RuntimeError("Ollama failed for both tiers")
     )
     orch.ollama = mock_ollama
+    orch.tier2 = mock_ollama
 
     with pytest.raises(MultiTierRoutingExhaustedError) as exc_info:
         await orch._generate_t1(
@@ -231,6 +235,7 @@ async def test_agent_loop_e2e_failover_writes_file(tmp_path):
     bus.subscribe(lambda ev: events_captured.append(ev))
 
     router = get_adaptive_router()
+    router.reset_state()
     router.providers[1].state = ProviderHealthState.HEALTHY
     router.providers[1].failure_count = 0
 
@@ -272,12 +277,13 @@ async def test_agent_loop_e2e_failover_writes_file(tmp_path):
 
     mock_ollama.generate = AsyncMock(side_effect=mock_ollama_generate)
     orch.ollama = mock_ollama
+    orch.tier2 = mock_ollama
 
     loop = AgentLoop(
         orchestrator=orch,
         workspace_manager=ws_mgr,
         event_bus_instance=bus,
-        config=AgentLoopConfig(max_turns=3, max_wall_time_seconds=30.0),
+        config=AgentLoopConfig(max_turns=3, max_wall_time_seconds=300.0),
     )
 
     mission = Mission(

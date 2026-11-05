@@ -478,7 +478,7 @@ class BashExecTool(BaseTool):
 
         # Intercept persistent HTTP dev server commands to prevent blocking the agent loop
         cmd_clean = inp.command.strip().lower()
-        if "http.server" in cmd_clean:
+        if any(k in cmd_clean for k in ("http.server", "npx serve", "serve .", "live-server", "python3 -m http.server")) or (("npm start" in cmd_clean or "yarn start" in cmd_clean) and ("server" in cmd_clean or "preview" in cmd_clean)):
             from core.browser.dev_server import DevServerManager
             from tools.browser_tools import _run_async
 
@@ -524,6 +524,10 @@ class BashExecTool(BaseTool):
         command_to_run = _command_for_platform(inp.command, cwd=work_dir)
         is_windows = sys.platform == "win32" or Path("C:/Windows").exists()
         if is_windows:
+            # Strip trailing POSIX background operator '&' on Windows to prevent syntax/hanging errors
+            trimmed_cmd = command_to_run.rstrip()
+            if trimmed_cmd.endswith("&") and not trimmed_cmd.endswith("&&"):
+                command_to_run = trimmed_cmd[:-1].strip()
             shell_used = "powershell" if command_to_run.lower().startswith("powershell") else "cmd.exe"
         else:
             shell_used = "/bin/sh"
@@ -1003,3 +1007,8 @@ class RunTestsTool(BaseTool):
             exit_code=result_returncode,
             duration_seconds=duration,
         )
+
+
+# Convenience aliases
+ShellInput = BashExecTool.Input
+execute_shell_command = BashExecTool().execute
