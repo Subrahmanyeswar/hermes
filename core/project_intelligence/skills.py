@@ -248,11 +248,7 @@ class SkillEngine:
             "destinations", "packages"
         ])
 
-        # Task category classification for mandatory UI bundle vs fast-path landing pages vs backend/script
-        is_plain_landing_page = (
-            "clean html5 and semantic styling" in task_lower or
-            "static landing page with html, css, and vanilla js" in task_lower
-        )
+        # Task category classification for mandatory UI bundle vs narrow tweaks vs backend/script
         is_narrow_css_tweak = bool(re.search(
             r"\badjust\s+(?:the\s+)?spacing\b|\bwithout\s+(?:changing\s+the\s+design|redesigning)\b",
             task_lower
@@ -273,7 +269,6 @@ class SkillEngine:
         is_ui_mission = (
             has_ui_mission_intent and
             not has_no_ui and
-            not is_plain_landing_page and
             not is_narrow_css_tweak and
             not is_shell_or_ops and
             not is_pure_non_ui
@@ -600,8 +595,8 @@ class SkillEngine:
                 elif has_powershell_intent or has_windows_exec or (has_shell_ops and "windows" in task_lower):
                     score += 0.65
                     score_reasons.append("PowerShell / Windows execution environment detected")
-                elif sys.platform == "win32" and has_shell_ops and not has_linux_exec and not has_bash_intent:
-                    score += 0.50
+                elif sys.platform == "win32" and (has_shell_ops or "shell" in task_lower or "script" in task_lower or "command" in task_lower or "exec" in task_lower) and not has_linux_exec and not has_bash_intent:
+                    score += 0.55
                     score_reasons.append("Windows platform environment with shell operations")
                 if any(f.endswith(".ps1") for f in ws_files) or "powershell" in ws_framework:
                     score += 0.30
@@ -611,6 +606,9 @@ class SkillEngine:
                 if has_powershell_intent or has_windows_exec or (has_shell_ops and "windows" in task_lower):
                     score = min(score, 0.15)
                     rejected.append((name, "Windows/PowerShell execution specified; suppressing Bash scripting"))
+                elif sys.platform == "win32" and not has_bash_intent and not has_linux_exec:
+                    score = min(score, 0.15)
+                    rejected.append((name, "Windows execution environment; bash-scripting routed only for genuine Bash/POSIX execution"))
                 elif has_bash_intent or has_linux_exec:
                     score += 0.65
                     score_reasons.append("Bash / Linux shell scripting intent detected")
@@ -647,10 +645,12 @@ class SkillEngine:
             has_explicit_vanilla = bool(re.search(r"\bvanilla\b", task_lower)) and not has_no_vanilla
             if (has_react_intent or "react" in ws_framework) and not has_no_react and not has_explicit_vanilla:
                 primary_tech = "react-frontend"
-            else:
+            elif not has_no_vanilla:
                 primary_tech = "vanilla-web"
+            else:
+                primary_tech = None
 
-            mandatory_foundation = list(core_ui) + [primary_tech]
+            mandatory_foundation = list(core_ui) + ([primary_tech] if primary_tech else [])
             # Ensure high qualifying scores and positive reasons for mandatory foundation
             for m_name in mandatory_foundation:
                 scores[m_name] = max(scores.get(m_name, 0.0), 0.88)
@@ -692,7 +692,7 @@ class SkillEngine:
 
             # Domain-critical skill preservation (Part 8)
             # For vanilla web missions, vanilla-web is domain-critical and must not be pruned out
-            if (has_vanilla_intent or any(f.endswith((".html", ".css", ".js")) for f in ws_files)) and not has_react_intent:
+            if (has_vanilla_intent or any(f.endswith((".html", ".css", ".js")) for f in ws_files)) and not has_react_intent and not has_no_vanilla:
                 if any(name == "vanilla-web" for name, _ in qualifying) and "vanilla-web" not in selected_names:
                     if selected_names:
                         displaced = selected_names.pop()

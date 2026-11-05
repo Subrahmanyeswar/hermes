@@ -387,7 +387,9 @@ class FrontendContractValidator:
         browser_eval_data: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """
-        Performs browser-level visual QA and DOM presentation verification:
+        Performs genuine browser-level visual QA and DOM presentation verification.
+        When actual browser evidence is unavailable, marks checks NOT_RUN rather than falsely passing them.
+        When browser evidence is provided (CDP / acceptance_evidence.json), evaluates:
         - horizontal overflow at mobile widths (scrollWidth <= clientWidth)
         - rendered component styling (buttons, cards, headers display and visibility)
         - navigation behavior (nav links with hrefs or click listeners)
@@ -398,6 +400,45 @@ class FrontendContractValidator:
         - browser console errors (zero uncaught exceptions)
         """
         ws = Path(workspace_root).resolve()
+
+        # Attempt to load acceptance evidence if not explicitly passed
+        if browser_eval_data is None:
+            for candidate in [
+                ws / ".hermes" / "acceptance_evidence.json",
+                ws / "acceptance_evidence.json",
+                ws / "artifacts" / "browser_acceptance_evidence.json",
+            ]:
+                if candidate.exists():
+                    try:
+                        loaded = json.loads(candidate.read_text(encoding="utf-8", errors="replace"))
+                        if isinstance(loaded, dict):
+                            browser_eval_data = loaded
+                            break
+                    except Exception:
+                        pass
+
+        # If actual browser evidence is unavailable, mark checks NOT_RUN
+        if not browser_eval_data:
+            check_keys = [
+                "no_horizontal_overflow",
+                "rendered_component_styling",
+                "navigation_behavior",
+                "images_loaded",
+                "modal_dimensions_and_behavior",
+                "form_control_presentation",
+                "responsive_card_layouts",
+                "zero_console_errors",
+            ]
+            checks = {k: "NOT_RUN" for k in check_keys}
+            return {
+                "passed": False,
+                "checks": checks,
+                "issues": ["Browser evidence unavailable; real browser visual and functional QA was NOT_RUN."],
+                "visual_qa_status": "NOT_RUN",
+                "functional_qa_status": "NOT_RUN",
+            }
+
+        # Real browser evidence is available: perform rigorous evaluation
         checks: Dict[str, bool] = {
             "no_horizontal_overflow": True,
             "rendered_component_styling": True,
@@ -410,94 +451,94 @@ class FrontendContractValidator:
         }
         issues: List[str] = []
 
-        if browser_eval_data:
-            console_errs = browser_eval_data.get("console_errors", [])
-            if console_errs:
-                checks["zero_console_errors"] = False
-                issues.append(f"Browser console errors detected: {console_errs[:2]}")
+        # 1. Console errors
+        console_errs = browser_eval_data.get("console_errors", [])
+        console_audit = browser_eval_data.get("console_audit", {})
+        uncaught_count = console_audit.get("uncaught_errors", 0) if isinstance(console_audit, dict) else 0
+        if console_errs or uncaught_count > 0 or browser_eval_data.get("zero_console_errors") is False:
+            checks["zero_console_errors"] = False
+            issues.append(f"Browser console errors detected: {console_errs[:2] if console_errs else uncaught_count}")
 
-            if browser_eval_data.get("has_horizontal_overflow", False):
-                checks["no_horizontal_overflow"] = False
-                issues.append("Horizontal overflow detected at mobile viewport (scrollWidth > clientWidth).")
+        # 2. Horizontal overflow at mobile viewport
+        if (
+            browser_eval_data.get("has_horizontal_overflow", False) or
+            browser_eval_data.get("horizontal_overflow", False) or
+            browser_eval_data.get("no_horizontal_overflow") is False
+        ):
+            checks["no_horizontal_overflow"] = False
+            issues.append("Horizontal overflow detected at mobile viewport (scrollWidth > clientWidth).")
 
-            broken_imgs = browser_eval_data.get("broken_images", [])
-            if broken_imgs:
-                checks["images_loaded"] = False
-                issues.append(f"Broken image assets detected (naturalWidth == 0): {broken_imgs[:2]}")
+        # 3. Image loading & naturalWidth > 0
+        broken_imgs = browser_eval_data.get("broken_images", [])
+        images_list = browser_eval_data.get("images", [])
+        broken_from_images = [
+            img.get("src", "unknown") for img in images_list
+            if isinstance(img, dict) and (img.get("naturalWidth", 1) <= 0 or img.get("complete") is False)
+        ]
+        if broken_imgs or broken_from_images or browser_eval_data.get("images_loaded") is False:
+            checks["images_loaded"] = False
+            issues.append(f"Broken image assets detected (naturalWidth == 0): {broken_imgs or broken_from_images}")
 
-            if not browser_eval_data.get("components_styled", True):
-                checks["rendered_component_styling"] = False
-                issues.append("Rendered component styling check failed (unrendered/unstyled elements).")
+        # 4. Rendered component styling
+        if (
+            not browser_eval_data.get("components_styled", True) or
+            browser_eval_data.get("rendered_component_styling") is False
+        ):
+            checks["rendered_component_styling"] = False
+            issues.append("Rendered component styling check failed (unrendered/unstyled elements).")
 
-            if not browser_eval_data.get("navigation_valid", True):
-                checks["navigation_behavior"] = False
-                issues.append("Navigation links missing or unclickable.")
+        # 5. Navigation behavior
+        if (
+            not browser_eval_data.get("navigation_valid", True) or
+            browser_eval_data.get("navigation_behavior") is False
+        ):
+            checks["navigation_behavior"] = False
+            issues.append("Navigation links missing or unclickable.")
 
-            if not browser_eval_data.get("modal_valid", True):
-                checks["modal_dimensions_and_behavior"] = False
-                issues.append("Modal dialog missing required dimensions or fixed positioning.")
+        # 6. Modal dimensions and behavior
+        if (
+            not browser_eval_data.get("modal_valid", True) or
+            browser_eval_data.get("modal_dimensions_and_behavior") is False
+        ):
+            checks["modal_dimensions_and_behavior"] = False
+            issues.append("Modal dialog missing required dimensions or fixed positioning.")
 
-            if not browser_eval_data.get("form_controls_valid", True):
-                checks["form_control_presentation"] = False
-                issues.append("Form controls lack proper styling or accessibility labels.")
+        # 7. Form control presentation
+        if (
+            not browser_eval_data.get("form_controls_valid", True) or
+            browser_eval_data.get("form_control_presentation") is False
+        ):
+            checks["form_control_presentation"] = False
+            issues.append("Form controls lack proper styling or accessibility labels.")
 
-            if not browser_eval_data.get("card_layout_responsive", True):
-                checks["responsive_card_layouts"] = False
-                issues.append("Card layout does not adapt responsively.")
-        else:
-            validator = cls(ws)
-            html_files, css_files, js_files = validator._find_files()
-            html_text = validator._read_content(html_files)
-            css_text = validator._read_content(css_files)
-            js_text = validator._read_content(js_files)
+        # 8. Responsive card layouts
+        if (
+            not browser_eval_data.get("card_layout_responsive", True) or
+            browser_eval_data.get("responsive_card_layouts") is False
+        ):
+            checks["responsive_card_layouts"] = False
+            issues.append("Card layout does not adapt responsively.")
 
-            if css_text and not re.search(r'overflow-x\s*:\s*hidden', css_text, re.I):
-                checks["no_horizontal_overflow"] = False
-                issues.append("Missing 'overflow-x: hidden' safeguard on body/container to prevent mobile horizontal overflow.")
+        # Incorporate existing top-level issues if failed
+        if browser_eval_data.get("passed") is False:
+            for iss in browser_eval_data.get("issues", []):
+                if iss not in issues:
+                    issues.append(iss)
 
-            if html_text and '<meta' in html_text and not re.search(r'viewport', html_text, re.I):
-                checks["no_horizontal_overflow"] = False
-                issues.append("Missing <meta name='viewport'> tag for mobile responsive scaling.")
+        passed = len(issues) == 0 and all(v is True for v in checks.values())
 
-            imgs = re.findall(r'<img\s+[^>]*>', html_text, re.I)
-            if imgs and any('alt=' not in img.lower() for img in imgs):
-                checks["images_loaded"] = False
-                issues.append("Images detected without required alt attributes.")
-
-            if '<nav' in html_text.lower():
-                nav_links = re.findall(r'<a\s+[^>]*href=["\']([^"\']*)["\']', html_text, re.I)
-                if not nav_links and not re.search(r"addEventListener\(\s*['\"]click['\"]", js_text):
-                    checks["navigation_behavior"] = False
-                    issues.append("Navigation container has no navigable links or click event listeners.")
-
-            if re.search(r'\b(?:modal|dialog)\b', html_text, re.I):
-                if not re.search(r'position\s*:\s*fixed', css_text, re.I) or not re.search(r'z-index\s*:', css_text, re.I):
-                    checks["modal_dimensions_and_behavior"] = False
-                    issues.append("Modal structure detected but lacks fixed positioning or z-index in CSS.")
-
-            if '<form' in html_text.lower() or '<input' in html_text.lower():
-                if not re.search(r'(?:input|form-control|btn)\s*\{', css_text, re.I) and not re.search(r'padding\s*:', css_text, re.I):
-                    checks["form_control_presentation"] = False
-                    issues.append("Form inputs or buttons lack presentation styling rules.")
-
-            if 'card' in html_text.lower():
-                if not re.search(r'display\s*:\s*(?:grid|flex)', css_text, re.I):
-                    checks["responsive_card_layouts"] = False
-                    issues.append("Card elements lack CSS grid or flexbox responsive container rules.")
-
-        passed = len(issues) == 0
         visual_qa = "PASS" if (
-            checks["no_horizontal_overflow"] and
-            checks["rendered_component_styling"] and
-            checks["modal_dimensions_and_behavior"] and
-            checks["responsive_card_layouts"] and
-            checks["form_control_presentation"]
+            checks["no_horizontal_overflow"] is True and
+            checks["rendered_component_styling"] is True and
+            checks["modal_dimensions_and_behavior"] is True and
+            checks["responsive_card_layouts"] is True and
+            checks["form_control_presentation"] is True
         ) else "FAIL"
 
         functional_qa = "PASS" if (
-            checks["navigation_behavior"] and
-            checks["images_loaded"] and
-            checks["zero_console_errors"]
+            checks["navigation_behavior"] is True and
+            checks["images_loaded"] is True and
+            checks["zero_console_errors"] is True
         ) else "FAIL"
 
         return {

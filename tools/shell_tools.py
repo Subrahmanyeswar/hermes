@@ -358,6 +358,43 @@ def _command_for_platform(command: str, cwd: Optional[Path] = None) -> str:
     return result
 
 
+def _parse_npm_command_details(command: str, work_dir: Path) -> tuple[bool, Optional[str], Path]:
+    """
+    Parses npm command to detect if it runs a script (e.g. test or run <script>),
+    and resolves the effective directory respecting any --prefix argument.
+    Returns: (is_script_run, script_name, effective_dir)
+    """
+    cmd_clean = command.strip()
+    if not re.search(r"\bnpm(?:\.cmd|\.exe)?\b", cmd_clean, re.I):
+        return False, None, work_dir
+
+    # Extract --prefix if present: --prefix <dir>, --prefix=<dir>, --prefix "<dir>", --prefix '<dir>'
+    prefix_match = re.search(r'''--prefix(?:=|\s+)(?:"([^"]+)"|'([^']+)'|([^\s]+))''', cmd_clean)
+    if prefix_match:
+        prefix_val = prefix_match.group(1) or prefix_match.group(2) or prefix_match.group(3)
+        effective_dir = (work_dir / prefix_val).resolve()
+    else:
+        effective_dir = work_dir.resolve()
+
+    # Strip --prefix parameter to easily match the subcommand and arguments
+    cmd_no_prefix = re.sub(r'''--prefix(?:=|\s+)(?:"[^"]*"|'[^']*'|[^\s]+)''', '', cmd_clean)
+
+    # Check for npm test / npm t / npm tst / npm run test / npm run-script test
+    if re.search(r"\bnpm(?:\.cmd|\.exe)?\s+(?:run(?:-script)?\s+)?(?:test|t|tst)\b", cmd_no_prefix, re.I):
+        return True, "test", effective_dir
+
+    # Check for npm run <script> / npm run-script <script>
+    run_match = re.search(r"\bnpm(?:\.cmd|\.exe)?\s+(?:run(?:-script)?)\s+([a-zA-Z0-9_\-:]+)", cmd_no_prefix, re.I)
+    if run_match:
+        return True, run_match.group(1), effective_dir
+
+    # Check for npm start
+    if re.search(r"\bnpm(?:\.cmd|\.exe)?\s+start\b", cmd_no_prefix, re.I):
+        return True, "start", effective_dir
+
+    return False, None, effective_dir
+
+
 @tool(
     name="bash_exec",
     description="Execute any shell command (pip install, git log, wc -l, echo, curl, grep, find, pwd, ls). Use this for installing packages, viewing git history, counting lines in a file, checking ports, and any system command that is not running a .py file or pytest.",
@@ -483,20 +520,27 @@ class BashExecTool(BaseTool):
                     duration_seconds=time.monotonic() - start_time,
                 )
 
+        # Determine platform command and runtime shell used
+        command_to_run = _command_for_platform(inp.command, cwd=work_dir)
+        is_windows = sys.platform == "win32" or Path("C:/Windows").exists()
+        if is_windows:
+            shell_used = "powershell" if command_to_run.lower().startswith("powershell") else "cmd.exe"
+        else:
+            shell_used = "/bin/sh"
+
         # Command safety: Inspect package.json before executing npm commands (especially npm test)
         # Prevents running missing scripts and accepting fake zero exit codes
-        is_npm_test = bool(re.search(r"\bnpm\s+(?:run\s+)?test\b|\bnpm\s+t\b", inp.command, re.IGNORECASE))
-        is_npm_run = re.search(r"\bnpm\s+run\s+([a-zA-Z0-9_\-:]+)", inp.command, re.IGNORECASE)
+        is_npm_script, req_script, effective_dir = _parse_npm_command_details(inp.command, work_dir)
 
-        if is_npm_test or is_npm_run:
-            pkg_json = work_dir / "package.json"
+        if is_npm_script:
+            pkg_json = effective_dir / "package.json"
             if not pkg_json.exists():
                 duration = time.monotonic() - start_time
                 err_msg = (
                     f"Execution blocked: Cannot execute '{inp.command}' because 'package.json' "
-                    f"does not exist in working directory '{work_dir}'."
+                    f"does not exist in project directory '{effective_dir}'."
                 )
-                logger.warning(f"bash_exec SAFETY_BLOCKED | cmd={inp.command!r} | reason=missing package.json")
+                logger.warning(f"bash_exec SAFETY_BLOCKED | cmd={inp.command!r} | reason=missing package.json at {effective_dir}")
                 return ToolResult(
                     success=False,
                     output="",
@@ -506,6 +550,8 @@ class BashExecTool(BaseTool):
                     details={
                         "command": inp.command,
                         "cwd": str(work_dir),
+                        "effective_dir": str(effective_dir),
+                        "shell_used": shell_used,
                         "classification": "MISSING_PACKAGE_JSON",
                         "package_json_inspected": True,
                         "package_json_found": False,
@@ -516,11 +562,11 @@ class BashExecTool(BaseTool):
             try:
                 pkg_data = json.loads(pkg_json.read_text(encoding="utf-8", errors="replace"))
                 scripts = pkg_data.get("scripts", {})
-                if is_npm_test:
+                if req_script == "test":
                     if "test" not in scripts or not str(scripts.get("test", "")).strip():
                         duration = time.monotonic() - start_time
                         err_msg = (
-                            f"Execution blocked: Cannot execute 'npm test' because no 'test' script is defined "
+                            f"Execution blocked: Cannot execute '{inp.command}' because no 'test' script is defined "
                             f"in package.json at '{pkg_json}'. Defined scripts: {list(scripts.keys())}."
                         )
                         logger.warning(f"bash_exec SAFETY_BLOCKED | cmd={inp.command!r} | reason=missing test script in package.json")
@@ -533,19 +579,20 @@ class BashExecTool(BaseTool):
                             details={
                                 "command": inp.command,
                                 "cwd": str(work_dir),
+                                "effective_dir": str(effective_dir),
+                                "shell_used": shell_used,
                                 "classification": "MISSING_TEST_SCRIPT",
                                 "package_json_inspected": True,
                                 "package_json_found": True,
                                 "defined_scripts": list(scripts.keys()),
                             },
                         )
-                elif is_npm_run:
-                    req_script = is_npm_run.group(1)
-                    if req_script not in scripts:
+                else:
+                    if req_script not in scripts or not str(scripts.get(req_script, "")).strip():
                         duration = time.monotonic() - start_time
                         err_msg = (
-                            f"Execution blocked: Cannot execute 'npm run {req_script}' because script '{req_script}' "
-                            f"is not defined in package.json. Defined scripts: {list(scripts.keys())}."
+                            f"Execution blocked: Cannot execute '{inp.command}' because script '{req_script}' "
+                            f"is not defined in package.json at '{pkg_json}'. Defined scripts: {list(scripts.keys())}."
                         )
                         logger.warning(f"bash_exec SAFETY_BLOCKED | cmd={inp.command!r} | reason=missing '{req_script}' script")
                         return ToolResult(
@@ -557,6 +604,8 @@ class BashExecTool(BaseTool):
                             details={
                                 "command": inp.command,
                                 "cwd": str(work_dir),
+                                "effective_dir": str(effective_dir),
+                                "shell_used": shell_used,
                                 "classification": "MISSING_NPM_SCRIPT",
                                 "package_json_inspected": True,
                                 "package_json_found": True,
@@ -566,7 +615,7 @@ class BashExecTool(BaseTool):
                         )
             except Exception as parse_err:
                 duration = time.monotonic() - start_time
-                err_msg = f"Execution blocked: Could not parse package.json: {parse_err}"
+                err_msg = f"Execution blocked: Could not parse package.json at '{pkg_json}': {parse_err}"
                 return ToolResult(
                     success=False,
                     output="",
@@ -576,6 +625,8 @@ class BashExecTool(BaseTool):
                     details={
                         "command": inp.command,
                         "cwd": str(work_dir),
+                        "effective_dir": str(effective_dir),
+                        "shell_used": shell_used,
                         "classification": "INVALID_PACKAGE_JSON",
                         "package_json_inspected": True,
                     },
@@ -583,7 +634,7 @@ class BashExecTool(BaseTool):
 
         proc = None
         try:
-            command_to_run = _command_for_platform(inp.command)
+
             from core.runtime_identity import get_canonical_subprocess_env
             proc = subprocess.Popen(
                 command_to_run,
@@ -666,7 +717,9 @@ class BashExecTool(BaseTool):
         details = {
             "command": inp.command,
             "cmd_to_run": command_to_run,
+            "shell_used": shell_used,
             "cwd": str(work_dir),
+            "effective_dir": str(effective_dir if is_npm_script else work_dir),
             "pid": getattr(proc, "pid", None),
             "exit_code": exit_code,
             "duration_seconds": duration,

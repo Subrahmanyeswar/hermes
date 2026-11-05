@@ -116,7 +116,7 @@ def test_scenario_a_vanilla_web(canonical_skill_engine):
     decision = canonical_skill_engine.route_skills(prompt)
 
     assert not decision.is_fallback
-    assert decision.selected_skills == ["vanilla-web"]
+    assert "vanilla-web" in decision.selected_skills
     assert "react-frontend" not in decision.selected_skills
     assert "screenshot-to-code" not in decision.selected_skills
     assert decision.candidate_scores.get("vanilla-web", 0) > 0.3

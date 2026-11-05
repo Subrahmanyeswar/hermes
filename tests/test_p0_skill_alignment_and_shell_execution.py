@@ -354,3 +354,166 @@ def test_req15_browser_level_visual_qa_checks(temp_workspace):
     assert qa_result["checks"]["images_loaded"] is False
     assert qa_result["visual_qa_status"] == "FAIL"
     assert qa_result["functional_qa_status"] == "FAIL"
+
+
+# ==============================================================================
+# 16. Mandatory UI Foundation On Simple Websites Without Landing Page Exception
+# ==============================================================================
+
+def test_req16_mandatory_ui_bundle_applied_on_simple_websites(skill_engine):
+    """Req 16: Simple website missions receive the full mandatory UI foundation bundle."""
+    prompt = "Build a static single-page cafe landing page using clean HTML5 and semantic styling"
+    decision = skill_engine.route_skills(prompt)
+
+    assert not decision.is_fallback
+    assert "taste-design" in decision.selected_skills
+    assert "design-engineering" in decision.selected_skills
+    assert "design-system" in decision.selected_skills
+    assert "web-design-guidelines" in decision.selected_skills
+    assert "vanilla-web" in decision.selected_skills
+
+
+# ==============================================================================
+# 17. Negative Technology Constraints: No Vanilla Does Not Force React
+# ==============================================================================
+
+def test_req17_negative_constraint_no_vanilla_does_not_force_react(skill_engine):
+    """Req 17: Respect has_no_vanilla; never force vanilla-web or introduce React automatically."""
+    prompt = "Create a modern website user interface with no vanilla javascript, pure HTML and CSS only"
+    decision = skill_engine.route_skills(prompt)
+
+    assert "vanilla-web" not in decision.selected_skills
+    assert "react-frontend" not in decision.selected_skills
+    assert "taste-design" in decision.selected_skills
+    assert "design-engineering" in decision.selected_skills
+    assert "design-system" in decision.selected_skills
+    assert "web-design-guidelines" in decision.selected_skills
+
+
+# ==============================================================================
+# 18. Genuine Browser QA: NOT_RUN When Evidence Unavailable
+# ==============================================================================
+
+def test_req18_browser_qa_not_run_when_evidence_unavailable(temp_workspace):
+    """Req 18: In verify_browser_visual_qa(), when actual browser evidence is unavailable, mark checks NOT_RUN."""
+    # Place static files in workspace without any acceptance evidence
+    (temp_workspace / "index.html").write_text("<header><h1>Title</h1></header>", encoding="utf-8")
+    (temp_workspace / "style.css").write_text("body { overflow-x: hidden; }", encoding="utf-8")
+
+    validator = FrontendContractValidator(temp_workspace)
+    qa_result = validator.verify_browser_visual_qa(temp_workspace, browser_eval_data=None)
+
+    assert qa_result["passed"] is False
+    assert qa_result["visual_qa_status"] == "NOT_RUN"
+    assert qa_result["functional_qa_status"] == "NOT_RUN"
+    assert qa_result["checks"]["no_horizontal_overflow"] == "NOT_RUN"
+    assert qa_result["checks"]["zero_console_errors"] == "NOT_RUN"
+    assert qa_result["checks"]["images_loaded"] == "NOT_RUN"
+    assert qa_result["checks"]["rendered_component_styling"] == "NOT_RUN"
+    assert "Browser evidence unavailable" in qa_result["issues"][0]
+
+
+# ==============================================================================
+# 19. Genuine Browser QA: Evaluates acceptance_evidence.json Correctly
+# ==============================================================================
+
+def test_req19_browser_qa_evaluates_acceptance_evidence_file(temp_workspace):
+    """Req 19: Browser QA loads acceptance_evidence.json and performs full evaluations."""
+    hermes_dir = temp_workspace / ".hermes"
+    hermes_dir.mkdir(parents=True, exist_ok=True)
+
+    # Valid acceptance evidence with 0 errors, no overflow, images loaded
+    valid_payload = {
+        "passed": True,
+        "has_horizontal_overflow": False,
+        "console_errors": [],
+        "broken_images": [],
+        "components_styled": True,
+        "navigation_valid": True,
+        "modal_valid": True,
+        "form_controls_valid": True,
+        "card_layout_responsive": True,
+        "images": [{"src": "hero.jpg", "naturalWidth": 1200, "complete": True}],
+    }
+    (hermes_dir / "acceptance_evidence.json").write_text(json.dumps(valid_payload), encoding="utf-8")
+
+    validator = FrontendContractValidator(temp_workspace)
+    qa_result = validator.verify_browser_visual_qa(temp_workspace)
+
+    assert qa_result["passed"] is True
+    assert qa_result["visual_qa_status"] == "PASS"
+    assert qa_result["functional_qa_status"] == "PASS"
+    assert qa_result["checks"]["no_horizontal_overflow"] is True
+    assert qa_result["checks"]["zero_console_errors"] is True
+    assert qa_result["checks"]["images_loaded"] is True
+    assert len(qa_result["issues"]) == 0
+
+
+# ==============================================================================
+# 20. Correct npm Preflight for Nested Projects (--prefix variations)
+# ==============================================================================
+
+def test_req20_nested_npm_preflight_prefix_handling(temp_workspace):
+    """Req 20: Extend npm preflight to correctly resolve package locations for --prefix variations."""
+    tool = BashExecTool()
+    frontend_dir = temp_workspace / "frontend"
+    frontend_dir.mkdir(parents=True, exist_ok=True)
+
+    # A. Missing package.json in nested dir
+    res1 = tool.execute(BashExecTool.Input(
+        command="npm --prefix frontend test",
+        working_dir=str(temp_workspace),
+    ))
+    assert not res1.success
+    assert res1.details["classification"] == "MISSING_PACKAGE_JSON"
+    assert "frontend" in res1.details["effective_dir"]
+
+    # B. Missing 'test' script in nested package.json
+    (frontend_dir / "package.json").write_text(json.dumps({"name": "client", "scripts": {"build": "vite build"}}), encoding="utf-8")
+    res2 = tool.execute(BashExecTool.Input(
+        command="npm --prefix frontend test",
+        working_dir=str(temp_workspace),
+    ))
+    assert not res2.success
+    assert res2.details["classification"] == "MISSING_TEST_SCRIPT"
+
+    # C. Missing custom run script in nested package.json with --prefix=dir
+    res3 = tool.execute(BashExecTool.Input(
+        command="npm --prefix=frontend run lint",
+        working_dir=str(temp_workspace),
+    ))
+    assert not res3.success
+    assert res3.details["classification"] == "MISSING_NPM_SCRIPT"
+
+    # D. Prefix at end of command (npm test --prefix frontend)
+    res4 = tool.execute(BashExecTool.Input(
+        command="npm test --prefix frontend",
+        working_dir=str(temp_workspace),
+    ))
+    assert not res4.success
+    assert res4.details["classification"] == "MISSING_TEST_SCRIPT"
+
+
+# ==============================================================================
+# 21. Accurate Shell Tracking: cmd.exe vs PowerShell
+# ==============================================================================
+
+def test_req21_accurate_shell_tracking_cmd_vs_powershell(temp_workspace):
+    """Req 21: Do not claim PowerShell is used when running via cmd.exe."""
+    tool = BashExecTool()
+
+    # Standard command on Windows runs via cmd.exe
+    res_cmd = tool.execute(BashExecTool.Input(
+        command="echo hello",
+        working_dir=str(temp_workspace),
+    ))
+    if sys.platform == "win32":
+        assert res_cmd.details["shell_used"] == "cmd.exe"
+
+    # Explicit PowerShell cmdlet command translates and identifies powershell
+    res_ps = tool.execute(BashExecTool.Input(
+        command="Get-ChildItem",
+        working_dir=str(temp_workspace),
+    ))
+    if sys.platform == "win32":
+        assert res_ps.details["shell_used"] == "powershell"

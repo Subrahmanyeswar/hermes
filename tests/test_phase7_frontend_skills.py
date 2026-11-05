@@ -134,7 +134,7 @@ def test_negative_activation_plain_html(skill_engine):
     """Ordinary HTML task must NOT activate react-best-practices or react-composition-patterns."""
     prompt = "Build a static single-page cafe landing page using clean HTML5 and semantic styling"
     decision = skill_engine.route_skills(prompt, max_candidates=3)
-    assert decision.selected_skills == ["vanilla-web"]
+    assert "vanilla-web" in decision.selected_skills
     assert "react-best-practices" not in decision.selected_skills
     assert "react-composition-patterns" not in decision.selected_skills
 

@@ -59,7 +59,7 @@ def test_negative_shadcn_plain_html(skill_engine):
     """Plain HTML tasks must NOT activate shadcn-ui."""
     prompt = "Build a static single-page landing site for a cafe with clean HTML"
     decision = skill_engine.route_skills(prompt, max_candidates=3)
-    assert decision.selected_skills == ["vanilla-web"]
+    assert "vanilla-web" in decision.selected_skills
     assert "shadcn-ui" not in decision.selected_skills
 
 
