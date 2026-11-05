@@ -30,6 +30,8 @@ class FrontendValidationReport:
     image_issues: List[Dict[str, Any]] = field(default_factory=list)
     modal_issues: List[Dict[str, Any]] = field(default_factory=list)
     token_issues: List[Dict[str, Any]] = field(default_factory=list)
+    local_asset_issues: List[Dict[str, Any]] = field(default_factory=list)
+    js_selector_issues: List[Dict[str, Any]] = field(default_factory=list)
     browser_verification: Dict[str, Any] = field(default_factory=dict)
     visual_qa_status: str = "PENDING"
     functional_qa_status: str = "PENDING" 
@@ -216,6 +218,8 @@ class FrontendContractValidator:
             ("modal", r'\bclass=["\'][^"\']*\b(modal|dialog|popup)\b[^"\']*["\']', r'\.(?:modal|dialog|popup)\b'),
             ("form_control", r'\bclass=["\'][^"\']*\b(form-input|form-control|form-group)\b[^"\']*["\']', r'\.(?:form-input|form-control|form-group)\b'),
             ("grid", r'\bclass=["\'][^"\']*\b(grid|cards-grid|destinations-grid)\b[^"\']*["\']', r'\.(?:grid|cards-grid|destinations-grid)\b'),
+            ("hero", r'\bclass=["\'][^"\']*\bhero\b[^"\']*["\']', r'\.hero\b'),
+            ("footer", r'\bclass=["\'][^"\']*\b(?:footer|site-footer)\b[^"\']*["\']|<footer\b', r'\.(?:footer|site-footer)\b|footer\s*\{'),
         ]
 
         for comp_name, html_pat, css_pat in critical_components:
@@ -376,6 +380,54 @@ class FrontendContractValidator:
                 "message": "CSS defines tokens in :root but does not reference them via var(--...) across rules.",
             })
 
+        return issues
+
+    # ── 8b. Local Asset Integrity Verification ──────────────────────────────
+
+    @classmethod
+    def validate_local_assets(cls, workspace_root: Path | str) -> List[Dict[str, Any]]:
+        """
+        Scans workspace code files for local image asset references and verifies
+        that every referenced local file exists on disk and is non-empty.
+        """
+        from core.asset_pipeline import AssetPipeline
+        is_ok, missing, found = AssetPipeline.verify_workspace_assets(workspace_root)
+        issues = []
+        for m in missing:
+            issues.append({
+                "type": "MISSING_LOCAL_ASSET",
+                "asset": m,
+                "message": f"Referenced local image asset '{m}' does not exist on disk in workspace.",
+            })
+        return issues
+
+    # ── 8c. JavaScript Selector Contracts ────────────────────────────────────
+
+    @classmethod
+    def validate_js_selector_contracts(cls, html_text: str, js_text: str, css_text: str) -> List[Dict[str, Any]]:
+        """
+        Verifies that JavaScript class queries (.querySelector('.foo'), classList.contains('foo'))
+        match classes present in HTML or dynamically generated templates or CSS.
+        """
+        issues = []
+        js_class_queries = re.findall(r'querySelector(?:All)?\(\s*["\']\.([a-zA-Z0-9_\-]+)["\']\s*\)', js_text)
+        js_classlist_queries = re.findall(r'classList\.(?:contains|add|remove|toggle)\(\s*["\']([a-zA-Z0-9_\-]+)["\']\s*\)', js_text)
+
+        all_js_classes = set(js_class_queries + js_classlist_queries)
+        excluded = {"active", "hidden", "open", "show", "expanded", "selected", "disabled", "loading", "visible", "fade-in", "modal-open"}
+
+        for cls_name in sorted(all_js_classes):
+            if cls_name in excluded:
+                continue
+            in_html = cls_name in html_text
+            in_css = f".{cls_name}" in css_text
+            in_js_tmpl = f'class=' in js_text and cls_name in js_text
+            if not in_html and not in_css and not in_js_tmpl:
+                issues.append({
+                    "type": "UNKNOWN_JS_CLASS_SELECTOR",
+                    "class_name": cls_name,
+                    "message": f"JavaScript queries '.{cls_name}' but this class does not appear in HTML markup or CSS stylesheets.",
+                })
         return issues
 
     # ── 9. Browser Visual & Functional QA Verification ────────────────────────
@@ -727,6 +779,8 @@ class FrontendContractValidator:
         img_issues = self.validate_image_styling(html_text, css_text)
         modal_issues = self.validate_modal_styling(html_text, css_text)
         token_issues = self.validate_design_system_tokens(css_text)
+        local_asset_issues = self.validate_local_assets(self.workspace_root)
+        js_selector_issues = self.validate_js_selector_contracts(html_text, js_text, css_text)
 
         errors = []
         warnings = []
@@ -739,6 +793,9 @@ class FrontendContractValidator:
         for iss in cat_issues:
             errors.append(iss["message"])
         for iss in css_issues:
+            if iss.get("component") in ("navbar", "card", "modal", "grid", "btn", "form_control", "hero", "footer"):
+                errors.append(iss["message"])
+                continue
             warnings.append(iss["message"])
         for iss in resp_issues:
             if iss.get("type") == "MISSING_RESPONSIVE_MEDIA_QUERIES":
@@ -747,6 +804,14 @@ class FrontendContractValidator:
                 warnings.append(iss["message"])
         for iss in img_issues:
             warnings.append(iss["message"])
+        for iss in js_selector_issues:
+            errors.append(iss["message"])
+        has_assets_presence = (self.workspace_root / ".hermes" / "asset_manifest.json").exists() or (self.workspace_root / "assets").exists() or any("assets/" in iss.get("asset", "") for iss in local_asset_issues)
+        for iss in local_asset_issues:
+            if has_assets_presence:
+                errors.append(iss["message"])
+            else:
+                warnings.append(iss["message"])
         for iss in modal_issues:
             errors.append(iss["message"])
 
@@ -767,6 +832,8 @@ class FrontendContractValidator:
             image_issues=img_issues,
             modal_issues=modal_issues,
             token_issues=token_issues,
+            local_asset_issues=local_asset_issues,
+            js_selector_issues=js_selector_issues,
             browser_verification=b_qa,
             visual_qa_status=b_qa.get("visual_qa_status", "PENDING"),
             functional_qa_status=b_qa.get("functional_qa_status", "PENDING"),

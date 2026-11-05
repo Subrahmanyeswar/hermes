@@ -339,8 +339,10 @@ class CompletionPolicy:
 
                     # For interactive applications, ensure Browser Acceptance & Freshness pass
                     is_interactive_app = any(k in mission_prompt.lower() for k in (
-                        "task", "timer", "habit", "pomodoro", "dashboard", "crud", "interactive", "command center", "full web app"
-                    ))
+                        "task", "timer", "habit", "pomodoro", "dashboard", "crud", "interactive", "command center", "full web app",
+                        "website", "web page", "webpage", "landing page", "travel", "wanderworld", "portfolio", "restaurant", "store", "ui", "frontend", "html"
+                    )) or bool(ws_root and ((ws_root / "index.html").exists() or (ws_root / "package.json").exists()))
+
                     if is_interactive_app:
                         from core.browser.acceptance import BrowserAcceptanceVerifier
                         if BrowserAcceptanceVerifier.is_interactive_web_project(ws_root):

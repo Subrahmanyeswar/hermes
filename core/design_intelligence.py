@@ -34,6 +34,16 @@ class DesignBrief:
     component_styling: Dict[str, str] = field(default_factory=dict)
     image_direction: Dict[str, str] = field(default_factory=dict)
     responsive_breakpoints: Dict[str, str] = field(default_factory=dict)
+    brand_positioning: str = ""
+    layout_strategy: str = ""
+    component_language: Dict[str, str] = field(default_factory=dict)
+    navigation_strategy: str = ""
+    interaction_specs: Dict[str, str] = field(default_factory=dict)
+    asset_plan_requirements: List[str] = field(default_factory=list)
+
+    @property
+    def personality(self) -> str:
+        return self.brand_personality
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)
@@ -44,7 +54,7 @@ class DesignBrief:
             domain=data.get("domain", "modern_editorial"),
             purpose=data.get("purpose", "Web Application"),
             target_audience=data.get("target_audience", "General Public"),
-            brand_personality=data.get("brand_personality", "Clean, modern, professional"),
+            brand_personality=data.get("brand_personality", data.get("personality", "Clean, modern, professional")),
             visual_direction=data.get("visual_direction", "Modern layout with crisp hierarchy"),
             color_palette=dict(data.get("color_palette", {})),
             typography=dict(data.get("typography", {})),
@@ -52,30 +62,96 @@ class DesignBrief:
             component_styling=dict(data.get("component_styling", {})),
             image_direction=dict(data.get("image_direction", {})),
             responsive_breakpoints=dict(data.get("responsive_breakpoints", {})),
+            brand_positioning=data.get("brand_positioning", ""),
+            layout_strategy=data.get("layout_strategy", ""),
+            component_language=dict(data.get("component_language", {})),
+            navigation_strategy=data.get("navigation_strategy", ""),
+            interaction_specs=dict(data.get("interaction_specs", {})),
+            asset_plan_requirements=list(data.get("asset_plan_requirements", [])),
         )
+
+    def persist_artifacts(self, workspace_root: Path | str) -> Tuple[Path, Path]:
+        """
+        Persist design brief into .hermes/design_brief.json and .artifacts/design_brief.md.
+        """
+        ws = Path(workspace_root).resolve()
+        h_dir = ws / ".hermes"
+        h_dir.mkdir(parents=True, exist_ok=True)
+        json_path = h_dir / "design_brief.json"
+        json_path.write_text(json.dumps(self.to_dict(), indent=2), encoding="utf-8")
+
+        art_dir = ws / ".artifacts"
+        art_dir.mkdir(parents=True, exist_ok=True)
+        md_path = art_dir / "design_brief.md"
+        md_path.write_text(self.to_markdown(), encoding="utf-8")
+
+        return json_path, md_path
+
+    def to_markdown(self) -> str:
+        colors_table = "\n".join(f"| `--{k}` | `{v}` |" for k, v in self.color_palette.items())
+        typo_table = "\n".join(f"| {k} | {v} |" for k, v in self.typography.items())
+        comps_table = "\n".join(f"| {k} | {v} |" for k, v in self.component_styling.items())
+        comp_lang_table = "\n".join(f"| {k} | {v} |" for k, v in self.component_language.items())
+        
+        return f"""# Authoritative Design Brief: {self.domain.replace('_', ' ').title()}
+
+## Executive Summary
+- **Domain:** {self.domain}
+- **Brand Personality:** {self.brand_personality}
+- **Brand Positioning:** {self.brand_positioning}
+- **Visual Direction:** {self.visual_direction}
+- **Layout Strategy:** {self.layout_strategy}
+- **Navigation Strategy:** {self.navigation_strategy}
+
+## Color Tokens (:root)
+| CSS Token | Value |
+|---|---|
+{colors_table}
+
+## Typography
+| Property | Value |
+|---|---|
+{typo_table}
+
+## Component Language & Styling
+| Component | Specification |
+|---|---|
+{comp_lang_table or comps_table}
+
+## Responsive Breakpoints
+- Mobile: `{self.responsive_breakpoints.get('mobile_max', '768px')}`
+- Tablet: `{self.responsive_breakpoints.get('tablet_max', '1024px')}`
+- Desktop: `{self.responsive_breakpoints.get('desktop_min', '1025px')}`
+
+## Asset Strategy
+- Object fit: `{self.image_direction.get('object_fit', 'cover')}`
+- Aspect ratios: Hero `{self.image_direction.get('hero_aspect', '16/9')}`, Cards `{self.image_direction.get('aspect_ratio', '4/3')}`
+- Requirements: {', '.join(self.asset_plan_requirements) if self.asset_plan_requirements else 'Pre-provisioned local workspace photography'}
+"""
 
     def to_compact_directive(self) -> str:
         """
-        Produce a compact 10-15 line actionable design directive
-        suitable for model context injection during Phase B and Phase C.
+        Produce a compact, high-density actionable design directive
+        suitable for model context injection during Phase B, Phase C, and Phase D.
         """
-        colors_str = ", ".join(f"{k}: {v}" for k, v in list(self.color_palette.items())[:5])
+        colors_css = ", ".join(f"{k}: {v}" for k, v in list(self.color_palette.items())[:5])
         typo_str = f"Headings: {self.typography.get('heading_font', 'sans-serif')} | Body: {self.typography.get('body_font', 'sans-serif')}"
-        cards_str = f"Radius: {self.component_styling.get('card_radius', '8px')} | Shadow: {self.component_styling.get('card_shadow', 'subtle')} | Border: {self.component_styling.get('card_border', '1px solid')}"
-        img_str = f"Object-fit: {self.image_direction.get('object_fit', 'cover')} | Aspect: {self.image_direction.get('aspect_ratio', '16/9')}"
+        cards_str = f"Radius: {self.component_styling.get('card_radius', '12px')} | Shadow: {self.component_styling.get('card_shadow', '0 4px 20px rgba(0,0,0,0.08)')}"
+        img_str = f"Object-fit: {self.image_direction.get('object_fit', 'cover')} | Card Aspect: {self.image_direction.get('aspect_ratio', '4/3')}"
         
         lines = [
-            "=== AUTHORITATIVE DESIGN BRIEF & UI/UX SPECIFICATION ===",
+            "=== AUTHORITATIVE DESIGN BRIEF & HIGH-FIDELITY UI SPECIFICATION ===",
             f"Domain & Personality: {self.domain.upper()} -- {self.brand_personality}",
             f"Visual Direction: {self.visual_direction}",
-            f"Color Palette: {colors_str}",
+            f"Color Palette: {colors_css}",
             f"Typography: {typo_str}",
-            f"Card & Component Styling: {cards_str}",
-            f"Image Direction: {img_str} (Use relevant section-specific photography; NO full-page oversized images)",
-            f"Spacing & Layout: Container max-width: {self.spacing_system.get('container_max_width', '1200px')} | Gap: {self.spacing_system.get('md', '1.5rem')}",
-            f"Responsive: Mobile breakpoint: {self.responsive_breakpoints.get('mobile_max', '768px')} | Zero horizontal overflow (overflow-x: hidden)",
-            "STRICT PROHIBITIONS: No unstyled browser links, no raw buttons, no missing container classes, no overwriting <section> roots during dynamic JS render.",
-            "=======================================================",
+            f"Card Styling: {cards_str}; Card images must use fixed aspect-ratio and overflow: hidden",
+            f"Photography: {img_str} (Use verified local assets in assets/images/ from manifest)",
+            f"Layout: Container max-width: {self.spacing_system.get('container_max_width', '1200px')} centered; padding: 4rem 1.5rem;",
+            f"Interactive Components: Filter pills with active state, search input, backdrop blur modal, validated booking form;",
+            f"Responsive: Mobile breakpoint {self.responsive_breakpoints.get('mobile_max', '768px')}; Zero horizontal overflow (overflow-x: hidden);",
+            "MANDATE: Every element styled. Zero raw unstyled links/buttons. Never overwrite <section> roots during JS render.",
+            "===================================================================",
         ]
         return "\n".join(lines)
 
@@ -285,6 +361,90 @@ class DesignBriefGenerator:
             "desktop_min": "1025px",
         }
 
+        brand_positionings = {
+            "travel_tourism": "Premier luxury and experiential travel agency showcasing world-class holiday destinations and curated travel packages.",
+            "culinary_restaurant": "Artisanal gastronomy and neighborhood dining experience celebrating organic, locally sourced delicacies.",
+            "saas_tech": "Next-generation developer infrastructure providing intelligent, high-throughput cloud automation.",
+            "automotive_luxury": "High-performance automotive engineering delivering peerless aerodynamics and ultra-luxury performance.",
+            "fintech_commerce": "Next-generation digital banking platform offering secure, borderless capital management.",
+            "education_institution": "World-class educational institution fostering academic excellence and multidisciplinary innovation.",
+            "creative_portfolio": "Award-winning independent design studio crafting digital products, identities, and visual systems.",
+            "modern_editorial": "Sophisticated digital publication delivering incisive cultural commentary and long-form journalism.",
+        }
+
+        layout_strategies = {
+            "travel_tourism": "Cinematic hero with integrated booking/search bar, fluid 1200px container, 3-column responsive destination card grid, 2-column curated package cards, customer review showcase, accessible enquiry form, and rich dark footer.",
+            "culinary_restaurant": "Atmospheric full-width hero, two-column story layout, tabbed multi-course menu grid, table reservation form, and map/contact section.",
+            "saas_tech": "Hero headline with animated code demo or product dashboard mockup, key metric highlight grid, interactive feature comparison, pricing tier cards, and FAQ accordion.",
+            "automotive_luxury": "Dramatic full-screen vehicle hero, interactive model selector, technical performance specifications grid, 360-degree gallery, and bespoke consultation booking.",
+            "fintech_commerce": "Trust-focused hero with security badges, interactive savings/fee calculator, feature card matrix, customer testimonial carousel, and sign-up form.",
+            "education_institution": "Campus hero, program catalog grid, admissions step timeline, faculty profiles, and student inquiry form.",
+            "creative_portfolio": "Asymmetric visual masonry grid, full-bleed case study cards with interactive hover previews, client logo reel, and direct project contact form.",
+            "modern_editorial": "Multi-column magazine layout, lead feature article with prominent photography, curated category sections, and newsletter signup.",
+        }
+
+        navigation_strategies = {
+            "travel_tourism": "Sticky top navigation with smooth scroll anchors to #destinations, #packages, #reviews, #booking.",
+            "culinary_restaurant": "Sticky navigation with smooth scroll to #story, #menu, #reservations, #contact.",
+            "saas_tech": "Fixed header with product links, documentation, pricing anchor, and Sign Up / Demo CTA button.",
+            "automotive_luxury": "Minimalist header with models menu, engineering highlights, and Test Drive CTA button.",
+            "fintech_commerce": "Clean top bar with solutions dropdown, security overview, pricing, and Open Account button.",
+            "education_institution": "Top utility bar with student portal link and main navigation for programs, admissions, and campus life.",
+            "creative_portfolio": "Minimal sticky navbar with work, about, services, and Let's Talk CTA button.",
+            "modern_editorial": "Top masthead with issue date, publication logo, section categories, and search trigger.",
+        }
+
+        component_languages = {
+            "travel_tourism": {
+                "navbar": "Fixed/sticky glassmorphism navigation with brand emblem, anchor links with hover indicators, and rounded CTA button",
+                "hero": "Expansive hero with high-contrast typography, subtitle, and multi-input destination search / booking quick-filter",
+                "card": "Modern card with fixed 4/3 photography header, badge for trip category, star rating, price per person, and interactive details CTA",
+                "filter_pills": "Horizontal flex pill buttons with active status styling and smooth transition",
+                "modal": "Full-screen backdrop blur modal with centered travel itinerary dialog, gallery preview, price breakdown, and booking trigger",
+                "form": "Polished responsive booking enquiry form with clean labeled inputs, date selector, passenger counter, and feedback alert",
+                "footer": "Rich 4-column footer with agency info, quick links, newsletter form, and copyright"
+            },
+            "culinary_restaurant": {
+                "navbar": "Warm navigation with logo crest, reservations CTA, and mobile hamburger menu",
+                "hero": "Dark sensory food photography with reservation button and hours badge",
+                "menu_card": "Minimalist dish listing with title, dietary tags, price, and provenance description",
+                "reservation_form": "Inline date/time picker, party size selector, and confirmation modal",
+                "footer": "Warm stone footer with opening hours, address, and social links"
+            },
+        }
+
+        interaction_specifications = {
+            "travel_tourism": {
+                "filter": "Instant client-side filter updating visible destination cards by category pills and keyword search",
+                "modal": "View Details opens itinerary modal with dynamic content and trap focus; closes on close-button, Escape key, or outside click",
+                "booking": "Enquiry form validation for required fields with immediate success banner upon submission"
+            },
+            "culinary_restaurant": {
+                "menu_filter": "Filter menu courses (Appetizers, Mains, Desserts, Cocktails)",
+                "reservation": "Table reservation validation with guest count and date checking"
+            },
+        }
+
+        asset_plans = {
+            "travel_tourism": [
+                "assets/images/hero/hero-wanderlust.jpg",
+                "assets/images/destinations/bali.jpg",
+                "assets/images/destinations/switzerland.jpg",
+                "assets/images/destinations/paris.jpg",
+                "assets/images/destinations/dubai.jpg",
+                "assets/images/destinations/maldives.jpg",
+                "assets/images/destinations/japan.jpg",
+                "assets/images/packages/bali-package.jpg",
+                "assets/images/packages/swiss-package.jpg",
+                "assets/images/packages/paris-package.jpg",
+            ],
+            "culinary_restaurant": [
+                "assets/images/hero/restaurant-hero.jpg",
+                "assets/images/menu/artisan-dish1.jpg",
+                "assets/images/menu/artisan-dish2.jpg",
+            ],
+        }
+
         return DesignBrief(
             domain=domain,
             purpose=f"Modern {domain.replace('_', ' ').title()} Web Experience",
@@ -297,6 +457,19 @@ class DesignBriefGenerator:
             component_styling=component_styling,
             image_direction=image_direction,
             responsive_breakpoints=breakpoints,
+            brand_positioning=brand_positionings.get(domain, "High quality digital web experience with intuitive interaction and refined visual design."),
+            layout_strategy=layout_strategies.get(domain, "Structured modular layout with centered container, consistent spacing, and responsive card grids."),
+            component_language=component_languages.get(domain, {
+                "navbar": "Clean header with logo, links, and action button",
+                "hero": "Prominent headline, description, and primary CTA",
+                "card": "Structured cards with consistent typography, padding, and subtle shadows",
+                "footer": "Standard footer with copyright and essential links",
+            }),
+            navigation_strategy=navigation_strategies.get(domain, "Sticky top navigation with responsive mobile menu."),
+            interaction_specs=interaction_specifications.get(domain, {
+                "interactive": "Clean DOM event handlers, validation on user inputs, and accessible state feedback"
+            }),
+            asset_plan_requirements=asset_plans.get(domain, []),
         )
 
 

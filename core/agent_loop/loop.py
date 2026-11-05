@@ -1119,6 +1119,7 @@ class AgentLoop:
         self._content_coverage = None
         self._content_coverage_dict: Dict[str, Any] = {}
         self._last_frontend_validation = None
+        self._asset_manifest = None
 
         # Attempt to resume from checkpoint if available
         try:
@@ -1233,6 +1234,7 @@ class AgentLoop:
                     if not self._content_coverage:
                         self._content_coverage = ContentCoverageMap.from_prompt(mission.user_prompt or "")
                         self._content_coverage_dict = self._content_coverage.to_dict()
+
                 except Exception as d_exc:
                     logger.warning(f"AgentLoop: design intelligence initialization notice: {d_exc}")
 
@@ -1522,6 +1524,23 @@ class AgentLoop:
         mission_success = False
 
 
+
+        # For website missions, provision photographic assets and persist design brief artifacts after preflight passes
+        if ws_root and ws_root.exists() and hasattr(self, "_design_brief") and self._design_brief:
+            try:
+                self._design_brief.persist_artifacts(ws_root)
+            except Exception as p_err:
+                logger.debug(f"AgentLoop: design brief persist notice: {p_err}")
+            try:
+                from core.asset_pipeline import AssetPipeline
+                self._asset_manifest = AssetPipeline.provision_assets(
+                    workspace_root=ws_root,
+                    prompt=mission.user_prompt or "",
+                    domain=getattr(self._design_brief, "domain", "travel_tourism"),
+                    mission_id=mission.mission_id,
+                )
+            except Exception as a_err:
+                logger.debug(f"AgentLoop: asset pipeline provision notice: {a_err}")
 
         # Ensure mission begins on primary configured tier
         if hasattr(self, "orchestrator") and self.orchestrator:
@@ -2061,6 +2080,8 @@ class AgentLoop:
                 except asyncio.TimeoutError:
 
                     t_overrun = time.monotonic() - t1_start
+                    if t_overrun < (turn_timeout - 1.0):
+                        raise
 
                     logger.error(f"AgentLoop: Parent turn deadline exceeded {turn_timeout:.1f}s (actual {t_overrun:.1f}s). Enforcing hard cancellation.")
 
@@ -4385,7 +4406,9 @@ class AgentLoop:
                             if getattr(self, "_is_large_mission", False):
                                 from core.agent_loop.types import ExecutionPhase
                                 if cur_tid == "wp.foundation" or "foundation" in cur_title:
-                                    if (ws_root / "index.html").exists() and (len(self._written_files) >= 2 or (ws_root / "style.css").exists() or (ws_root / "package.json").exists()):
+                                    has_html = (ws_root / "index.html").exists()
+                                    has_css = (ws_root / "style.css").exists() and (ws_root / "style.css").stat().st_size > 50
+                                    if has_html and (has_css or (ws_root / "package.json").exists()):
                                         await self._advance_active_task("Foundation work package satisfied (scaffold and styling created).")
                                         self.transition_phase(ExecutionPhase.PHASE_C_MAIN_IMPLEMENTATION, "Foundation created: index.html and style.css")
                                 elif cur_tid == "wp.content" or "content" in cur_title:
@@ -4395,7 +4418,8 @@ class AgentLoop:
                                             html_text = (ws_root / "index.html").read_text(encoding="utf-8", errors="ignore")
                                         except Exception:
                                             pass
-                                        if ("<section" in html_text or "card" in html_text.lower() or len(html_text) > 1000 or len(self._written_files) >= 3):
+                                        has_cards = "card" in html_text.lower() or "destination" in html_text.lower()
+                                        if ("<section" in html_text and (has_cards or len(html_text) > 800) and len(self._written_files) >= 2):
                                             await self._advance_active_task("Content work package satisfied (sections and cards populated).")
                                             self.transition_phase(ExecutionPhase.PHASE_D_FUNCTIONAL_IMPLEMENTATION, "Main content sections and cards implemented.")
                                 elif cur_tid == "wp.functional" or "functional" in cur_title:
@@ -6413,13 +6437,21 @@ class AgentLoop:
                     for sk in getattr(self, "_active_skill_names", []):
                         if sk in getattr(self, "_skill_telemetry", {}):
                             self._skill_telemetry[sk]["status"] = "INJECTED"
+                if getattr(self, "_asset_manifest", None):
+                    from core.asset_pipeline import AssetPipeline
+                    authoritative_state_block += "\n" + AssetPipeline.get_asset_directive(self._asset_manifest) + "\n"
             elif self.current_phase.value == "PHASE_C_MAIN_IMPLEMENTATION":
                 authoritative_state_block += "PHASE MANDATE: Implement all content sections, cards, and assets using fs.write or fs.edit.\n"
+                if hasattr(self, "_design_brief") and self._design_brief:
+                    authoritative_state_block += "\n" + self._design_brief.to_compact_directive() + "\n"
                 if hasattr(self, "_content_coverage") and self._content_coverage:
                     self._content_coverage.audit_workspace(ws_dir_active)
                     authoritative_state_block += "\n" + self._content_coverage.to_summary_block() + "\n"
             elif self.current_phase.value == "PHASE_D_FUNCTIONAL_IMPLEMENTATION":
                 authoritative_state_block += "PHASE MANDATE: Implement interactive logic (filters, modals, forms) using fs.write or fs.edit.\n"
+                if hasattr(self, "_design_brief") and self._design_brief:
+                    authoritative_state_block += "\n" + self._design_brief.to_compact_directive() + "\n"
+                authoritative_state_block += "\nFUNCTIONAL CONTRACT: Implement interactive filtering (category pills + search input), modal dialog display/dismissal with detailed destination data, and booking enquiry form validation. Zero missing DOM IDs.\n"
             elif self.current_phase.value == "PHASE_E_VERIFICATION":
                 authoritative_state_block += "PHASE MANDATE: Verify application in real browser, check zero console errors, run automated tests.\n"
                 try:

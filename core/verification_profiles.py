@@ -1,10 +1,8 @@
 # core/verification_profiles.py
 """
 Risk-Based Fast Verification Profiles for HERMES 2.x.
-
 Eliminates unnecessary LLM roundtrips and circular deadlocks by executing fast,
 deterministic, tier-appropriate validation:
-
 Profile A: Tiny File / Smoke Test (< 1s, zero LLM calls)
            Deterministic filesystem verification (file exists, size > 0, substring matching).
 Profile B: Normal Source Code (< 3s, zero LLM calls)
@@ -15,9 +13,7 @@ Profile C: Website / Application Delivery (< 8s)
 Profile D: High-Risk / Complex Software
            Automated test execution (pytest), behavioral checks, security boundary audits.
 """
-
 from __future__ import annotations
-
 import ast
 import json
 import os
@@ -30,8 +26,6 @@ from enum import Enum
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Tuple
 from loguru import logger
-
-
 from core.planning.requirement_types import (
     extract_target_artifacts,
     extract_typed_requirements,
@@ -39,15 +33,11 @@ from core.planning.requirement_types import (
     verify_runtime_evidence,
     RequirementType,
 )
-
-
 class VerificationProfile(str, Enum):
     PROFILE_A = "PROFILE_A"  # Tiny file / smoke test / diagnostic (< 1s)
     PROFILE_B = "PROFILE_B"  # Normal source code / scripts (< 3s)
     PROFILE_C = "PROFILE_C"  # Website / application delivery (< 8s)
     PROFILE_D = "PROFILE_D"  # High-risk / complex software
-
-
 @dataclass
 class VerificationProfileResult:
     profile: VerificationProfile
@@ -57,8 +47,6 @@ class VerificationProfileResult:
     issues: List[str] = field(default_factory=list)
     evidence: Dict[str, Any] = field(default_factory=dict)
     summary: str = ""
-
-
 def classify_verification_profile(
     prompt: str,
     workspace_path: Optional[str] = None,
@@ -69,7 +57,6 @@ def classify_verification_profile(
     Classify the incoming prompt and context into the appropriate verification profile.
     """
     p_lower = prompt.lower()
-
     # Check negative cues first: if prompt explicitly asks for Python, CLI, terminal, backend, or script
     explicit_non_web = any(k in p_lower for k in (
         "python script", "python program", "python package", "python cli", "python module",
@@ -80,14 +67,12 @@ def classify_verification_profile(
     ))
     if explicit_non_web and not has_explicit_web_word:
         return VerificationProfile.PROFILE_B
-
     # 0. Check for web cues in prompt, workspace, or written files
     web_cues = (
         "website", "web application", "landing page", "html", "web page", "webpage", "frontend",
         "three.js", "threejs", "webgl", "dashboard", "css", "canvas", "lvm3 website", "rocket website"
     )
     has_web_cues = any(w in p_lower for w in web_cues)
-
     ws_has_web = False
     if workspace_path and Path(workspace_path).exists():
         ws_p = Path(workspace_path)
@@ -100,20 +85,16 @@ def classify_verification_profile(
                     ws_has_web = True
             except Exception:
                 pass
-
     written_has_web = bool(written_files and any(
         f.lower().endswith((".html", ".css")) or f.lower() in ("main.js", "app.js", "index.js", "vite.config.js", "src/main.js")
         for f in written_files
     ))
-
     # All web applications and website missions evaluate under Profile C
     if has_web_cues or ws_has_web or written_has_web:
         return VerificationProfile.PROFILE_C
-
     # 1. Explicit CLI, Python package, backend, or script tasks -> Profile B (AST, tests, no HTML)
     cli_cues = ("cli", "command line", "python tool", "cli tool", "terminal tool", "python script", "argparse", "pytest", "python package")
     has_cli_cues = any(c in p_lower for c in cli_cues)
-
     if workspace_path and Path(workspace_path).exists():
         try:
             from core.verification_gate import detect_project_category, ProjectCategory
@@ -122,15 +103,12 @@ def classify_verification_profile(
                 return VerificationProfile.PROFILE_B
         except Exception:
             pass
-
     if has_cli_cues and not has_web_cues:
         return VerificationProfile.PROFILE_B
-
     # 2. Profile D: Explicit high risk, security audits, financial/crypto
     high_risk_cues = ("high risk", "security audit", "vulnerability scan", "penetration test", "cryptography")
     if any(cue in p_lower for cue in high_risk_cues):
         return VerificationProfile.PROFILE_D
-
     # 3. Profile A: Smoke test, diagnostic test, or <= 2 simple non-web files requested
     smoke_cues = (
         "smoke test", "smoke_test", "diagnostic test",
@@ -138,20 +116,15 @@ def classify_verification_profile(
     )
     if any(cue in p_lower for cue in smoke_cues):
         return VerificationProfile.PROFILE_A
-
     # 4. Profile A heuristic: <= 2 genuine target output artifacts requested
     unique_artifacts = extract_target_artifacts(prompt, written_files=written_files)
     if unique_artifacts and len(unique_artifacts) <= 2 and not any(kw in p_lower for kw in ("full", "complete", "rocket", "car")):
         return VerificationProfile.PROFILE_A
-
     return VerificationProfile.PROFILE_B
-
-
 class VerificationProfileEvaluator:
     """
     Executes fast, risk-based verification checks against the target workspace.
     """
-
     @classmethod
     def evaluate(
         cls,
@@ -164,7 +137,6 @@ class VerificationProfileEvaluator:
         t0 = time.monotonic()
         ws = Path(workspace_root) if workspace_root else Path(".")
         written = set(written_files or [])
-
         if profile == VerificationProfile.PROFILE_A:
             res = cls._evaluate_profile_a(ws, prompt, written)
         elif profile == VerificationProfile.PROFILE_B:
@@ -173,11 +145,9 @@ class VerificationProfileEvaluator:
             res = cls._evaluate_profile_c(ws, prompt, written)
         else:
             res = cls._evaluate_profile_d(ws, prompt, written)
-
         duration = (time.monotonic() - t0) * 1000.0
         res.duration_ms = duration
         return res
-
     @classmethod
     def _evaluate_profile_a(
         cls,
@@ -192,7 +162,6 @@ class VerificationProfileEvaluator:
         checks_run = ["workspace_exists"]
         issues = []
         evidence = {}
-
         if not workspace_root.exists():
             issues.append(f"Workspace root does not exist: {workspace_root}")
             return VerificationProfileResult(
@@ -203,17 +172,14 @@ class VerificationProfileEvaluator:
                 issues=issues,
                 summary="Workspace directory does not exist",
             )
-
         # 1. Identify genuine output artifacts mentioned in prompt (excluding libraries, runtimes, URLs)
         target_files = extract_target_artifacts(prompt, written_files=written_files)
         if not target_files:
             target_files = list(written_files) if written_files else ["smoke_test.html", "README.md"]
-
         IGNORE_PARTS = frozenset({
             ".git", ".venv", "venv", "env", "node_modules", "__pycache__",
             ".hermes", ".artifacts", "dist", "build", "coverage", ".pytest_cache"
         })
-
         checks_run.append("target_files_exist_and_non_empty")
         files_verified = []
         for fname in target_files:
@@ -244,10 +210,8 @@ class VerificationProfileEvaluator:
                     ]
                     if valid_matches:
                         candidate_path = valid_matches[0]
-
                 if candidate_path and candidate_path.exists():
                     fpath = candidate_path
-
             if not fpath.exists():
                 issues.append(f"Expected file '{fname}' not found in workspace")
                 continue
@@ -258,7 +222,6 @@ class VerificationProfileEvaluator:
             if sz == 0:
                 issues.append(f"File '{fname}' is empty (0 bytes)")
                 continue
-
             # Read content for keyword validation
             try:
                 content = fpath.read_text(encoding="utf-8", errors="replace")
@@ -266,7 +229,6 @@ class VerificationProfileEvaluator:
                 evidence[fname] = {"size": sz, "lines": len(content.splitlines()), "path": str(fpath)}
             except Exception as read_exc:
                 issues.append(f"Failed to read '{fname}': {read_exc}")
-
         # 2. Substring validation if prompt requires specific phrases
         checks_run.append("required_content_substrings")
         p_lower = prompt.lower()
@@ -279,12 +241,10 @@ class VerificationProfileEvaluator:
             if "diagnostic test" in p_lower:
                 if "diagnostic" not in html_content.lower():
                     issues.append("smoke_test.html missing statement that this is a diagnostic test")
-
         if "readme.md" in files_verified:
             md_content = (workspace_root / "README.md").read_text(encoding="utf-8", errors="replace")
             if len(md_content.strip()) < 10:
                 issues.append("README.md content is too brief (< 10 characters)")
-
         # Validate explicit required constants (e.g. HERMES_*)
         explicit_constants = re.findall(r'\b(HERMES_[A-Z0-9_]+)\b', prompt)
         for const in explicit_constants:
@@ -302,14 +262,12 @@ class VerificationProfileEvaluator:
                         pass
             if not matched_in_any:
                 issues.append(f"Deliverable missing required content string '{const}'")
-
         passed = len(issues) == 0 and len(files_verified) > 0
         summary = (
             f"Profile A passed: Verified {len(files_verified)} file(s) ({', '.join(files_verified)}) on disk with valid content."
             if passed else
             f"Profile A failed: {len(issues)} issue(s) detected: {'; '.join(issues)}"
         )
-
         return VerificationProfileResult(
             profile=VerificationProfile.PROFILE_A,
             passed=passed,
@@ -319,7 +277,6 @@ class VerificationProfileEvaluator:
             evidence=evidence,
             summary=summary,
         )
-
     @classmethod
     def _evaluate_profile_b(
         cls,
@@ -331,7 +288,6 @@ class VerificationProfileEvaluator:
         checks_run = ["files_exist_and_parse"]
         issues = []
         evidence = {}
-
         if not workspace_root.exists():
             return VerificationProfileResult(
                 profile=VerificationProfile.PROFILE_B,
@@ -341,13 +297,11 @@ class VerificationProfileEvaluator:
                 issues=["Workspace directory does not exist"],
                 summary="Workspace does not exist",
             )
-
         IGNORED_PARTS = {"node_modules", ".git", "dist", "build", "venv", ".venv", "__pycache__", ".idea", ".vscode"}
         all_files = [
             f for f in workspace_root.rglob("*")
             if f.is_file() and not any(part in IGNORED_PARTS or part.startswith(".") for part in f.relative_to(workspace_root).parts)
         ]
-
         if not all_files:
             return VerificationProfileResult(
                 profile=VerificationProfile.PROFILE_B,
@@ -357,7 +311,6 @@ class VerificationProfileEvaluator:
                 issues=["No files found in workspace root"],
                 summary="No files found",
             )
-
         for f in all_files:
             if f.suffix == ".py":
                 try:
@@ -374,12 +327,10 @@ class VerificationProfileEvaluator:
                     json.loads(f.read_text(encoding="utf-8", errors="replace"))
                 except Exception as e:
                     issues.append(f"Invalid JSON in {f.name}: {e}")
-
         has_tests = any(f.name.startswith("test_") or "tests" in f.parts for f in all_files if f.suffix == ".py")
         wants_tests = any(k in prompt.lower() for k in ("test", "pytest", "unit test", "coverage"))
         if wants_tests and not has_tests:
             issues.append("Missing required unit tests: prompt requested unit tests/pytest, but no test_*.py files exist in workspace.")
-
         if has_tests and len(issues) == 0:
             import subprocess
             py_exe = sys.executable
@@ -402,7 +353,6 @@ class VerificationProfileEvaluator:
                     checks_run.append("pytest_suite_passed")
             except Exception as e:
                 issues.append(f"Pytest execution error: {e}")
-
         passed = len(issues) == 0
         return VerificationProfileResult(
             profile=VerificationProfile.PROFILE_B,
@@ -412,7 +362,6 @@ class VerificationProfileEvaluator:
             issues=issues,
             summary=f"Profile B {'passed' if passed else 'failed'}: {len(all_files)} files evaluated."
         )
-
     @classmethod
     def _evaluate_profile_c(
         cls,
@@ -424,12 +373,10 @@ class VerificationProfileEvaluator:
         checks_run = ["index_html_structure", "assets_and_scripts", "interactive_controls", "entrypoint_integrity", "dependency_integrity"]
         issues = []
         evidence = {}
-
         # 1. Prohibit fake root Three.js file
         fake_three = workspace_root / "Three.js"
         if fake_three.exists():
             issues.append("Prohibited fake root 'Three.js' file found. Dependency 'three' must be declared in package.json and imported via module resolution.")
-
         # 2. index.html checks
         index_html = workspace_root / "index.html"
         if not index_html.exists():
@@ -442,16 +389,12 @@ class VerificationProfileEvaluator:
                 issues=issues,
                 summary="Missing index.html",
             )
-
         content = index_html.read_text(encoding="utf-8", errors="replace")
         lower = content.lower()
-
         if "<!doctype html>" not in lower and "<html" not in lower:
             issues.append("index.html missing standard HTML5 DOCTYPE or <html> tag")
-
         if "<body" not in lower:
             issues.append("index.html missing <body> tag")
-
         # 3. Primary JavaScript entrypoint (external or embedded)
         main_candidates = ["main.js", "src/main.js", "app.js", "src/app.js", "index.js", "src/index.js", "script.js"]
         found_entrypoints = [
@@ -464,7 +407,6 @@ class VerificationProfileEvaluator:
         else:
             checks_run.append("primary_entrypoint_present")
             evidence["entrypoint"] = found_entrypoints[0] if found_entrypoints else "embedded_script"
-
         # 4. Check linked local scripts
         script_srcs = re.findall(r'<script[^>]+src=["\']([^"\']+)["\']', content, re.IGNORECASE)
         all_js_paths: List[Path] = []
@@ -472,7 +414,6 @@ class VerificationProfileEvaluator:
             p = workspace_root / ep
             if p.exists() and p not in all_js_paths:
                 all_js_paths.append(p)
-
         for s_src in script_srcs:
             if not s_src.startswith(("http://", "https://", "//")):
                 clean_s = s_src.replace("\\", "/").lstrip("./")
@@ -484,14 +425,14 @@ class VerificationProfileEvaluator:
                 else:
                     if script_path not in all_js_paths:
                         all_js_paths.append(script_path)
-
         # 4b. Deterministic JavaScript Syntax Check & Anti-Placeholder Code Verification
         checks_run.append("javascript_syntax_validation")
         for js_p in all_js_paths:
             if js_p.suffix.lower() in (".js", ".mjs", ".cjs"):
                 try:
                     node_res = subprocess.run(
-                        ["node", "--check", str(js_p)],
+                        ["node", "--input-type=module", "--check"] if (bool(re.search(r"^\s*(?:import|export)\s+", js_p.read_text(encoding="utf-8", errors="replace"), re.MULTILINE)) and js_p.suffix.lower() == ".js") else ["node", "--check", str(js_p)],
+                        input=js_p.read_text(encoding="utf-8", errors="replace") if (bool(re.search(r"^\s*(?:import|export)\s+", js_p.read_text(encoding="utf-8", errors="replace"), re.MULTILINE)) and js_p.suffix.lower() == ".js") else None,
                         capture_output=True,
                         text=True,
                         timeout=5
@@ -501,7 +442,6 @@ class VerificationProfileEvaluator:
                         issues.append(f"JavaScript syntax error in '{js_p.name}': {err_text}")
                 except Exception as e:
                     logger.debug(f"VerificationProfile: node --check check skipped for {js_p.name}: {e}")
-
                 # Anti-placeholder code / truncation detection in scripts
                 try:
                     js_code = js_p.read_text(encoding="utf-8", errors="replace")
@@ -517,7 +457,6 @@ class VerificationProfileEvaluator:
                             break
                 except Exception:
                     pass
-
         # 5. Check linked local stylesheets and style.css (external or embedded)
         link_hrefs = re.findall(r'<link[^>]+href=["\']([^"\']+)["\']', content, re.IGNORECASE)
         has_css_link = False
@@ -531,12 +470,10 @@ class VerificationProfileEvaluator:
                     issues.append(f"Linked local stylesheet '{l_href}' is empty (0 bytes)")
                 else:
                     has_css_link = True
-
         has_embedded_style = bool(re.search(r'<style[^>]*>[\s\S]{20,}</style>', content, re.IGNORECASE))
         style_css = workspace_root / "style.css"
         if not has_css_link and not (style_css.exists() and style_css.stat().st_size > 20) and not has_embedded_style:
             issues.append("Required stylesheet 'style.css' is missing, empty, or unlinked in index.html.")
-
         # 5b. Section Visibility Contract Check
         section_classes = re.findall(r'<(?:section|div)[^>]+class=["\']([^"\']*\b(?:app-section|view-section)\b[^"\']*)["\']', content, re.IGNORECASE)
         if len(section_classes) >= 2:
@@ -559,7 +496,6 @@ class VerificationProfileEvaluator:
             inline_styles = re.findall(r'<style[^>]*>([\s\S]*?)</style>', content, re.IGNORECASE)
             for istyle in inline_styles:
                 all_css_text += "\n" + istyle
-
             has_hide_rule = bool(
                 re.search(r'\.(?:app-section|view-section)\s*\{[^}]*display\s*:\s*none', all_css_text, re.IGNORECASE) or
                 re.search(r'\.(?:app-section|view-section):not\(\.active\)', all_css_text, re.IGNORECASE) or
@@ -567,7 +503,6 @@ class VerificationProfileEvaluator:
             )
             if not has_hide_rule:
                 issues.append(f"Section visibility contract failed: {len(section_classes)} views/sections found, but stylesheet does not define a hiding rule ('display: none'), causing multiple views to render simultaneously stacked.")
-
         # Interactive controls and persistence check for web applications
         p_lower = prompt.lower()
         if any(w in p_lower for w in ("create task", "add task", "todo", "form", "filter", "storage", "controls")):
@@ -584,7 +519,6 @@ class VerificationProfileEvaluator:
                         pass
                 if not has_storage_in_scripts:
                     issues.append("Missing persistence: localStorage is required by prompt but not utilized in index.html or scripts.")
-
         # 5c. Interactive Controls & Element Bindings Check
         is_interactive = any(k in p_lower for k in ("task", "habit", "timer", "pomodoro", "crud", "dashboard", "productivity", "command center", "tracker"))
         if is_interactive and all_js_paths:
@@ -595,7 +529,6 @@ class VerificationProfileEvaluator:
                     all_js_content += "\n" + js_p.read_text(encoding="utf-8", errors="replace")
                 except Exception:
                     pass
-
             key_html_ids = re.findall(r'<(?:form|button|input|select)[^>]+id=["\']([^"\']+)["\']', content, re.IGNORECASE)
             interactive_keywords = ("task", "habit", "timer", "start", "modal", "form", "filter", "submit")
             matched_interactive_ids = [hid for hid in key_html_ids if any(kw in hid.lower() for kw in interactive_keywords)]
@@ -603,11 +536,9 @@ class VerificationProfileEvaluator:
                 bound_count = sum(1 for hid in matched_interactive_ids if hid in all_js_content)
                 if bound_count == 0:
                     issues.append(f"Interactive controls check failed: HTML defines interactive elements ({', '.join(matched_interactive_ids[:5])}), but JavaScript entrypoints contain zero references or bindings to them.")
-
         # 6. Anti-placeholder check
         if "lorem ipsum" in lower or "placeholder text" in lower:
             issues.append("index.html contains placeholder 'Lorem Ipsum' text")
-
         # 7. Check required dependencies evidence (e.g., Three.js)
         typed_reqs = extract_typed_requirements(prompt, written_files=written_files)
         for dep in typed_reqs[RequirementType.DEPENDENCY]:
@@ -616,7 +547,6 @@ class VerificationProfileEvaluator:
             evidence[f"dep:{dep}"] = {"ok": dep_ok, "detail": dep_msg}
             if not dep_ok:
                 issues.append(f"Required dependency '{dep}' missing: {dep_msg}")
-
         # 8. Check 3D Canvas / Three.js runtime if requested
         p_lower = prompt.lower()
         wants_3d = any(k in p_lower for k in ("three", "3d", "canvas", "webgl", "rocket", "orbit", "simulation", "spacecraft"))
@@ -634,12 +564,10 @@ class VerificationProfileEvaluator:
                         has_three_init = True
                 except Exception:
                     pass
-
             if not (has_canvas_tag or has_canvas_in_js):
                 issues.append("Required 3D canvas is absent: neither index.html contains <canvas> nor does main.js create a canvas.")
             elif not has_three_init:
                 issues.append("Three.js runtime uninitialized: entrypoint does not initialize Scene, Camera, or WebGLRenderer.")
-
         # 9. Check explicit additional output artifacts if requested (excluding index.html)
         target_artifacts = extract_target_artifacts(prompt, written_files=written_files)
         for artifact in target_artifacts:
@@ -649,7 +577,6 @@ class VerificationProfileEvaluator:
                     issues.append(f"Expected file '{artifact}' not found in workspace")
                 elif art_path.stat().st_size == 0:
                     issues.append(f"File '{artifact}' is empty (0 bytes)")
-
         # 10. Check build result if package.json has build script
         pkg_json = workspace_root / "package.json"
         if pkg_json.exists():
@@ -661,9 +588,38 @@ class VerificationProfileEvaluator:
                     # If build output directory or build status is recorded
                     dist_dir = workspace_root / "dist"
                     # Note: we can verify build if dist exists or check if build failed
+                    pass
             except Exception:
                 pass
-
+        # 11. Cross-file Frontend Contract Validation
+        from core.frontend_contract_validator import FrontendContractValidator
+        checks_run.append("frontend_contract_validation")
+        contract_validator = FrontendContractValidator(workspace_root)
+        contract_rep = contract_validator.validate_all()
+        if contract_rep.errors:
+            for c_err in contract_rep.errors:
+                issues.append(f"Frontend contract defect: {c_err}")
+        # 12. Local Photographic Asset Verification
+        from core.asset_pipeline import AssetPipeline
+        checks_run.append("workspace_asset_verification")
+        assets_ok, missing_assets, found_assets = AssetPipeline.verify_workspace_assets(workspace_root)
+        if not assets_ok:
+            issues.append(f"Missing required local image assets ({len(missing_assets)} missing): {', '.join(missing_assets[:5])}")
+        # 13. Visual Asset Requirement Gate for Rich Photographic Missions
+        p_lower = prompt.lower()
+        demands_imagery = any(w in p_lower for w in (
+            "photography", "photo", "images", "hero image", "destination cards",
+            "package cards", "wanderworld", "visual assets", "curated packages"
+        ))
+        if demands_imagery:
+            checks_run.append("imagery_demand_check")
+            img_files = list(workspace_root.glob("assets/images/**/*.*")) + list(workspace_root.glob("images/**/*.*"))
+            valid_imgs = [
+                img for img in img_files
+                if img.is_file() and img.suffix.lower() in (".jpg", ".jpeg", ".png", ".webp", ".svg") and img.stat().st_size > 0
+            ]
+            if not valid_imgs:
+                issues.append("Visual asset requirement failed: Prompt demands photography and image cards, but zero image files exist in workspace assets.")
         passed = len(issues) == 0
         summary = (
             f"Profile C passed: Verified web application deliverables (index.html, styles, scripts, canvas/3D runtime)."
@@ -679,7 +635,6 @@ class VerificationProfileEvaluator:
             evidence={"index_html_size": index_html.stat().st_size},
             summary=summary,
         )
-
     @classmethod
     def _evaluate_profile_d(
         cls,

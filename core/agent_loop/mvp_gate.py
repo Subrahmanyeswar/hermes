@@ -214,7 +214,7 @@ class WebsiteMvpGate:
                 break
 
         if not found_main:
-            missing.append(expected_js)
+            missing.append(f"{expected_js} (main.js)")
         else:
             try:
                 from core.code_completeness import validate_implementation_completeness

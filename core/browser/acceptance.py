@@ -242,7 +242,7 @@ class BrowserAcceptanceVerifier:
             (ws_root / "server.js").exists()
             or (ws_root / "app.py").exists()
             or (ws_root / "main.py").exists()
-            or ((ws_root / "package.json").exists() and not (ws_root / "test.js").exists())
+            or ((ws_root / "package.json").exists() and any(k in (ws_root / "package.json").read_text(encoding="utf-8", errors="ignore") for k in ("express", "fastify", "\"dev\":", "\"start\":")))
         )
         if has_backend:
             # Backend applications strictly require HTTP navigation - file:// prohibited
