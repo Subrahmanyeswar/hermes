@@ -571,6 +571,10 @@ class AgentLoop:
                 completed_phases=self.completed_phases,
                 completed_tasks=completed_tasks,
                 tier_state=self._active_routing_tier,
+                active_skills=list(getattr(self, "_active_skill_names", [])),
+                skill_telemetry=getattr(self, "_skill_telemetry", {}),
+                design_brief=getattr(self, "_design_brief_dict", {}),
+                content_coverage=getattr(self, "_content_coverage_dict", {}),
             )
         except Exception as e:
             logger.warning(f"AgentLoop: Failed to save phase checkpoint: {e}")
@@ -1108,6 +1112,13 @@ class AgentLoop:
         self._phase_turn_count = {}
         self._phase_stall_count = 0
         self._progress_in_current_phase = False
+        self._skill_telemetry: Dict[str, Any] = {}
+        self._active_skill_names: List[str] = []
+        self._design_brief = None
+        self._design_brief_dict: Dict[str, Any] = {}
+        self._content_coverage = None
+        self._content_coverage_dict: Dict[str, Any] = {}
+        self._last_frontend_validation = None
 
         # Attempt to resume from checkpoint if available
         try:
@@ -1120,7 +1131,25 @@ class AgentLoop:
                     self.current_phase = ExecutionPhase.PHASE_B_FOUNDATION
                 self.completed_phases = list(loaded_chk.completed_phases)
                 self._active_routing_tier = loaded_chk.tier_state
-                logger.info(f"AgentLoop: Resumed mission from checkpoint at phase={self.current_phase.value}")
+                if loaded_chk.active_skills:
+                    self._active_skill_names = list(loaded_chk.active_skills)
+                if loaded_chk.skill_telemetry:
+                    self._skill_telemetry = dict(loaded_chk.skill_telemetry)
+                if loaded_chk.design_brief:
+                    self._design_brief_dict = dict(loaded_chk.design_brief)
+                    try:
+                        from core.design_intelligence import DesignBrief
+                        self._design_brief = DesignBrief.from_dict(self._design_brief_dict)
+                    except Exception:
+                        pass
+                if loaded_chk.content_coverage:
+                    self._content_coverage_dict = dict(loaded_chk.content_coverage)
+                    try:
+                        from core.design_intelligence import ContentCoverageMap
+                        self._content_coverage = ContentCoverageMap.from_dict(self._content_coverage_dict)
+                    except Exception:
+                        pass
+                logger.info(f"AgentLoop: Resumed mission from checkpoint at phase={self.current_phase.value} (skills={self._active_skill_names})")
         except Exception as e:
             logger.warning(f"AgentLoop: Checkpoint load notice: {e}")
 
@@ -1159,45 +1188,55 @@ class AgentLoop:
 
 
             # Route or restore skills for the mission
-
             try:
-
                 state_snap = self.state_store.get_snapshot() if hasattr(self, "state_store") and self.state_store else None
-
-                if state_snap and getattr(state_snap, "mission", None) and getattr(state_snap.mission, "active_skills", None):
-
+                if self._active_skill_names:
+                    self.project_intelligence.restore_skills(self._active_skill_names)
+                elif state_snap and getattr(state_snap, "mission", None) and getattr(state_snap.mission, "active_skills", None):
+                    self._active_skill_names = list(state_snap.mission.active_skills)
                     self.project_intelligence.restore_skills(state_snap.mission.active_skills)
-
                 else:
-
                     ws_signals = {}
-
                     if self.workspace and getattr(self.workspace, "is_locked", False) and getattr(self.workspace, "index", None):
-
                         ws_signals = {
-
                             "files": list(getattr(self.workspace.index, "files", {}).keys()),
-
                             "framework": getattr(self.workspace.index, "framework", None),
-
                             "language": getattr(self.workspace.index, "language", None),
-
                         }
-
                     routing_decision = self.project_intelligence.route_skills(
-
                         task_description=mission.user_prompt or "",
-
                         workspace_signals=ws_signals,
-
                     )
+                    self._active_skill_names = list(routing_decision.selected_skills)
+                    all_disc = list(self.project_intelligence.skill_engine._metadata_index.keys()) if hasattr(self.project_intelligence, "skill_engine") else []
+                    for s_name in self._active_skill_names:
+                        s_body = self.project_intelligence.load_skill_body(s_name)
+                        meta = self.project_intelligence.skill_engine._metadata_index.get(s_name) if hasattr(self.project_intelligence, "skill_engine") else None
+                        self._skill_telemetry[s_name] = {
+                            "status": "LOADED" if s_body else "SELECTED",
+                            "score": routing_decision.candidate_scores.get(s_name, 1.0),
+                            "source_file": meta.skill_file if meta else None,
+                            "sha256": meta.sha256_hash if meta else None,
+                            "reason": routing_decision.decision_rationale,
+                        }
+                    self._skill_telemetry["__discovered_skills__"] = all_disc
 
-                    for s_name in routing_decision.selected_skills:
-
-                        self.project_intelligence.load_skill_body(s_name)
+                # Initialize design brief and content coverage for frontend website missions
+                try:
+                    from core.design_intelligence import DesignBriefGenerator, ContentCoverageMap
+                    if not self._design_brief:
+                        self._design_brief = DesignBriefGenerator.generate_brief(
+                            mission.user_prompt or "",
+                            active_skills=self._active_skill_names,
+                        )
+                        self._design_brief_dict = self._design_brief.to_dict()
+                    if not self._content_coverage:
+                        self._content_coverage = ContentCoverageMap.from_prompt(mission.user_prompt or "")
+                        self._content_coverage_dict = self._content_coverage.to_dict()
+                except Exception as d_exc:
+                    logger.warning(f"AgentLoop: design intelligence initialization notice: {d_exc}")
 
             except Exception as s_exc:
-
                 logger.warning(f"AgentLoop: initial skill routing/loading warning: {s_exc}")
 
 
@@ -5928,33 +5967,24 @@ class AgentLoop:
 
 
         return AgentLoopResult(
-
             mission_id=self._mission_id,
-
             success=mission_success,
-
             status=final_state.mission.status.value,
-
             turns_executed=self._turns_count,
-
             actions_executed=self._actions_count,
-
             tool_calls_count=self._tool_calls_count,
-
             verification_calls_count=self._verification_calls_count,
-
             duration_seconds=total_duration,
-
             files_created=self._written_files,
-
             files_modified=[],
-
             final_output=final_output or "Mission concluded.",
-
             error=termination_reason,
-
             termination_reason=termination_reason or final_state.mission.completion_reason,
-
+            active_skills=list(getattr(self, "_active_skill_names", [])),
+            skill_telemetry=dict(getattr(self, "_skill_telemetry", {})),
+            design_brief=dict(getattr(self, "_design_brief_dict", {})),
+            content_coverage=dict(getattr(self, "_content_coverage_dict", {})),
+            frontend_validation=getattr(self, "_last_frontend_validation", None),
         )
 
 
@@ -6378,12 +6408,33 @@ class AgentLoop:
                     authoritative_state_block += f"  ✓ {cp}: {cp_s}\n"
             if self.current_phase.value == "PHASE_B_FOUNDATION":
                 authoritative_state_block += "PHASE MANDATE: Create core entrypoints (index.html, style.css) using fs.write.\n"
+                if hasattr(self, "_design_brief") and self._design_brief:
+                    authoritative_state_block += "\n" + self._design_brief.to_compact_directive() + "\n"
+                    for sk in getattr(self, "_active_skill_names", []):
+                        if sk in getattr(self, "_skill_telemetry", {}):
+                            self._skill_telemetry[sk]["status"] = "INJECTED"
             elif self.current_phase.value == "PHASE_C_MAIN_IMPLEMENTATION":
                 authoritative_state_block += "PHASE MANDATE: Implement all content sections, cards, and assets using fs.write or fs.edit.\n"
+                if hasattr(self, "_content_coverage") and self._content_coverage:
+                    self._content_coverage.audit_workspace(ws_dir_active)
+                    authoritative_state_block += "\n" + self._content_coverage.to_summary_block() + "\n"
             elif self.current_phase.value == "PHASE_D_FUNCTIONAL_IMPLEMENTATION":
                 authoritative_state_block += "PHASE MANDATE: Implement interactive logic (filters, modals, forms) using fs.write or fs.edit.\n"
             elif self.current_phase.value == "PHASE_E_VERIFICATION":
                 authoritative_state_block += "PHASE MANDATE: Verify application in real browser, check zero console errors, run automated tests.\n"
+                try:
+                    from core.frontend_contract_validator import FrontendContractValidator
+                    fc_validator = FrontendContractValidator(ws_dir_active)
+                    fc_rep = fc_validator.validate_all()
+                    self._last_frontend_validation = fc_rep.to_dict()
+                    authoritative_state_block += "\n" + fc_rep.to_summary_block() + "\n"
+                    if fc_rep.is_valid:
+                        for sk in ("vanilla-web", "design-engineering", "taste-design", "web-design-guidelines", "design-system"):
+                            if sk in getattr(self, "_skill_telemetry", {}):
+                                self._skill_telemetry[sk]["status"] = "APPLIED"
+                                self._skill_telemetry[sk]["evidence"] = "Frontend contract and visual quality rules satisfied."
+                except Exception as fc_exc:
+                    logger.warning(f"AgentLoop: frontend contract verification notice: {fc_exc}")
 
         if unmet_reqs:
 

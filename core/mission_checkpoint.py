@@ -36,6 +36,10 @@ class MissionCheckpoint:
     tier_state: int = 1
     timestamp: float = field(default_factory=time.time)
     metadata: Dict[str, Any] = field(default_factory=dict)
+    active_skills: List[str] = field(default_factory=list)
+    skill_telemetry: Dict[str, Any] = field(default_factory=dict)
+    design_brief: Dict[str, Any] = field(default_factory=dict)
+    content_coverage: Dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)
@@ -52,6 +56,10 @@ class MissionCheckpoint:
             tier_state=int(data.get("tier_state", 1)),
             timestamp=float(data.get("timestamp", time.time())),
             metadata=dict(data.get("metadata", {})),
+            active_skills=list(data.get("active_skills", [])),
+            skill_telemetry=dict(data.get("skill_telemetry", {})),
+            design_brief=dict(data.get("design_brief", {})),
+            content_coverage=dict(data.get("content_coverage", {})),
         )
 
 
@@ -102,6 +110,10 @@ class MissionCheckpointManager:
         validation_evidence: Optional[List[Any]] = None,
         tier_state: int = 1,
         metadata: Optional[Dict[str, Any]] = None,
+        active_skills: Optional[List[str]] = None,
+        skill_telemetry: Optional[Dict[str, Any]] = None,
+        design_brief: Optional[Dict[str, Any]] = None,
+        content_coverage: Optional[Dict[str, Any]] = None,
     ) -> MissionCheckpoint:
         """Atomically persist mission checkpoint to disk."""
         root = Path(workspace_root).resolve()
@@ -130,6 +142,10 @@ class MissionCheckpointManager:
             tier_state=int(tier_state),
             timestamp=time.time(),
             metadata=dict(metadata or {}),
+            active_skills=list(active_skills or []),
+            skill_telemetry=dict(skill_telemetry or {}),
+            design_brief=dict(design_brief or {}),
+            content_coverage=dict(content_coverage or {}),
         )
 
         tmp_file = chk_dir / f"{CHECKPOINT_FILENAME}.tmp"

@@ -340,3 +340,8 @@ class AgentLoopResult:
     final_output: str = ""
     error: Optional[str] = None
     termination_reason: Optional[str] = None
+    active_skills: List[str] = field(default_factory=list)
+    skill_telemetry: Dict[str, Any] = field(default_factory=dict)
+    design_brief: Dict[str, Any] = field(default_factory=dict)
+    content_coverage: Dict[str, Any] = field(default_factory=dict)
+    frontend_validation: Optional[Dict[str, Any]] = None

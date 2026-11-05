@@ -136,7 +136,7 @@ class SkillEngine:
         self,
         task_text: str = "",
         workspace_signals: Optional[Dict[str, Any]] = None,
-        max_candidates: int = 3,
+        max_candidates: int = 4,
         task_description: Optional[str] = None,
     ) -> SkillRoutingDecision:
         """
@@ -197,6 +197,38 @@ class SkillEngine:
         has_security_intent = _has_keyword(["security", "vulnerability", "injection", "traversal", "auth bypass", "bypass", "exploit", "cve", "owasp", "xss", "csrf", "sanitise", "sanitize", "secure"])
         has_git_intent = _has_keyword(["git", "merge conflict", "merge", "commit", "branch", "rebase", "pull request", "cherry-pick"])
 
+        # Code review disambiguation: genuine code/diff/PR review vs user/customer/product reviews
+        is_customer_review = bool(re.search(
+            r"\b(?:traveler|customer|user|client|product|guest|hotel|star)\s+reviews?\b|\breviews?\s+(?:section|rating|ratings|score|scores|card|cards|slider|carousel|list)\b",
+            task_lower
+        ))
+        has_code_review_intent = _has_keyword(["code review", "pr review", "pull request review", "diff review", "review the code", "review code", "code-review"]) or (
+            has_review_intent and not is_customer_review and any(w in task_lower for w in ["code", "pr", "pull request", "diff", "patch", "commit", "function", "class", "syntax", "refactor"])
+        )
+
+        # Explicit negative constraints (bounded to avoid greedy multi-clause matching)
+        def _has_negative_constraint(target_words: List[str]) -> bool:
+            targets = "|".join(re.escape(w) for w in target_words)
+            pattern = rf"\b(?:no|without|zero|no\s+need\s+for|not\s+needed)\s+(?:[a-zA-Z0-9_\-]+\s+){{0,2}}(?:{targets})\b"
+            return bool(re.search(pattern, task_lower))
+
+        has_no_backend = _has_negative_constraint(["backend", "server", "api", "flask", "fastapi", "node", "express"])
+        has_no_db = _has_negative_constraint(["database", "sql", "sqlite", "postgres", "models", "orm", "schema", "persistence"])
+        has_no_react = _has_negative_constraint(["react", "jsx", "nextjs"])
+        has_no_vanilla = _has_negative_constraint(["vanilla", "vanilla-web"])
+
+        # Rich frontend and visual UI intent
+        has_visual_ui_intent = _has_keyword([
+            "website", "webpage", "landing page", "hero", "hero section", "navbar", "navigation",
+            "modal", "modals", "dialog", "dialogs", "cards", "package cards", "destination cards", "card layout",
+            "grid", "filter", "filters", "interactive filter", "footer", "testimonials", "animations",
+            "transitions", "responsive", "mobile", "desktop", "typography", "palette", "color scheme",
+            "color palette", "css styling", "visual design", "ui design", "ux design", "layout",
+            "carousel", "slider", "accordion", "badge", "glassmorphism", "clean ui", "modern ui",
+            "travel agency", "booking form", "contact form", "pricing table", "features section", "showcase",
+            "destinations", "packages"
+        ])
+
         # Conceptual / purely definitional question detector (prevents false positive activations on theoretical queries)
         is_conceptual_inquiry = bool(re.search(
             r"^(what\s+(is|are|does)\b|how\s+(does|do|can|is|are)\b|why\s+(is|are|do|does)\b|explain\b|describe\b|in\s+theory\b)",
@@ -209,7 +241,7 @@ class SkillEngine:
         is_pure_conceptual = is_conceptual_inquiry and not has_concrete_action and not ws_files
 
         # Explicit technology requirements
-        explicitly_vanilla = bool(re.search(r"\bvanilla\b", task_lower))
+        explicitly_vanilla = bool(re.search(r"\bvanilla\b", task_lower)) and not has_no_vanilla
 
         for name, meta in self._metadata_index.items():
             if meta.disable_model_invocation:
@@ -266,7 +298,11 @@ class SkillEngine:
                     score_reasons.append("Python workspace with reported issue")
 
             elif name == "vanilla-web":
-                if has_vanilla_intent:
+                if has_no_vanilla:
+                    score = 0.0
+                    rejected.append((name, "Explicit negative constraint against vanilla web"))
+                    continue
+                if has_vanilla_intent or has_visual_ui_intent:
                     score += 0.45
                     score_reasons.append("vanilla website intent detected")
                 if any(f.endswith((".html", ".css", ".js")) for f in ws_files) or "html" in ws_framework or "vanilla" in ws_framework:
@@ -279,10 +315,9 @@ class SkillEngine:
             elif name == "react-frontend":
                 has_html_files = any(f.endswith(".html") for f in ws_files)
                 has_react_files = any(f.endswith((".jsx", ".tsx")) for f in ws_files) or "react" in ws_framework
-                if explicitly_vanilla or (has_html_files and not has_react_files):
-                    # Explicit conflict resolution: workspace is vanilla HTML without react
+                if has_no_react or explicitly_vanilla or (has_html_files and not has_react_files and not has_react_intent):
                     score = 0.0
-                    rejected.append((name, "Workspace contains vanilla HTML/JS without React"))
+                    rejected.append((name, "Workspace contains vanilla HTML/JS or negative constraint against React"))
                     continue
                 if has_react_intent:
                     score += 0.50
@@ -292,6 +327,10 @@ class SkillEngine:
                     score_reasons.append("workspace contains React/JSX files")
 
             elif name == "database-design":
+                if has_no_db or has_no_backend:
+                    score = 0.0
+                    rejected.append((name, "Explicit negative constraint against database/persistence"))
+                    continue
                 if has_db_intent:
                     score += 0.50
                     score_reasons.append("database / schema modeling intent")
@@ -300,6 +339,10 @@ class SkillEngine:
                     score_reasons.append("workspace contains SQL/database schema files")
 
             elif name == "flask-rest-api":
+                if has_no_backend:
+                    score = 0.0
+                    rejected.append((name, "Explicit negative constraint against backend/server"))
+                    continue
                 is_ui_component_api = bool(re.search(r"\b(component|react|tabs|menu|props|ui)\s+api\b", task_lower))
                 if has_fastapi_intent and not has_flask_intent:
                     score = min(score, 0.15)
@@ -313,6 +356,10 @@ class SkillEngine:
                         score_reasons.append("workspace contains API route files")
 
             elif name == "fastapi-backend":
+                if has_no_backend:
+                    score = 0.0
+                    rejected.append((name, "Explicit negative constraint against backend/server"))
+                    continue
                 is_ui_component_api = bool(re.search(r"\b(component|react|tabs|menu|props|ui)\s+api\b", task_lower))
                 if has_flask_intent and not has_fastapi_intent:
                     score = min(score, 0.15)
@@ -338,19 +385,26 @@ class SkillEngine:
                     score_reasons.append("React component composition intent")
 
             elif name == "design-system":
-                has_ds_intent = _has_keyword(["design system", "design tokens", "design token", "tokens", "token", "token extraction", "color tokens", "typography scale", "design.md"])
+                has_ds_intent = _has_keyword(["design system", "design tokens", "design token", "tokens", "token", "token extraction", "color tokens", "typography scale", "design.md", "css variables", "color palette", "theme"])
                 if has_ds_intent:
                     score += 0.50
                     score_reasons.append("design system / token architecture intent")
+                elif has_visual_ui_intent and any(w in task_lower for w in ["theme", "palette", "typography"]):
+                    score += 0.35
+                    score_reasons.append("design tokens and typography system intent")
 
             elif name == "web-design-guidelines":
                 has_audit_intent = _has_keyword(["audit", "guidelines", "usability", "accessibility", "a11y", "wcag", "keyboard navigation", "heuristics"])
+                has_de_or_taste = any(w in task_lower for w in ["destinations", "packages", "cards", "modal", "filter", "booking", "wanderworld", "travel agency"])
                 if has_security_intent and not any(w in task_lower for w in ["accessibility", "a11y", "wcag", "usability", "keyboard", "frontend", "ui", "design"]):
                     score = min(score, 0.15)
                     rejected.append((name, "Security audit intent; suppressing web design guidelines"))
                 elif has_audit_intent:
                     score += 0.50
                     score_reasons.append("usability / accessibility guidelines intent")
+                elif has_de_or_taste and (has_vanilla_intent or has_react_intent):
+                    score += 0.38
+                    score_reasons.append("web design and accessibility guidelines for rich UI components")
 
             elif name == "security-audit":
                 if has_security_intent:
@@ -369,16 +423,35 @@ class SkillEngine:
                     score_reasons.append("workspace contains git/conflict signals")
 
             elif name == "taste-design":
-                has_taste_intent = _has_keyword(["taste", "editorial", "distinctive", "creative direction", "brand mood", "aesthetic direction", "design brief", "art direction", "brief"])
-                if has_taste_intent:
+                has_taste_intent = _has_keyword([
+                    "taste", "editorial", "distinctive", "creative direction", "brand mood", "aesthetic direction",
+                    "design brief", "art direction", "brief", "brand personality", "visual direction", "aesthetic",
+                    "premium", "luxury", "sleek", "travel agency", "traveler", "wanderworld"
+                ])
+                has_de_intent = _has_keyword([
+                    "design engineering", "polished frontend", "ui engineering", "product design implementation",
+                    "frontend design", "visual polish", "craft", "polish", "cards", "package cards",
+                    "destination cards", "card layout", "modal", "modals", "dialog", "interactive filter",
+                    "destinations", "packages", "showcase"
+                ])
+                if has_taste_intent or (has_de_intent and any(w in task_lower for w in ["build", "implement", "create", "portfolio", "interface", "website", "agency"])):
                     score += 0.50
-                    score_reasons.append("taste / creative design direction intent")
+                    score_reasons.append("taste / creative design direction and brief intent")
 
             elif name == "design-engineering":
-                has_de_intent = _has_keyword(["design engineering", "polished frontend", "ui engineering", "product design implementation", "frontend design", "visual polish", "craft", "polish"])
-                has_taste_intent = _has_keyword(["taste", "editorial", "distinctive", "creative direction", "brand mood", "aesthetic direction", "design brief", "art direction"])
-                if has_de_intent or (has_taste_intent and any(w in task_lower for w in ["build", "implement", "create", "portfolio", "interface"])):
-                    score += 0.45
+                has_de_intent = _has_keyword([
+                    "design engineering", "polished frontend", "ui engineering", "product design implementation",
+                    "frontend design", "visual polish", "craft", "polish", "cards", "package cards",
+                    "destination cards", "card layout", "modal", "modals", "dialog", "interactive filter",
+                    "destinations", "packages", "showcase"
+                ])
+                has_taste_intent = _has_keyword([
+                    "taste", "editorial", "distinctive", "creative direction", "brand mood", "aesthetic direction",
+                    "design brief", "art direction", "brief", "brand personality", "visual direction", "aesthetic",
+                    "premium", "luxury", "sleek", "travel agency", "traveler", "wanderworld"
+                ])
+                if has_de_intent or (has_taste_intent and any(w in task_lower for w in ["build", "implement", "create", "portfolio", "interface", "website", "agency"])):
+                    score += 0.48
                     score_reasons.append("design engineering implementation intent")
 
             elif name == "shadcn-ui":
@@ -395,9 +468,14 @@ class SkillEngine:
                     score = min(score, 0.15)
 
             elif name == "code-review":
-                if has_review_intent:
+                if is_customer_review and not has_code_review_intent:
+                    score = min(score, 0.10)
+                    rejected.append((name, "Prompt references user/customer reviews or review ratings; not a code review task"))
+                elif has_code_review_intent:
                     score += 0.50
                     score_reasons.append("code review intent")
+                else:
+                    score = min(score, 0.15)
 
             elif name == "pytest-generation":
                 if (has_vanilla_intent or any(f.endswith((".html", ".css", ".js")) for f in ws_files)) and not any(w in task_lower for w in ["pytest", "python", "backend test"]):
