@@ -8,6 +8,8 @@ import subprocess
 import time
 import shlex
 import sys
+import re
+import json
 from pathlib import Path
 from typing import Optional
 
@@ -286,6 +288,15 @@ def _translate_single_command(command: str, py: str, cwd: Optional[Path] = None)
                 args_str = " ".join(f'"{t.replace(chr(34), chr(92) + chr(34))}"' for t in targets)
                 return f'"{py}" -c "{py_code}" {args_str}'
 
+            if lead == "export" and len(parts) > 1:
+                return f"set {parts[1]}"
+
+            # Detect PowerShell-specific cmdlets on Windows and wrap appropriately
+            ps_cmdlets = {"get-content", "select-string", "test-path", "get-childitem", "set-content", "where-object", "invoke-webrequest", "out-file"}
+            if lead.lower() in ps_cmdlets or lead.lower().startswith("$env:") or stripped_command.startswith("$"):
+                cmd_escaped = stripped_command.replace('"', '`"')
+                return f'powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command "{cmd_escaped}"'
+
     # 3. If cwd or workspace_manager has an active directory, normalize redundant directory prefix
     try:
         from core.workspace import workspace_manager
@@ -431,7 +442,6 @@ class BashExecTool(BaseTool):
         # Intercept persistent HTTP dev server commands to prevent blocking the agent loop
         cmd_clean = inp.command.strip().lower()
         if "http.server" in cmd_clean:
-            import re
             from core.browser.dev_server import DevServerManager
             from tools.browser_tools import _run_async
 
@@ -471,6 +481,104 @@ class BashExecTool(BaseTool):
                     error=f"Failed to start managed background server: {srv_err}",
                     exit_code=1,
                     duration_seconds=time.monotonic() - start_time,
+                )
+
+        # Command safety: Inspect package.json before executing npm commands (especially npm test)
+        # Prevents running missing scripts and accepting fake zero exit codes
+        is_npm_test = bool(re.search(r"\bnpm\s+(?:run\s+)?test\b|\bnpm\s+t\b", inp.command, re.IGNORECASE))
+        is_npm_run = re.search(r"\bnpm\s+run\s+([a-zA-Z0-9_\-:]+)", inp.command, re.IGNORECASE)
+
+        if is_npm_test or is_npm_run:
+            pkg_json = work_dir / "package.json"
+            if not pkg_json.exists():
+                duration = time.monotonic() - start_time
+                err_msg = (
+                    f"Execution blocked: Cannot execute '{inp.command}' because 'package.json' "
+                    f"does not exist in working directory '{work_dir}'."
+                )
+                logger.warning(f"bash_exec SAFETY_BLOCKED | cmd={inp.command!r} | reason=missing package.json")
+                return ToolResult(
+                    success=False,
+                    output="",
+                    error=err_msg,
+                    exit_code=1,
+                    duration_seconds=duration,
+                    details={
+                        "command": inp.command,
+                        "cwd": str(work_dir),
+                        "classification": "MISSING_PACKAGE_JSON",
+                        "package_json_inspected": True,
+                        "package_json_found": False,
+                    },
+                )
+
+            # package.json exists - inspect scripts
+            try:
+                pkg_data = json.loads(pkg_json.read_text(encoding="utf-8", errors="replace"))
+                scripts = pkg_data.get("scripts", {})
+                if is_npm_test:
+                    if "test" not in scripts or not str(scripts.get("test", "")).strip():
+                        duration = time.monotonic() - start_time
+                        err_msg = (
+                            f"Execution blocked: Cannot execute 'npm test' because no 'test' script is defined "
+                            f"in package.json at '{pkg_json}'. Defined scripts: {list(scripts.keys())}."
+                        )
+                        logger.warning(f"bash_exec SAFETY_BLOCKED | cmd={inp.command!r} | reason=missing test script in package.json")
+                        return ToolResult(
+                            success=False,
+                            output="",
+                            error=err_msg,
+                            exit_code=1,
+                            duration_seconds=duration,
+                            details={
+                                "command": inp.command,
+                                "cwd": str(work_dir),
+                                "classification": "MISSING_TEST_SCRIPT",
+                                "package_json_inspected": True,
+                                "package_json_found": True,
+                                "defined_scripts": list(scripts.keys()),
+                            },
+                        )
+                elif is_npm_run:
+                    req_script = is_npm_run.group(1)
+                    if req_script not in scripts:
+                        duration = time.monotonic() - start_time
+                        err_msg = (
+                            f"Execution blocked: Cannot execute 'npm run {req_script}' because script '{req_script}' "
+                            f"is not defined in package.json. Defined scripts: {list(scripts.keys())}."
+                        )
+                        logger.warning(f"bash_exec SAFETY_BLOCKED | cmd={inp.command!r} | reason=missing '{req_script}' script")
+                        return ToolResult(
+                            success=False,
+                            output="",
+                            error=err_msg,
+                            exit_code=1,
+                            duration_seconds=duration,
+                            details={
+                                "command": inp.command,
+                                "cwd": str(work_dir),
+                                "classification": "MISSING_NPM_SCRIPT",
+                                "package_json_inspected": True,
+                                "package_json_found": True,
+                                "requested_script": req_script,
+                                "defined_scripts": list(scripts.keys()),
+                            },
+                        )
+            except Exception as parse_err:
+                duration = time.monotonic() - start_time
+                err_msg = f"Execution blocked: Could not parse package.json: {parse_err}"
+                return ToolResult(
+                    success=False,
+                    output="",
+                    error=err_msg,
+                    exit_code=1,
+                    duration_seconds=duration,
+                    details={
+                        "command": inp.command,
+                        "cwd": str(work_dir),
+                        "classification": "INVALID_PACKAGE_JSON",
+                        "package_json_inspected": True,
+                    },
                 )
 
         proc = None
@@ -541,6 +649,20 @@ class BashExecTool(BaseTool):
             f"bash_exec | exit={exit_code} | duration={duration:.2f}s | "
             f"cmd={inp.command[:60]!r}"
         )
+        classification = "SUCCESS" if success else "NON_ZERO_EXIT"
+        if not success:
+            err_lower = (stderr + " " + stdout).lower()
+            if exit_code == 124:
+                classification = "TIMEOUT"
+            elif exit_code == 126:
+                classification = "SECURITY_BLOCKED"
+            elif exit_code == 127 or "not recognized as an internal or external command" in err_lower or "command not found" in err_lower:
+                classification = "COMMAND_NOT_FOUND"
+            elif "syntaxerror" in err_lower or "bracket mismatch" in err_lower or "syntax error" in err_lower:
+                classification = "SYNTAX_ERROR"
+            elif "missing script" in err_lower or "no test specified" in err_lower:
+                classification = "MISSING_TEST_SCRIPT"
+
         details = {
             "command": inp.command,
             "cmd_to_run": command_to_run,
@@ -551,6 +673,7 @@ class BashExecTool(BaseTool):
             "timed_out": False,
             "stdout_chars": len(stdout),
             "stderr_chars": len(stderr),
+            "classification": classification,
         }
         return ToolResult(
             success=success,

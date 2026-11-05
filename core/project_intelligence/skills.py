@@ -12,6 +12,7 @@ from __future__ import annotations
 import hashlib
 import os
 import re
+import sys
 import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Tuple
@@ -197,6 +198,20 @@ class SkillEngine:
         has_security_intent = _has_keyword(["security", "vulnerability", "injection", "traversal", "auth bypass", "bypass", "exploit", "cve", "owasp", "xss", "csrf", "sanitise", "sanitize", "secure"])
         has_git_intent = _has_keyword(["git", "merge conflict", "merge", "commit", "branch", "rebase", "pull request", "cherry-pick"])
 
+        # Environment execution intent detectors
+        has_windows_exec = bool(re.search(
+            r"\b(?:windows\s+(?:command|script|execution|powershell|environment|platform)|on\s+windows|windows\s+shell)\b",
+            task_lower
+        ))
+        has_linux_exec = bool(re.search(
+            r"\b(?:linux\s+(?:script|automation|shell|command|environment)|on\s+linux|bash\s+script|genuine\s+bash)\b",
+            task_lower
+        ))
+        has_shell_ops = bool(re.search(
+            r"\b(?:npm|node|pytest|git|shell|command)\s+(?:failures?|errors?|execution|commands?|scripts?|issues?)\b",
+            task_lower
+        ))
+
         # Code review disambiguation: genuine code/diff/PR review vs user/customer/product reviews
         is_customer_review = bool(re.search(
             r"\b(?:traveler|customer|user|client|product|guest|hotel|star)\s+reviews?\b|\breviews?\s+(?:section|rating|ratings|score|scores|card|cards|slider|carousel|list)\b",
@@ -216,6 +231,10 @@ class SkillEngine:
         has_no_db = _has_negative_constraint(["database", "sql", "sqlite", "postgres", "models", "orm", "schema", "persistence"])
         has_no_react = _has_negative_constraint(["react", "jsx", "nextjs"])
         has_no_vanilla = _has_negative_constraint(["vanilla", "vanilla-web"])
+        has_no_ui = _has_negative_constraint(["ui", "frontend", "interface", "gui"]) or bool(re.search(
+            r"\b(?:without|no)\s+(?:ui|frontend|gui|user\s+interface)\b|\b(?:api|backend|script|cli)\s+only\b",
+            task_lower
+        ))
 
         # Rich frontend and visual UI intent
         has_visual_ui_intent = _has_keyword([
@@ -228,6 +247,37 @@ class SkillEngine:
             "travel agency", "booking form", "contact form", "pricing table", "features section", "showcase",
             "destinations", "packages"
         ])
+
+        # Task category classification for mandatory UI bundle vs fast-path landing pages vs backend/script
+        is_plain_landing_page = (
+            "clean html5 and semantic styling" in task_lower or
+            "static landing page with html, css, and vanilla js" in task_lower
+        )
+        is_narrow_css_tweak = bool(re.search(
+            r"\badjust\s+(?:the\s+)?spacing\b|\bwithout\s+(?:changing\s+the\s+design|redesigning)\b",
+            task_lower
+        ))
+        is_shell_or_ops = (
+            (has_powershell_intent or has_bash_intent or has_windows_exec or has_linux_exec or has_shell_ops) and
+            not any(w in task_lower for w in ["website", "webpage", "dashboard", "frontend", "portfolio"])
+        )
+        is_pure_non_ui = (
+            (has_code_review_intent and not any(w in task_lower for w in ["website", "build", "create", "implement"])) or
+            (has_arch_intent and has_no_ui)
+        )
+        has_ui_mission_intent = (
+            has_visual_ui_intent or
+            bool(re.search(r"\b(?:website|webpage|web\s+app|web\s+application|react\s+application|react\s+app|frontend\s+application|travel\s+website|portfolio|dashboard|landing\s+page|storefront|user\s+interface|portal)\b", task_lower)) or
+            ("frontend" in task_lower and any(w in task_lower for w in ["build", "create", "implement", "app", "application"]))
+        )
+        is_ui_mission = (
+            has_ui_mission_intent and
+            not has_no_ui and
+            not is_plain_landing_page and
+            not is_narrow_css_tweak and
+            not is_shell_or_ops and
+            not is_pure_non_ui
+        )
 
         # Conceptual / purely definitional question detector (prevents false positive activations on theoretical queries)
         is_conceptual_inquiry = bool(re.search(
@@ -298,9 +348,9 @@ class SkillEngine:
                     score_reasons.append("Python workspace with reported issue")
 
             elif name == "vanilla-web":
-                if has_no_vanilla:
+                if has_no_vanilla or has_no_ui:
                     score = 0.0
-                    rejected.append((name, "Explicit negative constraint against vanilla web"))
+                    rejected.append((name, "Explicit negative constraint against vanilla web / UI"))
                     continue
                 if has_vanilla_intent or has_visual_ui_intent:
                     score += 0.45
@@ -315,9 +365,9 @@ class SkillEngine:
             elif name == "react-frontend":
                 has_html_files = any(f.endswith(".html") for f in ws_files)
                 has_react_files = any(f.endswith((".jsx", ".tsx")) for f in ws_files) or "react" in ws_framework
-                if has_no_react or explicitly_vanilla or (has_html_files and not has_react_files and not has_react_intent):
+                if has_no_react or has_no_ui or explicitly_vanilla or (has_html_files and not has_react_files and not has_react_intent):
                     score = 0.0
-                    rejected.append((name, "Workspace contains vanilla HTML/JS or negative constraint against React"))
+                    rejected.append((name, "Workspace contains vanilla HTML/JS or negative constraint against React / UI"))
                     continue
                 if has_react_intent:
                     score += 0.50
@@ -379,12 +429,16 @@ class SkillEngine:
                     score_reasons.append("React performance and best-practices intent")
 
             elif name == "react-composition-patterns":
-                has_comp_intent = _has_keyword(["composition", "compound", "compound component", "slots", "tabs", "menu", "accordion", "controlled", "uncontrolled", "reusable"])
+                has_comp_intent = _has_keyword(["composition", "compound", "compound component", "slots", "tabs", "menu", "accordion", "controlled", "uncontrolled", "reusable", "complex components", "complex component", "reusable components", "component architecture"])
                 if has_react_intent and has_comp_intent:
                     score += 0.45
                     score_reasons.append("React component composition intent")
 
             elif name == "design-system":
+                if has_no_ui:
+                    score = 0.0
+                    rejected.append((name, "Explicit negative constraint against UI/frontend"))
+                    continue
                 has_ds_intent = _has_keyword(["design system", "design tokens", "design token", "tokens", "token", "token extraction", "color tokens", "typography scale", "design.md", "css variables", "color palette", "theme"])
                 if has_ds_intent:
                     score += 0.50
@@ -394,6 +448,10 @@ class SkillEngine:
                     score_reasons.append("design tokens and typography system intent")
 
             elif name == "web-design-guidelines":
+                if has_no_ui:
+                    score = 0.0
+                    rejected.append((name, "Explicit negative constraint against UI/frontend"))
+                    continue
                 has_audit_intent = _has_keyword(["audit", "guidelines", "usability", "accessibility", "a11y", "wcag", "keyboard navigation", "heuristics"])
                 has_de_or_taste = any(w in task_lower for w in ["destinations", "packages", "cards", "modal", "filter", "booking", "wanderworld", "travel agency"])
                 if has_security_intent and not any(w in task_lower for w in ["accessibility", "a11y", "wcag", "usability", "keyboard", "frontend", "ui", "design"]):
@@ -423,6 +481,10 @@ class SkillEngine:
                     score_reasons.append("workspace contains git/conflict signals")
 
             elif name == "taste-design":
+                if has_no_ui:
+                    score = 0.0
+                    rejected.append((name, "Explicit negative constraint against UI/frontend"))
+                    continue
                 has_taste_intent = _has_keyword([
                     "taste", "editorial", "distinctive", "creative direction", "brand mood", "aesthetic direction",
                     "design brief", "art direction", "brief", "brand personality", "visual direction", "aesthetic",
@@ -439,6 +501,10 @@ class SkillEngine:
                     score_reasons.append("taste / creative design direction and brief intent")
 
             elif name == "design-engineering":
+                if has_no_ui:
+                    score = 0.0
+                    rejected.append((name, "Explicit negative constraint against UI/frontend"))
+                    continue
                 has_de_intent = _has_keyword([
                     "design engineering", "polished frontend", "ui engineering", "product design implementation",
                     "frontend design", "visual polish", "craft", "polish", "cards", "package cards",
@@ -455,6 +521,10 @@ class SkillEngine:
                     score_reasons.append("design engineering implementation intent")
 
             elif name == "shadcn-ui":
+                if has_no_ui:
+                    score = 0.0
+                    rejected.append((name, "Explicit negative constraint against UI/frontend"))
+                    continue
                 has_shadcn_intent = _has_keyword(["shadcn", "shadcn/ui", "shadcn ui", "shadcn-ui", "radix", "radix ui"])
                 has_ui_task = any(w in task_lower for w in ["component", "dropdown", "dialog", "modal", "button", "menu", "form", "sheet", "card", "select", "ui", "popover", "tooltip", "tabs"])
                 has_shadcn_ws = "shadcn" in ws_framework or any("components/ui" in f or "shadcn" in f for f in ws_files)
@@ -511,6 +581,10 @@ class SkillEngine:
                     score_reasons.append("code documentation / docstring intent detected")
 
             elif name == "screenshot-to-code":
+                if has_no_ui:
+                    score = 0.0
+                    rejected.append((name, "Explicit negative constraint against UI/frontend"))
+                    continue
                 has_vision_intent = _has_keyword(["screenshot", "mockup", "figma", "wireframe", "image to code", "design to code"])
                 if has_vision_intent:
                     score += 0.55
@@ -520,23 +594,29 @@ class SkillEngine:
                     score = min(score, 0.15)
 
             elif name == "powershell-scripting":
-                if has_bash_intent and not has_powershell_intent:
+                if has_bash_intent or has_linux_exec:
                     score = min(score, 0.15)
-                    rejected.append((name, "Bash specified; suppressing PowerShell scripting"))
-                elif has_powershell_intent:
-                    score += 0.55
-                    score_reasons.append("PowerShell / Windows scripting intent detected")
+                    rejected.append((name, "Linux/Bash execution specified; suppressing PowerShell scripting"))
+                elif has_powershell_intent or has_windows_exec or (has_shell_ops and "windows" in task_lower):
+                    score += 0.65
+                    score_reasons.append("PowerShell / Windows execution environment detected")
+                elif sys.platform == "win32" and has_shell_ops and not has_linux_exec and not has_bash_intent:
+                    score += 0.50
+                    score_reasons.append("Windows platform environment with shell operations")
                 if any(f.endswith(".ps1") for f in ws_files) or "powershell" in ws_framework:
                     score += 0.30
                     score_reasons.append("workspace contains PowerShell scripts")
 
             elif name == "bash-scripting":
-                if has_powershell_intent and not has_bash_intent:
+                if has_powershell_intent or has_windows_exec or (has_shell_ops and "windows" in task_lower):
                     score = min(score, 0.15)
-                    rejected.append((name, "PowerShell specified; suppressing Bash scripting"))
-                elif has_bash_intent:
-                    score += 0.55
+                    rejected.append((name, "Windows/PowerShell execution specified; suppressing Bash scripting"))
+                elif has_bash_intent or has_linux_exec:
+                    score += 0.65
                     score_reasons.append("Bash / Linux shell scripting intent detected")
+                elif sys.platform != "win32" and has_shell_ops and not has_windows_exec and not has_powershell_intent:
+                    score += 0.50
+                    score_reasons.append("POSIX/Linux platform environment with shell operations")
                 if any(f.endswith(".sh") for f in ws_files) or "bash" in ws_framework:
                     score += 0.30
                     score_reasons.append("workspace contains shell script files")
@@ -560,34 +640,75 @@ class SkillEngine:
                 is_fallback=True,
             )
 
-        # Sort qualifying candidates by score descending
-        qualifying.sort(key=lambda x: x[1], reverse=True)
+        if is_ui_mission:
+            # 1. Establish mandatory foundation bundle (Core 4 UI + exactly one primary tech)
+            core_ui = ["taste-design", "design-engineering", "design-system", "web-design-guidelines"]
+            # Technology-specific primary skill
+            has_explicit_vanilla = bool(re.search(r"\bvanilla\b", task_lower)) and not has_no_vanilla
+            if (has_react_intent or "react" in ws_framework) and not has_no_react and not has_explicit_vanilla:
+                primary_tech = "react-frontend"
+            else:
+                primary_tech = "vanilla-web"
 
-        selected_names = [s_name for s_name, _ in qualifying[:max_candidates]]
+            mandatory_foundation = list(core_ui) + [primary_tech]
+            # Ensure high qualifying scores and positive reasons for mandatory foundation
+            for m_name in mandatory_foundation:
+                scores[m_name] = max(scores.get(m_name, 0.0), 0.88)
+                if m_name not in reasons or reasons[m_name] == "low relevance":
+                    reasons[m_name] = "Mandatory frontend foundation bundle" if m_name in core_ui else f"Mandatory primary frontend technology ({primary_tech})"
 
-        rejection_dict = dict(rejected)
-        for s_name, _ in qualifying[max_candidates:]:
-            rejection_dict[s_name] = "Exceeded max candidates"
+            # Re-collect qualifying with updated scores
+            qualifying = [(name, scores[name]) for name, sc in scores.items() if sc >= 0.30]
+            qualifying.sort(key=lambda x: x[1], reverse=True)
 
-        # Domain-critical skill preservation (Part 8)
-        # For vanilla web missions, vanilla-web is domain-critical and must not be pruned out
-        if (has_vanilla_intent or any(f.endswith((".html", ".css", ".js")) for f in ws_files)) and not has_react_intent:
-            if any(name == "vanilla-web" for name, _ in qualifying) and "vanilla-web" not in selected_names:
+            # Mandatory skills are preserved unconditionally (cannot be displaced by max_candidates)
+            selected_names = list(mandatory_foundation)
+
+            # Additional qualifying specialists (e.g. react-composition-patterns, database-design, fastapi-backend)
+            specialist_candidates = [
+                s_name for s_name, _ in qualifying
+                if s_name not in selected_names
+            ]
+
+            # Optional specialist limit allows additional specialists without displacing core foundation
+            optional_limit = max(1, max_candidates - 1)
+            for spec in specialist_candidates[:optional_limit]:
+                selected_names.append(spec)
+
+            rejection_dict = dict(rejected)
+            for s_name in specialist_candidates[optional_limit:]:
+                rejection_dict[s_name] = "Exceeded optional specialist candidate limit"
+            for m_name in mandatory_foundation:
+                rejection_dict.pop(m_name, None)
+        else:
+            # Sort qualifying candidates by score descending
+            qualifying.sort(key=lambda x: x[1], reverse=True)
+
+            selected_names = [s_name for s_name, _ in qualifying[:max_candidates]]
+
+            rejection_dict = dict(rejected)
+            for s_name, _ in qualifying[max_candidates:]:
+                rejection_dict[s_name] = "Exceeded max candidates"
+
+            # Domain-critical skill preservation (Part 8)
+            # For vanilla web missions, vanilla-web is domain-critical and must not be pruned out
+            if (has_vanilla_intent or any(f.endswith((".html", ".css", ".js")) for f in ws_files)) and not has_react_intent:
+                if any(name == "vanilla-web" for name, _ in qualifying) and "vanilla-web" not in selected_names:
+                    if selected_names:
+                        displaced = selected_names.pop()
+                        rejection_dict[displaced] = "Exceeded max candidates (displaced by domain-critical vanilla-web)"
+                    selected_names.append("vanilla-web")
+                    if "vanilla-web" in rejection_dict:
+                        del rejection_dict["vanilla-web"]
+
+            # For react missions, react-frontend is domain-critical
+            if has_react_intent and any(name == "react-frontend" for name, _ in qualifying) and "react-frontend" not in selected_names:
                 if selected_names:
                     displaced = selected_names.pop()
-                    rejection_dict[displaced] = "Exceeded max candidates (displaced by domain-critical vanilla-web)"
-                selected_names.append("vanilla-web")
-                if "vanilla-web" in rejection_dict:
-                    del rejection_dict["vanilla-web"]
-
-        # For react missions, react-frontend is domain-critical
-        if has_react_intent and any(name == "react-frontend" for name, _ in qualifying) and "react-frontend" not in selected_names:
-            if selected_names:
-                displaced = selected_names.pop()
-                rejection_dict[displaced] = "Exceeded max candidates (displaced by domain-critical react-frontend)"
-            selected_names.append("react-frontend")
-            if "react-frontend" in rejection_dict:
-                del rejection_dict["react-frontend"]
+                    rejection_dict[displaced] = "Exceeded max candidates (displaced by domain-critical react-frontend)"
+                selected_names.append("react-frontend")
+                if "react-frontend" in rejection_dict:
+                    del rejection_dict["react-frontend"]
 
         selected_metas = [self._metadata_index[s_name] for s_name in selected_names]
 

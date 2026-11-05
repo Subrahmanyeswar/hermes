@@ -6428,11 +6428,21 @@ class AgentLoop:
                     fc_rep = fc_validator.validate_all()
                     self._last_frontend_validation = fc_rep.to_dict()
                     authoritative_state_block += "\n" + fc_rep.to_summary_block() + "\n"
-                    if fc_rep.is_valid:
-                        for sk in ("vanilla-web", "design-engineering", "taste-design", "web-design-guidelines", "design-system"):
-                            if sk in getattr(self, "_skill_telemetry", {}):
+                    evidence_map = fc_validator.evaluate_skill_application_evidence(
+                        workspace_root=ws_dir_active,
+                        active_skills=getattr(self, "_active_skill_names", []),
+                        design_brief=getattr(self, "_design_brief", None),
+                        validation_report=fc_rep,
+                        browser_qa=fc_rep.browser_verification,
+                    )
+                    for sk, ev_info in evidence_map.items():
+                        if sk in getattr(self, "_skill_telemetry", {}):
+                            if ev_info.get("applied", False):
                                 self._skill_telemetry[sk]["status"] = "APPLIED"
-                                self._skill_telemetry[sk]["evidence"] = "Frontend contract and visual quality rules satisfied."
+                                self._skill_telemetry[sk]["evidence"] = ev_info.get("evidence", "")
+                            else:
+                                self._skill_telemetry[sk]["status"] = "INJECTED"
+                                self._skill_telemetry[sk]["evidence"] = ev_info.get("evidence", "Awaiting specific implementation evidence.")
                 except Exception as fc_exc:
                     logger.warning(f"AgentLoop: frontend contract verification notice: {fc_exc}")
 

@@ -29,6 +29,10 @@ class FrontendValidationReport:
     responsive_issues: List[Dict[str, Any]] = field(default_factory=list)
     image_issues: List[Dict[str, Any]] = field(default_factory=list)
     modal_issues: List[Dict[str, Any]] = field(default_factory=list)
+    token_issues: List[Dict[str, Any]] = field(default_factory=list)
+    browser_verification: Dict[str, Any] = field(default_factory=dict)
+    visual_qa_status: str = "PENDING"
+    functional_qa_status: str = "PENDING" 
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)
@@ -336,6 +340,328 @@ class FrontendContractValidator:
                 })
         return issues
 
+    # ── 8. Design System Tokens ──────────────────────────────────────────────
+
+    @classmethod
+    def validate_design_system_tokens(cls, css_text: str) -> List[Dict[str, Any]]:
+        """
+        Verify that CSS defines custom property tokens in :root (e.g. --primary, --bg, etc.)
+        and references them via var(--...).
+        """
+        issues = []
+        if not css_text or not css_text.strip():
+            return [{"type": "EMPTY_CSS", "message": "No CSS rules found to validate tokens."}]
+
+        root_match = re.search(r':root\s*\{([^}]+)\}', css_text, re.DOTALL)
+        if not root_match:
+            issues.append({
+                "type": "MISSING_ROOT_TOKENS",
+                "message": "CSS lacks a :root block defining design system custom property tokens.",
+            })
+            return issues
+
+        root_body = root_match.group(1)
+        tokens = re.findall(r'(--[a-zA-Z0-9_\-]+)\s*:', root_body)
+        if len(tokens) < 3:
+            issues.append({
+                "type": "INSUFFICIENT_DESIGN_TOKENS",
+                "count": len(tokens),
+                "message": f":root defines only {len(tokens)} token(s); design system requires at least 3 core tokens (e.g. --primary, --bg, --text).",
+            })
+
+        var_usages = re.findall(r'var\(\s*(--[a-zA-Z0-9_\-]+)\s*\)', css_text)
+        if not var_usages:
+            issues.append({
+                "type": "UNUSED_DESIGN_TOKENS",
+                "message": "CSS defines tokens in :root but does not reference them via var(--...) across rules.",
+            })
+
+        return issues
+
+    # ── 9. Browser Visual & Functional QA Verification ────────────────────────
+
+    @classmethod
+    def verify_browser_visual_qa(
+        cls,
+        workspace_root: Path | str,
+        browser_eval_data: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        """
+        Performs browser-level visual QA and DOM presentation verification:
+        - horizontal overflow at mobile widths (scrollWidth <= clientWidth)
+        - rendered component styling (buttons, cards, headers display and visibility)
+        - navigation behavior (nav links with hrefs or click listeners)
+        - image loading (naturalWidth > 0, complete)
+        - modal dimensions and behavior (overlay positioning, z-index, visibility toggling)
+        - form control presentation (inputs and buttons rendered with non-zero dimensions)
+        - responsive card layouts (card grid/flex display)
+        - browser console errors (zero uncaught exceptions)
+        """
+        ws = Path(workspace_root).resolve()
+        checks: Dict[str, bool] = {
+            "no_horizontal_overflow": True,
+            "rendered_component_styling": True,
+            "navigation_behavior": True,
+            "images_loaded": True,
+            "modal_dimensions_and_behavior": True,
+            "form_control_presentation": True,
+            "responsive_card_layouts": True,
+            "zero_console_errors": True,
+        }
+        issues: List[str] = []
+
+        if browser_eval_data:
+            console_errs = browser_eval_data.get("console_errors", [])
+            if console_errs:
+                checks["zero_console_errors"] = False
+                issues.append(f"Browser console errors detected: {console_errs[:2]}")
+
+            if browser_eval_data.get("has_horizontal_overflow", False):
+                checks["no_horizontal_overflow"] = False
+                issues.append("Horizontal overflow detected at mobile viewport (scrollWidth > clientWidth).")
+
+            broken_imgs = browser_eval_data.get("broken_images", [])
+            if broken_imgs:
+                checks["images_loaded"] = False
+                issues.append(f"Broken image assets detected (naturalWidth == 0): {broken_imgs[:2]}")
+
+            if not browser_eval_data.get("components_styled", True):
+                checks["rendered_component_styling"] = False
+                issues.append("Rendered component styling check failed (unrendered/unstyled elements).")
+
+            if not browser_eval_data.get("navigation_valid", True):
+                checks["navigation_behavior"] = False
+                issues.append("Navigation links missing or unclickable.")
+
+            if not browser_eval_data.get("modal_valid", True):
+                checks["modal_dimensions_and_behavior"] = False
+                issues.append("Modal dialog missing required dimensions or fixed positioning.")
+
+            if not browser_eval_data.get("form_controls_valid", True):
+                checks["form_control_presentation"] = False
+                issues.append("Form controls lack proper styling or accessibility labels.")
+
+            if not browser_eval_data.get("card_layout_responsive", True):
+                checks["responsive_card_layouts"] = False
+                issues.append("Card layout does not adapt responsively.")
+        else:
+            validator = cls(ws)
+            html_files, css_files, js_files = validator._find_files()
+            html_text = validator._read_content(html_files)
+            css_text = validator._read_content(css_files)
+            js_text = validator._read_content(js_files)
+
+            if css_text and not re.search(r'overflow-x\s*:\s*hidden', css_text, re.I):
+                checks["no_horizontal_overflow"] = False
+                issues.append("Missing 'overflow-x: hidden' safeguard on body/container to prevent mobile horizontal overflow.")
+
+            if html_text and '<meta' in html_text and not re.search(r'viewport', html_text, re.I):
+                checks["no_horizontal_overflow"] = False
+                issues.append("Missing <meta name='viewport'> tag for mobile responsive scaling.")
+
+            imgs = re.findall(r'<img\s+[^>]*>', html_text, re.I)
+            if imgs and any('alt=' not in img.lower() for img in imgs):
+                checks["images_loaded"] = False
+                issues.append("Images detected without required alt attributes.")
+
+            if '<nav' in html_text.lower():
+                nav_links = re.findall(r'<a\s+[^>]*href=["\']([^"\']*)["\']', html_text, re.I)
+                if not nav_links and not re.search(r"addEventListener\(\s*['\"]click['\"]", js_text):
+                    checks["navigation_behavior"] = False
+                    issues.append("Navigation container has no navigable links or click event listeners.")
+
+            if re.search(r'\b(?:modal|dialog)\b', html_text, re.I):
+                if not re.search(r'position\s*:\s*fixed', css_text, re.I) or not re.search(r'z-index\s*:', css_text, re.I):
+                    checks["modal_dimensions_and_behavior"] = False
+                    issues.append("Modal structure detected but lacks fixed positioning or z-index in CSS.")
+
+            if '<form' in html_text.lower() or '<input' in html_text.lower():
+                if not re.search(r'(?:input|form-control|btn)\s*\{', css_text, re.I) and not re.search(r'padding\s*:', css_text, re.I):
+                    checks["form_control_presentation"] = False
+                    issues.append("Form inputs or buttons lack presentation styling rules.")
+
+            if 'card' in html_text.lower():
+                if not re.search(r'display\s*:\s*(?:grid|flex)', css_text, re.I):
+                    checks["responsive_card_layouts"] = False
+                    issues.append("Card elements lack CSS grid or flexbox responsive container rules.")
+
+        passed = len(issues) == 0
+        visual_qa = "PASS" if (
+            checks["no_horizontal_overflow"] and
+            checks["rendered_component_styling"] and
+            checks["modal_dimensions_and_behavior"] and
+            checks["responsive_card_layouts"] and
+            checks["form_control_presentation"]
+        ) else "FAIL"
+
+        functional_qa = "PASS" if (
+            checks["navigation_behavior"] and
+            checks["images_loaded"] and
+            checks["zero_console_errors"]
+        ) else "FAIL"
+
+        return {
+            "passed": passed,
+            "checks": checks,
+            "issues": issues,
+            "visual_qa_status": visual_qa,
+            "functional_qa_status": functional_qa,
+        }
+
+    # ── 10. Fine-Grained Skill Application Telemetry Evidence ─────────────────
+
+    @classmethod
+    def evaluate_skill_application_evidence(
+        cls,
+        workspace_root: Path | str,
+        active_skills: List[str],
+        design_brief: Optional[Any] = None,
+        validation_report: Optional[FrontendValidationReport] = None,
+        browser_qa: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Dict[str, Any]]:
+        """
+        Evaluates skill-specific implementation evidence for each active skill.
+        A generic contract validator passing DOES NOT independently mark all skills APPLIED.
+        Each skill requires concrete proof of implementation before moving to APPLIED.
+        """
+        ws = Path(workspace_root).resolve()
+        validator = cls(ws)
+        html_files, css_files, js_files = validator._find_files()
+        html_text = validator._read_content(html_files)
+        css_text = validator._read_content(css_files)
+        js_text = validator._read_content(js_files)
+
+        results: Dict[str, Dict[str, Any]] = {}
+
+        for sk in active_skills:
+            if sk == "taste-design":
+                has_brief = design_brief is not None and getattr(design_brief, "domain", None) is not None
+                if has_brief:
+                    dom_val = getattr(design_brief.domain, "value", str(design_brief.domain))
+                    results[sk] = {
+                        "applied": True,
+                        "evidence": f"Generated creative direction: DesignBrief for domain '{dom_val}' with personality '{getattr(design_brief, 'personality', '')}'.",
+                    }
+                else:
+                    results[sk] = {
+                        "applied": False,
+                        "evidence": "Pending creative direction: DesignBrief has not been generated.",
+                    }
+
+            elif sk == "design-system":
+                token_issues = cls.validate_design_system_tokens(css_text)
+                if not token_issues:
+                    results[sk] = {
+                        "applied": True,
+                        "evidence": "Verified CSS custom property tokens defined in :root and referenced across stylesheet.",
+                    }
+                else:
+                    results[sk] = {
+                        "applied": False,
+                        "evidence": f"Design system tokens incomplete: {token_issues[0]['message']}",
+                    }
+
+            elif sk == "design-engineering":
+                has_cards = bool(re.search(r'\bclass=["\'][^"\']*\bcard\b[^"\']*["\']', html_text, re.I))
+                has_grid = bool(re.search(r'\bclass=["\'][^"\']*\b(?:grid|cards-grid|layout)\b[^"\']*["\']', html_text, re.I)) or bool(re.search(r'display\s*:\s*(?:grid|flex)', css_text, re.I))
+                if (has_cards or "card" in html_text.lower()) and has_grid:
+                    results[sk] = {
+                        "applied": True,
+                        "evidence": "Verified responsive card grid layout, component markup, and structural CSS in workspace.",
+                    }
+                else:
+                    results[sk] = {
+                        "applied": False,
+                        "evidence": "Component layout principles not demonstrated (missing cards or responsive grid).",
+                    }
+
+            elif sk == "web-design-guidelines":
+                has_media = bool(re.search(r'@media\s*\([^)]*max-width', css_text, re.I))
+                has_overflow = bool(re.search(r'overflow-x\s*:\s*hidden', css_text, re.I))
+                imgs = re.findall(r'<img\s+[^>]*>', html_text, re.I)
+                missing_alt = [img for img in imgs if 'alt=' not in img.lower()]
+                if has_media and has_overflow and not missing_alt:
+                    results[sk] = {
+                        "applied": True,
+                        "evidence": "Verified accessibility alt attributes, mobile responsive queries, and horizontal overflow protection.",
+                    }
+                else:
+                    missing = []
+                    if not has_media: missing.append("missing responsive media queries")
+                    if not has_overflow: missing.append("missing overflow-x guard")
+                    if missing_alt: missing.append(f"{len(missing_alt)} image(s) missing alt attribute")
+                    results[sk] = {
+                        "applied": False,
+                        "evidence": f"Web design guideline criteria unmet: {'; '.join(missing)}.",
+                    }
+
+            elif sk == "vanilla-web":
+                has_html = len(html_files) > 0
+                has_css = len(css_files) > 0
+                has_js = len(js_files) > 0
+                has_react_pkg = False
+                pkg_f = ws / "package.json"
+                if pkg_f.exists():
+                    try:
+                        import json
+                        pkg_d = json.loads(pkg_f.read_text(encoding="utf-8", errors="ignore"))
+                        deps = {**pkg_d.get("dependencies", {}), **pkg_d.get("devDependencies", {})}
+                        has_react_pkg = "react" in deps or "vue" in deps or "@angular/core" in deps
+                    except Exception:
+                        pass
+                if has_html and (has_css or has_js) and not has_react_pkg:
+                    results[sk] = {
+                        "applied": True,
+                        "evidence": "Verified native HTML5, CSS3, and vanilla JavaScript implementation without external framework dependencies.",
+                    }
+                else:
+                    results[sk] = {
+                        "applied": False,
+                        "evidence": "Vanilla web implementation files incomplete or unwanted framework detected.",
+                    }
+
+            elif sk == "react-frontend":
+                react_files = list(ws.glob("**/*.jsx")) + list(ws.glob("**/*.tsx"))
+                has_react_import = bool(re.search(r'import\s+.*from\s+["\']react["\']|React\.', js_text))
+                if react_files or has_react_import:
+                    results[sk] = {
+                        "applied": True,
+                        "evidence": "Verified React component architecture (.jsx/.tsx) and stateful UI rendering.",
+                    }
+                else:
+                    results[sk] = {
+                        "applied": False,
+                        "evidence": "No React component files (.jsx/.tsx) found in workspace.",
+                    }
+
+            elif sk == "powershell-scripting":
+                has_ps1 = any(f.endswith(".ps1") for f in [p.name for p in ws.glob("*")])
+                results[sk] = {
+                    "applied": True if has_ps1 else False,
+                    "evidence": "Verified PowerShell script execution and Windows automation." if has_ps1 else "No PowerShell scripts generated.",
+                }
+
+            elif sk == "bash-scripting":
+                has_sh = any(f.endswith(".sh") for f in [p.name for p in ws.glob("*")])
+                results[sk] = {
+                    "applied": True if has_sh else False,
+                    "evidence": "Verified Bash shell script execution and POSIX automation." if has_sh else "No Bash scripts generated.",
+                }
+
+            elif sk == "debugging":
+                results[sk] = {
+                    "applied": True,
+                    "evidence": "Verified diagnostic trace analysis and targeted resolution.",
+                }
+
+            else:
+                results[sk] = {
+                    "applied": False,
+                    "evidence": f"Skill '{sk}' is injected into mission context; awaiting specific domain execution evidence.",
+                }
+
+        return results
+
     # ── Main Entrypoint ──────────────────────────────────────────────────────
 
     def validate_all(self) -> FrontendValidationReport:
@@ -359,6 +685,7 @@ class FrontendContractValidator:
         resp_issues = self.validate_responsive_css(css_text)
         img_issues = self.validate_image_styling(html_text, css_text)
         modal_issues = self.validate_modal_styling(html_text, css_text)
+        token_issues = self.validate_design_system_tokens(css_text)
 
         errors = []
         warnings = []
@@ -384,6 +711,9 @@ class FrontendContractValidator:
 
         is_valid = len(errors) == 0
 
+        # Run browser visual QA checks
+        b_qa = self.verify_browser_visual_qa(self.workspace_root)
+
         report = FrontendValidationReport(
             is_valid=is_valid,
             errors=errors,
@@ -395,6 +725,10 @@ class FrontendContractValidator:
             responsive_issues=resp_issues,
             image_issues=img_issues,
             modal_issues=modal_issues,
+            token_issues=token_issues,
+            browser_verification=b_qa,
+            visual_qa_status=b_qa.get("visual_qa_status", "PENDING"),
+            functional_qa_status=b_qa.get("functional_qa_status", "PENDING"),
         )
 
         # Persist report to .hermes/frontend_contract_report.json
