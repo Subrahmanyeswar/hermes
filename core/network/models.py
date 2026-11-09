@@ -178,7 +178,7 @@ class LogicalRequest:
     system: str = ""
     temperature: float = 0.1
     max_tokens: Optional[int] = None
-    total_timeout: float = 90.0
+    total_timeout: float = 25.0
     created_at: float = field(default_factory=time.monotonic)
     completed_at: Optional[float] = None
     status: RequestPhase = RequestPhase.CREATED
@@ -249,10 +249,10 @@ class DeadlineBudget:
     Mission Deadline >= Turn Deadline >= Logical Request Deadline >= Attempt Timeout.
     """
     connect_timeout: float = 10.0
-    first_delta_timeout: float = 15.0
-    idle_timeout: float = 15.0
-    attempt_timeout: float = 45.0
-    logical_request_timeout: float = 90.0
+    first_delta_timeout: float = 7.5
+    idle_timeout: float = 10.0
+    attempt_timeout: float = 15.0
+    logical_request_timeout: float = 25.0
     turn_deadline_monotonic: Optional[float] = None
     mission_deadline_monotonic: Optional[float] = None
     start_time_monotonic: float = field(default_factory=time.monotonic)

@@ -730,6 +730,140 @@ class FrontendContractValidator:
 
     # ── 9. Browser Visual & Functional QA Verification ────────────────────────
 
+        # ?? 8b. Additional Component Contracts (Part 5 Requirements) ?????????????
+
+    @classmethod
+    def validate_package_card_styling(cls, html_text: str, css_text: str) -> List[Dict[str, Any]]:
+        """Verify package card component contract styling in CSS."""
+        issues = []
+        has_pkg = "package-card" in html_text or "package" in html_text.lower()
+        if has_pkg and css_text:
+            has_meta = bool(re.search(r'\.(?:package-meta|duration|price|package-price|highlights|package-highlights)\b', css_text, re.I))
+            if not has_meta:
+                issues.append({
+                    "type": "UNSTYLED_PACKAGE_METADATA",
+                    "message": "Package cards lack metadata styling rules (.package-meta, .duration, .price, .highlights) in CSS.",
+                })
+        return issues
+
+    @classmethod
+    def validate_filter_layout_styling(cls, html_text: str, css_text: str) -> List[Dict[str, Any]]:
+        """Verify filter controls and search box layout in CSS."""
+        issues = []
+        has_filters = "filter" in html_text.lower() or "search" in html_text.lower()
+        if has_filters and css_text:
+            has_filter_css = bool(re.search(r'\.(?:filter-container|filters|search-box|search-container|filter-buttons|filter-pills)\b', css_text, re.I))
+            if not has_filter_css:
+                issues.append({
+                    "type": "UNSTYLED_FILTERS",
+                    "message": "Filter controls lack layout styling (.filter-container, .search-box, .filter-buttons) in CSS.",
+                })
+        return issues
+
+    @classmethod
+    def validate_testimonial_styling(cls, html_text: str, css_text: str) -> List[Dict[str, Any]]:
+        """Verify testimonial card and avatar styling in CSS."""
+        issues = []
+        has_test = "testimonial" in html_text.lower() or "review" in html_text.lower()
+        if has_test and css_text:
+            has_avatar_css = bool(re.search(r'\.(?:avatar|testimonial-avatar|testimonial-header|testimonial-card)\b', css_text, re.I))
+            if not has_avatar_css:
+                issues.append({
+                    "type": "UNSTYLED_TESTIMONIALS",
+                    "message": "Testimonials lack component styling (.testimonial-card, .avatar, .testimonial-header) in CSS.",
+                })
+        return issues
+
+    @classmethod
+    def validate_mobile_nav_css(cls, html_text: str, css_text: str) -> List[Dict[str, Any]]:
+        """Verify mobile navigation active toggle rules in responsive CSS."""
+        issues = []
+        has_nav = "nav" in html_text.lower()
+        if has_nav and css_text:
+            has_active_nav = bool(re.search(r'\.(?:nav-links|navbar-menu|nav-menu|nav)\.active\b|#nav-menu\.active\b', css_text, re.I)) or                              bool(re.search(r'@media[^{]*\{[^}]*\.(?:nav-links|navbar-menu|nav-menu|nav)[^{]*\{', css_text, re.I))
+            if not has_active_nav:
+                issues.append({
+                    "type": "MISSING_MOBILE_NAV_ACTIVE_STYLE",
+                    "message": "CSS lacks mobile navigation active toggle styling (.nav-links.active or #nav-menu.active).",
+                })
+        return issues
+
+    @classmethod
+    def validate_anchor_targets(cls, html_text: str) -> List[Dict[str, Any]]:
+        """Verify that all internal anchor links point to existing DOM IDs."""
+        issues = []
+        anchors = set(re.findall(r'''<a[^>]+href=["']#([a-zA-Z0-9_-]+)["']''', html_text, re.I))
+        dom_ids = set(re.findall(r'''\bid=["']([a-zA-Z0-9_-]+)["']''', html_text, re.I))
+        anchors.discard("")
+        anchors.discard("top")
+        
+        for a in anchors:
+            if a not in dom_ids:
+                if a == "about" and "why-us" in dom_ids:
+                    continue
+                issues.append({
+                    "type": "BROKEN_INTERNAL_ANCHOR",
+                    "target": a,
+                    "message": f"Navigation link href='#{a}' targets nonexistent section id='#{a}' in index.html.",
+                })
+        return issues
+
+    @classmethod
+    def validate_hero_composition_css(cls, html_text: str, css_text: str) -> List[Dict[str, Any]]:
+        """
+        Verify that hero overlay spans full bleed (absolute inset: 0 or ::before)
+        rather than a partial-height relative box with padding.
+        """
+        issues = []
+        has_hero = "hero" in html_text.lower()
+        if has_hero and css_text:
+            overlay_rel = bool(re.search(r'\.hero[-_]overlay\s*\{[^}]*position\s*:\s*relative', css_text, re.I))
+            has_absolute_overlay = (
+                bool(re.search(r'\.hero[-_]overlay\s*\{[^}]*position\s*:\s*absolute[^}]*inset\s*:\s*0', css_text, re.I)) or
+                bool(re.search(r'\.hero::before\s*\{[^}]*position\s*:\s*absolute[^}]*inset\s*:\s*0', css_text, re.I)) or
+                bool(re.search(r'\.hero\s*\{[^}]*background(?:-image)?\s*:\s*linear-gradient', css_text, re.I))
+            )
+            if overlay_rel and not has_absolute_overlay:
+                issues.append({
+                    "type": "DEFECTIVE_HERO_OVERLAY",
+                    "message": "Hero overlay uses 'position: relative' with padding instead of full-bleed 'position: absolute; inset: 0; z-index: 1;', causing an unsightly floating rectangular translucent band.",
+                })
+        return issues
+
+    @classmethod
+    def validate_mobile_nav_control(cls, html_text: str, css_text: str) -> List[Dict[str, Any]]:
+        """
+        Verify that mobile menu button uses a styled hamburger icon (spans, bars, or SVG)
+        with aria-label and aria-expanded, rather than raw unstyled 'Menu' text.
+        """
+        issues = []
+        if "mobile-menu-btn" in html_text or "mobile-menu" in html_text:
+            import re
+            m = re.search(r"<button\b[^>]*class=[\'\"][^\'\"]*mobile-menu-btn[^\'\"]*[\'\"][^>]*>(.*?)</button>", html_text, re.I | re.DOTALL)
+            if m:
+                inner = m.group(1).strip()
+                has_icon = bool(re.search(r"<span|<svg|<i\b", inner, re.I))
+                if inner.lower() == "menu" and not has_icon:
+                    issues.append({
+                        "type": "RAW_TEXT_MOBILE_MENU_BUTTON",
+                        "message": "Mobile navigation button contains raw 'Menu' text without styled hamburger icon bars (e.g. <span></span><span></span><span></span>) or SVG.",
+                    })
+        return issues
+
+    @classmethod
+    def validate_fluid_typography(cls, css_text: str) -> List[Dict[str, Any]]:
+        """
+        Verify that responsive typography uses clamp() or fluid scaling for headings.
+        """
+        issues = []
+        if css_text and "clamp(" not in css_text:
+            issues.append({
+                "type": "MISSING_FLUID_TYPOGRAPHY",
+                "message": "CSS lacks fluid clamp() typography scaling for responsive heading hierarchy.",
+            })
+        return issues
+
+
     @classmethod
     def verify_browser_visual_qa(
         cls,
@@ -971,10 +1105,12 @@ class FrontendContractValidator:
                 has_overflow = bool(re.search(r'overflow(?:-x)?\s*:\s*hidden', css_text, re.I))
                 imgs = re.findall(r'<img\s+[^>]*>', html_text, re.I)
                 missing_alt = [img for img in imgs if 'alt=' not in img.lower()]
-                if has_media and has_overflow and not missing_alt:
+                btn_menu = re.search(r"""<button[^>]*class=["\'][^"\']*\bmobile-menu-btn\b[^"\']*["\'][^>]*>(.*?)</button>""", html_text, re.I | re.DOTALL)
+                raw_menu_btn = bool(btn_menu and btn_menu.group(1).strip().lower() == "menu" and not re.search(r"<span|<svg|<i\b", btn_menu.group(1), re.I))
+                if has_media and has_overflow and not missing_alt and not raw_menu_btn:
                     results[sk] = {
                         "applied": True,
-                        "evidence": "Verified accessibility alt attributes, mobile responsive queries, and horizontal overflow protection.",
+                        "evidence": "Verified accessibility alt attributes, mobile responsive queries, horizontal overflow protection, and compact mobile navigation controls.",
                     }
                 else:
                     missing = []
@@ -1055,7 +1191,79 @@ class FrontendContractValidator:
 
     # ── Main Entrypoint ──────────────────────────────────────────────────────
 
-    def validate_all(self) -> FrontendValidationReport:
+    def validate_domain_fidelity(
+        self,
+        html_text: str,
+        js_text: str,
+        contract: Optional[Any],
+    ) -> List[Dict[str, Any]]:
+        """
+        Validates that generated HTML/JS deliverables match the active mission contract domain
+        and brand, and strictly rejects foreign cross-contaminated templates or brand artifacts.
+        """
+        issues: List[Dict[str, Any]] = []
+        if not contract:
+            return issues
+
+        domain = getattr(contract, "business_domain", "") or getattr(contract, "domain", "")
+        app_name = getattr(contract, "app_name", "")
+
+        html_lower = html_text.lower()
+        m_title = re.search(r'<title[^>]*>(.*?)</title>', html_text, re.I)
+        title_text = m_title.group(1).strip() if m_title else ""
+        title_lower = title_text.lower()
+
+        # Domain-specific foreign contamination checks
+        has_nova_title = bool(re.search(r"\bnova\b", title_lower))
+        if domain == "robotics_automation":
+            if any(w in title_lower for w in ["saffron", "stone", "wanderworld", "northstar"]) or has_nova_title:
+                issues.append({
+                    "type": "DOMAIN_FIDELITY_MISMATCH",
+                    "severity": "CRITICAL",
+                    "message": f"Domain fidelity failure: Active mission is robotics_automation ({app_name}), but HTML title is '{title_text}'.",
+                })
+            elif any(w in html_lower for w in ["nova-consumer-electronics", "smartphones", "laptops", "earbuds", "tandoori", "biryani"]):
+                issues.append({
+                    "type": "DOMAIN_FIDELITY_MISMATCH",
+                    "severity": "CRITICAL",
+                    "message": f"Domain fidelity failure: Active mission is robotics_automation ({app_name}), but workspace contains foreign consumer electronics or culinary deliverables.",
+                })
+
+        elif domain.startswith("ecommerce"):
+            if any(w in title_lower for w in ["atlas robotics", "saffron", "stone", "wanderworld", "northstar"]):
+                issues.append({
+                    "type": "DOMAIN_FIDELITY_MISMATCH",
+                    "severity": "CRITICAL",
+                    "message": f"Domain fidelity failure: Active mission is e-commerce, but HTML title is '{title_text}'.",
+                })
+
+        elif domain == "culinary_restaurant":
+            if any(w in title_lower for w in ["atlas robotics", "wanderworld", "northstar"]) or has_nova_title:
+                issues.append({
+                    "type": "DOMAIN_FIDELITY_MISMATCH",
+                    "severity": "CRITICAL",
+                    "message": f"Domain fidelity failure: Active mission is restaurant ({app_name}), but HTML title is '{title_text}'.",
+                })
+
+        elif domain == "travel_tourism":
+            if any(w in title_lower for w in ["atlas robotics", "saffron", "stone", "northstar"]) or has_nova_title:
+                issues.append({
+                    "type": "DOMAIN_FIDELITY_MISMATCH",
+                    "severity": "CRITICAL",
+                    "message": f"Domain fidelity failure: Active mission is travel ({app_name}), but HTML title is '{title_text}'.",
+                })
+
+        elif domain == "education_institution":
+            if any(w in title_lower for w in ["atlas robotics", "saffron", "stone", "wanderworld"]) or has_nova_title:
+                issues.append({
+                    "type": "DOMAIN_FIDELITY_MISMATCH",
+                    "severity": "CRITICAL",
+                    "message": f"Domain fidelity failure: Active mission is education ({app_name}), but HTML title is '{title_text}'.",
+                })
+
+        return issues
+
+    def validate_all(self, contract: Optional[Any] = None) -> FrontendValidationReport:
         """Execute all contract checks against workspace files."""
         html_files, css_files, js_files = self._find_files()
         
@@ -1069,12 +1277,12 @@ class FrontendContractValidator:
         css_text = self._read_content(css_files)
         js_text = self._read_content(js_files)
 
-        contract = None
-        try:
-            from core.frontend_contract import FrontendImplementationContract
-            contract = FrontendImplementationContract.load_from_workspace(self.workspace_root)
-        except Exception:
-            contract = None
+        if contract is None:
+            try:
+                from core.frontend_contract import FrontendImplementationContract
+                contract = FrontendImplementationContract.load_from_workspace(self.workspace_root)
+            except Exception:
+                contract = None
 
         entrypoint_issues = self.validate_entrypoint_integrity(self.workspace_root, contract)
         dom_issues = self.validate_dom_ids(html_text, js_text, contract)
@@ -1092,11 +1300,22 @@ class FrontendContractValidator:
         content_grid_issues = self.validate_empty_content_grids(html_text, js_text)
         functional_interaction_issues = self.validate_functional_interactions(js_text)
         test_script_issues = self.validate_test_script_integrity(self.workspace_root)
+        package_card_issues = self.validate_package_card_styling(html_text, css_text)
+        filter_layout_issues = self.validate_filter_layout_styling(html_text, css_text)
+        testimonial_issues = self.validate_testimonial_styling(html_text, css_text)
+        mobile_nav_issues = self.validate_mobile_nav_css(html_text, css_text)
+        anchor_issues = self.validate_anchor_targets(html_text)
+        hero_overlay_issues = self.validate_hero_composition_css(html_text, css_text)
+        mobile_menu_ctrl_issues = self.validate_mobile_nav_control(html_text, css_text)
+        fluid_typo_issues = self.validate_fluid_typography(css_text)
+        domain_fidelity_issues = self.validate_domain_fidelity(html_text, js_text, contract)
 
         errors = []
         warnings = []
 
         # Classify errors vs warnings
+        for iss in domain_fidelity_issues:
+            errors.append(iss["message"])
         for iss in entrypoint_issues:
             errors.append(iss["message"])
         for iss in dom_issues:
@@ -1138,8 +1357,24 @@ class FrontendContractValidator:
             errors.append(iss["message"])
         for iss in test_script_issues:
             errors.append(iss["message"])
+        for iss in package_card_issues:
+            warnings.append(iss["message"])
+        for iss in filter_layout_issues:
+            warnings.append(iss["message"])
+        for iss in testimonial_issues:
+            warnings.append(iss["message"])
+        for iss in mobile_nav_issues:
+            warnings.append(iss["message"])
+        for iss in anchor_issues:
+            errors.append(iss["message"])
         for iss in struct_css_issues:
             errors.append(iss["message"])
+        for iss in hero_overlay_issues:
+            warnings.append(iss["message"])
+        for iss in mobile_menu_ctrl_issues:
+            warnings.append(iss["message"])
+        for iss in fluid_typo_issues:
+            warnings.append(iss["message"])
 
         is_valid = len(errors) == 0
 

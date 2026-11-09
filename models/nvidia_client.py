@@ -284,7 +284,7 @@ class NvidiaClient(ModelProvider):
         from config.model_config import MODEL_FIRST_TOKEN_TIMEOUT
         read_to = float(os.getenv("MODEL_FIRST_TOKEN_TIMEOUT", str(MODEL_FIRST_TOKEN_TIMEOUT or 25.0)))
         # For SSE streaming with 120B reasoning models, socket read timeout must accommodate inter-chunk reasoning pauses
-        stream_read_to = max(read_to, 90.0)
+        stream_read_to = max(read_to, 25.0)
         return await transport_client_manager.get_client(
             base_url=self.base_url,
             connect_timeout=10.0,
@@ -978,6 +978,7 @@ class NvidiaClient(ModelProvider):
         except Exception:
             pass
 
+        is_effective_success = bool((final_text or "").strip() or tool_calls_list)
         return NormalizedModelResponse(
             text=final_text,
             tool_calls=tool_calls_list,
@@ -995,7 +996,8 @@ class NvidiaClient(ModelProvider):
             ttfu_ms=ttfu_ms,
             raw_timing_metadata=raw_timings,
             raw_response=final_text,
-            success=True,
+            success=is_effective_success,
+            error=None if is_effective_success else "EMPTY_MODEL_RESPONSE: NVIDIA NIM returned 0 content and 0 tool calls",
         )
 
     async def _generate_non_stream(
@@ -1146,6 +1148,7 @@ class NvidiaClient(ModelProvider):
         except Exception:
             pass
 
+        is_effective_success = bool((final_text or "").strip() or tool_calls)
         return NormalizedModelResponse(
             text=final_text,
             tool_calls=tool_calls,
@@ -1157,7 +1160,8 @@ class NvidiaClient(ModelProvider):
             total_tokens=total_tokens,
             latency_ms=latency_ms,
             raw_response=final_text,
-            success=True,
+            success=is_effective_success,
+            error=None if is_effective_success else "EMPTY_MODEL_RESPONSE: NVIDIA NIM returned 0 content and 0 tool calls",
         )
 
     def _record_telemetry_success(

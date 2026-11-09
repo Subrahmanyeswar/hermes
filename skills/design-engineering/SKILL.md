@@ -41,6 +41,8 @@ Before writing or editing code:
 1. **Fluid Layout Architecture:**
    - Use modern CSS Grid and Flexbox for layout structures.
    - Ensure the layout is responsive across mobile (375px), tablet (768px), and desktop (1280px+) viewports.
+   - Hero Section Architecture: Full-bleed background photography (background-size: cover; background-position: center; min-height: 85vh; position: relative; overflow: hidden;); full-bleed gradient overlay (position: absolute; inset: 0; z-index: 1; pointer-events: none;); text content in relative container (position: relative; z-index: 2;). Never render partial-height translucent overlay bands.
+   - Navigation Header & Mobile Control: Fixed/sticky header height between 64px and 76px. Use compact styled hamburger button (<button class="mobile-menu-btn" aria-label="Toggle navigation" aria-expanded="false"><span></span><span></span><span></span></button>) with 44-48px touch target; never render raw text 'Menu'. Drawer/dropdown must open with clean background and close on link click or Escape key.
 2. **Proportional Spacing System:**
    - Use a consistent baseline spacing scale (such as a 4px or 8px grid or design token system) adapted to the project's style.
    - Use consistent gap and padding tokens between related elements (tight: 8px, standard: 16px, loose: 24-32px).

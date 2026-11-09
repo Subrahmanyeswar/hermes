@@ -34,11 +34,19 @@ class GeminiClient(ModelProvider):
         api_key: Optional[str] = None,
         model: Optional[str] = None,
         timeout_seconds: Optional[float] = None,
-        tier: int = 2,
+        tier: int = 1,
     ) -> None:
         from config.model_config import GEMINI_API_KEY
         self.api_key = api_key or GEMINI_API_KEY or os.getenv("GEMINI_API_KEY", "")
-        self.model = model or os.getenv("TIER2_MODEL", os.getenv("TIER1_MODEL", "gemini-3.8-flash"))
+        if not model:
+            if os.getenv("TIER1_PROVIDER") == "gemini":
+                self.model = os.getenv("TIER1_MODEL", "gemini-3.8-flash")
+            elif os.getenv("TIER2_PROVIDER") == "gemini":
+                self.model = os.getenv("TIER2_MODEL", "gemini-3.8-flash")
+            else:
+                self.model = "gemini-3.8-flash"
+        else:
+            self.model = model
         from config.model_config import HERMES_MODEL_ATTEMPT_TIMEOUT_SECONDS
         self.timeout_seconds = timeout_seconds if timeout_seconds is not None else float(HERMES_MODEL_ATTEMPT_TIMEOUT_SECONDS)
         self.tier = tier
@@ -214,6 +222,7 @@ class GeminiClient(ModelProvider):
                 pass
 
         full_text = "".join(text_parts)
+        is_effective_success = bool(full_text.strip() or tool_calls)
         return NormalizedModelResponse(
             text=full_text,
             tool_calls=tool_calls,
@@ -223,7 +232,8 @@ class GeminiClient(ModelProvider):
             input_tokens=input_tokens,
             output_tokens=output_tokens,
             total_tokens=input_tokens + output_tokens,
-            success=True,
+            success=is_effective_success,
+            error=None if is_effective_success else "EMPTY_MODEL_RESPONSE: Gemini returned 0 content and 0 tool calls",
         )
 
     async def generate(
@@ -338,31 +348,43 @@ class GeminiClient(ModelProvider):
                 latency_ms = (time.monotonic() - t0) * 1000
 
                 if resp.status_code in (429, 503):
-                    elapsed = time.monotonic() - t0
-                    rem = timeout_val - elapsed
-                    if rem > 3.0:
-                        retry_after = resp.headers.get("retry-after")
-                        wait_sec = min(float(retry_after), 3.0) if retry_after else 1.5
-                        if wait_sec < rem:
-                            logger.info(f"[GEMINI] HTTP {resp.status_code} transient rate-limit/overload — backing off {wait_sec:.1f}s and retrying...")
-                            await asyncio.sleep(wait_sec)
-                            try:
-                                rem_to = max(1.0, timeout_val - (time.monotonic() - t0))
-                                resp = await client.post(
-                                    url,
-                                    headers=headers,
-                                    params={"key": self.api_key} if self.api_key else {},
-                                    json=payload,
-                                    timeout=rem_to,
-                                )
-                            except Exception:
-                                pass
+                    err_preview = resp.text[:500].lower()
+                    is_quota_exhausted = any(k in err_preview for k in ("quota", "exhausted", "limit: 20", "per day", "free tier"))
+                    if is_quota_exhausted:
+                        logger.warning(f"[GEMINI] HTTP {resp.status_code} quota exhausted. Immediately failing over without retry sleep.")
+                        try:
+                            from core.adaptive_routing import get_adaptive_router
+                            router = get_adaptive_router()
+                            router.record_failure("gemini", active_model, 86400.0)
+                        except Exception:
+                            pass
+                    else:
+                        elapsed = time.monotonic() - t0
+                        rem = timeout_val - elapsed
+                        if rem > 3.0:
+                            retry_after = resp.headers.get("retry-after")
+                            wait_sec = min(float(retry_after), 3.0) if retry_after else 1.5
+                            if wait_sec < rem:
+                                logger.info(f"[GEMINI] HTTP {resp.status_code} transient rate-limit/overload — backing off {wait_sec:.1f}s and retrying...")
+                                await asyncio.sleep(wait_sec)
+                                try:
+                                    rem_to = max(1.0, timeout_val - (time.monotonic() - t0))
+                                    resp = await client.post(
+                                        url,
+                                        headers=headers,
+                                        params={"key": self.api_key} if self.api_key else {},
+                                        json=payload,
+                                        timeout=rem_to,
+                                    )
+                                except Exception:
+                                    pass
 
                 if resp.status_code != 200:
                     err_body = resp.text[:500]
-                    # If gemini-3.8-flash hit free-tier quota (limit 20 RPD) or high demand (503), fall back to gemini-3-flash-preview
-                    if active_model == "gemini-3.8-flash" and ("limit" in err_body.lower() or "quota" in err_body.lower() or resp.status_code in (429, 503)):
-                        logger.info(f"[GEMINI FALLBACK] gemini-3.8-flash reached quota or demand spike. Seamlessly executing via gemini-3-flash-preview...")
+                    enable_preview_fallback = os.getenv("ENABLE_GEMINI_PREVIEW_FALLBACK", "false").lower() == "true"
+                    # Automatic fallback to gemini-3-flash-preview is disabled by default to prevent model drift
+                    if enable_preview_fallback and active_model == "gemini-3.8-flash" and ("limit" in err_body.lower() or "quota" in err_body.lower() or resp.status_code in (429, 503)):
+                        logger.info(f"[GEMINI FALLBACK] Explicit preview fallback enabled. Executing via gemini-3-flash-preview...")
                         fb_url = f"{self.BASE_URL}/models/gemini-3-flash-preview:generateContent"
                         rem_to = max(2.0, timeout_val - (time.monotonic() - t0))
                         try:
@@ -377,19 +399,25 @@ class GeminiClient(ModelProvider):
                                 data = fb_resp.json()
                                 result = self._parse_gemini_response(data, "gemini-3-flash-preview")
                                 result.latency_ms = (time.monotonic() - t0) * 1000
+                                result.requested_model = active_model
+                                result.served_model = "gemini-3-flash-preview"
                                 return result
                         except Exception as fb_err:
                             logger.warning(f"[GEMINI FALLBACK ERROR] {fb_err}")
 
-                    logger.warning(f"[GEMINI ERROR] HTTP {resp.status_code}: {err_body}")
-                    return NormalizedModelResponse(
+                    prefix = "RATE_LIMIT_EXCEEDED" if resp.status_code == 429 else ("SERVICE_UNAVAILABLE" if resp.status_code == 503 else "API_ERROR")
+                    logger.warning(f"[GEMINI ERROR] {prefix} (HTTP {resp.status_code}): {err_body}")
+                    norm_err = NormalizedModelResponse(
                         text="",
                         model=active_model,
                         provider="gemini",
-                        error=f"HTTP {resp.status_code}: {err_body}",
+                        error=f"{prefix}: HTTP {resp.status_code}: {err_body}",
                         success=False,
                         latency_ms=latency_ms,
                     )
+                    norm_err.requested_model = self.model
+                    norm_err.served_model = active_model
+                    return norm_err
 
                 data = resp.json()
                 result = self._parse_gemini_response(data, active_model)

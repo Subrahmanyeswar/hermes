@@ -64,7 +64,11 @@ class WorkPackageGater:
         if not html_file:
             missing.append("Missing primary entrypoint markup (index.html).")
         else:
-            evidence["html_file"] = str(html_file.name)
+            h_text = html_file.read_text(encoding="utf-8", errors="ignore").lower()
+            if "</html>" not in h_text or "<body" not in h_text:
+                missing.append("Primary entrypoint (index.html) is truncated or incomplete (missing <body> and </html>).")
+            else:
+                evidence["html_file"] = str(html_file.name)
 
         css_candidates = [ws / "style.css", ws / "static" / "style.css", ws / "css" / "style.css"]
         css_file = next((f for f in css_candidates if f.exists() and f.stat().st_size > 10), None)
@@ -89,13 +93,29 @@ class WorkPackageGater:
         else:
             evidence["frontend_contract_present"] = True
 
+        # JavaScript primary entrypoint check
+        js_candidates = [ws / "app.js", ws / "main.js", ws / "index.js", ws / "static" / "app.js", ws / "static" / "main.js"]
+        js_file = next((f for f in js_candidates if f.exists() and f.stat().st_size > 10), None)
+        if not js_file:
+            missing.append("Missing primary JavaScript application entrypoint (app.js).")
+        else:
+            evidence["js_file"] = str(js_file.name)
+
+        # package.json check (mandatory for foundation)
         pkg_file = ws / "package.json"
-        if pkg_file.exists():
+        if not pkg_file.exists() or pkg_file.stat().st_size < 10:
+            missing.append("Missing project configuration (package.json).")
+        else:
             try:
                 json.loads(pkg_file.read_text(encoding="utf-8", errors="ignore"))
                 evidence["package_json_valid"] = True
             except Exception as e:
                 missing.append(f"package.json is malformed: {e}")
+
+        # Enforce that directory presence alone (.hermes, .artifacts, assets) cannot satisfy foundation
+        source_files_present = bool(html_file and css_file and js_file and pkg_file.exists() and pkg_file.stat().st_size >= 10)
+        if not source_files_present:
+            missing.append("Foundation requires real application source files (index.html, style.css, app.js, package.json), not merely directories.")
 
         passed = len(missing) == 0
         summary = "Foundation work package satisfied." if passed else f"Foundation gate blocked by {len(missing)} missing criteria."
@@ -141,27 +161,57 @@ class WorkPackageGater:
         # Check for structural sections
         has_nav = bool(re.search(r'<(?:nav|header)\b', html_text, re.I))
         has_hero = "hero" in html_text.lower()
-        has_cards_or_items = "card" in html_text.lower() or "destination" in html_text.lower() or "package" in html_text.lower()
+        has_cards_or_items = any(k in html_text.lower() for k in [
+            "card", "program", "course", "faculty", "division", "academic",
+            "destination", "package", "item", "feature", "grid", "catalog", "article",
+            "menu", "dish", "chef", "cuisine", "tasting", "mezze"
+        ])
         if not has_nav:
             missing.append("HTML markup missing navigation section (<nav> or <header>).")
         if not has_hero:
             missing.append("HTML markup missing hero section.")
         if not has_cards_or_items:
-            missing.append("HTML markup missing core content cards (destinations/packages).")
+            missing.append("HTML markup missing core content cards/showcase.")
 
         # Check for empty content grids
-        grid_tags = re.findall(r'<div[^>]*\bid=["\']([a-zA-Z0-9_\-]*(?:grid|cards|container|list|destinations|packages)[a-zA-Z0-9_\-]*)["\'][^>]*>', html_text, re.I)
+        grid_tags = re.findall(r'<div[^>]*\bid=["\']([a-zA-Z0-9_\-]*(?:grid|cards|container|list|destinations|packages|programs|faculty|departments|academics|menu|dishes|gallery)[a-zA-Z0-9_\-]*)["\'][^>]*>', html_text, re.I)
         for g_id in set(grid_tags):
             m = re.search(rf'<div[^>]*\bid=["\']{re.escape(g_id)}["\'][^>]*>(.*?)</div>', html_text, re.DOTALL | re.I)
             if m:
                 inner = m.group(1).strip()
-                has_static_cards = bool(re.search(r'<div\b|<article\b|<li\b|<section\b', inner, re.I))
+                has_static_cards = bool(re.search(r'<div\b|<article\b|<li\b|<section\b|<button\b', inner, re.I))
                 if has_static_cards:
                     continue
             populates_grid = f"#{g_id}" in js_text or f"'{g_id}'" in js_text or f'"{g_id}"' in js_text
             has_render = "render" in js_text.lower() or "innerhtml" in js_text.lower() or "appendchild" in js_text.lower()
             if not populates_grid or not has_render:
                 missing.append(f"Content grid container div #{g_id} is empty in HTML and JavaScript does not populate it.")
+
+        # Brand integrity & Cross-contamination check
+        if contract:
+            brand = (getattr(contract, "app_name", "") or "").lower()
+            if hasattr(contract, "theme") and isinstance(contract.theme, dict):
+                brand = (contract.theme.get("brand_name") or brand).lower()
+
+            if brand and brand not in html_text.lower() and brand not in js_text.lower():
+                missing.append(f"Brand integrity check failed: expected brand '{brand}' not found in HTML or JavaScript.")
+            
+            # If expected brand is education/NorthStar, explicitly forbid WanderWorld contamination
+            if "northstar" in brand or "university" in brand or "college" in brand:
+                wander_terms = ["wanderworld", "bali", "swiss alps", "paris getaway", "dubai luxury", "hero-wanderlust", "saffron & stone", "paneer tikka"]
+                found_contam = [w for w in wander_terms if w in html_text.lower() or w in js_text.lower()]
+                if found_contam:
+                    missing.append(f"Cross-contamination detected: foreign artifacts ({', '.join(found_contam)}) found in {brand} project.")
+            elif any(k in brand for k in ["saffron", "stone", "restaurant", "bistro", "culinary"]):
+                foreign_terms = ["wanderworld", "bali", "swiss alps", "paris getaway", "dubai luxury", "hero-wanderlust", "northstar university", "collegiate", "nova apex pro", "nova sonic"]
+                found_contam = [w for w in foreign_terms if w in html_text.lower() or w in js_text.lower()]
+                if found_contam:
+                    missing.append(f"Cross-contamination detected: foreign artifacts ({', '.join(found_contam)}) found in {brand} project.")
+            elif any(k in brand for k in ["nova", "electronics", "store", "ecommerce"]) or getattr(contract, "business_domain", "").startswith("ecommerce"):
+                foreign_terms = ["wanderworld", "bali", "swiss alps", "paris getaway", "dubai luxury", "hero-wanderlust", "saffron & stone", "saffron and stone", "paneer tikka", "dum biryani", "tandoori", "northstar university", "collegiate quadrangle"]
+                found_contam = [w for w in foreign_terms if w in html_text.lower() or w in js_text.lower()]
+                if found_contam:
+                    missing.append(f"Cross-contamination detected: foreign artifacts ({', '.join(found_contam)}) found in {brand} project.")
 
         # Check asset references
         imgs = re.findall(r'<img\s+[^>]*>', html_text, re.I)

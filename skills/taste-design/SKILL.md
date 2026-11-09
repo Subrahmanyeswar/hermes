@@ -39,6 +39,8 @@ Recognize and actively avoid standard automated design clichés:
 - **The Centered Hero Formula:** Do not automatically create a centered H1 + subtitle + two pill buttons on every landing page. Consider split-screen, asymmetrical, editorial header, or product-first layouts when appropriate to the content.
 - **The Three-Card Feature Grid:** Do not default to exactly three cards with generic lucide icons for product features. Use dynamic layouts, comparative lists, interactive walkthroughs, or typography-led callouts.
 - **Universal Glassmorphism:** Avoid gratuitous `backdrop-blur` and semi-transparent borders on every container unless the design language specifically calls for layered physical glass.
+- **Boxed Hero Overlay Bands:** Prohibit narrow or partial-height translucent gradient bands (.hero-overlay with relative positioning and padding). Hero overlays MUST be full-bleed (position: absolute; inset: 0; z-index: 1; pointer-events: none;) over the entire hero container, with content positioned at position: relative; z-index: 2;.
+- **Raw Text Mobile Menu Controls:** Prohibit raw unstyled 'Menu' text on mobile navigation headers. Use a compact styled hamburger icon (3 bars or SVG, 44–48px touch target) with aria-label="Toggle navigation" and aria-expanded="false".
 - **Gratuitous Animation:** Do not add entrance animations, spinning badges, or bouncy hover states that slow down interaction or distract from content.
 
 ## 3. Defining a Coherent Direction

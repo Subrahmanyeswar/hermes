@@ -48,7 +48,7 @@ class NetworkSupervisor:
         default_first_delta_timeout: float = 15.0,
         default_idle_timeout: float = 15.0,
         default_attempt_timeout: float = 45.0,
-        default_logical_timeout: float = 90.0,
+        default_logical_timeout: float = 25.0,
     ) -> None:
         self.event_bus = event_bus
         self.retry_policy = retry_policy or RetryPolicy()

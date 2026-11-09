@@ -280,6 +280,10 @@ def _translate_single_command(command: str, py: str, cwd: Optional[Path] = None)
                 targets = [p.strip('"\'') for p in parts[1:] if not p.strip('"\'').startswith("-")]
                 is_recursive = any("r" in f.lower() for f in flags)
                 is_force = any("f" in f.lower() for f in flags)
+                # Safeguard: Block destructive removal of protected foundation deliverables
+                protected = {"index.html", "style.css", "app.js", "package.json", "assets", "images", "src", ".artifacts", ".hermes"}
+                if (is_recursive or len(targets) > 1) and any(t.lower() in protected or any(t.lower().endswith("/" + p) or t.lower().endswith("\\" + p) for p in protected) for t in targets):
+                    return f'"{py}" -c "import sys; print(\'SECURITY: Destructive deletion of active project deliverables is forbidden.\', file=sys.stderr); sys.exit(126)"'
                 py_code = (
                     f"import os, sys, shutil; targets = sys.argv[1:]; force = {is_force}; recursive = {is_recursive}; "
                     "[((shutil.rmtree(t) if (os.path.isdir(t) and recursive) else os.rmdir(t) if os.path.isdir(t) else os.remove(t)) "

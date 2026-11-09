@@ -514,11 +514,11 @@ class AdaptiveRouter:
                     elif hasattr(client, "generate"):
                         try:
                             resp = await asyncio.wait_for(
-                                client.generate(prompt="ping", max_tokens=1, stream=False),
-                                timeout=2.5
+                                client.generate(prompt="ping", max_tokens=10, stream=False),
+                                timeout=3.5
                             )
                             # Strictly distinguish model inference health from endpoint availability
-                            success = bool(resp and getattr(resp, "success", False))
+                            success = bool(resp and (getattr(resp, "success", False) or bool(getattr(resp, "text", "") and "MODEL_OUTPUT_TRUNCATED" in str(getattr(resp, "error", "")))))
                         except Exception:
                             success = False
                     else:
@@ -527,10 +527,10 @@ class AdaptiveRouter:
                 elif hasattr(client, "generate"):
                     try:
                         resp = await asyncio.wait_for(
-                            client.generate(prompt="ping", max_tokens=1, stream=False),
-                            timeout=2.5
+                            client.generate(prompt="ping", max_tokens=10, stream=False),
+                            timeout=3.5
                         )
-                        success = bool(resp and getattr(resp, "success", False))
+                        success = bool(resp and (getattr(resp, "success", False) or bool(getattr(resp, "text", "") and "MODEL_OUTPUT_TRUNCATED" in str(getattr(resp, "error", "")))))
                     except Exception:
                         success = False
             elif tier in (1, 2, 3):
@@ -545,10 +545,10 @@ class AdaptiveRouter:
                 adapter = get_provider_adapter(p_name, m_name, tier=tier)
                 try:
                     resp = await asyncio.wait_for(
-                        adapter.generate(prompt="ping", max_tokens=1, stream=False),
-                        timeout=3.0
+                        adapter.generate(prompt="ping", max_tokens=10, stream=False),
+                        timeout=3.5
                     )
-                    success = bool(resp and getattr(resp, "success", False))
+                    success = bool(resp and (getattr(resp, "success", False) or bool(getattr(resp, "text", "") and "MODEL_OUTPUT_TRUNCATED" in str(getattr(resp, "error", "")))))
                 except Exception:
                     success = False
         except Exception as e:

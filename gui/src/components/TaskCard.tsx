@@ -14,10 +14,17 @@ interface TaskCardProps {
 
 const cleanModelLabel = (raw?: string, fallback: string = ''): string => {
   if (!raw) return fallback;
+  const rawLower = raw.toLowerCase();
   const parts = raw.split('/');
   const modelName = parts[parts.length - 1].trim();
-  const provider = raw.toLowerCase().includes('zai') ? 'Z.ai' : (raw.toLowerCase().includes('nvidia') ? 'NVIDIA NIM' : (raw.toLowerCase().includes('openrouter') ? 'OpenRouter' : ''));
-  return provider ? `${provider} / ${modelName}` : modelName;
+  let provider = '';
+  if (rawLower.includes('nvidia')) provider = 'NVIDIA NIM';
+  else if (rawLower.includes('gemini') || rawLower.includes('google')) provider = 'Google Gemini';
+  else if (rawLower.includes('sambanova') || rawLower.includes('samba')) provider = 'SambaNova';
+  else if (rawLower.includes('zai') || rawLower.includes('z.ai')) provider = 'Z.ai';
+  else if (rawLower.includes('openrouter')) provider = 'OpenRouter';
+  else if (rawLower.includes('groq')) provider = 'Groq';
+  return provider ? `${provider} / ${modelName}` : (parts.length > 1 ? raw : modelName);
 };
 
 export const TaskCard: React.FC<TaskCardProps> = ({
@@ -72,7 +79,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({
               border: activeTier === 1 ? '1px solid var(--color-forest)' : '1px solid transparent',
             }}
           >
-            T1: {cleanModelLabel(modelStack?.tier1, 'Z.ai GLM-4.7-Flash')}
+            T1: {cleanModelLabel(modelStack?.tier1, 'NVIDIA NIM / nemotron-3.5-30b')}
           </span>
           <span style={{ color: 'var(--text-secondary)' }}>&rarr;</span>
           <span
@@ -85,7 +92,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({
               border: activeTier === 2 ? '1px solid #D97706' : '1px solid transparent',
             }}
           >
-            T2: {cleanModelLabel(modelStack?.tier2, 'NVIDIA NIM MiniMax M3.1 Flash')}
+            T2: {cleanModelLabel(modelStack?.tier2, 'Google Gemini / gemini-3.8-flash')}
           </span>
           <span style={{ color: 'var(--text-secondary)' }}>&rarr;</span>
           <span
@@ -98,7 +105,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({
               border: activeTier === 3 ? '1px solid #DC2626' : '1px solid transparent',
             }}
           >
-            T3: {cleanModelLabel(modelStack?.tier3, 'OpenRouter Kimi K2.6 Free')}
+            T3: {cleanModelLabel(modelStack?.tier3, 'SambaNova / Llama-3.3-70B')}
           </span>
         </div>
       </div>

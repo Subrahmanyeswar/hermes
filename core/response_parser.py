@@ -679,15 +679,63 @@ class ResponseParser:
             logger.warning("ResponseParser: extract_code_block rejected demo placeholder")
             return None
 
-        # Look for target file path in response with strict unambiguous anchors
         path = ""
-        path_match = re.search(r'["\']?path["\']?\s*:\s*["\']([^"\']+\.[a-zA-Z0-9_]+)["\']', response)
-        if path_match:
-            path = path_match.group(1)
-        else:
-            file_match = re.search(r'(?:file|target file|write to|create file|save as)\s*[:=]?\s*[`"\']([a-zA-Z0-9_\-\.\/]+\.[a-zA-Z0-9_]+)[`"\']', response, re.IGNORECASE)
-            if file_match:
-                path = file_match.group(1)
+        # Check if the code block itself is a JSON tool call
+        if lang in ("json", "") or (code_content.startswith("{") and code_content.endswith("}")):
+            try:
+                parsed = json.loads(code_content, strict=False)
+                if isinstance(parsed, dict):
+                    tool_cand = parsed.get("tool") or parsed.get("tool_name") or parsed.get("action")
+                    args_cand = parsed.get("arguments") or parsed.get("parameters") or parsed.get("args") or {}
+                    if tool_cand and isinstance(args_cand, dict):
+                        from tools.registry import get_canonical_tool_name
+                        canon = get_canonical_tool_name(tool_cand) or tool_cand
+                        return ParseSuccess(
+                            tool=canon,
+                            parameters=args_cand,
+                            reasoning="Extracted JSON tool call from markdown code block.",
+                            explanation=f"Executing tool {canon}.",
+                            method_used="extract_code_block_json_tool",
+                            raw_response=response
+                        )
+                    elif isinstance(args_cand, dict) and "content" in args_cand:
+                        code_content = args_cand["content"]
+                        if "path" in args_cand:
+                            path = args_cand["path"]
+            except Exception:
+                pass
+
+        # If code_content is a JSON wrapper but json.loads failed (e.g. unescaped inner quotes),
+        # unwrap the actual content safely!
+        if code_content.startswith("{") and any(k in code_content[:150] for k in ('"tool_name"', '"tool"', '"action"', '"arguments"', '"content"')):
+            if not path:
+                p_m = re.search(r"""['"]?path['"]?\s*:\s*['"]([^'"]+\.[a-zA-Z0-9_]+)['"]""", code_content)
+                if p_m:
+                    path = p_m.group(1)
+
+            doc_m = re.search(r'(<!DOCTYPE.*</html>)', code_content, re.DOTALL | re.IGNORECASE)
+            if doc_m:
+                try:
+                    code_content = doc_m.group(1).encode("utf-8").decode("unicode_escape", errors="ignore")
+                except Exception:
+                    code_content = doc_m.group(1)
+            else:
+                c_m = re.search(r'"content"\s*:\s*"(.*?)(?:"\s*,\s*"[a-zA-Z_]+"|"\s*\}\s*\}?\s*$)', code_content, re.DOTALL)
+                if c_m:
+                    try:
+                        code_content = c_m.group(1).encode("utf-8").decode("unicode_escape", errors="ignore")
+                    except Exception:
+                        code_content = c_m.group(1)
+
+        # Look for target file path in response with strict unambiguous anchors
+        if not path:
+            path_match = re.search(r"""['"]?path['"]?\s*:\s*['"]([^'"]+\.[a-zA-Z0-9_]+)['"]""", response)
+            if path_match:
+                path = path_match.group(1)
+            else:
+                file_match = re.search(r"""(?:file|target file|write to|create file|save as)\s*[:=]?\s*[`'"]([a-zA-Z0-9_\-\.\/]+\.[a-zA-Z0-9_]+)[`'"]""", response, re.IGNORECASE)
+                if file_match:
+                    path = file_match.group(1)
 
         # Disallow library names masquerading as files (e.g. "Three.js", "React.js") unless explicitly anchored as path/file
         if path and path.lower() in ("three.js", "react.js", "vue.js", "jquery.js") and not path_match:

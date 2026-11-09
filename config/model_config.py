@@ -5,29 +5,30 @@ load_dotenv()
 
 # ==============================================================================
 # THREE-PROVIDER PRODUCTION ARCHITECTURE
-# Tier 1: Groq (qwen/qwen3.8-27b) [STATUS: OPERATIONAL]
+# Tier 1: NVIDIA NIM (nvidia/nemotron-3.5-lightning-30b-a3b) [STATUS: OPERATIONAL]
 # Tier 2: Google Gemini (gemini-3.8-flash) [STATUS: OPERATIONAL]
-# Tier 3: NVIDIA NIM (nvidia/nemotron-3.5-lightning-30b-a3b) [STATUS: OPERATIONAL]
+# Tier 3: SambaNova (Meta-Llama-3.3-70B-Instruct) [STATUS: OPERATIONAL]
 # Tier 4: Ollama (llama3.2:latest) [STATUS: LOCAL_FALLBACK]
 # ==============================================================================
 
-TIER1_PROVIDER = os.getenv("TIER1_PROVIDER", "groq")
-TIER1_MODEL = os.getenv("TIER1_MODEL", "qwen/qwen3.8-27b")
-TIER1_BASE_URL = os.getenv("TIER1_BASE_URL", "https://api.groq.com/openai/v1")
+TIER1_PROVIDER = os.getenv("TIER1_PROVIDER", "nvidia_nim")
+TIER1_MODEL = os.getenv("TIER1_MODEL", "nvidia/nemotron-3.5-lightning-30b-a3b")
+TIER1_BASE_URL = os.getenv("TIER1_BASE_URL", "https://integrate.api.nvidia.com/v1")
 TIER1_PROVIDER_STATUS = os.getenv("TIER1_PROVIDER_STATUS", "OPERATIONAL")
-GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
+NVIDIA_API_KEY = os.getenv("NVIDIA_API_KEY", "")
 
 TIER2_PROVIDER = os.getenv("TIER2_PROVIDER", "gemini")
 TIER2_MODEL = os.getenv("TIER2_MODEL", "gemini-3.8-flash")
 TIER2_BASE_URL = os.getenv("TIER2_BASE_URL", "https://generativelanguage.googleapis.com/v1beta")
 TIER2_PROVIDER_STATUS = os.getenv("TIER2_PROVIDER_STATUS", "OPERATIONAL")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
 
-TIER3_PROVIDER = os.getenv("TIER3_PROVIDER", "nvidia_nim")
-TIER3_MODEL = os.getenv("TIER3_MODEL", "nvidia/nemotron-3.5-lightning-30b-a3b")
-TIER3_BASE_URL = os.getenv("TIER3_BASE_URL", "https://integrate.api.nvidia.com/v1")
+TIER3_PROVIDER = os.getenv("TIER3_PROVIDER", "sambanova")
+TIER3_MODEL = os.getenv("TIER3_MODEL", "Meta-Llama-3.3-70B-Instruct")
+TIER3_BASE_URL = os.getenv("TIER3_BASE_URL", "https://api.sambanova.ai/v1")
 TIER3_PROVIDER_STATUS = os.getenv("TIER3_PROVIDER_STATUS", "OPERATIONAL")
-NVIDIA_API_KEY = os.getenv("NVIDIA_API_KEY", "")
+SAMBANOVA_API_KEY = os.getenv("SAMBANOVA_API_KEY", "")
 
 TIER4_PROVIDER = os.getenv("TIER4_PROVIDER", "ollama")
 TIER4_MODEL = os.getenv("TIER4_MODEL", "llama3.2:latest")
@@ -64,11 +65,11 @@ def validate_timeout_config(
 
 
 MODEL_STREAMING = os.getenv("MODEL_STREAMING", "true").lower() == "true"
-MODEL_TIMEOUT_SECONDS = validate_timeout_config("MODEL_TIMEOUT_SECONDS", 90)
+MODEL_TIMEOUT_SECONDS = validate_timeout_config("MODEL_TIMEOUT_SECONDS", 25)
 PROVIDER_CONNECT_TIMEOUT = float(os.getenv("PROVIDER_CONNECT_TIMEOUT", "2.0"))
 HEALTH_CHECK_TIMEOUT = float(os.getenv("HEALTH_CHECK_TIMEOUT", "8.0"))
-MODEL_FIRST_TOKEN_TIMEOUT = float(os.getenv("MODEL_FIRST_TOKEN_TIMEOUT", "30.0"))
-MODEL_TOTAL_TIMEOUT = int(os.getenv("MODEL_TOTAL_TIMEOUT", "360"))
+MODEL_FIRST_TOKEN_TIMEOUT = float(os.getenv("MODEL_FIRST_TOKEN_TIMEOUT", "7.5"))
+MODEL_TOTAL_TIMEOUT = int(os.getenv("MODEL_TOTAL_TIMEOUT", "25"))
 VERIFICATION_TIMEOUT = int(os.getenv("VERIFICATION_TIMEOUT", "30"))
 ARBITRATION_TIMEOUT = int(os.getenv("ARBITRATION_TIMEOUT", "30"))
 MODEL_KEEP_ALIVE = os.getenv("MODEL_KEEP_ALIVE", "0")

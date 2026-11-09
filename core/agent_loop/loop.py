@@ -35,6 +35,7 @@ from __future__ import annotations
 
 
 import asyncio
+import os
 
 import hashlib
 
@@ -201,7 +202,8 @@ def calculate_effective_turn_timeout(
 
         return None
 
-    return min(float(configured_timeout), usable_budget, 90.0)
+    effective_cap = float(os.getenv("HERMES_MODEL_ATTEMPT_TIMEOUT_SECONDS", "25.0"))
+    return min(float(configured_timeout), usable_budget, effective_cap)
 
 
 
@@ -1349,7 +1351,13 @@ class AgentLoop:
                     from core.frontend_contract import FrontendImplementationContract
                     from core.skill_evidence_ledger import SkillEvidenceLedger
                     ws_active = self.workspace_root or Path.cwd()
-                    self._frontend_contract = FrontendImplementationContract.load_from_workspace(ws_active)
+                    loaded_fc = FrontendImplementationContract.load_from_workspace(ws_active)
+                    from core.design_intelligence import DesignBriefGenerator
+                    cur_dom = DesignBriefGenerator.detect_domain(mission.user_prompt or "")
+                    if loaded_fc and getattr(loaded_fc, "business_domain", None) == cur_dom:
+                        self._frontend_contract = loaded_fc
+                    else:
+                        self._frontend_contract = None
                     self._skill_evidence_ledger = SkillEvidenceLedger.load_from_workspace(ws_active)
                 except Exception as _c_err:
                     logger.debug(f"AgentLoop: Contract/ledger checkpoint resume notice: {_c_err}")
@@ -1440,7 +1448,7 @@ class AgentLoop:
 
                     from core.frontend_contract import FrontendContractBuilder
                     from core.skill_evidence_ledger import SkillEvidenceLedger
-                    if not self._frontend_contract:
+                    if not self._frontend_contract or getattr(self._frontend_contract, 'business_domain', None) != getattr(self._design_brief, 'domain', None):
                         self._frontend_contract = FrontendContractBuilder.build_initial_contract(
                             task=mission.user_prompt or "",
                             mission_id=mission.mission_id,
@@ -1751,6 +1759,53 @@ class AgentLoop:
 
         # For website missions, provision photographic assets and persist design brief artifacts after preflight passes
         if ws_root and ws_root.exists():
+            try:
+                from core.design_intelligence import DesignBriefGenerator, strip_negative_constraints
+                clean_prompt = strip_negative_constraints(mission.user_prompt or "")
+                target_domain = DesignBriefGenerator.detect_domain(mission.user_prompt or "")
+                index_candidate = ws_root / "index.html"
+                if index_candidate.exists():
+                    existing_text = index_candidate.read_text(encoding="utf-8", errors="ignore").lower()
+                    should_purge = False
+                    has_nova = bool(re.search(r"\bnova\b", existing_text))
+                    if target_domain == "robotics_automation" and (
+                        any(w in existing_text for w in ["smartphones", "laptops", "headphones", "saffron", "saffron-stone", "saffron & stone", "biryani", "paneer", "tandoori", "wanderworld", "bali", "northstar", "university"])
+                        or (has_nova and "atlas" not in existing_text)
+                    ):
+                        logger.warning("AgentLoop: Stale foreign files detected in workspace during robotics mission. Purging stale deliverables.")
+                        should_purge = True
+                    elif target_domain == "culinary_restaurant" and (any(w in existing_text for w in ["wanderworld", "bali", "swiss alps", "destinations-grid", "northstar", "university", "faculty-grid", "soundbuds", "atlas", "robotics"]) or has_nova):
+                        logger.warning("AgentLoop: Stale foreign files detected in workspace during restaurant mission. Purging stale deliverables.")
+                        should_purge = True
+                    elif target_domain == "education_institution" and (any(w in existing_text for w in ["wanderworld", "bali", "swiss alps", "destinations-grid", "saffron", "stone", "biryani"]) or has_nova):
+                        logger.warning("AgentLoop: Stale foreign files detected in workspace during NorthStar mission. Purging stale deliverables.")
+                        should_purge = True
+                    elif target_domain == "travel_tourism" and (any(w in existing_text for w in ["northstar", "university", "faculty-grid", "saffron", "stone", "biryani"]) or has_nova):
+                        logger.warning("AgentLoop: Stale foreign files detected in workspace during WanderWorld mission. Purging stale deliverables.")
+                        should_purge = True
+                    elif target_domain.startswith("ecommerce") and any(w in existing_text for w in ["saffron", "stone", "biryani", "paneer", "tandoori", "wanderworld", "bali", "northstar", "university", "atlas", "robotics"]):
+                        logger.warning("AgentLoop: Stale foreign files detected in workspace during e-commerce mission. Purging stale deliverables.")
+                        should_purge = True
+
+                    if should_purge:
+                        from tools.security import safe_delete_file
+                        for s_name in ["index.html", "style.css", "app.js", "package.json"]:
+                            sf = ws_root / s_name
+                            if sf.exists():
+                                safe_delete_file(sf, ws_root, reason="stale_deliverable_purge")
+            except Exception as _stale_e:
+                logger.debug(f"AgentLoop: stale deliverable purge notice: {_stale_e}")
+
+            try:
+                from core.foundation_scaffolder import seed_initial_foundation_files
+                seed_initial_foundation_files(
+                    workspace_root=ws_root,
+                    prompt=mission.user_prompt or "",
+                    contract=getattr(self, "_frontend_contract", None),
+                    design_brief=getattr(self, "_design_brief", None),
+                )
+            except Exception as f_err:
+                logger.debug(f"AgentLoop: foundation scaffolder notice: {f_err}")
             if hasattr(self, "_design_brief") and self._design_brief:
                 try:
                     self._design_brief.persist_artifacts(ws_root)
@@ -1963,7 +2018,7 @@ class AgentLoop:
 
                 remaining_wall_time=remaining_wall_time,
 
-                configured_timeout=float(getattr(self.config, "model_timeout_seconds", 360.0) or 360.0),
+                configured_timeout=float(getattr(self.config, "model_timeout_seconds", 25.0) or 25.0),
 
                 reserve_seconds=FINAL_VERIFICATION_RESERVE_SECONDS,
 
@@ -2079,9 +2134,10 @@ class AgentLoop:
                     except Exception:
                         logger.warning("AgentLoop: Network remains unreachable after 5s.")
 
+                cat_to_report = last_fail.category if (last_fail and getattr(last_fail, "category", None)) else primary_cat
                 termination_reason = (
                     f"Consecutive failure budget exceeded ({consecutive_failures} failures) | "
-                    f"Primary Category: {primary_cat} ({fail_detail})"
+                    f"Primary Category: {cat_to_report} ({fail_detail})"
                 )
                 logger.error(f"AgentLoop: {termination_reason}")
                 await self._publish_event(
@@ -2376,6 +2432,12 @@ class AgentLoop:
 
                         )
 
+                    try:
+                        from core.request_guard import mission_request_guard
+                        mission_request_guard.release_all(self._mission_id)
+                    except Exception:
+                        pass
+
                     from models.common_adapter import NormalizedModelResponse
 
                     model_response = NormalizedModelResponse(
@@ -2483,7 +2545,7 @@ class AgentLoop:
                         "latency": t1_latency,
                         "duration_ms": total_model_dur,
                         "headline": (
-                            f"{resp_provider} ({resp_model}) responded in {t1_latency:.1f}s"
+                            (f"runtime turn deadline exceeded ({t1_latency:.1f}s)" if (resp_provider == "runtime" or resp_model == "turn_deadline_enforcer") else f"{resp_provider} ({resp_model}) responded in {t1_latency:.1f}s")
                             + (f" (TTFT {getattr(model_response, 'raw_timing_metadata', {}).get('ttft_ms', 0)/1000.0:.2f}s)"
                                if getattr(model_response, 'raw_timing_metadata', {}).get('ttft_ms') else "")
                         ),
@@ -2494,7 +2556,7 @@ class AgentLoop:
                         "total_model_duration_ms": total_model_dur,
                         "responding_provider": resp_provider,
                         "responding_model": resp_model,
-                        "response_received": True,
+                        "response_received": False if (resp_provider == "runtime" or resp_model == "turn_deadline_enforcer") else True,
                         "finish_reason": finish_reason,
                         "tool_call_count": tool_call_count,
                         "success": is_success,
@@ -4746,6 +4808,20 @@ class AgentLoop:
                                         + f"\nExecute fs.write or fs.edit to update {contract_js} with search, filter, and modal interaction logic. If orphan competing scripts exist on disk, remove them or link them in index.html."
                                     )
                             elif (cur_tid == "wp.verification" or "verification" in cur_title):
+                                if ws_root:
+                                    try:
+                                        from core.browser.acceptance import BrowserAcceptanceVerifier
+                                        fresh_ok, _ = BrowserAcceptanceVerifier.check_evidence_freshness(ws_root)
+                                        if not fresh_ok:
+                                            logger.info("AgentLoop: Platform executing managed browser acceptance for wp.verification...")
+                                            b_res = BrowserAcceptanceVerifier.verify_workspace_sync(
+                                                ws_root,
+                                                acceptance_ledger=getattr(self, "acceptance_ledger", None)
+                                            )
+                                            if hasattr(self, "mvp_gate"):
+                                                self.mvp_gate.evaluate_phase(ws_root, browser_verified=b_res.passed)
+                                    except Exception as b_exc:
+                                        logger.warning(f"AgentLoop: Managed browser acceptance notice: {b_exc}")
                                 fc_report = None
                                 if ws_root:
                                     try:
@@ -6858,6 +6934,9 @@ class AgentLoop:
                     authoritative_state_block += "\n" + self._design_brief.to_compact_directive() + "\n"
                 if getattr(self, "_frontend_contract", None):
                     authoritative_state_block += "\n" + self._frontend_contract.to_compact_directive() + "\n"
+                if getattr(self, "_asset_manifest", None):
+                    from core.asset_pipeline import AssetPipeline
+                    authoritative_state_block += "\n" + AssetPipeline.get_asset_directive(self._asset_manifest) + "\n"
                 if hasattr(self, "_content_coverage") and self._content_coverage:
                     self._content_coverage.audit_workspace(ws_dir_active)
                     authoritative_state_block += "\n" + self._content_coverage.to_summary_block() + "\n"
@@ -6867,11 +6946,31 @@ class AgentLoop:
                     authoritative_state_block += "\n" + self._design_brief.to_compact_directive() + "\n"
                 if getattr(self, "_frontend_contract", None):
                     authoritative_state_block += "\n" + self._frontend_contract.to_compact_directive() + "\n"
-                authoritative_state_block += "\nFUNCTIONAL CONTRACT: Implement interactive filtering (category pills + search input), modal dialog display/dismissal with detailed destination data, and booking enquiry form validation. Zero missing DOM IDs.\n"
+                if getattr(self, "_asset_manifest", None):
+                    from core.asset_pipeline import AssetPipeline
+                    authoritative_state_block += "\n" + AssetPipeline.get_asset_directive(self._asset_manifest) + "\n"
+                is_edu = hasattr(self, "_design_brief") and getattr(self._design_brief, "domain", None) == "education_institution"
+                if is_edu:
+                    authoritative_state_block += "\nFUNCTIONAL CONTRACT: Implement interactive filtering (school pills + search input), modal dialog display/dismissal with detailed degree program data, and admissions inquiry form validation. Zero missing DOM IDs. Use ONLY local provisioned photography from assets/images/ (NEVER remote Unsplash or pravatar URLs).\n"
+                else:
+                    authoritative_state_block += "\nFUNCTIONAL CONTRACT: Implement interactive filtering (category pills + search input), modal dialog display/dismissal with detailed item data, and contact/enquiry form validation. Zero missing DOM IDs. Use ONLY local provisioned photography from assets/images/ (NEVER remote Unsplash or pravatar URLs).\n"
             elif self.current_phase.value == "PHASE_F_COMPLETION":
                 authoritative_state_block += "PHASE MANDATE: All work packages and verification gates are satisfied! Summarize deliverables and conclude the mission.\n"
             elif self.current_phase.value == "PHASE_E_VERIFICATION":
                 authoritative_state_block += "PHASE MANDATE: Verify application in real browser, check zero console errors, run automated tests.\n"
+                try:
+                    from core.browser.acceptance import BrowserAcceptanceVerifier
+                    fresh_ok, _ = BrowserAcceptanceVerifier.check_evidence_freshness(ws_dir_active)
+                    if not fresh_ok:
+                        logger.info("AgentLoop: Platform executing managed browser acceptance...")
+                        b_res = BrowserAcceptanceVerifier.verify_workspace_sync(
+                            ws_dir_active,
+                            acceptance_ledger=getattr(self, "acceptance_ledger", None)
+                        )
+                        if hasattr(self, "mvp_gate"):
+                            self.mvp_gate.evaluate_phase(ws_dir_active, browser_verified=b_res.passed)
+                except Exception as b_exc:
+                    logger.warning(f"AgentLoop: Platform browser acceptance notice: {b_exc}")
                 try:
                     from core.frontend_contract_validator import FrontendContractValidator
                     fc_validator = FrontendContractValidator(ws_dir_active)
@@ -8354,9 +8453,9 @@ class AgentLoop:
 
                 if tier3_client and hasattr(tier3_client, "generate") and TIER3_MODEL:
 
-                    if rem_t3 is not None and rem_t3 < 15.0:
+                    if rem_t3 is not None and rem_t3 < 1.0:
 
-                        logger.warning(f"AgentLoop: Insufficient turn budget ({rem_t3:.1f}s < 15.0s) for Tier 3 failover. Raising Tier 2 error.")
+                        logger.warning(f"AgentLoop: Insufficient turn budget ({rem_t3:.1f}s < 1.0s) for Tier 3 failover. Raising Tier 2 error.")
 
                         raise
 

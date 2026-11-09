@@ -212,6 +212,12 @@ class FrontendImplementationContract:
     css: CssContract = field(default_factory=CssContract)
     javascript: JavaScriptContract = field(default_factory=JavaScriptContract)
     assets: List[AssetContractItem] = field(default_factory=list)
+    business_domain: str = ""
+    cuisine_subtype: str = ""
+    brand_positioning: str = ""
+    target_audience: str = ""
+    requested_content: List[str] = field(default_factory=list)
+    requested_visual_direction: str = ""
     contract_hash: str = ""
 
     def __post_init__(self):
@@ -236,6 +242,12 @@ class FrontendImplementationContract:
             "css": self.css.to_dict(),
             "javascript": self.javascript.to_dict(),
             "assets": [a.to_dict() for a in self.assets],
+            "business_domain": self.business_domain,
+            "cuisine_subtype": self.cuisine_subtype,
+            "brand_positioning": self.brand_positioning,
+            "target_audience": self.target_audience,
+            "requested_content": self.requested_content,
+            "requested_visual_direction": self.requested_visual_direction,
             "contract_hash": self.contract_hash,
         }
 
@@ -251,6 +263,12 @@ class FrontendImplementationContract:
             css=CssContract.from_dict(data.get("css", {})),
             javascript=JavaScriptContract.from_dict(data.get("javascript", {})),
             assets=[AssetContractItem.from_dict(a) for a in data.get("assets", [])],
+            business_domain=data.get("business_domain", ""),
+            cuisine_subtype=data.get("cuisine_subtype", ""),
+            brand_positioning=data.get("brand_positioning", ""),
+            target_audience=data.get("target_audience", ""),
+            requested_content=list(data.get("requested_content", [])),
+            requested_visual_direction=data.get("requested_visual_direction", ""),
             contract_hash=data.get("contract_hash", ""),
         )
 
@@ -295,7 +313,13 @@ class FrontendImplementationContract:
             "Canonical DOM Selectors: Search input must have id='search-input' (DO NOT query #search). Dynamic grids are #destinations-grid and #packages-grid.",
             "Dynamic Data Model: In app.js, populate #destinations-grid with 6 destinations (Bali, Switzerland, Paris, Dubai, Maldives, Japan) and #packages-grid with 6 travel packages.",
             "Filtering Taxonomy: Filter categories must use ['all', 'beach', 'mountain', 'city', 'cultural', 'luxury']. Filter buttons must have data-category matching these.",
-            "Modal & Form Contract: #booking-modal dialog with #modal-close button and backdrop click dismissal. .book-now-btn opens modal with selected package details. #booking-form validates inputs and displays confirmation feedback with clear demo mode notice.",
+            "Modal & Form Contract: #booking-modal dialog (or #destination-modal) with close button (#modal-close-btn or #modal-close), backdrop click dismissal, Escape key dismissal, and body scroll lock/unlock. .book-now-btn opens modal with package details. #booking-form validates inputs and displays confirmation feedback with clear demo mode notice.",
+            "Component Class Unification: Use unified classes across HTML, CSS, and JS: cards use (.card, .destination-card, .package-card), image containers use (.card-image, .card-img, .package-image-wrap) with object-fit: cover, card content uses (.card-content, .card-body). Package cards must include (.package-meta, .duration, .price, .highlights). Testimonials must use (.testimonial-card, .testimonial-header, .avatar, .testimonial-text).",
+            "Filter & Navigation Contract: Filter controls use (.filter-container, .search-box, .filter-buttons) aligned in CSS. Header height must be 64-76px. Mobile nav button must be a styled hamburger icon (<button class='mobile-menu-btn' id='mobile-menu-btn' aria-label='Toggle navigation' aria-expanded='false'><span></span><span></span><span></span></button> or SVG), NEVER raw 'Menu' text. Mobile nav must implement (.nav-links.active or #nav-menu.active) visible styling with solid/blur dropdown drawer, aria-expanded toggle, Escape key dismiss, and close on link click. Every nav link (<a href='#...'>) MUST link to an existing section id (e.g. #destinations, #packages, #why-us, #about, #reviews, #booking).",
+            "Hero Visual Architecture Contract: .hero MUST have full-bleed background photography (background-size: cover; background-position: center; min-height: 85vh; position: relative; overflow: hidden;) and a FULL-HERO gradient overlay spanning the ENTIRE hero via 'position: absolute; inset: 0; z-index: 1; pointer-events: none;' (or .hero::before). Text and buttons MUST be inside a container with 'position: relative; z-index: 2;' for high contrast. STRICTLY PROHIBIT partial-height boxed overlay bands (.hero-overlay with padding/relative pos) leaving raw photo exposed above or below. Fluid typography: h1 font-size: clamp(2rem, 5vw, 3.5rem); p font-size: clamp(1rem, 2.5vw, 1.25rem);",
+            "Destination Actions & Normalization: Destination details action scrollToPackages(dest) must filter packages for that destination and scroll to #packages. Opening a package pre-selects the destination in the booking form with lowercase normalized value (e.g. destSelect.value = dest.toLowerCase().split(' ')[0]).",
+            "Safe DOM Operations: Always check elements exist before adding listeners or reading properties (e.g. if (el) el.addEventListener(...)). Zero uncaught null reference exceptions.",
+            "Asset Provenance: Use verified local photography provisioned in assets/images/ (hero, 6 destinations, 6 packages, testimonials). Never use external remote placeholder URLs.",
         ]
 
         if self.dom_and_state.required_static_ids:
@@ -330,18 +354,14 @@ class FrontendContractBuilder:
         mission_id: str = "",
         design_brief: Optional[Any] = None,
     ) -> FrontendImplementationContract:
-        """Generate initial contract before implementation starts."""
-        task_lower = task.lower()
-        if "wanderworld" in task_lower:
-            app_name = "WanderWorld"
-        elif "aether" in task_lower:
-            app_name = "Aether Orbital"
-        elif len(task) < 40 and not any(k in task_lower for k in ("create ", "build ", "make ", "generate ")):
-            app_name = task
-        else:
-            app_name = "Application"
+        """Generate initial contract dynamically derived from the specific mission domain and task."""
+        from core.design_intelligence import DesignBriefGenerator, strip_negative_constraints
+        task_clean = strip_negative_constraints(task or "")
+        task_clean_lower = task_clean.lower()
+        task_lower = task_clean_lower
+        domain = getattr(design_brief, "domain", None) or DesignBriefGenerator.detect_domain(task)
 
-        # Determine architecture
+        # Architecture defaults
         arch = ArchitectureContract(
             project_type="vanilla_web",
             technology_stack=["html5", "css3", "javascript"],
@@ -350,137 +370,782 @@ class FrontendContractBuilder:
             authoritative_style="style.css",
         )
 
-        # Standard components
+        # ------------------------------------------------------------------
+        # ------------------------------------------------------------------
+        from core.design_intelligence import detect_brand_name
+        detected_brand = detect_brand_name(task)
+
+        # ------------------------------------------------------------------
+        # 0. ROBOTICS & INDUSTRIAL AUTOMATION DOMAIN (e.g. ATLAS Robotics)
+        # ------------------------------------------------------------------
+        if domain == "robotics_automation" or any(w in task_clean_lower for w in ["robotics", "robot", "industrial automation", "autonomous mobile"]):
+            app_name = detected_brand if detected_brand != "Application" else "ATLAS Robotics"
+            brand_pos = "Global robotics and industrial automation engineering company delivering autonomous mobile robots, multi-axis robotic arms, AI machine vision, and intelligent assembly automation."
+            target_aud = "Enterprise manufacturing directors, automation engineers, logistics executives, and plant operations managers."
+            req_content = ["industrial robotic arms", "autonomous mobile robots", "ai vision systems", "collaborative robots", "precision assembly automation", "autonomous inspection systems", "consultation enquiry"]
+            req_vis = "Deep graphite, midnight navy, electric cyan, and subtle precision lime accents. High-tech engineering aesthetic with crisp hierarchy, dynamic solution cards, product catalog, and consultation modal."
+
+            components = [
+                ComponentContract(id="navbar", name="Navigation Header", tag="header", required_classes=["site-header", "navbar"]),
+                ComponentContract(id="hero", name="Robotics Hero Presentation", tag="section", required_classes=["hero", "hero-content"]),
+                ComponentContract(id="about", name="Company Overview & Philosophy", tag="section", required_classes=["container", "about-section"]),
+                ComponentContract(
+                    id="solutions",
+                    name="Robotics Solutions & Capabilities",
+                    tag="section",
+                    required_classes=["solutions-section"],
+                    rendering_ownership="dynamic",
+                    render_target_id="solutions-grid",
+                    data_sources=["solutions_data"],
+                ),
+                ComponentContract(
+                    id="products",
+                    name="Robotics Product Catalogue",
+                    tag="section",
+                    required_classes=["products-section"],
+                    rendering_ownership="dynamic",
+                    render_target_id="products-grid",
+                    data_sources=["products_data"],
+                ),
+                ComponentContract(id="applications", name="Industry Applications", tag="section", required_classes=["container", "applications-section"]),
+                ComponentContract(id="research", name="Research & Innovation", tag="section", required_classes=["container", "research-section"]),
+                ComponentContract(id="projects", name="Featured Engineering Projects", tag="section", required_classes=["container", "projects-section"]),
+                ComponentContract(id="why-us", name="Why Choose ATLAS", tag="section", required_classes=["container", "why-section"]),
+                ComponentContract(id="testimonials", name="Customer Perspectives", tag="section", required_classes=["container", "testimonials-section"]),
+                ComponentContract(id="contact", name="Consultation & Inquiries", tag="section", required_classes=["container", "contact-section"]),
+                ComponentContract(id="consultation-form", name="Consultation Request Form", tag="form", required_classes=["consultation-form"], is_form=True),
+                ComponentContract(id="product-modal", name="Product Details Inspection Modal", tag="div", required_classes=["modal-overlay", "modal-dialog"], is_modal=True),
+                ComponentContract(id="footer", name="Site Footer", tag="footer", required_classes=["site-footer"]),
+            ]
+
+            dom_state = DomAndStateContract(
+                required_static_ids=[
+                    "navbar", "hero", "about", "solutions", "solutions-grid",
+                    "products", "products-grid", "product-search", "category-filters",
+                    "applications", "research", "projects", "why-us", "testimonials",
+                    "contact", "consultation-form", "product-modal", "modal-close", "mobile-menu-btn",
+                ],
+                required_static_classes=[
+                    "site-header", "hero", "solution-card", "product-card",
+                    "filter-pill", "modal-overlay", "site-footer", "btn-primary",
+                ],
+                dynamic_ids=["solutions-grid", "products-grid"],
+                dynamic_classes=["active", "open", "hidden"],
+                optional_selectors=[".spec-row", ".status-badge", ".tech-pill"],
+                data_attributes=["data-category", "data-product-id", "data-solution-id"],
+                event_handlers=[
+                    {"target": "#product-search", "event": "input", "action": "filterProducts"},
+                    {"target": ".filter-pill", "event": "click", "action": "filterByCategory"},
+                    {"target": ".btn-details", "event": "click", "action": "openProductModal"},
+                    {"target": "#modal-close", "event": "click", "action": "closeProductModal"},
+                    {"target": "#consultation-form", "event": "submit", "action": "submitConsultation"},
+                ],
+                interactions=[
+                    {
+                        "trigger": "Filter pill click",
+                        "expected_state_change": "Filters product catalogue by category",
+                        "expected_result": "Displays matching robotics product cards",
+                    },
+                    {
+                        "trigger": "Search input typing",
+                        "expected_state_change": "Filters products in real-time by title or capability",
+                        "expected_result": "Dynamic DOM update matching query",
+                    },
+                    {
+                        "trigger": "View Details button click",
+                        "expected_state_change": "Opens product modal with full engineering specs",
+                        "expected_result": "Modal dialog rendered visible",
+                    },
+                    {
+                        "trigger": "Consultation form submit",
+                        "expected_state_change": "Validates inputs and displays demonstration confirmation",
+                        "expected_result": "Validation feedback presented to user",
+                    },
+                ],
+            )
+
+            tokens = {
+                "--primary-color": "#00d2ff",
+                "--secondary-color": "#162032",
+                "--accent-color": "#10b981",
+                "--bg-main": "#0b0f17",
+                "--bg-surface": "#131b28",
+                "--text-primary": "#f8fafc",
+                "--text-muted": "#94a3b8",
+                "--border-color": "#243248",
+            }
+            if design_brief and getattr(design_brief, "color_palette", None):
+                for k, v in getattr(design_brief, "color_palette", {}).items():
+                    token_k = f"--{k.replace('_', '-')}" if not k.startswith("--") else k
+                    tokens[token_k] = v
+
+            css = CssContract(
+                design_tokens=tokens,
+                layout_strategy="responsive_grid_flex",
+                component_selectors=[
+                    ".site-header", ".hero", ".solution-card", ".product-card",
+                    ".filter-pill", ".modal-dialog", ".site-footer", ".consultation-form"
+                ],
+                responsive_breakpoints=["768px", "1024px"],
+            )
+
+            js = JavaScriptContract(
+                authoritative_entrypoint="app.js",
+                secondary_modules=[],
+                state_management="vanilla_store",
+                rendering_functions=[
+                    "renderSolutions", "renderProducts", "filterByCategory", "searchProducts",
+                    "openProductModal", "closeProductModal", "handleConsultationSubmit"
+                ],
+            )
+
+            assets = [
+                AssetContractItem(intended_component="hero", relative_path="assets/images/hero/hero-robotics.jpg", alt_text="High-tech industrial robotics automation laboratory"),
+                AssetContractItem(intended_component="solutions_grid", relative_path="assets/images/solutions/sol-arms.jpg", alt_text="High-precision articulated industrial robotic arm"),
+                AssetContractItem(intended_component="solutions_grid", relative_path="assets/images/solutions/sol-amr.jpg", alt_text="Autonomous mobile robot navigating warehouse"),
+                AssetContractItem(intended_component="solutions_grid", relative_path="assets/images/solutions/sol-vision.jpg", alt_text="AI machine vision inspection sensor system"),
+                AssetContractItem(intended_component="solutions_grid", relative_path="assets/images/solutions/sol-cobot.jpg", alt_text="Collaborative robot cobot operating alongside technician"),
+                AssetContractItem(intended_component="solutions_grid", relative_path="assets/images/solutions/sol-assembly.jpg", alt_text="Precision micro-component robotic assembly cell"),
+                AssetContractItem(intended_component="solutions_grid", relative_path="assets/images/solutions/sol-inspection.jpg", alt_text="Autonomous quality assurance scanning cell"),
+                AssetContractItem(intended_component="products_grid", relative_path="assets/images/products/atlas-apex-6.jpg", alt_text="ATLAS Apex-6 6-axis articulated industrial robotic arm"),
+                AssetContractItem(intended_component="products_grid", relative_path="assets/images/products/atlas-strider-amr.jpg", alt_text="ATLAS Strider AMR-1000 autonomous mobile robot"),
+                AssetContractItem(intended_component="products_grid", relative_path="assets/images/products/atlas-optiscan.jpg", alt_text="ATLAS OptiScan AI neural machine vision head"),
+                AssetContractItem(intended_component="products_grid", relative_path="assets/images/products/atlas-nexus-7.jpg", alt_text="ATLAS Nexus-7 7-axis precision collaborative cobot"),
+                AssetContractItem(intended_component="products_grid", relative_path="assets/images/products/atlas-microassembler.jpg", alt_text="ATLAS MicroAssembler Pro high-speed micro-component assembly cell"),
+                AssetContractItem(intended_component="products_grid", relative_path="assets/images/products/atlas-sentinel.jpg", alt_text="ATLAS Sentinel automated 360-degree quality assurance scanner"),
+            ]
+
+            return FrontendImplementationContract(
+                version=2,
+                mission_id=mission_id,
+                app_name=app_name,
+                business_domain="robotics_automation",
+                brand_positioning=brand_pos,
+                target_audience=target_aud,
+                requested_content=req_content,
+                requested_visual_direction=req_vis,
+                components=components,
+                dom_and_state=dom_state,
+                css=css,
+                javascript=js,
+                assets=assets,
+            )
+
+        # ------------------------------------------------------------------
+        # 0. E-COMMERCE / CONSUMER ELECTRONICS DOMAIN (e.g. NOVA)
+        # ------------------------------------------------------------------
+        if (domain in ("ecommerce_electronics", "ecommerce_store") and not any(w in task_clean_lower for w in ["robotics", "robot", "hospital", "logistics", "real estate"])) or ("nova" in task_clean_lower and any(w in task_clean_lower for w in ["smartphones", "laptops", "headphones", "electronics"])):
+            app_name = "NOVA"
+            brand_pos = "Premium consumer electronics brand delivering cutting-edge personal computing, mobile, audio, and gaming technology."
+            target_aud = "Discerning tech enthusiasts, professionals, and gamers seeking precision-engineered devices."
+            req_content = ["smartphones", "laptops", "headphones", "smartwatches", "gaming", "accessories", "shopping cart"]
+            req_vis = "Deep charcoal, clean white, electric blue, and subtle silver accents. Modern cards, live cart count, and modal product inspection."
+
+            components = [
+                ComponentContract(id="navbar", name="Navigation Header & Cart", tag="header", required_classes=["site-header", "navbar"]),
+                ComponentContract(id="hero", name="Technology Hero Presentation", tag="section", required_classes=["hero", "hero-content"]),
+                ComponentContract(id="categories", name="Featured Hardware Categories", tag="section", required_classes=["categories-section"]),
+                ComponentContract(
+                    id="products",
+                    name="Product Catalog & Interactive Grid",
+                    tag="section",
+                    required_classes=["products-section"],
+                    rendering_ownership="dynamic",
+                    render_target_id="products-grid",
+                    data_sources=["products_data"],
+                ),
+                ComponentContract(id="features", name="Value Propositions & Warranty", tag="section", required_classes=["container", "features-section"]),
+                ComponentContract(id="about", name="Engineering Philosophy & Heritage", tag="section", required_classes=["container", "about-section"]),
+                ComponentContract(id="product-modal", name="Product Details Inspection Modal", tag="div", required_classes=["modal-overlay", "modal-dialog"], is_modal=True),
+                ComponentContract(id="cart-modal", name="Interactive Shopping Cart Modal", tag="div", required_classes=["modal-overlay", "cart-modal"], is_modal=True),
+                ComponentContract(id="checkout-modal", name="Demonstration Checkout Modal", tag="div", required_classes=["modal-overlay"], is_modal=True),
+                ComponentContract(id="contact", name="Customer Inquiries & Support", tag="section", required_classes=["container", "contact-section"]),
+                ComponentContract(id="contact-form", name="Customer Support Form", tag="form", required_classes=["contact-form"], is_form=True),
+                ComponentContract(id="footer", name="Site Footer", tag="footer", required_classes=["site-footer"]),
+            ]
+
+            dom_state = DomAndStateContract(
+                required_static_ids=[
+                    "navbar", "hero", "categories", "products", "products-grid", "filters",
+                    "features", "about", "product-modal", "cart-modal", "checkout-modal",
+                    "contact", "contact-form", "footer", "cart-btn", "cart-count"
+                ],
+                required_static_classes=[
+                    "site-header", "hero", "product-card", "category-btn",
+                    "modal-overlay", "site-footer", "cart-modal"
+                ],
+                dynamic_ids=["products-grid", "cart-items", "cart-subtotal", "cart-count"],
+                dynamic_classes=["active", "open", "hidden"],
+                optional_selectors=[".badge", ".price", ".rating", ".cart-badge"],
+                data_attributes=["data-category", "data-product-id", "data-price"],
+                event_handlers=[
+                    {"target": "#product-search", "event": "input", "action": "searchProducts"},
+                    {"target": ".category-btn", "event": "click", "action": "filterByCategory"},
+                    {"target": "#price-sort", "event": "change", "action": "sortProducts"},
+                    {"target": "#cart-btn", "event": "click", "action": "openCartModal"},
+                    {"target": ".cart-close", "event": "click", "action": "closeCartModal"},
+                    {"target": "#contact-form", "event": "submit", "action": "submit_contact"},
+                ],
+                interactions=[
+                    {
+                        "trigger": "Add to Cart button click",
+                        "expected_state_change": "Appends product to cart state and increments badge count",
+                        "expected_result": "Cart item added with live subtotal update",
+                    },
+                    {
+                        "trigger": "Category button click",
+                        "expected_state_change": "Filters visible products by selected electronics category",
+                        "expected_result": "Displays matching electronic product cards",
+                    },
+                    {
+                        "trigger": "Search input typing",
+                        "expected_state_change": "Filters products in real time by name, category, or description",
+                        "expected_result": "Dynamic DOM update matching query",
+                    },
+                ],
+            )
+
+            tokens = {
+                "--primary-color": "#0284c7",
+                "--primary-light": "#38bdf8",
+                "--secondary-color": "#0f172a",
+                "--accent-blue": "#0ea5e9",
+                "--bg-dark": "#0b0f17",
+                "--bg-card": "#131b2e",
+                "--bg-surface": "#1e293b",
+                "--text-primary": "#f8fafc",
+                "--text-secondary": "#94a3b8",
+                "--border-color": "#334155",
+                "--radius-md": "8px",
+                "--shadow-md": "0 4px 20px -2px rgba(0, 0, 0, 0.25)",
+            }
+            if design_brief and hasattr(design_brief, "color_palette"):
+                for k, v in getattr(design_brief, "color_palette", {}).items():
+                    tokens[f"--{k}"] = v
+
+            css = CssContract(
+                design_tokens=tokens,
+                layout_strategy="responsive_grid_flex",
+                component_selectors=[
+                    ".site-header", ".hero", ".product-card", ".products-grid",
+                    ".category-btn", ".modal-dialog", ".site-footer", ".cart-modal"
+                ],
+                responsive_breakpoints=["768px", "1024px"],
+            )
+
+            js = JavaScriptContract(
+                authoritative_entrypoint="app.js",
+                secondary_modules=[],
+                state_management="vanilla_store",
+                rendering_functions=[
+                    "renderProducts", "filterByCategory", "searchProducts", "sortProducts",
+                    "openProductModal", "closeProductModal", "openCartModal", "closeCartModal",
+                    "addToCart", "updateCartQuantity", "removeFromCart", "calculateSubtotal"
+                ],
+            )
+
+            assets = [
+                AssetContractItem(intended_component="hero", relative_path="assets/images/hero/hero-electronics.jpg", alt_text="Premium consumer electronics workspace showcasing cutting-edge devices"),
+                AssetContractItem(intended_component="products_grid", relative_path="assets/images/products/nova-apex-pro.jpg", alt_text="NOVA Apex Pro 5G flagship smartphone with titanium frame"),
+                AssetContractItem(intended_component="products_grid", relative_path="assets/images/products/nova-pulse-mini.jpg", alt_text="NOVA Pulse Mini 5G compact smartphone with OLED display"),
+                AssetContractItem(intended_component="products_grid", relative_path="assets/images/products/nova-book-15.jpg", alt_text="NOVA Book Ultralight 15 inch laptop with CNC aluminum chassis"),
+                AssetContractItem(intended_component="products_grid", relative_path="assets/images/products/nova-studio-16.jpg", alt_text="NOVA Studio Pro 16 creator laptop with discrete graphics"),
+                AssetContractItem(intended_component="products_grid", relative_path="assets/images/products/nova-sonic-anc.jpg", alt_text="NOVA Sonic active noise cancelling wireless over-ear headphones"),
+                AssetContractItem(intended_component="products_grid", relative_path="assets/images/products/nova-soundbuds-pro.jpg", alt_text="NOVA SoundBuds Pro spatial audio wireless earbuds"),
+                AssetContractItem(intended_component="products_grid", relative_path="assets/images/products/nova-chrono-steel.jpg", alt_text="NOVA Chrono Precision stainless steel smart wristwatch"),
+                AssetContractItem(intended_component="products_grid", relative_path="assets/images/products/nova-fit-active.jpg", alt_text="NOVA Fit Active titanium sport smartwatch with biometric sensors"),
+                AssetContractItem(intended_component="products_grid", relative_path="assets/images/products/nova-horizon-vr.jpg", alt_text="NOVA Horizon VR spatial computing gaming headset"),
+                AssetContractItem(intended_component="products_grid", relative_path="assets/images/products/nova-reflex-keyboard.jpg", alt_text="NOVA Reflex mechanical gaming keyboard with RGB backlighting"),
+                AssetContractItem(intended_component="products_grid", relative_path="assets/images/products/nova-gan-charger.jpg", alt_text="NOVA PowerMatrix 100W GaN fast charger with braided cable"),
+                AssetContractItem(intended_component="products_grid", relative_path="assets/images/products/nova-magnetic-stand.jpg", alt_text="NOVA Magnetic 3-in-1 wireless fast charging stand"),
+            ]
+
+            return FrontendImplementationContract(
+                version=2,
+                mission_id=mission_id,
+                app_name=app_name,
+                business_domain="ecommerce_electronics",
+                brand_positioning=brand_pos,
+                target_audience=target_aud,
+                requested_content=req_content,
+                requested_visual_direction=req_vis,
+                components=components,
+                dom_and_state=dom_state,
+                css=css,
+                javascript=js,
+                assets=assets,
+            )
+
+        # 1. EDUCATION / UNIVERSITY DOMAIN
+        # ------------------------------------------------------------------
+        if domain == "education_institution" or any(w in task_lower for w in ["northstar", "university", "college", "academic", "degree"]):
+            app_name = "NorthStar University" if "northstar" in task_lower else "University Portal"
+            components = [
+                ComponentContract(id="navbar", name="Navigation Header", tag="header", required_classes=["site-header", "navbar"]),
+                ComponentContract(id="hero", name="Campus Hero Presentation", tag="section", required_classes=["hero", "hero-content"]),
+                ComponentContract(id="about", name="About & Heritage", tag="section", required_classes=["container"]),
+                ComponentContract(
+                    id="academics",
+                    name="Academic Schools & Degree Programs",
+                    tag="section",
+                    required_classes=["academics-section"],
+                    rendering_ownership="dynamic",
+                    render_target_id="programs-grid",
+                    data_sources=["programs_data"],
+                ),
+                ComponentContract(id="admissions", name="Admissions Process", tag="section", required_classes=["admissions-section"]),
+                ComponentContract(
+                    id="faculty",
+                    name="Distinguished Faculty",
+                    tag="section",
+                    required_classes=["container"],
+                    rendering_ownership="dynamic",
+                    render_target_id="faculty-grid",
+                    data_sources=["faculty_data"],
+                ),
+                ComponentContract(id="campus-life", name="Campus Life & Housing", tag="section", required_classes=["container"]),
+                ComponentContract(id="research", name="Research Centers", tag="section", required_classes=["container"]),
+                ComponentContract(id="events", name="Events Calendar", tag="section", required_classes=["container"]),
+                ComponentContract(id="faq", name="FAQ Accordion", tag="section", required_classes=["faq-section"]),
+                ComponentContract(id="inquiry-modal", name="Information Request Modal", tag="div", required_classes=["modal-overlay", "modal-dialog"], is_modal=True),
+                ComponentContract(id="inquiry-form", name="Admissions Inquiry Form", tag="form", required_classes=["inquiry-form"], is_form=True),
+                ComponentContract(id="footer", name="University Footer", tag="footer", required_classes=["site-footer"]),
+            ]
+
+            dom_state = DomAndStateContract(
+                required_static_ids=[
+                    "navbar", "hero", "search-input", "filter-buttons", "programs-grid",
+                    "faculty-grid", "faq-accordion", "inquiry-modal", "inquiry-form",
+                    "modal-close", "mobile-menu-btn",
+                ],
+                required_static_classes=[
+                    "site-header", "hero", "program-card", "timeline-card",
+                    "filter-pill", "modal-overlay", "site-footer",
+                ],
+                dynamic_ids=["programs-grid", "faculty-grid", "events-list"],
+                dynamic_classes=["active", "open", "hidden"],
+                optional_selectors=[".stats-ribbon", ".badge", ".timeline-step"],
+                data_attributes=["data-category", "data-program-id", "data-degree"],
+                event_handlers=[
+                    {"target": "#search-input", "event": "input", "action": "filter_programs"},
+                    {"target": ".filter-pill", "event": "click", "action": "filter_by_school"},
+                    {"target": "#btn-request-info", "event": "click", "action": "open_inquiry_modal"},
+                    {"target": "#modal-close", "event": "click", "action": "close_inquiry_modal"},
+                    {"target": "#inquiry-form", "event": "submit", "action": "submit_inquiry"},
+                    {"target": ".faq-question", "event": "click", "action": "toggle_accordion"},
+                ],
+                interactions=[
+                    {
+                        "trigger": "Filter pill click",
+                        "expected_state_change": "Filters academic programs by selected school",
+                        "expected_result": "Displays matching program cards",
+                    },
+                    {
+                        "trigger": "Search input typing",
+                        "expected_state_change": "Filters programs in real time by title or keyword",
+                        "expected_result": "Dynamic DOM update matching query",
+                    },
+                    {
+                        "trigger": "FAQ question toggle",
+                        "expected_state_change": "Expands or collapses targeted FAQ answer",
+                        "expected_result": "Accordion panel revealed",
+                    },
+                    {
+                        "trigger": "Inquiry form submit",
+                        "expected_state_change": "Validates inputs and displays confirmation alert",
+                        "expected_result": "Inquiry recorded with student notification",
+                    },
+                ],
+            )
+
+            tokens = {
+                "--primary-color": "#0b2545",
+                "--primary-light": "#134074",
+                "--royal-blue": "#1d4ed8",
+                "--accent-gold": "#d4af37",
+                "--bg-main": "#f8fafc",
+                "--bg-surface": "#ffffff",
+                "--text-primary": "#0f172a",
+                "--text-secondary": "#475569",
+                "--font-heading": "'Plus Jakarta Sans', system-ui, sans-serif",
+                "--font-body": "'Inter', system-ui, sans-serif",
+                "--border-color": "#e2e8f0",
+                "--radius-md": "10px",
+                "--shadow-md": "0 4px 12px rgba(11, 37, 69, 0.08)",
+            }
+            if design_brief and hasattr(design_brief, "color_palette"):
+                for k, v in getattr(design_brief, "color_palette", {}).items():
+                    tokens[f"--{k}"] = v
+
+            css = CssContract(
+                design_tokens=tokens,
+                layout_strategy="responsive_grid_flex",
+                component_selectors=[
+                    ".site-header", ".hero", ".program-card", ".cards-grid",
+                    ".filter-pill", ".timeline-card", ".modal-dialog", ".site-footer",
+                ],
+                responsive_breakpoints=["768px", "1024px"],
+            )
+
+            js = JavaScriptContract(
+                authoritative_entrypoint="app.js",
+                secondary_modules=[],
+                state_management="vanilla_store",
+                rendering_functions=["renderPrograms", "renderFaculty", "applyFilter", "openModal", "closeModal"],
+            )
+
+            assets = [
+                AssetContractItem(intended_component="hero", relative_path="assets/images/hero/hero-campus.jpg", alt_text="Historic collegiate campus quadrangle"),
+                AssetContractItem(intended_component="engineering", relative_path="assets/images/academics/engineering.jpg", alt_text="Engineering robotics laboratory"),
+                AssetContractItem(intended_component="arts", relative_path="assets/images/academics/arts-sciences.jpg", alt_text="Humanities reading room"),
+                AssetContractItem(intended_component="business", relative_path="assets/images/academics/business.jpg", alt_text="Business leadership amphitheater"),
+                AssetContractItem(intended_component="faculty", relative_path="assets/images/faculty/dr-mitchell.jpg", alt_text="Distinguished faculty researcher"),
+            ]
+
+            return FrontendImplementationContract(
+                version=1,
+                mission_id=mission_id,
+                app_name="NorthStar University",
+                business_domain="education_institution",
+                cuisine_subtype="",
+                brand_positioning="Premier collegiate institution fostering academic excellence and global leadership.",
+                target_audience="Prospective students, faculty, alumni, and researchers",
+                requested_content=["academic programs", "faculty directory", "campus life", "admissions inquiry"],
+                requested_visual_direction="Historic collegiate navy and gold, academic typography, campus photography",
+                architecture=arch,
+                components=components,
+                dom_and_state=dom_state,
+                css=css,
+                javascript=js,
+                assets=assets,
+            )
+
+        # ------------------------------------------------------------------
+        # 2. CULINARY / RESTAURANT DOMAIN
+        # ------------------------------------------------------------------
+        if domain == "culinary_restaurant":
+            from core.design_intelligence import DesignBriefGenerator, strip_negative_constraints
+            cuisine = getattr(design_brief, "cuisine_subtype", "") or DesignBriefGenerator.detect_cuisine_subtype(task)
+            is_indian = cuisine == "Contemporary Indian"
+            app_name = "Saffron & Stone" if any(w in task_lower for w in ["saffron", "stone"]) else ("Contemporary Indian Kitchen" if is_indian else "Artisanal Restaurant & Bar")
+            brand_pos = "Premium Contemporary Indian dining celebrating heritage clay oven tandoor cooking, dum biryani, and aromatic spices." if is_indian else "Artisanal Mediterranean hearth dining."
+            target_aud = "Discerning patrons seeking authentic high-end Indian dining" if is_indian else "Discerning culinary enthusiasts"
+            req_content = ["paneer tikka", "dum biryani", "tandoori specialities", "indian breads", "traditional desserts"] if is_indian else ["tagine", "seabass", "ribeye", "mezze"]
+            req_vis = "Warm royal saffron and terracotta palette, rich brass accents, evocative clay oven photography, zero fabricated credentials." if is_indian else "Warm terracotta, saffron amber, exposed stone."
+            components = [
+                ComponentContract(id="navbar", name="Restaurant Header & Navigation", tag="header", required_classes=["site-header", "navbar"]),
+                ComponentContract(id="hero", name="Atmospheric Culinary Hero", tag="section", required_classes=["hero", "hero-content"]),
+                ComponentContract(id="story", name="Culinary Philosophy & Heritage", tag="section", required_classes=["container", "story-section"]),
+                ComponentContract(
+                    id="menu",
+                    name="Signature Menu & Dishes",
+                    tag="section",
+                    required_classes=["menu-section"],
+                    rendering_ownership="dynamic",
+                    render_target_id="menu-grid",
+                    data_sources=["menu_data"],
+                ),
+                ComponentContract(id="chef", name="Executive Chef Profile", tag="section", required_classes=["container", "chef-section"]),
+                ComponentContract(id="ambience", name="Dining Ambience & Spaces", tag="section", required_classes=["container"]),
+                ComponentContract(id="private-dining", name="Private Dining & Events", tag="section", required_classes=["container"]),
+                ComponentContract(id="gallery", name="Culinary & Architectural Gallery", tag="section", required_classes=["container", "gallery-section"]),
+                ComponentContract(id="reviews", name="Critic & Guest Reviews", tag="section", required_classes=["container", "reviews-section"]),
+                ComponentContract(id="faq", name="Dining FAQ Accordion", tag="section", required_classes=["faq-section"]),
+                ComponentContract(id="dish-modal", name="Dish Inspection Dialog", tag="div", required_classes=["modal-overlay", "modal-dialog"], is_modal=True),
+                ComponentContract(id="reservation-modal", name="Table Reservation Dialog", tag="div", required_classes=["modal-overlay", "modal-dialog"], is_modal=True),
+                ComponentContract(id="reservation-form", name="Table Reservation Form", tag="form", required_classes=["reservation-form"], is_form=True),
+                ComponentContract(id="footer", name="Restaurant Footer", tag="footer", required_classes=["site-footer"]),
+            ]
+
+            dom_state = DomAndStateContract(
+                required_static_ids=[
+                    "navbar", "hero", "search-input", "filter-buttons", "menu-grid",
+                    "dish-modal", "reservation-modal", "reservation-form",
+                    "modal-close", "mobile-menu-btn", "faq-accordion",
+                ],
+                required_static_classes=[
+                    "site-header", "hero", "menu-card", "filter-pill",
+                    "modal-overlay", "site-footer",
+                ],
+                dynamic_ids=["menu-grid", "gallery-grid"],
+                dynamic_classes=["active", "open", "hidden"],
+                data_attributes=["data-category", "data-dish-id", "data-price"],
+                event_handlers=[
+                    {"target": "#search-input", "event": "input", "action": "filter_dishes"},
+                    {"target": ".filter-pill", "event": "click", "action": "filter_by_category"},
+                    {"target": "#btn-book-table", "event": "click", "action": "open_reservation_modal"},
+                    {"target": "#modal-close", "event": "click", "action": "close_modal"},
+                    {"target": "#reservation-form", "event": "submit", "action": "submit_reservation"},
+                    {"target": ".faq-question", "event": "click", "action": "toggle_accordion"},
+                ],
+                interactions=[
+                    {
+                        "trigger": "Filter pill click",
+                        "expected_state_change": "Filters menu items by selected culinary course",
+                        "expected_result": "Displays matching dish cards",
+                    },
+                    {
+                        "trigger": "Search input typing",
+                        "expected_state_change": "Searches dishes in real time by name or ingredient",
+                        "expected_result": "Live DOM update of menu grid",
+                    },
+                    {
+                        "trigger": "Dish card click",
+                        "expected_state_change": "Opens dish modal with tasting notes and wine pairing",
+                        "expected_result": "Modal dialog opens",
+                    },
+                    {
+                        "trigger": "Reservation form submit",
+                        "expected_state_change": "Validates reservation inputs and displays booking confirmation",
+                        "expected_result": "Reservation confirmation displayed",
+                    },
+                ],
+            )
+
+            tokens = {
+                "--primary-color": "#8b3a1a",
+                "--primary-light": "#b85328",
+                "--accent-gold": "#e5982e",
+                "--bg-dark": "#141210",
+                "--bg-surface": "#faf7f2",
+                "--text-light": "#f5f2eb",
+                "--text-dark": "#1a1714",
+                "--text-muted": "#78716c",
+                "--font-heading": "'Playfair Display', Georgia, serif",
+                "--font-body": "'Plus Jakarta Sans', system-ui, sans-serif",
+                "--border-color": "#e7e2da",
+                "--radius-md": "8px",
+                "--shadow-md": "0 4px 16px rgba(20, 18, 16, 0.08)",
+            }
+            if design_brief and hasattr(design_brief, "color_palette"):
+                for k, v in getattr(design_brief, "color_palette", {}).items():
+                    tokens[f"--{k}"] = v
+
+            css = CssContract(
+                design_tokens=tokens,
+                layout_strategy="responsive_grid_flex",
+                component_selectors=[
+                    ".site-header", ".hero", ".menu-card", ".filter-pill",
+                    ".modal-dialog", ".site-footer",
+                ],
+                responsive_breakpoints=["768px", "1024px"],
+            )
+
+            js = JavaScriptContract(
+                authoritative_entrypoint="app.js",
+                secondary_modules=[],
+                state_management="vanilla_store",
+                rendering_functions=["renderMenu", "openModal", "closeModal", "applyFilter", "submitReservation"],
+            )
+
+            assets = [
+                AssetContractItem(intended_component="hero", relative_path="assets/images/hero/hero-culinary.jpg", alt_text="Atmospheric candlelit dining room at Saffron and Stone"),
+                AssetContractItem(intended_component="chef", relative_path="assets/images/chef/chef-marco.jpg", alt_text="Executive Chef Marco Valenti plating signature dish"),
+                AssetContractItem(intended_component="ambience", relative_path="assets/images/ambience/dining-room.jpg", alt_text="Handcrafted stone walls and warm lighting"),
+                AssetContractItem(intended_component="dish_tagine", relative_path="assets/images/dishes/tagine.jpg", alt_text="Signature saffron seafood tagine"),
+                AssetContractItem(intended_component="dish_seabass", relative_path="assets/images/dishes/seabass.jpg", alt_text="Pan-seared Mediterranean seabass"),
+            ]
+
+            return FrontendImplementationContract(
+                version=1,
+                mission_id=mission_id,
+                app_name=app_name,
+                business_domain="culinary_restaurant",
+                cuisine_subtype=cuisine,
+                brand_positioning=brand_pos,
+                target_audience=target_aud,
+                requested_content=req_content,
+                requested_visual_direction=req_vis,
+                architecture=arch,
+                components=components,
+                dom_and_state=dom_state,
+                css=css,
+                javascript=js,
+                assets=assets,
+            )
+
+        # ------------------------------------------------------------------
+        # 3. TRAVEL / WANDERWORLD DOMAIN
+        # ------------------------------------------------------------------
+        if domain == "travel_tourism" or "wanderworld" in task_lower:
+            app_name = "WanderWorld"
+            components = [
+                ComponentContract(id="navbar", name="Navigation Bar", tag="nav", required_classes=["navbar", "nav-container"]),
+                ComponentContract(id="hero", name="Hero Section", tag="section", required_classes=["hero", "hero-content"]),
+                ComponentContract(
+                    id="destinations",
+                    name="Destinations Section",
+                    tag="section",
+                    required_classes=["destinations-section"],
+                    rendering_ownership="dynamic",
+                    render_target_id="destinations-grid",
+                    data_sources=["destinations_data"],
+                ),
+                ComponentContract(
+                    id="packages",
+                    name="Travel Packages",
+                    tag="section",
+                    required_classes=["packages-section"],
+                    rendering_ownership="dynamic",
+                    render_target_id="packages-grid",
+                    data_sources=["packages_data"],
+                ),
+                ComponentContract(id="booking-modal", name="Booking Modal", tag="div", required_classes=["modal", "modal-dialog"], is_modal=True),
+                ComponentContract(id="booking-form", name="Booking Form", tag="form", required_classes=["booking-form", "form-control"], is_form=True),
+                ComponentContract(id="footer", name="Site Footer", tag="footer", required_classes=["site-footer"]),
+            ]
+
+            dom_state = DomAndStateContract(
+                required_static_ids=[
+                    "navbar", "hero", "search-input", "filter-buttons",
+                    "destinations-grid", "packages-grid", "booking-modal",
+                    "booking-form", "modal-close", "mobile-menu-btn",
+                ],
+                required_static_classes=[
+                    "navbar", "hero", "card", "destination-card", "package-card",
+                    "filter-btn", "modal", "booking-form", "site-footer",
+                ],
+                dynamic_ids=["destinations-grid", "packages-grid", "modal-content-body"],
+                dynamic_classes=["active", "open", "hidden", "filtered-out", "selected"],
+                optional_selectors=[".dark-theme", "#theme-toggle", ".badge-popular"],
+                data_attributes=["data-category", "data-destination-id", "data-price"],
+                event_handlers=[
+                    {"target": "#search-input", "event": "input", "action": "filter_destinations"},
+                    {"target": ".filter-btn", "event": "click", "action": "filter_by_category"},
+                    {"target": ".book-now-btn", "event": "click", "action": "open_booking_modal"},
+                    {"target": "#modal-close", "event": "click", "action": "close_modal"},
+                    {"target": "#booking-form", "event": "submit", "action": "handle_booking_submission"},
+                ],
+                interactions=[
+                    {
+                        "trigger": "Filter button click",
+                        "expected_state_change": "Sets active filter; filters visible cards by category",
+                        "expected_result": "Non-matching cards hidden or removed; matching cards displayed",
+                    },
+                    {
+                        "trigger": "Search input typing",
+                        "expected_state_change": "Filters visible items by matching title or description text",
+                        "expected_result": "Real-time DOM update matching search query",
+                    },
+                    {
+                        "trigger": "Book now button click",
+                        "expected_state_change": "Populates modal with selected package details and adds .open class",
+                        "expected_result": "Modal overlay displayed over viewport",
+                    },
+                    {
+                        "trigger": "Modal close button or backdrop click",
+                        "expected_state_change": "Removes .open class and resets modal",
+                        "expected_result": "Modal overlay dismissed",
+                    },
+                    {
+                        "trigger": "Booking form submit",
+                        "expected_state_change": "Validates required fields and renders confirmation feedback",
+                        "expected_result": "Displays confirmation notification without fake network claim",
+                    },
+                ],
+            )
+
+            tokens = {
+                "--primary-color": "#0b1d33",
+                "--primary-light": "#163256",
+                "--ocean-teal": "#0d7a82",
+                "--gold-accent": "#d4af37",
+                "--bg-main": "#f8fafc",
+                "--card-bg": "#ffffff",
+                "--text-primary": "#0f172a",
+                "--text-secondary": "#475569",
+                "--border-color": "#e2e8f0",
+                "--radius-sm": "6px",
+                "--radius-md": "12px",
+                "--shadow-md": "0 4px 12px rgba(11, 29, 51, 0.08)",
+            }
+            if design_brief and hasattr(design_brief, "color_palette"):
+                for k, v in getattr(design_brief, "color_palette", {}).items():
+                    tokens[f"--{k}"] = v
+
+            css = CssContract(
+                design_tokens=tokens,
+                layout_strategy="responsive_grid_flex",
+                component_selectors=[
+                    ".navbar", ".hero", ".card", ".destination-card", ".package-card",
+                    ".grid", ".cards-grid", ".modal", ".form-control", ".btn",
+                ],
+                responsive_breakpoints=["768px", "1024px"],
+            )
+
+            js = JavaScriptContract(
+                authoritative_entrypoint="app.js",
+                secondary_modules=[],
+                state_management="vanilla_store",
+                rendering_functions=["renderDestinations", "renderPackages", "openModal", "closeModal", "filterCards"],
+            )
+
+            assets = [
+                AssetContractItem(intended_component="hero", relative_path="assets/images/hero/hero-wanderlust.jpg", alt_text="Cinematic tropical ocean and white sand beach"),
+                AssetContractItem(intended_component="destination-bali", relative_path="assets/images/destinations/bali.jpg", alt_text="Water temple in Bali"),
+                AssetContractItem(intended_component="destination-paris", relative_path="assets/images/destinations/paris.jpg", alt_text="Eiffel Tower in Paris"),
+                AssetContractItem(intended_component="destination-dubai", relative_path="assets/images/destinations/dubai.jpg", alt_text="Dubai skyline"),
+                AssetContractItem(intended_component="destination-swiss", relative_path="assets/images/destinations/switzerland.jpg", alt_text="Snow-capped Swiss Alps"),
+            ]
+
+            return FrontendImplementationContract(
+                version=1,
+                mission_id=mission_id,
+                app_name="WanderWorld",
+                business_domain="travel_tourism",
+                cuisine_subtype="",
+                brand_positioning="Curated luxury eco-travel and extraordinary adventure expeditions.",
+                target_audience="Adventurous luxury travelers and culture seekers",
+                requested_content=["destinations", "travel packages", "interactive filters", "booking modal"],
+                requested_visual_direction="Vibrant azure ocean gradients, panoramic landscapes, clean card grid",
+                architecture=arch,
+                components=components,
+                dom_and_state=dom_state,
+                css=css,
+                javascript=js,
+                assets=assets,
+            )
+
+        # ------------------------------------------------------------------
+        # 3. GENERAL / NEUTRAL DOMAIN
+        # ------------------------------------------------------------------
+        app_name = "Application"
         components = [
-            ComponentContract(id="navbar", name="Navigation Bar", tag="nav", required_classes=["navbar", "nav-container"]),
-            ComponentContract(id="hero", name="Hero Section", tag="section", required_classes=["hero", "hero-content"]),
-            ComponentContract(
-                id="destinations",
-                name="Destinations Section",
-                tag="section",
-                required_classes=["destinations-section"],
-                rendering_ownership="dynamic",
-                render_target_id="destinations-grid",
-                data_sources=["destinations_data"],
-            ),
-            ComponentContract(
-                id="packages",
-                name="Travel Packages",
-                tag="section",
-                required_classes=["packages-section"],
-                rendering_ownership="dynamic",
-                render_target_id="packages-grid",
-                data_sources=["packages_data"],
-            ),
-            ComponentContract(id="booking-modal", name="Booking Modal", tag="div", required_classes=["modal", "modal-dialog"], is_modal=True),
-            ComponentContract(id="booking-form", name="Booking Form", tag="form", required_classes=["booking-form", "form-control"], is_form=True),
+            ComponentContract(id="navbar", name="Navigation Bar", tag="nav", required_classes=["navbar"]),
+            ComponentContract(id="hero", name="Hero Section", tag="section", required_classes=["hero"]),
+            ComponentContract(id="catalog", name="Catalog / Cards", tag="section", required_classes=["catalog-section"], rendering_ownership="dynamic", render_target_id="catalog-grid"),
+            ComponentContract(id="contact", name="Contact Form", tag="section", required_classes=["contact-section"]),
             ComponentContract(id="footer", name="Site Footer", tag="footer", required_classes=["site-footer"]),
         ]
-
-        # DOM and State
         dom_state = DomAndStateContract(
-            required_static_ids=[
-                "navbar", "hero", "search-input", "filter-buttons",
-                "destinations-grid", "packages-grid", "booking-modal",
-                "booking-form", "modal-close", "mobile-menu-btn",
-            ],
-            required_static_classes=[
-                "navbar", "hero", "card", "destination-card", "package-card",
-                "filter-btn", "modal", "booking-form", "site-footer",
-            ],
-            dynamic_ids=["destinations-grid", "packages-grid", "modal-content-body"],
-            dynamic_classes=["active", "open", "hidden", "filtered-out", "selected"],
-            optional_selectors=[".dark-theme", "#theme-toggle", ".badge-popular"],
-            data_attributes=["data-category", "data-destination-id", "data-price"],
-            event_handlers=[
-                {"target": "#search-input", "event": "input", "action": "filter_destinations"},
-                {"target": ".filter-btn", "event": "click", "action": "filter_by_category"},
-                {"target": ".book-now-btn", "event": "click", "action": "open_booking_modal"},
-                {"target": "#modal-close", "event": "click", "action": "close_modal"},
-                {"target": "#booking-form", "event": "submit", "action": "handle_booking_submission"},
-            ],
-            interactions=[
-                {
-                    "trigger": "Filter button click",
-                    "expected_state_change": "Sets active filter; filters visible cards by category",
-                    "expected_result": "Non-matching cards hidden or removed; matching cards displayed",
-                },
-                {
-                    "trigger": "Search input typing",
-                    "expected_state_change": "Filters visible items by matching title or description text",
-                    "expected_result": "Real-time DOM update matching search query",
-                },
-                {
-                    "trigger": "Book now button click",
-                    "expected_state_change": "Populates modal with selected package details and adds .open class",
-                    "expected_result": "Modal overlay displayed over viewport",
-                },
-                {
-                    "trigger": "Modal close button or backdrop click",
-                    "expected_state_change": "Removes .open class and resets modal",
-                    "expected_result": "Modal overlay dismissed",
-                },
-                {
-                    "trigger": "Booking form submit",
-                    "expected_state_change": "Validates required fields and renders confirmation feedback",
-                    "expected_result": "Displays confirmation notification without fake network claim",
-                },
-            ],
+            required_static_ids=["navbar", "hero", "catalog-grid", "contact-form", "mobile-menu-btn"],
+            required_static_classes=["navbar", "hero", "card", "site-footer"],
+            dynamic_ids=["catalog-grid"],
+            dynamic_classes=["active", "open", "hidden"],
         )
-
-        # CSS tokens from design brief if available
-        tokens = {
-            "--primary-color": "#2563eb",
-            "--secondary-color": "#0f172a",
-            "--accent-color": "#f59e0b",
-            "--bg-color": "#f8fafc",
-            "--card-bg": "#ffffff",
-            "--text-primary": "#1e293b",
-            "--text-secondary": "#64748b",
-            "--font-main": "system-ui, -apple-system, sans-serif",
-            "--radius-sm": "0.375rem",
-            "--radius-md": "0.5rem",
-            "--radius-lg": "1rem",
-            "--shadow-md": "0 4px 6px -1px rgb(0 0 0 / 0.1)",
-        }
-        if design_brief and hasattr(design_brief, "color_palette"):
-            pal = getattr(design_brief, "color_palette", {})
-            if "primary" in pal: tokens["--primary-color"] = pal["primary"]
-            if "background" in pal: tokens["--bg-color"] = pal["background"]
-            if "text" in pal: tokens["--text-primary"] = pal["text"]
-            if "accent" in pal: tokens["--accent-color"] = pal["accent"]
-
         css = CssContract(
-            design_tokens=tokens,
+            design_tokens={"--primary-color": "#2563eb", "--bg-color": "#f8fafc", "--text-primary": "#0f172a"},
             layout_strategy="responsive_grid_flex",
-            component_selectors=[
-                ".navbar", ".hero", ".card", ".destination-card", ".package-card",
-                ".grid", ".cards-grid", ".modal", ".form-control", ".btn",
-            ],
+            component_selectors=[".navbar", ".hero", ".card", ".site-footer"],
             responsive_breakpoints=["768px", "1024px"],
         )
-
-        # JS Contract
         js = JavaScriptContract(
             authoritative_entrypoint="app.js",
-            secondary_modules=[],
-            state_management="vanilla_store",
-            rendering_functions=["renderDestinations", "renderPackages", "openModal", "closeModal", "filterCards"],
+            rendering_functions=["renderCatalog", "initApp"],
         )
-
-        # Assets
         assets = [
-            AssetContractItem(intended_component="hero", relative_path="assets/hero.jpg", alt_text="Cinematic travel landscape"),
-            AssetContractItem(intended_component="destination-bali", relative_path="assets/dest_bali.jpg", alt_text="Tropical beaches of Bali"),
-            AssetContractItem(intended_component="destination-paris", relative_path="assets/dest_paris.jpg", alt_text="Historic architecture of Paris"),
-            AssetContractItem(intended_component="destination-tokyo", relative_path="assets/dest_tokyo.jpg", alt_text="Modern city of Tokyo"),
-            AssetContractItem(intended_component="destination-swiss", relative_path="assets/dest_swiss.jpg", alt_text="Snow-capped Swiss Alps"),
+            AssetContractItem(intended_component="hero", relative_path="assets/images/hero/hero-general.jpg", alt_text="Modern architectural studio"),
         ]
-
         return FrontendImplementationContract(
             version=1,
             mission_id=mission_id,
             app_name=app_name,
+            business_domain="general",
+            cuisine_subtype="",
+            brand_positioning="Refined modern web experience.",
+            target_audience="General audience",
+            requested_content=["hero", "features", "contact"],
+            requested_visual_direction="Clean neutral typography and balanced layout",
             architecture=arch,
             components=components,
             dom_and_state=dom_state,
@@ -529,3 +1194,6 @@ class FrontendContractBuilder:
 
         contract.update_version()
         return contract
+
+
+build_initial_contract = FrontendContractBuilder.build_initial_contract

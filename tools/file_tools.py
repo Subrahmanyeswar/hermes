@@ -1012,7 +1012,17 @@ class DeleteFileTool(BaseTool):
                 return ToolResult(success=False, output="", error=f"File not found: {inp.path}", exit_code=1, duration_seconds=0.0)
             if safe_path.is_dir():
                 return ToolResult(success=False, output="", error="delete_file cannot delete directories. Use bash_exec with caution.", exit_code=1, duration_seconds=0.0)
-            safe_path.unlink()
+            
+            from tools.security import can_safely_delete_file, safe_delete_file
+            ws_root = getattr(workspace_manager, "workspace_root", None) or Path.cwd()
+            allowed, block_reason = can_safely_delete_file(safe_path, ws_root)
+            if not allowed:
+                return ToolResult(success=False, error=f"SECURITY: {block_reason}", exit_code=126, duration_seconds=0.0)
+
+            deleted = safe_delete_file(safe_path, ws_root)
+            if not deleted:
+                return ToolResult(success=False, error=f"SECURITY: Failed to safely delete {inp.path}", exit_code=126, duration_seconds=0.0)
+
             workspace_manager.refresh_index()
             logger.warning(f"delete_file: DELETED {inp.path}")
             return ToolResult(success=True, output=f"Deleted: {inp.path}", exit_code=0, duration_seconds=0.0)

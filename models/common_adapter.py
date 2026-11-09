@@ -98,6 +98,66 @@ class AttemptTimeoutError(TimeoutError):
     pass
 
 
+def parse_groq_reset_time(val: Optional[str]) -> Optional[float]:
+    """Parse Groq's x-ratelimit-reset-* strings (e.g. '210ms', '1.5s', '1m26.4s') into seconds."""
+    if not val:
+        return None
+    val = str(val).strip().lower()
+    try:
+        if val.endswith("ms"):
+            return max(0.01, float(val[:-2]) / 1000.0)
+        if val.endswith("s") and "m" not in val:
+            return max(0.01, float(val[:-1]))
+        m = re.match(r'(?:(\d+)m)?(?:([\d.]+)s)?', val)
+        if m:
+            mins = float(m.group(1) or 0)
+            secs = float(m.group(2) or 0)
+            return max(0.01, mins * 60 + secs)
+    except Exception:
+        pass
+    return None
+
+
+@dataclass
+class GroqRateLimitTracker:
+    """Shared organization-level rate limit and token budget tracker for Groq."""
+    remaining_tokens: Optional[int] = None
+    remaining_requests: Optional[int] = None
+    reset_tokens_seconds: Optional[float] = None
+    reset_requests_seconds: Optional[float] = None
+    last_request_id: Optional[str] = None
+    last_updated: float = 0.0
+
+    def update_from_headers(self, headers: Any) -> None:
+        if not hasattr(headers, "get"):
+            return
+        rt = headers.get("x-ratelimit-remaining-tokens")
+        if rt is not None:
+            try:
+                self.remaining_tokens = int(rt)
+            except Exception:
+                pass
+        rr = headers.get("x-ratelimit-remaining-requests")
+        if rr is not None:
+            try:
+                self.remaining_requests = int(rr)
+            except Exception:
+                pass
+        rst_t = headers.get("x-ratelimit-reset-tokens")
+        if rst_t is not None:
+            self.reset_tokens_seconds = parse_groq_reset_time(rst_t)
+        rst_r = headers.get("x-ratelimit-reset-requests")
+        if rst_r is not None:
+            self.reset_requests_seconds = parse_groq_reset_time(rst_r)
+        req_id = headers.get("x-request-id")
+        if req_id:
+            self.last_request_id = req_id
+        self.last_updated = time.time()
+
+
+_GLOBAL_GROQ_LIMIT_TRACKER = GroqRateLimitTracker()
+
+
 @dataclass
 class ProviderErrorInfo:
     classification: ErrorClassification
@@ -537,7 +597,7 @@ class CommonProviderAdapter(ModelProvider):
         self.tier = tier
         self.timeout_seconds = timeout_seconds
         self.first_token_timeout_seconds = first_token_timeout_seconds
-        self.stream_idle_timeout_seconds = max(float(stream_idle_timeout_seconds), 30.0)
+        self.stream_idle_timeout_seconds = float(stream_idle_timeout_seconds or 10.0)
         self.attempt_timeout_seconds = attempt_timeout_seconds
         self.extra_headers = extra_headers or {}
         self._client: Optional[httpx.AsyncClient] = None
@@ -736,6 +796,13 @@ class CommonProviderAdapter(ModelProvider):
                         + "\n\n[... earlier context trimmed for Groq token budget ...]\n\n"
                         + content[-2000:]
                     )
+        # Capability check: Qwen 3.8 on Groq does not support parallel tool calls per official docs
+        supports_parallel_tools = not (
+            self.provider_name == "groq"
+            or "qwen" in active_model.lower()
+            or getattr(self, "disable_parallel_tool_calls", False)
+        )
+
         payload: Dict[str, Any] = {
             "model": active_model,
             "messages": payload_messages,
@@ -746,6 +813,11 @@ class CommonProviderAdapter(ModelProvider):
             payload["tools"] = sanitized_tools
             if tool_choice:
                 payload["tool_choice"] = tool_choice
+            if "parallel_tool_calls" in kwargs:
+                if not supports_parallel_tools and kwargs["parallel_tool_calls"]:
+                    logger.info(f"[{self.provider_name.upper()}] Qwen/Groq does not support parallel tool calls; suppressing parallel_tool_calls=True")
+                elif supports_parallel_tools:
+                    payload["parallel_tool_calls"] = bool(kwargs["parallel_tool_calls"])
 
         # Add provider-specific parameters
         if self.provider_name == "openrouter":
@@ -776,7 +848,7 @@ class CommonProviderAdapter(ModelProvider):
             payload["stream"] = True
 
         async with self._semaphore:
-            max_attempts = 3 if self.provider_name in ("zai", "z_ai", "bigmodel") else 1
+            max_attempts = 2 if self.provider_name == "groq" else (3 if self.provider_name in ("zai", "z_ai", "bigmodel") else 1)
             for attempt in range(max_attempts):
                 try:
                     if effective_stream:
@@ -802,8 +874,12 @@ class CommonProviderAdapter(ModelProvider):
                 is_rate_limited = "429" in err_lower or "rate_limit_exceeded" in err_lower
                 if is_rate_limited and attempt < max_attempts - 1:
                     retry_after = getattr(resp, "_retry_after", None)
-                    backoff = retry_after if (retry_after is not None and retry_after > 0) else (2.0 * (attempt + 1))
-                    backoff = min(backoff, 6.0)
+                    if self.provider_name == "groq":
+                        backoff = (retry_after + 1.0) if (retry_after is not None and retry_after > 0) else 18.0
+                        backoff = min(backoff, 22.0)
+                    else:
+                        backoff = retry_after if (retry_after is not None and retry_after > 0) else (2.0 * (attempt + 1))
+                        backoff = min(backoff, 6.0)
                     logger.info(
                         f"[{self.provider_name.upper()}] Recoverable 429 rate limit detected "
                         f"(attempt {attempt+1}/{max_attempts}). Backing off {backoff:.1f}s before retry..."
@@ -840,7 +916,9 @@ class CommonProviderAdapter(ModelProvider):
                     telemetry.total_latency_ms = (time.monotonic() - t0) * 1000
                     telemetry.error_classification = err_info.classification.value
                     telemetry.final_result = "ERROR"
-                    logger.warning(f"[{self.provider_name.upper()} STREAM ERROR] {err_info}")
+                    logger.warning(f"[{self.provider_name.upper()} STREAM ERROR] {err_info} | raw_err={err_body[:300]}")
+                    if self.provider_name == "groq":
+                        _GLOBAL_GROQ_LIMIT_TRACKER.update_from_headers(response.headers)
                     retry_header = response.headers.get("retry-after") or response.headers.get("Retry-After")
                     retry_val = None
                     if retry_header:
@@ -848,6 +926,9 @@ class CommonProviderAdapter(ModelProvider):
                             retry_val = float(retry_header)
                         except Exception:
                             pass
+                    if retry_val is None and self.provider_name == "groq":
+                        reset_t = response.headers.get("x-ratelimit-reset-tokens") or response.headers.get("x-ratelimit-reset-requests")
+                        retry_val = parse_groq_reset_time(reset_t)
                     norm_err = NormalizedModelResponse(
                         text="",
                         model=payload["model"],
@@ -979,12 +1060,15 @@ class CommonProviderAdapter(ModelProvider):
         )
         is_length_truncated = finish_reason in ("length", "max_tokens")
         is_truncated = is_length_truncated or has_invalid_tool_args
+        is_empty = not bool(full_text.strip() or normalized_calls)
 
         error_msg = None
         if is_length_truncated:
             error_msg = "MODEL_OUTPUT_TRUNCATED: Response truncated by token length limit"
         elif has_invalid_tool_args:
             error_msg = "INVALID_TOOL_CALL: Tool arguments could not be parsed as valid JSON"
+        elif is_empty:
+            error_msg = f"EMPTY_MODEL_RESPONSE: {self.provider_name.upper()} returned 0 content and 0 tool calls"
 
         return NormalizedModelResponse(
             text=full_text,
@@ -997,7 +1081,7 @@ class CommonProviderAdapter(ModelProvider):
             total_tokens=input_tokens + (output_tokens or len(full_text.split())),
             latency_ms=total_lat,
             ttfb_ms=telemetry.ttft_ms,
-            success=not is_truncated,
+            success=not is_truncated and not is_empty,
             error=error_msg,
             raw_timing_metadata=telemetry.to_dict(),
         )
@@ -1025,6 +1109,8 @@ class CommonProviderAdapter(ModelProvider):
                 telemetry.error_classification = err_info.classification.value
                 telemetry.final_result = "ERROR"
                 logger.warning(f"[{self.provider_name.upper()} ERROR] {err_info}")
+                if self.provider_name == "groq":
+                    _GLOBAL_GROQ_LIMIT_TRACKER.update_from_headers(resp.headers)
                 retry_header = resp.headers.get("retry-after") or resp.headers.get("Retry-After")
                 retry_val = None
                 if retry_header:
@@ -1032,6 +1118,9 @@ class CommonProviderAdapter(ModelProvider):
                         retry_val = float(retry_header)
                     except Exception:
                         pass
+                if retry_val is None and self.provider_name == "groq":
+                    reset_t = resp.headers.get("x-ratelimit-reset-tokens") or resp.headers.get("x-ratelimit-reset-requests")
+                    retry_val = parse_groq_reset_time(reset_t)
                 norm_err = NormalizedModelResponse(
                     text="",
                     model=payload["model"],
@@ -1075,12 +1164,15 @@ class CommonProviderAdapter(ModelProvider):
             )
             is_length_truncated = finish_reason in ("length", "max_tokens")
             is_truncated = is_length_truncated or has_invalid_tool_args
+            is_empty = not bool(content.strip() or normalized_calls)
 
             error_msg = None
             if is_length_truncated:
                 error_msg = "MODEL_OUTPUT_TRUNCATED: Response truncated by token length limit"
             elif has_invalid_tool_args:
                 error_msg = "INVALID_TOOL_CALL: Tool arguments could not be parsed as valid JSON"
+            elif is_empty:
+                error_msg = f"EMPTY_MODEL_RESPONSE: {self.provider_name.upper()} returned 0 content and 0 tool calls"
 
             return NormalizedModelResponse(
                 text=content,
@@ -1093,7 +1185,7 @@ class CommonProviderAdapter(ModelProvider):
                 total_tokens=in_tok + out_tok,
                 latency_ms=telemetry.total_latency_ms,
                 ttfb_ms=telemetry.total_latency_ms,
-                success=not is_truncated,
+                success=not is_truncated and not is_empty,
                 error=error_msg,
                 raw_response=resp.text if isinstance(getattr(resp, "text", None), str) else "",
                 raw_timing_metadata=telemetry.to_dict(),
@@ -1258,9 +1350,10 @@ def get_provider_adapter(
         TIER3_PROVIDER, TIER3_MODEL, TIER3_BASE_URL, OPENROUTER_API_KEY,
         GEMINI_API_KEY, GROQ_API_KEY,
     )
+    SAMBANOVA_API_KEY = os.getenv("SAMBANOVA_API_KEY", "")
 
     p_norm = provider_name.lower().replace("-", "_")
-    eff_tier = tier if tier is not None else (1 if p_norm in ("groq", "groq_api") else (2 if p_norm in ("gemini", "google", "google_gemini", "mistral", "mistral_ai", "mistralai", "codestral") else (3 if p_norm in ("nvidia_nim", "nvidia", "nim", "openrouter", "open_router") else 1)))
+    eff_tier = tier if tier is not None else (1 if p_norm in ("groq", "groq_api") else (2 if p_norm in ("gemini", "google", "google_gemini", "mistral", "mistral_ai", "mistralai", "codestral", "nvidia_nim", "nvidia", "nim") else (3 if p_norm in ("openrouter", "open_router", "sambanova", "samba_nova", "samba") else 1)))
 
     # ── Groq (Tier 1, OpenAI-compatible) ──────────────────────────────
     if p_norm in ("groq", "groq_api"):
@@ -1280,7 +1373,7 @@ def get_provider_adapter(
             )
         return _adapter_cache[cache_key]
 
-    # ── Gemini (Tier 2) ────────────────────────────────────────────────
+    # ── Gemini (Tier 2 Fallback) ───────────────────────────────────────
     if p_norm in ("gemini", "google", "google_gemini"):
         m = model_name or os.getenv("TIER2_MODEL", "gemini-3.8-flash")
         cache_key = f"gemini:{m}:{eff_tier}"
@@ -1289,7 +1382,7 @@ def get_provider_adapter(
             adapter = GeminiClient(
                 api_key=GEMINI_API_KEY or os.getenv("GEMINI_API_KEY", ""),
                 model=m,
-                tier=eff_tier,
+                tier=eff_tier or 2,
                 timeout_seconds=float(os.getenv("HERMES_MODEL_ATTEMPT_TIMEOUT_SECONDS", "25.0")),
             )
             _adapter_cache[cache_key] = adapter  # type: ignore[assignment]
@@ -1327,15 +1420,15 @@ def get_provider_adapter(
         return _adapter_cache[cache_key]
 
     if p_norm in ("nvidia_nim", "nvidia", "nim"):
-        m = model_name or os.getenv("TIER3_MODEL", "nvidia/nemotron-3.5-lightning-30b-a3b")
-        cache_key = f"nvidia_nim:{m}"
+        m = model_name or os.getenv("TIER1_MODEL", "nvidia/nemotron-3.5-lightning-30b-a3b")
+        cache_key = f"nvidia_nim:{m}:{eff_tier}"
         if cache_key not in _adapter_cache:
             _adapter_cache[cache_key] = CommonProviderAdapter(
                 provider_name="nvidia_nim",
                 model_name=m,
-                base_url=os.getenv("TIER3_BASE_URL", "https://integrate.api.nvidia.com/v1"),
+                base_url=os.getenv("TIER1_BASE_URL", "https://integrate.api.nvidia.com/v1"),
                 api_key=NVIDIA_API_KEY or os.getenv("NVIDIA_API_KEY", ""),
-                tier=tier or 3,
+                tier=eff_tier or 1,
             )
         return _adapter_cache[cache_key]
 
@@ -1353,6 +1446,23 @@ def get_provider_adapter(
                     "HTTP-Referer": "https://hermes.local",
                     "X-Title": "HERMES Autonomous Agent",
                 },
+            )
+        return _adapter_cache[cache_key]
+
+    if p_norm in ("sambanova", "samba_nova", "samba"):
+        m = model_name or os.getenv("TIER3_MODEL", "Meta-Llama-3.3-70B-Instruct")
+        cache_key = f"sambanova:{m}:{eff_tier}"
+        if cache_key not in _adapter_cache:
+            _adapter_cache[cache_key] = CommonProviderAdapter(
+                provider_name="sambanova",
+                model_name=m,
+                base_url=os.getenv("TIER3_BASE_URL", "https://api.sambanova.ai/v1"),
+                api_key=SAMBANOVA_API_KEY or os.getenv("SAMBANOVA_API_KEY", ""),
+                tier=eff_tier or 3,
+                timeout_seconds=float(os.getenv("HERMES_MODEL_ATTEMPT_TIMEOUT_SECONDS", "25.0")),
+                first_token_timeout_seconds=float(os.getenv("HERMES_MODEL_FIRST_TOKEN_TIMEOUT_SECONDS", "7.5")),
+                stream_idle_timeout_seconds=float(os.getenv("HERMES_MODEL_STREAM_IDLE_TIMEOUT_SECONDS", "10.0")),
+                attempt_timeout_seconds=float(os.getenv("HERMES_MODEL_ATTEMPT_TIMEOUT_SECONDS", "25.0")),
             )
         return _adapter_cache[cache_key]
 

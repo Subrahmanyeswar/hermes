@@ -38,6 +38,7 @@ Structure every audit report into three clear categories with exact file, line, 
 - [ ] **Keyboard Operability:** All interactive components can be reached and operated via `Tab`, `Shift+Tab`, `Enter`, `Space`, and arrow keys without keyboard traps.
 - [ ] **Focus Indication:** A clear, visible `:focus-visible` indicator (minimum 2px solid outline or distinctive ring) appears when navigating via keyboard.
 - [ ] **Touch Targets:** Interactive targets on touch devices measure at least 44x44 CSS pixels (or 24x24 with adequate surrounding spacing).
+- [ ] **Mobile Navigation:** Navigation toggle uses an accessible styled icon (e.g. 3-bar hamburger or SVG) with aria-label="Toggle navigation" and aria-expanded state; raw unstyled 'Menu' text is strictly prohibited.
 
 ### B. Usability & Information Architecture
 - [ ] **Visual Hierarchy:** Primary action is visually prominent; secondary actions are subordinated; destructive actions are clearly delineated.

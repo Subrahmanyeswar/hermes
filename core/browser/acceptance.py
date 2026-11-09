@@ -15,7 +15,9 @@ import asyncio
 import base64
 import hashlib
 import json
-import logging
+import os
+# Existing imports remain unchanged
+
 import os
 import re
 import shutil
@@ -29,6 +31,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
+import logging
 logger = logging.getLogger("hermes.browser.acceptance")
 
 
@@ -167,8 +170,8 @@ class BrowserAcceptanceVerifier:
             return BrowserAcceptanceResult(
                 passed=False,
                 status="FAIL",
-                issues=["No compatible Chrome/Edge browser binary found for headless CDP verification on interactive web project."],
-                details={"reason": "Missing browser binary"}
+                issues=["BROWSER_VERIFICATION_BLOCKED: No compatible Chrome/Edge browser binary found for headless CDP verification."],
+                details={"reason": "Missing browser binary", "blocked": True}
             )
 
         # Detect backend and port
@@ -264,10 +267,20 @@ class BrowserAcceptanceVerifier:
                     details={"target_port": target_port, "has_backend": True}
                 )
         else:
-            if index_html and index_html.exists():
-                target_url = index_html.as_uri()
-            else:
-                target_url = f"http://127.0.0.1:{target_port}" 
+            dev_server_info = None
+            try:
+                from core.browser.dev_server import DevServerManager
+                dsm = DevServerManager()
+                dev_server_info = await dsm.start_static_server(ws_root, timeout=6.0)
+                target_url = dev_server_info.url
+                target_port = dev_server_info.port
+                logger.info(f"BrowserAcceptanceVerifier: Managed static server started at {target_url} (PID {dev_server_info.process.pid if dev_server_info.process else 'active'})")
+            except Exception as s_ex:
+                logger.warning(f"BrowserAcceptanceVerifier: Could not start managed static server ({s_ex}); falling back to file:// URI.")
+                if index_html and index_html.exists():
+                    target_url = index_html.as_uri()
+                else:
+                    target_url = f"http://127.0.0.1:{target_port}" 
 
         cdp_port = cls.find_free_port()
         temp_profile = tempfile.mkdtemp(prefix="hermes_cdp_")
@@ -313,8 +326,8 @@ class BrowserAcceptanceVerifier:
             if not tabs_data:
                 return BrowserAcceptanceResult(
                     passed=False,
-                    status="FAIL",
-                    issues=["Failed to establish CDP connection to headless browser."],
+                    status="BLOCKED",
+                    issues=["BROWSER_VERIFICATION_BLOCKED: Failed to establish CDP connection to headless browser."],
                     details=details,
                 )
 
@@ -484,13 +497,38 @@ class BrowserAcceptanceVerifier:
                             break
                     await asyncio.sleep(0.3)
 
-                    # 2. Check layout dimensions & horizontal overflow
+                    # 2. Check layout dimensions, overflow, and visual standards
                     metrics_id = 21 + vp_idx * 3
+                    eval_expr = (
+                        "(() => {"
+                        "  const hero = document.querySelector('.hero, #hero');"
+                        "  const overlay = document.querySelector('.hero-overlay');"
+                        "  const heroH = hero ? Math.round(hero.getBoundingClientRect().height) : 0;"
+                        "  const overlayH = overlay ? Math.round(overlay.getBoundingClientRect().height) : 0;"
+                        "  const isPartialOverlay = Boolean(hero && overlay && overlayH > 0 && overlayH < heroH * 0.75);"
+                        "  const menuBtn = document.querySelector('.mobile-menu-btn');"
+                        "  const menuBtnText = menuBtn ? menuBtn.innerText.trim().toLowerCase() : '';"
+                        "  const hasIcon = menuBtn ? Boolean(menuBtn.querySelector('span, svg, i')) : false;"
+                        "  const isRawMenu = Boolean(menuBtn && menuBtnText === 'menu' && !hasIcon);"
+                        "  const header = document.querySelector('header, nav, .navbar');"
+                        "  const headerH = header ? Math.round(header.getBoundingClientRect().height) : 0;"
+                        "  return {"
+                        "    innerWidth: window.innerWidth,"
+                        "    clientWidth: document.documentElement.clientWidth,"
+                        "    scrollWidth: document.documentElement.scrollWidth,"
+                        "    headerHeight: headerH,"
+                        "    heroHeight: heroH,"
+                        "    overlayHeight: overlayH,"
+                        "    isPartialOverlay: isPartialOverlay,"
+                        "    isRawMenu: isRawMenu"
+                        "  };"
+                        "})()"
+                    )
                     await ws.send(json.dumps({
                         "id": metrics_id,
                         "method": "Runtime.evaluate",
                         "params": {
-                            "expression": "({ innerWidth: window.innerWidth, clientWidth: document.documentElement.clientWidth, scrollWidth: document.documentElement.scrollWidth })",
+                            "expression": eval_expr,
                             "returnByValue": True
                         }
                     }))
@@ -512,6 +550,16 @@ class BrowserAcceptanceVerifier:
                         issues.append(
                             f"RESPONSIVE_OVERFLOW: Horizontal scroll detected on {vp_name} ({vp_w}x{vp_h}): "
                             f"scrollWidth ({sw}) > clientWidth ({cw})."
+                        )
+                    if vp_metrics.get("isPartialOverlay"):
+                        issues.append(
+                            f"VISUAL_DEFECT: Hero overlay covers only {vp_metrics.get('overlayHeight')}px of "
+                            f"{vp_metrics.get('heroHeight')}px hero height on {vp_name}. Full-bleed overlay required."
+                        )
+                    if vp_name == "mobile" and vp_metrics.get("isRawMenu"):
+                        issues.append(
+                            f"VISUAL_DEFECT: Mobile navigation button renders raw 'Menu' text instead of "
+                            f"a styled hamburger icon (spans or SVG) on {vp_name} ({vp_w}x{vp_h})."
                         )
 
                     # 3. Capture screenshot for this viewport
@@ -653,6 +701,12 @@ class BrowserAcceptanceVerifier:
                     backend_proc.wait(timeout=2.0)
                 except Exception:
                     pass
+            if 'dev_server_info' in locals() and dev_server_info and dev_server_info.process:
+                try:
+                    dev_server_info.process.terminate()
+                    dev_server_info.process.wait(timeout=2.0)
+                except Exception:
+                    pass
             shutil.rmtree(temp_profile, ignore_errors=True)
 
         for exc in unhandled_exceptions:
@@ -693,7 +747,7 @@ class BrowserAcceptanceVerifier:
                 workspace_root=str(ws_root),
                 status=BrowserEvidenceLifecycle.PASSED if passed else BrowserEvidenceLifecycle.FAILED,
                 tested_url=target_url,
-                server_origin=f"http://127.0.0.1:{target_port}" if has_backend else "file://",
+                server_origin=f"http://127.0.0.1:{target_port}" if (has_backend or ('dev_server_info' in locals() and dev_server_info)) else ("file://" if target_url.startswith("file:") else target_url),
                 verification_timestamp=time.time(),
                 artifact_hashes=hashes,
                 viewports_tested=viewports_tested_records if viewports_tested_records else [{"width": 1280, "height": 800, "device_scale_factor": 1.0}],

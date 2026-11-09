@@ -237,6 +237,9 @@ class Orchestrator:
                 from core.request_guard import DuplicateInFlightRequestError
                 raise DuplicateInFlightRequestError(f"Duplicate model request rejected: mission '{mid}' already has a model call in flight.")
 
+        total_decision_budget = min(float(kwargs.get("timeout_seconds") or 25.0), 25.0)
+        t_decision_start = time.monotonic()
+
         route_decision = router.route_primary(client_t1=tier1_client)
         current_ollama = getattr(self, "ollama", None)
         ollama_mocked = current_ollama is not None and (
@@ -286,11 +289,17 @@ class Orchestrator:
                 "turn_id": turn_id,
             })
             t2_kwargs = self._build_t2_failover_kwargs(kwargs)
+            rem_budget = max(0.0, total_decision_budget - (time.monotonic() - t_decision_start))
+            if rem_budget <= 1.0:
+                raise TimeoutError(f"Model decision deadline exceeded ({total_decision_budget:.1f}s shared budget exhausted)")
+            t2_kwargs["timeout_seconds"] = rem_budget
             t2_t0 = time.monotonic()
             try:
-                resp2 = await tier2_client.generate(**t2_kwargs)
-                if getattr(resp2, "success", True) is False:
-                    raise RuntimeError(getattr(resp2, "error", None) or f"Tier 2 ({TIER2_PROVIDER}/{TIER2_MODEL}) failed")
+                resp2 = await asyncio.wait_for(tier2_client.generate(**t2_kwargs), timeout=rem_budget)
+                resp2_text = (getattr(resp2, "content", "") or getattr(resp2, "text", "") or "")
+                resp2_calls = getattr(resp2, "tool_calls", None) or []
+                if getattr(resp2, "success", True) is False or (not str(resp2_text).strip() and not resp2_calls):
+                    raise RuntimeError(getattr(resp2, "error", None) or f"Tier 2 ({TIER2_PROVIDER}/{TIER2_MODEL}) failed: empty or unsuccessful response")
                 t2_lat = time.monotonic() - t2_t0
                 router.record_success(tier=2, latency=t2_lat)
                 self._active_tier = 2
@@ -314,11 +323,15 @@ class Orchestrator:
                 router.record_failure(tier=2, error=t2_exc, latency=time.monotonic() - t2_t0)
                 logger.error(f"Tier 2 circuit bypass also failed: {t2_exc}. Attempting Tier 3 failover...")
                 if tier3_client is not None and TIER3_MODEL:
+                    rem_budget_t3 = max(0.0, total_decision_budget - (time.monotonic() - t_decision_start))
+                    if rem_budget_t3 <= 1.0:
+                        raise TimeoutError(f"Model decision deadline exceeded before Tier 3 fallback ({total_decision_budget:.1f}s shared budget exhausted)")
                     t3_kwargs = dict(t2_kwargs)
                     t3_kwargs["model"] = TIER3_MODEL
+                    t3_kwargs["timeout_seconds"] = rem_budget_t3
                     t3_t0 = time.monotonic()
                     try:
-                        resp3 = await tier3_client.generate(**t3_kwargs)
+                        resp3 = await asyncio.wait_for(tier3_client.generate(**t3_kwargs), timeout=rem_budget_t3)
                         t3_lat = time.monotonic() - t3_t0
                         self._active_tier = 3
                         if hasattr(resp3, "__dict__"):
@@ -347,17 +360,23 @@ class Orchestrator:
                 ) from t2_exc
 
         from config.model_config import HERMES_MODEL_ATTEMPT_TIMEOUT_SECONDS
-        kwargs.setdefault("timeout_seconds", HERMES_MODEL_ATTEMPT_TIMEOUT_SECONDS)
-        logger.info(f"MODEL_START | tier=1 | provider={prov} | model={mod}")
+        rem_budget_t1 = max(0.0, total_decision_budget - (time.monotonic() - t_decision_start))
+        if rem_budget_t1 <= 1.0:
+            raise TimeoutError(f"Model decision deadline exceeded before Tier 1 attempt ({total_decision_budget:.1f}s shared budget exhausted)")
+        kwargs["timeout_seconds"] = rem_budget_t1
+        logger.info(f"MODEL_START | tier=1 | provider={prov} | model={mod} | budget={rem_budget_t1:.1f}s")
         await self._emit_progress("model_start", {
             "tier": 1, "provider": prov, "model": mod,
             "mission_id": mid, "turn_id": turn_id
         })
         t0 = time.monotonic()
         try:
-            resp = await tier1_client.generate(**kwargs)
-            if getattr(resp, "success", True) is False:
-                raise RuntimeError(getattr(resp, "error", None) or f"Tier 1 ({prov}/{mod}) failed with unsuccessful response")
+            resp = await asyncio.wait_for(tier1_client.generate(**kwargs), timeout=rem_budget_t1)
+            resp_text = (getattr(resp, "content", "") or getattr(resp, "text", "") or "")
+            resp_calls = getattr(resp, "tool_calls", None) or []
+            if getattr(resp, "success", True) is False or (not str(resp_text).strip() and not resp_calls):
+                err = getattr(resp, "error", None) or f"Tier 1 ({prov}/{mod}) failed: empty or unsuccessful response"
+                raise RuntimeError(err)
             lat = time.monotonic() - t0
             router.record_success(tier=1, latency=lat)
             logger.info(f"MODEL_COMPLETE | tier=1 | provider={prov} | model={mod} | latency={lat:.2f}s")
@@ -384,12 +403,19 @@ class Orchestrator:
                     "mission_id": mid,
                     "turn_id": turn_id,
                 })
+                rem_budget_t2 = max(0.0, total_decision_budget - (time.monotonic() - t_decision_start))
+                if rem_budget_t2 <= 1.0:
+                    raise TimeoutError(f"Model decision deadline exceeded before Tier 2 fallback ({total_decision_budget:.1f}s shared budget exhausted)")
                 t2_kwargs = self._build_t2_failover_kwargs(kwargs)
+                t2_kwargs["timeout_seconds"] = rem_budget_t2
                 t2_t0 = time.monotonic()
                 try:
-                    resp2 = await tier2_client.generate(**t2_kwargs)
-                    if getattr(resp2, "success", True) is False:
-                        raise RuntimeError(getattr(resp2, "error", None) or f"Tier 2 ({TIER2_PROVIDER}/{TIER2_MODEL}) failed")
+                    resp2 = await asyncio.wait_for(tier2_client.generate(**t2_kwargs), timeout=rem_budget_t2)
+                    resp2_text = (getattr(resp2, "content", "") or getattr(resp2, "text", "") or "")
+                    resp2_calls = getattr(resp2, "tool_calls", None) or []
+                    if getattr(resp2, "success", True) is False or (not str(resp2_text).strip() and not resp2_calls):
+                        err2 = getattr(resp2, "error", None) or f"Tier 2 ({TIER2_PROVIDER}/{TIER2_MODEL}) failed: empty or unsuccessful response"
+                        raise RuntimeError(err2)
                     t2_lat = time.monotonic() - t2_t0
                     router.record_success(tier=2, latency=t2_lat)
                     self._active_tier = 2
@@ -413,13 +439,20 @@ class Orchestrator:
                     router.record_failure(tier=2, error=t2_exc, latency=time.monotonic() - t2_t0)
                     logger.error(f"Tier 2 failover also failed: {t2_exc}. Attempting Tier 3 failover...")
                     if allow_t3_failover:
+                        rem_budget_t3 = max(0.0, total_decision_budget - (time.monotonic() - t_decision_start))
+                        if rem_budget_t3 <= 1.0:
+                            raise TimeoutError(f"Model decision deadline exceeded before Tier 3 fallback ({total_decision_budget:.1f}s shared budget exhausted)")
                         t3_kwargs = dict(t2_kwargs)
                         t3_kwargs["model"] = TIER3_MODEL
+                        t3_kwargs["timeout_seconds"] = rem_budget_t3
                         t3_t0 = time.monotonic()
                         try:
-                            resp3 = await tier3_client.generate(**t3_kwargs)
-                            if getattr(resp3, "success", True) is False:
-                                raise RuntimeError(getattr(resp3, "error", None) or f"Tier 3 ({TIER3_PROVIDER}/{TIER3_MODEL}) failed")
+                            resp3 = await asyncio.wait_for(tier3_client.generate(**t3_kwargs), timeout=rem_budget_t3)
+                            resp3_text = (getattr(resp3, "content", "") or getattr(resp3, "text", "") or "")
+                            resp3_calls = getattr(resp3, "tool_calls", None) or []
+                            if getattr(resp3, "success", True) is False or (not str(resp3_text).strip() and not resp3_calls):
+                                err3 = getattr(resp3, "error", None) or f"Tier 3 ({TIER3_PROVIDER}/{TIER3_MODEL}) failed: empty or unsuccessful response"
+                                raise RuntimeError(err3)
                             t3_lat = time.monotonic() - t3_t0
                             self._active_tier = 3
                             if hasattr(resp3, "__dict__"):
@@ -471,7 +504,7 @@ class Orchestrator:
         else:
             tier2_client = getattr(self, "tier2", None) or current_ollama
         is_mock = getattr(tier2_client, "__class__", None).__name__ in ("AsyncMock", "MagicMock", "Mock") or hasattr(getattr(tier2_client, "generate", None), "mock")
-        is_native_tools = not is_mock and (hasattr(tier2_client, "_sanitize_tool_definitions") or getattr(tier2_client, "provider", "") in ("nvidia_nim", "zai", "openrouter"))
+        is_native_tools = not is_mock and (hasattr(tier2_client, "_sanitize_tool_definitions") or getattr(tier2_client, "provider", "") in ("nvidia_nim", "zai", "openrouter", "gemini", "sambanova") or getattr(tier2_client, "provider_name", "") in ("nvidia_nim", "gemini", "sambanova"))
 
         if is_native_tools and tools_list:
             t2_kwargs["tools"] = tools_list

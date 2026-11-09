@@ -513,12 +513,20 @@ export const ExecutionTimeline: React.FC<ExecutionTimelineProps> = ({ events, is
                 {step.type === 'thought' && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                     <div style={{ color: 'var(--text-secondary)' }}>
-                      <strong>Active Model:</strong>{' '}
-                      <span style={{ fontFamily: 'var(--font-mono)' }}>{step.model || 'glm-4.7-flash'}</span>
+                      <strong>Active Component / Model:</strong>{' '}
+                      <span style={{ fontFamily: 'var(--font-mono)' }}>
+                        {step.provider === 'runtime' || step.model === 'turn_deadline_enforcer'
+                          ? 'Internal Runtime Supervisor (turn_deadline_enforcer)'
+                          : (step.model || 'Unknown Model')}
+                      </span>
                     </div>
                     <div style={{ color: 'var(--text-secondary)' }}>
                       <strong>Routing Tier:</strong>{' '}
-                      <span>Tier {step.tier || 1} {step.tier === 1 ? '(Z.ai Primary)' : step.tier === 2 ? '(NVIDIA NIM Fallback)' : '(OpenRouter Last Resort)'}</span>
+                      <span>
+                        {step.provider === 'runtime' || step.model === 'turn_deadline_enforcer'
+                          ? 'Internal Runtime Control'
+                          : `Tier ${step.tier || 1} ${step.tier === 1 ? '(Primary)' : (step.tier === 2 ? '(Tier 2 Fallback)' : '(Tier 3 Fallback)')}`}
+                      </span>
                     </div>
                     {step.durationMs && (
                       <div style={{ color: 'var(--text-secondary)' }}>
