@@ -424,7 +424,7 @@ class GoalDecomposer:
         wp_verif = RequirementState(
             requirement_id="wp.verification",
             goal_id=goal_id,
-            title="Comprehensive Acceptance & Browser Qualification",
+            title="Comprehensive Verification & Browser Qualification",
             description="Browser qualification, zero console errors, responsive layout verification, and automated tests.",
             category=RequirementCategory.VERIFICATION,
             priority=RequirementPriority.CRITICAL,
@@ -457,7 +457,25 @@ class GoalDecomposer:
         )
         wp_verif.acceptance_check_ids.extend([chk_verif_1.check_id, chk_verif_2.check_id, chk_verif_3.check_id])
         requirements["wp.verification"] = wp_verif
+        requirements["req.verification"] = wp_verif
         all_checks.extend([chk_verif_1, chk_verif_2, chk_verif_3])
+
+        # Link canonical domain concepts into requirements map
+        for concept in cls.CANONICAL_CONCEPTS:
+            cid = concept["id"]
+            if any(re.search(pat, lower_prompt) for pat in concept["patterns"]):
+                if cid not in requirements:
+                    req = RequirementState(
+                        requirement_id=cid,
+                        goal_id=goal_id,
+                        title=concept["title"],
+                        description=f"Requirement for {concept['title'].lower()} as requested in mission goal.",
+                        category=concept["category"],
+                        priority=concept["priority"],
+                        status=RequirementStatus.PENDING,
+                        dependencies=["wp.foundation"],
+                    )
+                    requirements[cid] = req
 
         # Deduplicate, break cycles, validate DAG
         requirements, all_checks = cls.deduplicate_requirements(requirements, all_checks)

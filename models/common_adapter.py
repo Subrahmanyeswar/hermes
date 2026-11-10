@@ -1363,7 +1363,7 @@ def get_provider_adapter(
             _adapter_cache[cache_key] = CommonProviderAdapter(
                 provider_name="groq",
                 model_name=m,
-                base_url=os.getenv("TIER1_BASE_URL", "https://api.groq.com/openai/v1"),
+                base_url=os.getenv("GROQ_BASE_URL", "https://api.groq.com/openai/v1"),
                 api_key=GROQ_API_KEY or os.getenv("GROQ_API_KEY", ""),
                 tier=eff_tier,
                 timeout_seconds=float(os.getenv("HERMES_MODEL_ATTEMPT_TIMEOUT_SECONDS", "25.0")),

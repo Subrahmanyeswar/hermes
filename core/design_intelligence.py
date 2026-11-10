@@ -147,14 +147,14 @@ class DesignBrief:
             f"Domain & Personality: {self.domain.upper()} -- {self.brand_personality}",
             f"Visual Direction: {self.visual_direction}",
             f"Color Palette: {colors_css}",
-            f"Typography: {typo_str}; Headings use fluid clamp (e.g. font-size: clamp(2rem, 5vw, 3.5rem)); Subhead clamp(1rem, 2.5vw, 1.25rem);",
-            "Hero Architecture: Full-bleed background photography (background-size: cover; background-position: center; min-height: 85vh; position: relative; overflow: hidden;); FULL-HERO gradient overlay spanning the ENTIRE hero via 'position: absolute; inset: 0; z-index: 1; pointer-events: none; background: linear-gradient(...)' (or .hero::before); content placed in container at 'position: relative; z-index: 2;'. NEVER create a partial-height boxed overlay band (.hero-overlay with padding/relative pos) leaving raw image above or below.",
-            "Header & Mobile Navigation: Sticky/fixed header height 64-76px. Responsive compact mobile hamburger button (<button class='mobile-menu-btn' aria-label='Toggle navigation' aria-expanded='false'><span></span><span></span><span></span></button> or SVG, 44-48px touch target). In CSS, style hamburger bars (.mobile-menu-btn span { display: block; width: 24px; height: 2px; background: ...; margin: 5px 0; }). STRICTLY PROHIBIT raw unstyled 'Menu' text. Mobile nav menu (.nav-links.active) must render as full-width dropdown/drawer with solid or glassmorphism background, closing on link click or Escape.",
+            f"Typography: {typo_str}; Fluid clamp() headings and subheads.",
+            "Hero Architecture: Full-bleed photography (min-height: 85vh; cover; center; full gradient overlay via absolute inset: 0 or .hero::before; content at z-index: 2).",
+            "Header & Nav: Sticky header. Mobile hamburger (.mobile-menu-btn span) with responsive drawer (.nav-links.active) closing on link click or Escape.",
             f"Card Styling: {cards_str}; Card images must use fixed aspect-ratio and overflow: hidden",
             f"Photography: {img_str} (Use verified local assets in assets/images/ from manifest)",
-            f"Layout: Container max-width: {self.spacing_system.get('container_max_width', '1200px')} centered; padding: 4rem 1.5rem; Mobile horizontal padding: clamp(1.25rem, 4vw, 2rem) preventing text edge collision;",
+            f"Layout: Container max-width: {self.spacing_system.get('container_max_width', '1200px')} centered; padding: 4rem 1.5rem;",
             f"Interactive Components: Filter pills with active state, search input, backdrop blur modal, validated booking form;",
-            f"Responsive: Mobile breakpoint {self.responsive_breakpoints.get('mobile_max', '768px')}; Zero horizontal overflow (overflow-x: hidden); Balanced mobile hero min-height: 75vh-85vh (~680-820px);",
+            f"Responsive: Mobile breakpoint {self.responsive_breakpoints.get('mobile_max', '768px')}; Zero horizontal overflow (overflow-x: hidden);",
             "MANDATE: Every element styled. Zero raw unstyled links/buttons. Never overwrite <section> roots during JS render.",
             "===================================================================",
         ]
@@ -189,6 +189,62 @@ def strip_negative_constraints(prompt: str) -> str:
         cleaned_lines.append(line_clean)
     return "\n".join(cleaned_lines)
 
+PROMPT_COLOR_KEYWORDS: dict[str, str] = {
+    "warm ivory": "#fbf9f5",
+    "ivory": "#fdfbf7",
+    "charcoal": "#1c1d21",
+    "muted olive": "#556b2f",
+    "olive": "#556b2f",
+    "terracotta": "#c85a32",
+    "saffron": "#e65100",
+    "gold": "#d4af37",
+    "navy": "#0a192f",
+    "royal blue": "#1d4ed8",
+    "electric cyan": "#00d2ff",
+    "cyan": "#06b6d4",
+    "emerald": "#059669",
+    "mint": "#10b981",
+    "amber": "#d97706",
+    "coral": "#f43f5e",
+    "bronze": "#8c6239",
+    "sand": "#e8d8c8",
+    "cream": "#fffdd0",
+    "slate": "#334155",
+    "graphite": "#242526",
+    "obsidian": "#0b0f17",
+    "teal": "#0d9488",
+    "rose": "#e11d48",
+}
+
+def extract_prompt_color_palette(prompt: str) -> dict[str, str]:
+    """Extracts custom color tokens specified in user prompt (e.g. 'warm ivory, charcoal, muted olive')."""
+    if not prompt:
+        return {}
+    p_lower = prompt.lower()
+    found: list[tuple[str, str]] = []
+    for name in sorted(PROMPT_COLOR_KEYWORDS.keys(), key=len, reverse=True):
+        if re.search(r'\b' + re.escape(name) + r'\b', p_lower):
+            found.append((name, PROMPT_COLOR_KEYWORDS[name]))
+            p_lower = p_lower.replace(name, " ")
+
+    tokens: dict[str, str] = {}
+    if found:
+        bg = next((h for n, h in found if any(l in n for l in ["ivory", "cream", "sand", "white"])), None)
+        dark = next((h for n, h in found if any(d in n for d in ["charcoal", "obsidian", "graphite", "navy", "slate"])), None)
+        accent = next((h for n, h in found if any(a in n for a in ["olive", "gold", "amber", "cyan", "emerald", "terracotta", "coral", "teal", "bronze", "saffron", "rose", "mint"])), None)
+
+        if dark:
+            tokens["primary"] = dark
+            tokens["text_primary"] = dark
+        if bg:
+            tokens["background"] = bg
+            tokens["surface"] = "#ffffff"
+        if accent:
+            tokens["accent"] = accent
+            tokens["secondary"] = accent
+
+    return tokens
+
 def detect_brand_name(prompt: str) -> str:
     """
     Universally extracts the requested brand name or entity title from a website mission prompt.
@@ -197,31 +253,49 @@ def detect_brand_name(prompt: str) -> str:
     if not prompt:
         return "Application"
     p = strip_negative_constraints(prompt).strip()
-    # 1. Called **Brand** / named **Brand** / brand is **Brand**
-    m = re.search(r'(?:called|named|brand(?:\s+is)?)\s+\*\*?([A-Za-z0-9\s&\'\.\-]+?)\*\*?(?:[\.\,\;\s\n]|\Z)', p, re.I)
+
+    # 1. Check for "called / named / brand is **Brand**"
+    m = re.search(r'\b(?:called|named|brand(?:\s+is)?)\s+["\'*]*([A-Za-z0-9\s&\'-]+?)["\'*]*(?:[.,;\n]|\Z)', p, re.I)
     if m:
         b = m.group(1).strip()
-        b = re.split(r'[\.\;\n]', b)[0].strip()
-        if b and b.lower() not in ["website", "brand", "a", "an", "the"]:
+        b = re.split(r"[.,;\n]", b)[0].strip()
+        b = re.sub(r"^(?:a|an|the|modern|visually impressive|fresh|new|fictional|independent)\s+", "", b, flags=re.I).strip()
+        if b and b.lower() not in ["website", "brand", "a", "an", "the", "application", "independent"]:
             return b
 
-    # 2. website for Brand
-    m = re.search(r'(?:website|web\s+portal|portal|application)\s+for\s+(?:an?\s+|the\s+)?([A-Za-z0-9\s&\'\.\-]+?)(?:\s*[\u2014\u2013\-]\s*|\s+hospital|\s+university|\s+restaurant|\s+company|\s+with|\s+and|[\.\;\n]|\Z)', p, re.I)
+    # 2. Check for "Build ... (website/portal) for Brand"
+    m = re.search(r"(?:website|web\s+portal|portal|application)\s+for\s+(?:an?\s+|the\s+)?([A-Za-z0-9&'\-]+(?:\s+[A-Za-z0-9&'\-]+)*?)(?:,\s*an?|\s*[\u2014\u2013-]\s*|\s+called|\s+named|\s+with|\s+and|[.,;\n]|\Z)", p, re.I)
     if m:
         b = m.group(1).strip()
-        b = re.split(r'[\.\;\n]', b)[0].strip()
-        b = re.sub(r'^(?:a|an|the|modern|visually impressive|fresh|new|fictional)\s+', '', b, flags=re.I).strip()
-        if b and b.lower() not in ["website", "brand", "company", "business"]:
+        b = re.split(r"[.,;\n]", b)[0].strip()
+        b = re.sub(r"^(?:a|an|the|modern|visually impressive|fresh|new|fictional|independent)\s+", "", b, flags=re.I).strip()
+        if b and b.lower() not in ["website", "brand", "company", "business", "application", "studio", "independent"]:
             return b
 
-    # 3. # Mission: Build Brand — ... or Build Brand — ...
-    m = re.search(r'(?:#+\s*(?:Mission:\s*)?)?(?:Build|Create|Design|Develop)\s+([A-Za-z0-9\s&\'\.\-]+?)(?:\s*[\u2014\u2013\-]\s*|\s+website|\s+web\s+portal|[\.\;\n]|\Z)', p, re.I)
-    if m:
-        b = m.group(1).strip()
-        b = re.split(r'[\.\;\n]', b)[0].strip()
-        b = re.sub(r'^(?:a|an|the|modern|visually impressive|fresh|new|fictional)\s+', '', b, flags=re.I).strip()
-        if b and b.lower() not in ["website", "web portal", "brand", "app"]:
-            return b
+    # 3. Check title line: Build Brand — ... (em-dash / hyphen)
+    for line in p.splitlines()[:5]:
+        line_s = line.strip()
+        m = re.search(r"^(?:#+\s*(?:Mission:\s*)?)?(?:Build|Create|Design|Develop)\s+([A-Za-z0-9\s&'.-]+?)(?:\s*[\u2014\u2013-]\s*)", line_s, re.I)
+        if m:
+            b = m.group(1).strip()
+            b = re.split(r"[.,;\n]", b)[0].strip()
+            b = re.sub(r"^(?:a|an|the|modern|visually impressive|fresh|new|fictional|independent)\s+", "", b, flags=re.I).strip()
+            if b and b.lower() not in ["website", "web portal", "brand", "app", "application", "independent", "fictional"]:
+                return b
+
+    # 4. Check title line: Build Brand (followed by website/portal/end)
+    for line in p.splitlines()[:5]:
+        line_s = line.strip()
+        m = re.search(r"^(?:#+\s*(?:Mission:\s*)?)?(?:Build|Create|Design|Develop)\s+(?:an?\s+|the\s+)?([A-Za-z0-9\s&'.-]+?)(?:\s+website|\s+web\s+portal|[.;\n]|\Z)", line_s, re.I)
+        if m:
+            b = m.group(1).strip()
+            b = re.split(r"[.;\n]", b)[0].strip()
+            b = re.sub(r"^(?:a|an|the|modern|visually impressive|fresh|new|fictional|independent)\s+", "", b, flags=re.I).strip()
+            m_for = re.search(r"(?:website|web\s+portal|portal|application)\s+for\s+(?:an?\s+|the\s+)?([A-Za-z0-9\s&'.-]+)", b, re.I)
+            if m_for:
+                b = m_for.group(1).strip()
+            if b and b.lower() not in ["website", "web portal", "brand", "app", "application", "independent", "fictional"]:
+                return b
 
     return "Application"
 
@@ -232,6 +306,54 @@ class DesignBriefGenerator:
     """
 
     DOMAIN_PALETTES = {
+        "architecture_interior": {
+            "primary": "#1c1d21",       # deep architectural charcoal
+            "secondary": "#556b2f",     # muted olive
+            "accent": "#8c7b65",        # warm stone / bronze
+            "background": "#fbf9f5",    # warm ivory
+            "surface": "#ffffff",       # pure white card surface
+            "text_primary": "#1c1d21",  # deep charcoal
+            "text_muted": "#6b7280",    # muted graphite
+            "border": "#e5e2da",        # warm ivory border
+        },
+        "veterinary_pet_care": {
+            "primary": "#0f766e",       # deep medical teal
+            "secondary": "#14b8a6",     # friendly mint teal
+            "accent": "#f59e0b",        # warm playful amber
+            "background": "#f0fdfa",    # soft clean mint white
+            "surface": "#ffffff",       # card surface
+            "text_primary": "#134e4a",  # dark teal
+            "text_muted": "#5eead4",    # soft teal
+            "border": "#ccfbf1",        # gentle border
+        },
+        "legal_consulting": {
+            "primary": "#1e293b",       # authoritative navy slate
+            "secondary": "#0f172a",     # midnight slate
+            "accent": "#c29b38",        # prestige legal gold
+            "background": "#f8fafc",    # clean crisp white
+            "surface": "#ffffff",
+            "text_primary": "#0f172a",
+            "text_muted": "#475569",
+            "border": "#e2e8f0",
+        },
+        "architecture_interior": {
+            "heading_font": "'Playfair Display', 'Cormorant Garamond', 'Cinzel', Georgia, serif",
+            "body_font": "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+            "scale": "1.333 (Perfect Fourth)",
+            "base_size": "16px",
+        },
+        "veterinary_pet_care": {
+            "heading_font": "'Plus Jakarta Sans', system-ui, -apple-system, sans-serif",
+            "body_font": "'Inter', -apple-system, system-ui, sans-serif",
+            "scale": "1.25 (Major Third)",
+            "base_size": "16px",
+        },
+        "legal_consulting": {
+            "heading_font": "'Cinzel', 'Merriweather', Georgia, serif",
+            "body_font": "'Inter', -apple-system, system-ui, sans-serif",
+            "scale": "1.25 (Major Third)",
+            "base_size": "16px",
+        },
         "robotics_automation": {
             "primary": "#00d2ff",       # electric cyan
             "secondary": "#162032",     # midnight navy
@@ -470,9 +592,18 @@ class DesignBriefGenerator:
             "automotive_luxury": 0,
             "fintech_commerce": 0,
             "creative_portfolio": 0,
+            "architecture_interior": 0,
+            "veterinary_pet_care": 0,
+            "legal_consulting": 0,
         }
 
         # High-weight intent in title / initial mission statement (30 pts)
+        if any(re.search(r'\b' + re.escape(k) + r'\b', first_lines) for k in ["architecture", "architectural", "interior design", "spatial design", "building design", "form & field", "architecture studio"]):
+            scores["architecture_interior"] += 35
+        if any(re.search(r'\b' + re.escape(k) + r'\b', first_lines) for k in ["veterinary", "vet clinic", "pet care", "animal hospital", "veterinarian", "pet clinic", "paws & claws"]):
+            scores["veterinary_pet_care"] += 35
+        if any(re.search(r'\b' + re.escape(k) + r'\b', first_lines) for k in ["law firm", "attorney", "legal services", "counsel", "lawyer", "litigation"]):
+            scores["legal_consulting"] += 35
         if any(re.search(r'\b' + re.escape(k) + r'\b', first_lines) for k in ["robotics", "robot", "robots", "atlas", "robotic arm", "automation company", "autonomous mobile"]):
             scores["robotics_automation"] += 30
         if any(re.search(r'\b' + re.escape(k) + r'\b', first_lines) for k in ["hospital", "clinic", "healthcare", "medical center", "patient care"]):
@@ -505,7 +636,7 @@ class DesignBriefGenerator:
             scores["culinary_restaurant"] += len(re.findall(r'\b' + re.escape(w) + r'\b', p_lower))
         for w in ["university", "college", "school", "academy", "curriculum", "courses", "education", "campus", "academic", "admissions", "degree", "faculty"]:
             scores["education_institution"] += len(re.findall(r'\b' + re.escape(w) + r'\b', p_lower))
-        for w in ["wanderworld", "travel", "tourism", "vacation", "resort", "safari", "tourist", "airline", "flight", "expedition", "itinerary", "destinations"]:
+        for w in ["wanderworld", "travel", "tourism", "vacation", "resort", "safari", "tourist", "airline", "flight", "itinerary", "holiday"]:
             scores["travel_tourism"] += len(re.findall(r'\b' + re.escape(w) + r'\b', p_lower))
         for w in ["saas", "dashboard", "analytics", "developer", "cloud", "api", "ai engine", "infrastructure"]:
             scores["saas_tech"] += len(re.findall(r'\b' + re.escape(w) + r'\b', p_lower))
@@ -515,6 +646,12 @@ class DesignBriefGenerator:
             scores["fintech_commerce"] += len(re.findall(r'\b' + re.escape(w) + r'\b', p_lower))
         for w in ["portfolio", "agency", "photographer", "creative studio", "designer showcase"]:
             scores["creative_portfolio"] += len(re.findall(r'\b' + re.escape(w) + r'\b', p_lower))
+        for w in ["architecture", "architectural", "interior design", "architect", "spatial", "blueprints", "residence", "sustainable design", "building design"]:
+            scores["architecture_interior"] += len(re.findall(r'\b' + re.escape(w) + r'\b', p_lower))
+        for w in ["veterinary", "vet", "pets", "pet", "animal", "canine", "feline", "vaccination", "surgery", "pet care", "clinic"]:
+            scores["veterinary_pet_care"] += len(re.findall(r'\b' + re.escape(w) + r'\b', p_lower))
+        for w in ["legal", "law", "attorney", "lawyer", "litigation", "counsel", "practice areas", "consultation", "corporate law"]:
+            scores["legal_consulting"] += len(re.findall(r'\b' + re.escape(w) + r'\b', p_lower))
 
         best_domain = max(scores, key=scores.get)
         if scores[best_domain] == 0:
@@ -528,10 +665,16 @@ class DesignBriefGenerator:
         active_skills: Optional[List[str]] = None,
     ) -> DesignBrief:
         domain = cls.detect_domain(prompt)
-        palette = cls.DOMAIN_PALETTES.get(domain, cls.DOMAIN_PALETTES["modern_editorial"])
+        palette = dict(cls.DOMAIN_PALETTES.get(domain, cls.DOMAIN_PALETTES["modern_editorial"]))
+        custom_colors = extract_prompt_color_palette(prompt)
+        if custom_colors:
+            palette.update(custom_colors)
         typo = cls.DOMAIN_TYPOGRAPHY.get(domain, cls.DOMAIN_TYPOGRAPHY["modern_editorial"])
 
         personalities = {
+            "architecture_interior": "Refined, spatial, monolithic, serene, tactile materiality, sustainable craftsmanship",
+            "veterinary_pet_care": "Compassionate, clinical, warm, friendly, reassuring, expert care",
+            "legal_consulting": "Authoritative, distinguished, precise, strategic, discreet",
             "robotics_automation": "Engineered, authoritative, futuristic, high-precision, industrial innovation",
             "healthcare_medical": "Compassionate, clinical, trustworthy, patient-centric, serene",
             "real_estate": "Sophisticated, architectural, high-end, spacious, prestigious",
@@ -549,6 +692,9 @@ class DesignBriefGenerator:
         }
 
         visual_directions = {
+            "architecture_interior": "Warm ivory, charcoal, and muted olive color palette. Architectural project showcase grid, monolithic hero, material inspection modal, and consultation form.",
+            "veterinary_pet_care": "Deep medical teal, friendly mint, and warm amber accents. Patient care services showcase, appointment request form, and care detail modal.",
+            "legal_consulting": "Authoritative navy slate, midnight slate, and prestige gold accents. Practice areas matrix, attorney profiles, and confidential consultation form.",
             "travel_tourism": "Hero showcase with expansive photography, glassmorphism destination cards, interactive category pills, and modal itinerary inspection.",
             "culinary_restaurant": "Sensory photography, warm organic tones, distinct menu grids, and accessible ordering actions.",
             "ecommerce_electronics": "Deep charcoal, crisp white, electric blue, and subtle silver accents. Modern technology cards, interactive category pills, real-time cart drawer, and modal product inspection.",
@@ -594,6 +740,9 @@ class DesignBriefGenerator:
         }
 
         brand_positionings = {
+            "architecture_interior": "Independent architecture and interior design studio crafting timeless spaces with sustainable materials.",
+            "veterinary_pet_care": "Comprehensive pet wellness, advanced surgical care, and compassionate veterinary services.",
+            "legal_consulting": "Premier legal counsel and litigation defense delivering trusted advocacy and strategic solutions.",
             "travel_tourism": "Premier luxury and experiential travel agency showcasing world-class holiday destinations and curated travel packages.",
             "culinary_restaurant": "Artisanal gastronomy and neighborhood dining experience celebrating organic, locally sourced delicacies.",
             "ecommerce_electronics": "Cutting-edge consumer electronics brand offering premium personal technology, smartphones, laptops, audio, smartwatches, and gaming gear.",
@@ -607,6 +756,9 @@ class DesignBriefGenerator:
         }
 
         layout_strategies = {
+            "architecture_interior": "Monolithic hero with studio manifesto, 3-column architectural project grid with category filters and live search, sustainable philosophy split-section, project detail modal, and consultation booking form.",
+            "veterinary_pet_care": "Welcoming clinic hero, 3-column clinical services grid with category filters and search, doctor profiles, emergency care banner, appointment booking form, and detail modal.",
+            "legal_consulting": "Prestige hero with legal practice areas matrix, landmark case results, partner profiles, client perspectives, and confidential consultation booking.",
             "travel_tourism": "Cinematic hero with integrated booking/search bar, fluid 1200px container, 3-column responsive destination card grid, 2-column curated package cards, customer review showcase, accessible enquiry form, and rich dark footer.",
             "culinary_restaurant": "Atmospheric full-width hero, two-column story layout, tabbed multi-course menu grid, table reservation form, and map/contact section.",
             "ecommerce_electronics": "Sticky brand navigation with live cart count, full-width technology hero, category filter pills, responsive 12-product grid with search and sort, feature highlights, and interactive cart/product modals.",
@@ -684,16 +836,21 @@ class DesignBriefGenerator:
         cuisine_subtype = cls.detect_cuisine_subtype(prompt) if domain == "culinary_restaurant" else ""
         p_clean = strip_negative_constraints(prompt or "")
         p_clean_lower = p_clean.lower()
-        if "nova" in p_clean_lower or domain in ("ecommerce_electronics", "ecommerce_store"):
+        detected_b = cls.detect_brand_name(prompt) if hasattr(cls, 'detect_brand_name') else detect_brand_name(prompt)
+        if detected_b and detected_b not in ("Application", "Modern Application"):
+            brand_name = detected_b
+        elif "nova" in p_clean_lower:
             brand_name = "NOVA"
-        elif "northstar" in p_clean_lower or domain == "education_institution":
+        elif "northstar" in p_clean_lower:
             brand_name = "NorthStar University"
-        elif "wanderworld" in p_clean_lower or domain == "travel_tourism":
+        elif "wanderworld" in p_clean_lower:
             brand_name = "WanderWorld"
         elif ("saffron" in p_clean_lower or "stone" in p_clean_lower) and domain == "culinary_restaurant":
             brand_name = "Saffron & Stone"
+        elif domain == "robotics_automation":
+            brand_name = "ATLAS Robotics"
         else:
-            brand_name = "Application"
+            brand_name = detected_b or "Application"
         pos = "Premium Contemporary Indian dining celebrating heritage clay oven tandoor cooking, dum biryani, and aromatic spices." if cuisine_subtype == "Contemporary Indian" else brand_positionings.get(domain, "High quality digital web experience.")
         vis = "Warm royal saffron and terracotta palette, rich brass and earthenware accents, evocative clay oven and spice photography, and zero fabricated credentials." if cuisine_subtype == "Contemporary Indian" else visual_directions.get(domain, "Crisp modular layout with balanced whitespace")
 

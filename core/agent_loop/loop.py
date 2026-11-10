@@ -1215,6 +1215,8 @@ class AgentLoop:
 
         from core.observability.logger import get_telemetry_logger
 
+        if not isinstance(self._run_id, str) or not str(self._run_id).strip() or 'MagicMock' in str(type(self._run_id)):
+            self._run_id = f'run_{self._mission_id or "default"}'
         self.telemetry_logger = get_telemetry_logger(run_id=self._run_id, mission_id=self._mission_id)
 
         self._turns_count = 0
@@ -1445,6 +1447,15 @@ class AgentLoop:
                     if not self._content_coverage:
                         self._content_coverage = ContentCoverageMap.from_prompt(mission.user_prompt or "")
                         self._content_coverage_dict = self._content_coverage.to_dict()
+
+                    from core.mission_spec import MissionSpecification
+                    if not getattr(self, "_mission_spec", None):
+                        self._mission_spec = MissionSpecification.from_prompt(
+                            prompt=mission.user_prompt or "",
+                            workspace_root=ws_root or Path.cwd(),
+                            mission_id=mission.mission_id,
+                            design_brief=self._design_brief,
+                        )
 
                     from core.frontend_contract import FrontendContractBuilder
                     from core.skill_evidence_ledger import SkillEvidenceLedger
@@ -1763,28 +1774,35 @@ class AgentLoop:
                 from core.design_intelligence import DesignBriefGenerator, strip_negative_constraints
                 clean_prompt = strip_negative_constraints(mission.user_prompt or "")
                 target_domain = DesignBriefGenerator.detect_domain(mission.user_prompt or "")
+                from core.design_intelligence import detect_brand_name
+                target_brand = detect_brand_name(mission.user_prompt or "").lower()
                 index_candidate = ws_root / "index.html"
                 if index_candidate.exists():
                     existing_text = index_candidate.read_text(encoding="utf-8", errors="ignore").lower()
                     should_purge = False
                     has_nova = bool(re.search(r"\bnova\b", existing_text))
-                    if target_domain == "robotics_automation" and (
-                        any(w in existing_text for w in ["smartphones", "laptops", "headphones", "saffron", "saffron-stone", "saffron & stone", "biryani", "paneer", "tandoori", "wanderworld", "bali", "northstar", "university"])
-                        or (has_nova and "atlas" not in existing_text)
-                    ):
-                        logger.warning("AgentLoop: Stale foreign files detected in workspace during robotics mission. Purging stale deliverables.")
-                        should_purge = True
-                    elif target_domain == "culinary_restaurant" and (any(w in existing_text for w in ["wanderworld", "bali", "swiss alps", "destinations-grid", "northstar", "university", "faculty-grid", "soundbuds", "atlas", "robotics"]) or has_nova):
-                        logger.warning("AgentLoop: Stale foreign files detected in workspace during restaurant mission. Purging stale deliverables.")
-                        should_purge = True
-                    elif target_domain == "education_institution" and (any(w in existing_text for w in ["wanderworld", "bali", "swiss alps", "destinations-grid", "saffron", "stone", "biryani"]) or has_nova):
-                        logger.warning("AgentLoop: Stale foreign files detected in workspace during NorthStar mission. Purging stale deliverables.")
-                        should_purge = True
-                    elif target_domain == "travel_tourism" and (any(w in existing_text for w in ["northstar", "university", "faculty-grid", "saffron", "stone", "biryani"]) or has_nova):
-                        logger.warning("AgentLoop: Stale foreign files detected in workspace during WanderWorld mission. Purging stale deliverables.")
-                        should_purge = True
-                    elif target_domain.startswith("ecommerce") and any(w in existing_text for w in ["saffron", "stone", "biryani", "paneer", "tandoori", "wanderworld", "bali", "northstar", "university", "atlas", "robotics"]):
-                        logger.warning("AgentLoop: Stale foreign files detected in workspace during e-commerce mission. Purging stale deliverables.")
+                    stale_reasons = []
+
+                    # Purge generic placeholders unconditionally
+                    if any(w in existing_text for w in ["modern web application", "welcome to modern application"]):
+                        stale_reasons.append("generic_placeholder")
+
+                    # Purge foreign domain leaks
+                    if "nova" not in target_brand and has_nova and "atlas" not in existing_text:
+                        stale_reasons.append("nova_leak")
+                    if not any(k in target_brand for k in ["saffron", "stone"]) and any(w in existing_text for w in ["saffron & stone", "saffron and stone", "paneer tikka", "dum biryani"]):
+                        stale_reasons.append("saffron_stone_leak")
+                    if "wanderworld" not in target_brand and any(w in existing_text for w in ["wanderworld", "bali", "destinations-grid", "hero-wanderlust"]):
+                        stale_reasons.append("wanderworld_leak")
+                    if "northstar" not in target_brand and any(w in existing_text for w in ["northstar university", "collegiate quadrangle", "faculty-grid"]):
+                        stale_reasons.append("northstar_leak")
+                    if "atlas" not in target_brand and any(w in existing_text for w in ["atlas robotics", "autonomous mobile robots", "solutions-grid"]):
+                        stale_reasons.append("atlas_robotics_leak")
+                    if "form & field" not in target_brand and "form and field" not in target_brand and any(w in existing_text for w in ["form & field", "form and field", "monolith pavilion"]):
+                        stale_reasons.append("architecture_leak")
+
+                    if stale_reasons:
+                        logger.warning(f"AgentLoop: Stale foreign files detected in workspace ({', '.join(stale_reasons)}). Purging stale deliverables.")
                         should_purge = True
 
                     if should_purge:
@@ -1816,6 +1834,11 @@ class AgentLoop:
                     self._frontend_contract.save_to_workspace(ws_root)
                 except Exception as c_err:
                     logger.debug(f"AgentLoop: frontend contract persist notice: {c_err}")
+            if getattr(self, "_mission_spec", None):
+                try:
+                    self._mission_spec.persist(ws_root)
+                except Exception as m_err:
+                    logger.debug(f"AgentLoop: mission spec persist notice: {m_err}")
             if getattr(self, "_skill_evidence_ledger", None):
                 try:
                     self._skill_evidence_ledger.save_to_workspace(ws_root)

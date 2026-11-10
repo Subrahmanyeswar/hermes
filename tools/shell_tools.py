@@ -202,13 +202,13 @@ def _translate_single_command(command: str, py: str, cwd: Optional[Path] = None)
             if lead == "pwd":
                 return f'"{py}" -c "import os; print(os.getcwd())"'
 
-            if lead == "ls":
-                # Translate ls commands (e.g. ls -1, ls -la, ls) into canonical python directory listing
-                non_flags = [p.strip('"\'') for p in parts[1:] if not p.strip('"\'').startswith("-")]
+            if lead in ("ls", "dir"):
+                # Translate ls and dir commands (e.g. ls -1, dir /b, dir) into canonical python directory listing
+                non_flags = [p.strip('"\'') for p in parts[1:] if not p.strip('"\'').startswith(("-", "/"))]
                 target = non_flags[0] if non_flags else "."
                 target_esc = target.replace('"', '\\"')
                 py_code = "import os, sys; p = sys.argv[1] if len(sys.argv) > 1 else '.'; (print('\\n'.join(sorted(os.listdir(p)))) if os.path.isdir(p) else (print(p) if os.path.exists(p) else (print('ls: cannot access ' + p + ': No such file or directory', file=sys.stderr), sys.exit(1))))"
-                return f'"{py}" -c "{py_code}" "{target_esc}"'
+                return f'"{py}" -c "{py_code}" "{target_esc}"' 
 
             if lead == "cat" and len(parts) > 1:
                 target = parts[1].strip('"\'')

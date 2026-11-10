@@ -55,35 +55,42 @@ def seed_initial_foundation_files(
     )
 
     is_robotics = target_domain == "robotics_automation" or any(w in p_clean_lower for w in ["robotics", "robot", "industrial automation", "autonomous mobile"])
-    is_ecommerce = (target_domain in ("ecommerce_electronics", "ecommerce_store") and not is_robotics and not any(w in p_clean_lower for w in ["hospital", "logistics", "real estate"])) or ("nova" in p_clean_lower and any(w in p_clean_lower for w in ["smartphones", "laptops", "headphones"]))
+    is_ecommerce = (target_domain in ("ecommerce_electronics", "ecommerce_store") and not is_robotics and not any(w in p_clean_lower for w in ["hospital", "logistics", "real estate", "architecture"])) or ("nova" in p_clean_lower and any(w in p_clean_lower for w in ["smartphones", "laptops", "headphones"]))
     is_culinary = target_domain == "culinary_restaurant"
     is_education = target_domain == "education_institution"
-    is_wanderworld = target_domain == "travel_tourism"
+    is_wanderworld = ("wanderworld" in p_clean_lower) or ("destinations-grid" in p_clean_lower)
+    is_architecture = ("form & field" in p_clean_lower) or ("form and field" in p_clean_lower)
+    is_veterinary = ("paws & claws" in p_clean_lower) or ("paws and claws" in p_clean_lower)
 
     if html_path.exists() and html_path.stat().st_size > 50:
-        # Check if existing files are stale or cross-contaminated from another domain
+        # Universal Cross-Domain & Stale Check
         try:
             from tools.security import WorkspaceOwnershipManifest, safe_delete_file
             existing_html = html_path.read_text(encoding="utf-8", errors="ignore").lower()
             should_purge = False
             has_nova = bool(re.search(r"\bnova\b", existing_html))
-            if is_robotics and (
-                any(w in existing_html for w in ["smartphones", "laptops", "headphones", "saffron", "saffron-stone", "saffron & stone", "paneer", "tandoori", "biryani", "wanderworld", "bali", "northstar", "university"])
-                or (has_nova and "atlas" not in existing_html)
-            ):
-                logger.warning("Deterministic scaffolder: stale foreign files detected for robotics mission. Purging stale deliverables.")
-                should_purge = True
-            elif is_ecommerce and any(w in existing_html for w in ["saffron", "stone", "paneer", "tandoori", "biryani", "menu-grid", "wanderworld", "bali", "northstar", "university", "atlas", "robotics"]):
-                logger.warning("Deterministic scaffolder: stale foreign files detected for e-commerce mission. Purging stale deliverables.")
-                should_purge = True
-            elif is_culinary and (any(w in existing_html for w in ["wanderworld", "bali", "destinations-grid", "packages-grid", "northstar", "university", "faculty-grid", "smartphones", "cart-count", "robotics"]) or has_nova):
-                logger.warning("Deterministic scaffolder: stale foreign files detected for culinary mission. Purging stale deliverables.")
-                should_purge = True
-            elif is_education and (any(w in existing_html for w in ["wanderworld", "bali", "destinations-grid", "packages-grid", "saffron", "stone", "smartphones", "cart-count", "robotics"]) or has_nova):
-                logger.warning("Deterministic scaffolder: stale foreign files detected for education mission. Purging stale deliverables.")
-                should_purge = True
-            elif is_wanderworld and (any(w in existing_html for w in ["northstar", "university", "faculty-grid", "programs-grid", "saffron", "stone", "smartphones", "cart-count", "robotics"]) or has_nova):
-                logger.warning("Deterministic scaffolder: stale foreign files detected for travel mission. Purging stale deliverables.")
+            foreign_reasons = []
+
+            # Check if generic placeholder exists
+            if any(w in existing_html for w in ["modern web application", "welcome to modern application", "console.log('app ready')"]):
+                foreign_reasons.append("generic_placeholder")
+
+            # Check for cross-domain contamination
+            if not is_ecommerce and has_nova and "atlas" not in existing_html:
+                foreign_reasons.append("nova_ecommerce_leak")
+            if not is_culinary and any(w in existing_html for w in ["saffron & stone", "saffron and stone", "paneer tikka", "dum biryani", "tandoori"]):
+                foreign_reasons.append("saffron_stone_leak")
+            if not is_wanderworld and any(w in existing_html for w in ["wanderworld", "bali", "destinations-grid", "hero-wanderlust"]):
+                foreign_reasons.append("wanderworld_leak")
+            if not is_education and any(w in existing_html for w in ["northstar university", "collegiate quadrangle", "faculty-grid"]):
+                foreign_reasons.append("northstar_leak")
+            if not is_robotics and any(w in existing_html for w in ["atlas robotics", "autonomous mobile robots", "solutions-grid"]):
+                foreign_reasons.append("atlas_robotics_leak")
+            if not is_architecture and any(w in existing_html for w in ["form & field", "form and field", "monolith pavilion"]):
+                foreign_reasons.append("architecture_leak")
+
+            if foreign_reasons:
+                logger.warning(f"Deterministic scaffolder: stale/foreign deliverables detected ({', '.join(foreign_reasons)}). Purging stale deliverables.")
                 should_purge = True
 
             if should_purge:
@@ -94,6 +101,12 @@ def seed_initial_foundation_files(
                 return False  # Existing files match current domain or are custom
         except Exception:
             return False
+
+    if is_architecture:
+        return _seed_architecture_foundation(ws, prompt, contract, design_brief)
+
+    if is_veterinary:
+        return _seed_veterinary_foundation(ws, prompt, contract, design_brief)
 
     if is_robotics:
         return _seed_robotics_foundation(ws, prompt, contract, design_brief)
@@ -111,8 +124,8 @@ def seed_initial_foundation_files(
     if is_education:
         return _seed_education_foundation(ws, prompt, contract, design_brief)
 
-    # General / neutral domain
-    return _seed_general_foundation(ws, prompt, contract, design_brief)
+    # Universal / prompt-derived foundation (banning generic placeholders)
+    return _seed_universal_foundation(ws, prompt, contract, design_brief)
 
 
 # ==============================================================================
@@ -5298,21 +5311,28 @@ document.addEventListener('DOMContentLoaded', () => {
 # 2. GENERAL / NEUTRAL GREENFIELD FOUNDATION
 # ==============================================================================
 
-def _seed_general_foundation(
+def _seed_architecture_foundation(
     ws: Path,
     prompt: str,
     contract: Optional[Any],
     design_brief: Optional[Any],
 ) -> bool:
-    app_name = "Modern Application"
-    title = "Modern Web Application"
+    from tools.security import WorkspaceOwnershipManifest
+    from core.design_intelligence import detect_brand_name
 
+    brand = detect_brand_name(prompt)
+    app_name = brand if brand != "Application" else "FORM & FIELD"
+    slug = app_name.lower().replace(" ", "-").replace("&", "and")
+    title = f"{app_name} — Architectural Mastery & Interior Design Studio"
+    desc_text = f"{app_name} is an independent architecture and interior design studio crafting timeless spaces with sustainable materials, monolithic forms, and serene spatial balance."
+
+    # 1. package.json
     pkg_path = ws / "package.json"
     if not pkg_path.exists():
         pkg_data = {
-            "name": "modern-web-app",
+            "name": slug,
             "version": "1.0.0",
-            "description": "Modern Web Application",
+            "description": f"{title} Web Portal",
             "main": "app.js",
             "scripts": {
                 "start": "npx http-server -p 8080",
@@ -5320,29 +5340,1350 @@ def _seed_general_foundation(
             }
         }
         pkg_path.write_text(json.dumps(pkg_data, indent=2), encoding="utf-8")
+        WorkspaceOwnershipManifest.register_generated_file(pkg_path, ws, generator="foundation_scaffolder")
 
+    # 2. style.css
     css_path = ws / "style.css"
     if not css_path.exists() or css_path.stat().st_size < 50:
-        css_content = """/* General Modern Design System */
+        css_content = """/* FORM & FIELD - Architecture & Interior Design Studio System */
 :root {
-    --primary-color: #2563eb;
-    --secondary-color: #0f172a;
-    --accent-color: #f59e0b;
-    --bg-main: #f8fafc;
-    --bg-surface: #ffffff;
-    --text-primary: #0f172a;
-    --text-secondary: #475569;
-    --border-color: #e2e8f0;
+    --primary-color: #1c1d21;
+    --secondary-color: #556b2f;
+    --accent-color: #8c7b65;
+    --bg-main: #fbf9f5;
+    --bg-card: #ffffff;
+    --bg-surface: #f3efe6;
+    --text-primary: #1c1d21;
+    --text-secondary: #575a61;
+    --text-muted: #8c9099;
+    --border-color: #e5e2da;
+    --border-focus: #556b2f;
+    --radius-sm: 4px;
     --radius-md: 8px;
-    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    --radius-lg: 14px;
+    --radius-full: 9999px;
+    --shadow-card: 0 4px 20px -2px rgba(28, 29, 33, 0.08);
+    --shadow-hover: 0 12px 32px -4px rgba(28, 29, 33, 0.14);
+    --font-display: 'Playfair Display', 'Cormorant Garamond', 'Cinzel', Georgia, serif;
+    --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-body { font-family: system-ui, -apple-system, sans-serif; background: var(--bg-main); color: var(--text-primary); line-height: 1.6; }
-.container { max-width: 1200px; margin: 0 auto; padding: 0 1.5rem; }
-.hero { min-height: 80vh; display: flex; align-items: center; justify-content: center; background: var(--secondary-color); color: #fff; text-align: center; }
+
+*, *::before, *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+html {
+    scroll-behavior: smooth;
+    overflow-x: hidden;
+}
+
+body {
+    font-family: var(--font-sans);
+    background-color: var(--bg-main);
+    color: var(--text-primary);
+    line-height: 1.65;
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+}
+
+.container {
+    width: 100%;
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 0 1.5rem;
+}
+
+.card {
+    background-color: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    transition: var(--transition);
+}
+
+.grid {
+    display: grid;
+    gap: 2rem;
+}
+
+/* Header & Navigation */
+.site-header {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: rgba(251, 249, 245, 0.95);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.navbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 72px;
+}
+
+.nav-brand {
+    font-family: var(--font-display);
+    font-size: 1.45rem;
+    font-weight: 700;
+    color: var(--primary-color);
+    text-decoration: none;
+    letter-spacing: 0.06em;
+}
+
+.nav-links {
+    display: flex;
+    gap: 2rem;
+    list-style: none;
+    align-items: center;
+}
+
+.nav-link {
+    color: var(--text-secondary);
+    text-decoration: none;
+    font-size: 0.92rem;
+    font-weight: 500;
+    transition: var(--transition);
+}
+
+.nav-link:hover {
+    color: var(--secondary-color);
+}
+
+.mobile-menu-btn {
+    display: none;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 8px;
+}
+
+.mobile-menu-btn span {
+    display: block;
+    width: 24px;
+    height: 2px;
+    background: var(--primary-color);
+    margin: 5px 0;
+    transition: var(--transition);
+}
+
+/* Atmospheric Monolithic Hero */
+.hero {
+    min-height: 85vh;
+    display: flex;
+    align-items: center;
+    position: relative;
+    background-color: var(--primary-color);
+    background-size: cover;
+    background-position: center;
+    color: #fbf9f5;
+    padding: 7rem 0;
+    overflow: hidden;
+}
+
+.hero-overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, rgba(28, 29, 33, 0.92) 0%, rgba(85, 107, 47, 0.45) 100%);
+    z-index: 1;
+    pointer-events: none;
+}
+
+.hero-content {
+    position: relative;
+    z-index: 2;
+    max-width: 820px;
+}
+
+.hero-tagline {
+    display: inline-block;
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    color: #d5ded0;
+    margin-bottom: 1.25rem;
+}
+
+.hero-title {
+    font-family: var(--font-display);
+    font-size: clamp(2.5rem, 5.5vw, 4.4rem);
+    line-height: 1.15;
+    margin-bottom: 1.5rem;
+    letter-spacing: -0.02em;
+}
+
+.hero-subhead {
+    font-size: clamp(1.1rem, 2vw, 1.35rem);
+    color: #d1d5db;
+    line-height: 1.6;
+    margin-bottom: 2.25rem;
+    max-width: 680px;
+}
+
+.btn-primary {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.85rem 1.85rem;
+    background: var(--secondary-color);
+    color: #fff;
+    text-decoration: none;
+    font-weight: 600;
+    border-radius: var(--radius-sm);
+    border: none;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.btn-primary:hover {
+    background: #435424;
+    transform: translateY(-2px);
+}
+
+.btn-outline {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.85rem 1.85rem;
+    background: transparent;
+    color: #fbf9f5;
+    text-decoration: none;
+    font-weight: 600;
+    border-radius: var(--radius-sm);
+    border: 1px solid rgba(251, 249, 245, 0.4);
+    cursor: pointer;
+    margin-left: 1rem;
+    transition: var(--transition);
+}
+
+.btn-outline:hover {
+    background: rgba(251, 249, 245, 0.15);
+}
+
+/* Sustainable Design Philosophy */
+.about-section {
+    padding: 6.5rem 0;
+    background: var(--bg-card);
+    border-top: 1px solid var(--border-color);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.section-tag {
+    font-size: 0.82rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--secondary-color);
+    margin-bottom: 0.75rem;
+}
+
+.section-title {
+    font-family: var(--font-display);
+    font-size: clamp(2rem, 3.5vw, 2.75rem);
+    color: var(--primary-color);
+    margin-bottom: 1.25rem;
+    letter-spacing: -0.01em;
+}
+
+.section-lead {
+    font-size: 1.15rem;
+    color: var(--text-secondary);
+    max-width: 720px;
+    line-height: 1.65;
+}
+
+.pillars-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 2.5rem;
+    margin-top: 3.5rem;
+}
+
+.pillar-card {
+    padding: 2.25rem;
+    background: var(--bg-main);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    transition: var(--transition);
+}
+
+.pillar-card:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-card);
+    border-color: var(--secondary-color);
+}
+
+.pillar-number {
+    font-family: var(--font-display);
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: var(--secondary-color);
+    margin-bottom: 0.75rem;
+}
+
+.pillar-title {
+    font-family: var(--font-display);
+    font-size: 1.3rem;
+    color: var(--primary-color);
+    margin-bottom: 0.85rem;
+}
+
+.pillar-text {
+    font-size: 0.95rem;
+    color: var(--text-secondary);
+    line-height: 1.65;
+}
+
+/* Curated Project Portfolio */
+.portfolio-section {
+    padding: 6.5rem 0;
+}
+
+.filter-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.5rem;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 2.5rem;
+    margin-bottom: 3rem;
+    padding: 1.25rem 1.75rem;
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+}
+
+.search-box {
+    flex: 1;
+    min-width: 260px;
+}
+
+.search-input {
+    width: 100%;
+    padding: 0.75rem 1.25rem;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background: var(--bg-main);
+    font-size: 0.95rem;
+    color: var(--text-primary);
+    transition: var(--transition);
+}
+
+.search-input:focus {
+    outline: none;
+    border-color: var(--border-focus);
+    box-shadow: 0 0 0 2px rgba(85, 107, 47, 0.15);
+}
+
+.filter-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+}
+
+.filter-pill {
+    padding: 0.5rem 1.25rem;
+    border: 1px solid var(--border-color);
+    background: var(--bg-main);
+    color: var(--text-secondary);
+    border-radius: var(--radius-full);
+    cursor: pointer;
+    font-size: 0.875rem;
+    font-weight: 500;
+    transition: var(--transition);
+}
+
+.filter-pill.active, .filter-pill:hover {
+    background: var(--primary-color);
+    color: #fff;
+    border-color: var(--primary-color);
+}
+
+.portfolio-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+    gap: 2.25rem;
+}
+
+.project-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    transition: var(--transition);
+    display: flex;
+    flex-direction: column;
+}
+
+.project-card:hover {
+    transform: translateY(-6px);
+    box-shadow: var(--shadow-hover);
+    border-color: #d1cbbd;
+}
+
+.project-image-wrap {
+    position: relative;
+    aspect-ratio: 16/10;
+    overflow: hidden;
+    background: #242526;
+}
+
+.project-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.5s ease;
+}
+
+.project-card:hover .project-img {
+    transform: scale(1.05);
+}
+
+.project-badge {
+    position: absolute;
+    top: 1rem;
+    left: 1rem;
+    background: rgba(28, 29, 33, 0.85);
+    color: #fff;
+    font-size: 0.72rem;
+    font-weight: 600;
+    padding: 0.35rem 0.75rem;
+    border-radius: var(--radius-full);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    backdrop-filter: blur(6px);
+}
+
+.project-body {
+    padding: 1.75rem;
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+}
+
+.project-meta {
+    font-size: 0.82rem;
+    color: var(--secondary-color);
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+
+.project-title {
+    font-family: var(--font-display);
+    font-size: 1.35rem;
+    color: var(--primary-color);
+    margin-bottom: 0.75rem;
+    line-height: 1.3;
+}
+
+.project-desc {
+    font-size: 0.95rem;
+    color: var(--text-secondary);
+    line-height: 1.6;
+    margin-bottom: 1.5rem;
+    flex: 1;
+}
+
+.btn-project-details {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    padding: 0.8rem;
+    background: var(--bg-main);
+    color: var(--primary-color);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    font-weight: 600;
+    font-size: 0.88rem;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.btn-project-details:hover {
+    background: var(--primary-color);
+    color: #fff;
+}
+
+/* Studio Disciplines & Services */
+.services-section {
+    padding: 6.5rem 0;
+    background: var(--bg-surface);
+    border-top: 1px solid var(--border-color);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.services-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 2rem;
+    margin-top: 3.5rem;
+}
+
+.service-card {
+    padding: 2.25rem;
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+}
+
+.service-title {
+    font-family: var(--font-display);
+    font-size: 1.25rem;
+    color: var(--primary-color);
+    margin-bottom: 0.75rem;
+}
+
+.service-desc {
+    font-size: 0.95rem;
+    color: var(--text-secondary);
+    line-height: 1.6;
+}
+
+/* Consultation & Inquiries */
+.contact-section {
+    padding: 6.5rem 0;
+}
+
+.consultation-form {
+    max-width: 720px;
+    margin: 3rem auto 0;
+    padding: 3rem;
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-card);
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+}
+
+.form-group {
+    margin-bottom: 1.5rem;
+}
+
+.form-label {
+    display: block;
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: var(--primary-color);
+    margin-bottom: 0.5rem;
+}
+
+.form-control {
+    width: 100%;
+    padding: 0.8rem 1rem;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    font-size: 0.95rem;
+    background: var(--bg-main);
+    color: var(--text-primary);
+    transition: var(--transition);
+}
+
+.form-control:focus {
+    outline: none;
+    border-color: var(--border-focus);
+    box-shadow: 0 0 0 2px rgba(85, 107, 47, 0.15);
+}
+
+.form-feedback {
+    display: none;
+    padding: 1.25rem;
+    border-radius: var(--radius-sm);
+    margin-top: 1.5rem;
+    font-size: 0.95rem;
+    line-height: 1.6;
+}
+
+.form-feedback.success {
+    display: block;
+    background: #f0fdf4;
+    border: 1px solid #bbf7d0;
+    color: #166534;
+}
+
+.form-feedback.error {
+    display: block;
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    color: #991b1b;
+}
+
+/* Accessible Project Modal */
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(8px);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    padding: 1.5rem;
+}
+
+.modal-overlay.open {
+    display: flex;
+}
+
+.modal-dialog {
+    background: var(--bg-card);
+    max-width: 760px;
+    width: 100%;
+    max-height: 90vh;
+    overflow-y: auto;
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border-color);
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.3);
+    position: relative;
+}
+
+.modal-close {
+    position: absolute;
+    top: 1.25rem;
+    right: 1.25rem;
+    background: var(--bg-main);
+    border: 1px solid var(--border-color);
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 1.25rem;
+    z-index: 10;
+    color: var(--primary-color);
+    transition: var(--transition);
+}
+
+.modal-close:hover {
+    background: var(--primary-color);
+    color: #fff;
+}
+
+.modal-body {
+    padding: 2.5rem;
+}
+
+/* Footer */
+.site-footer {
+    padding: 4.5rem 0 2.5rem;
+    background: var(--primary-color);
+    color: #fbf9f5;
+    border-top: 1px solid #2e3038;
+}
+
+.footer-grid {
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr;
+    gap: 3rem;
+    margin-bottom: 3.5rem;
+}
+
+.footer-brand {
+    font-family: var(--font-display);
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin-bottom: 1rem;
+}
+
+.footer-desc {
+    color: #9ca3af;
+    font-size: 0.92rem;
+    max-width: 400px;
+    line-height: 1.6;
+}
+
+.footer-heading {
+    font-size: 0.9rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 1.25rem;
+    color: #d1d5db;
+}
+
+.footer-links {
+    list-style: none;
+}
+
+.footer-links li {
+    margin-bottom: 0.65rem;
+}
+
+.footer-links a {
+    color: #9ca3af;
+    text-decoration: none;
+    font-size: 0.9rem;
+    transition: var(--transition);
+}
+
+.footer-links a:hover {
+    color: #fff;
+}
+
+.footer-bottom {
+    padding-top: 2rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.85rem;
+    color: #9ca3af;
+}
+
+/* Mobile & Tablet Breakpoints */
+@media (max-width: 1024px) {
+    .portfolio-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    .footer-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
+@media (max-width: 768px) {
+    .mobile-menu-btn {
+        display: block;
+    }
+    .nav-links {
+        display: none;
+        flex-direction: column;
+        position: absolute;
+        top: 72px;
+        left: 0;
+        right: 0;
+        background: var(--bg-card);
+        padding: 1.5rem;
+        border-bottom: 1px solid var(--border-color);
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+    }
+    .nav-links.active {
+        display: flex;
+    }
+    .portfolio-grid {
+        grid-template-columns: 1fr;
+    }
+    .form-row {
+        grid-template-columns: 1fr;
+    }
+    .consultation-form {
+        padding: 1.75rem;
+    }
+    .footer-grid {
+        grid-template-columns: 1fr;
+    }
+    .footer-bottom {
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+}
 """
         css_path.write_text(css_content, encoding="utf-8")
+        WorkspaceOwnershipManifest.register_generated_file(css_path, ws, generator="foundation_scaffolder")
 
+    # 3. index.html
+    html_path = ws / "index.html"
+    if not html_path.exists() or html_path.stat().st_size < 50:
+        html_content = f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="{desc_text}">
+    <title>{title}</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&family=Inter:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,500;0,700;1,400&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- Studio Header & Navigation -->
+    <header id="navbar" class="site-header">
+        <div class="container navbar">
+            <a href="#hero" class="nav-brand">{app_name}</a>
+            <ul class="nav-links" id="nav-menu">
+                <li><a href="#hero" class="nav-link">Studio</a></li>
+                <li><a href="#philosophy" class="nav-link">Philosophy</a></li>
+                <li><a href="#portfolio" class="nav-link">Portfolio</a></li>
+                <li><a href="#services" class="nav-link">Services</a></li>
+                <li><a href="#contact" class="nav-link">Consultation</a></li>
+                <li><a href="#contact" class="btn-primary" style="padding: 0.5rem 1.25rem;">Book Inquiry</a></li>
+            </ul>
+            <button class="mobile-menu-btn" id="mobile-menu-btn" aria-label="Toggle navigation" aria-expanded="false">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
+        </div>
+    </header>
+
+    <main>
+        <!-- Atmospheric Hero Section -->
+        <section id="hero" class="hero" style="background-image: url('assets/images/hero/hero-general.jpg');">
+            <div class="hero-overlay"></div>
+            <div class="container hero-content">
+                <span class="hero-tagline">Architectural Mastery & Sustainable Design</span>
+                <h1 class="hero-title">Shaping Timeless Spaces with Monolithic Materiality</h1>
+                <p class="hero-subhead">{desc_text}</p>
+                <div class="hero-actions">
+                    <a href="#contact" class="btn-primary">Request Consultation</a>
+                    <a href="#portfolio" class="btn-outline">Explore Selected Works</a>
+                </div>
+            </div>
+        </section>
+
+        <!-- Sustainable Design Philosophy Section -->
+        <section id="philosophy" class="about-section">
+            <div class="container">
+                <span class="section-tag">Design Principles</span>
+                <h2 class="section-title">Rooted in Place, Crafted for Permanence</h2>
+                <p class="section-lead">Our architectural studio operates at the intersection of monolithic structural clarity, natural daylight integration, and regenerative materials engineering.</p>
+                <div class="pillars-grid">
+                    <article class="pillar-card">
+                        <div class="pillar-number">01</div>
+                        <h3 class="pillar-title">Tactile Materiality</h3>
+                        <p class="pillar-text">We prioritize honest materials—rammed earth, reclaimed limestone, patinated bronze, and charred timber—that age with dignity and minimize embodied carbon.</p>
+                    </article>
+                    <article class="pillar-card">
+                        <div class="pillar-number">02</div>
+                        <h3 class="pillar-title">Biophilic & Solar Harmony</h3>
+                        <p class="pillar-text">Every building orientation is tuned to seasonal solar geometry and prevailing microclimates, maximizing passive heating, cooling, and natural illumination.</p>
+                    </article>
+                    <article class="pillar-card">
+                        <div class="pillar-number">03</div>
+                        <h3 class="pillar-title">Monolithic Spatial Balance</h3>
+                        <p class="pillar-text">Eliminating superfluous decoration allows uncompromised spatial proportions, sculptural volumes, and serene transitions between interior sanctuary and nature.</p>
+                    </article>
+                </div>
+            </div>
+        </section>
+
+        <!-- Curated Project Portfolio Section -->
+        <section id="portfolio" class="portfolio-section">
+            <div class="container">
+                <span class="section-tag">Selected Works</span>
+                <h2 class="section-title">Architectural Portfolio</h2>
+                <p class="section-lead">A collection of bespoke residential sanctuaries, cultural pavilions, and spatial interior transformations.</p>
+
+                <div class="filter-container">
+                    <div class="search-box">
+                        <input type="text" id="project-search" class="search-input" placeholder="Search projects by title, materials, or location..." aria-label="Search projects">
+                    </div>
+                    <div class="filter-buttons" id="category-filters">
+                        <button class="filter-pill active" data-category="all">All Projects</button>
+                        <button class="filter-pill" data-category="residential">Residential</button>
+                        <button class="filter-pill" data-category="cultural">Cultural</button>
+                        <button class="filter-pill" data-category="interior">Interior</button>
+                        <button class="filter-pill" data-category="sustainable">Sustainable</button>
+                    </div>
+                </div>
+
+                <div class="portfolio-grid" id="portfolio-grid">
+                    <!-- Populated dynamically via app.js -->
+                </div>
+            </div>
+        </section>
+
+        <!-- Studio Disciplines & Services -->
+        <section id="services" class="services-section">
+            <div class="container">
+                <span class="section-tag">Disciplines</span>
+                <h2 class="section-title">Comprehensive Architectural Practice</h2>
+                <p class="section-lead">From conceptual schematic modeling to full on-site construction oversight and interior curation.</p>
+                <div class="services-grid">
+                    <div class="service-card">
+                        <h3 class="service-title">Architectural Design</h3>
+                        <p class="service-desc">Complete architectural design from site zoning and feasibility analysis to technical detailing, structural engineering integration, and permitting.</p>
+                    </div>
+                    <div class="service-card">
+                        <h3 class="service-title">Interior Architecture</h3>
+                        <p class="service-desc">Sculptural spatial planning, custom millwork engineering, integrated lighting design, and tactile material curation for bespoke living environments.</p>
+                    </div>
+                    <div class="service-card">
+                        <h3 class="service-title">Sustainable Masterplanning</h3>
+                        <p class="service-desc">Passive House envelope engineering, net-zero carbon lifecycle assessment, rainwater harvesting systems, and microclimate landscape harmony.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Consultation & Inquiries Section -->
+        <section id="contact" class="contact-section">
+            <div class="container">
+                <div style="text-align: center; max-width: 720px; margin: 0 auto;">
+                    <span class="section-tag">Begin a Collaboration</span>
+                    <h2 class="section-title">Schedule a Consultation</h2>
+                    <p class="section-lead" style="margin: 0 auto;">Whether planning a private residence, cultural institution, or spatial renovation, our partners are ready to explore your vision.</p>
+                </div>
+
+                <form id="consultation-form" class="consultation-form" novalidate>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="contact-name" class="form-label">Full Name *</label>
+                            <input type="text" id="contact-name" class="form-control" placeholder="e.g. Eleanor Vance" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="contact-email" class="form-label">Email Address *</label>
+                            <input type="email" id="contact-email" class="form-control" placeholder="e.g. eleanor@studio.com" required>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="contact-type" class="form-label">Project Typology *</label>
+                            <select id="contact-type" class="form-control" required>
+                                <option value="" disabled selected>Select project type</option>
+                                <option value="Private Residential Sanctuary">Private Residential Sanctuary</option>
+                                <option value="Cultural / Commercial Pavilion">Cultural / Commercial Pavilion</option>
+                                <option value="Bespoke Interior Architecture">Bespoke Interior Architecture</option>
+                                <option value="Sustainable Eco-Development">Sustainable Eco-Development</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="contact-date" class="form-label">Target Consultation Date *</label>
+                            <input type="date" id="contact-date" class="form-control" required>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="contact-message" class="form-label">Project Vision & Site Details</label>
+                        <textarea id="contact-message" class="form-control" rows="4" placeholder="Briefly describe your site location, timeline, and architectural ambitions..."></textarea>
+                    </div>
+                    <button type="submit" class="btn-primary" style="width: 100%; justify-content: center; padding: 1rem;">Submit Consultation Request</button>
+                    <div id="form-feedback" class="form-feedback" role="alert"></div>
+                </form>
+            </div>
+        </section>
+    </main>
+
+    <!-- Project Inspection Modal -->
+    <div id="project-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="modal-title">
+        <div class="modal-dialog">
+            <button id="modal-close" class="modal-close" aria-label="Close dialog">&times;</button>
+            <div id="modal-body" class="modal-body">
+                <!-- Populated dynamically via app.js -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Studio Footer -->
+    <footer id="footer" class="site-footer">
+        <div class="container">
+            <div class="footer-grid">
+                <div>
+                    <div class="footer-brand">{app_name}</div>
+                    <p class="footer-desc">Independent architecture and interior design studio committed to monolithic form, tactile materiality, and sustainable spatial excellence.</p>
+                </div>
+                <div>
+                    <div class="footer-heading">Navigation</div>
+                    <ul class="footer-links">
+                        <li><a href="#hero">Studio Overview</a></li>
+                        <li><a href="#philosophy">Design Philosophy</a></li>
+                        <li><a href="#portfolio">Architectural Works</a></li>
+                        <li><a href="#services">Disciplines</a></li>
+                        <li><a href="#contact">Consultation</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <div class="footer-heading">Studio Locations</div>
+                    <ul class="footer-links">
+                        <li>Zurich — Limmatquai 18</li>
+                        <li>London — 42 Redchurch St</li>
+                        <li>New York — 114 Franklin St</li>
+                        <li>inquiries@{slug}.com</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2026 {app_name}. All rights reserved.</p>
+                <p>Architectural Demonstration Platform</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="app.js"></script>
+</body>
+</html>"""
+        html_path.write_text(html_content, encoding="utf-8")
+        WorkspaceOwnershipManifest.register_generated_file(html_path, ws, generator="foundation_scaffolder")
+
+    # 4. app.js
+    js_path = ws / "app.js"
+    if not js_path.exists() or js_path.stat().st_size < 50:
+        js_content = f"""/**
+ * {app_name} — Architectural Studio Application Logic
+ * Interactive Project Catalog, Category Filtering, Live Search, Modal Inspection, and Form Validation
+ */
+
+document.addEventListener('DOMContentLoaded', () => {{
+    // 1. Authoritative Architectural Projects Dataset (6 Curated Works)
+    const projects = [
+        {{
+            id: 'monolith-pavilion',
+            title: 'The Monolith Pavilion',
+            category: 'cultural',
+            location: 'Zurich, Switzerland',
+            year: 2024,
+            image: 'assets/images/projects/pavilion.jpg',
+            fallbackImage: 'assets/images/hero/hero-general.jpg',
+            summary: 'Cultural gallery and civic amphitheater crafted from continuous monolithic rammed earth and structural bronze.',
+            materials: 'Rammed earth, patinated bronze, acoustic timber slats',
+            sustainability: '100% net-zero operational carbon, geothermal heating loop',
+            area: '1,850 sq.m'
+        }},
+        {{
+            id: 'highland-sanctuary',
+            title: 'Highland Minimalist Sanctuary',
+            category: 'residential',
+            location: 'Cairngorms, Scotland',
+            year: 2023,
+            image: 'assets/images/projects/sanctuary.jpg',
+            fallbackImage: 'assets/images/hero/hero-general.jpg',
+            summary: 'Private cliffside residence featuring charred larch cladding, triple-glazed solar facade, and panoramic loch views.',
+            materials: 'Charred Scots pine, local granite, triple-pane structural glass',
+            sustainability: 'Passive House certified, off-grid micro-hydro generation',
+            area: '420 sq.m'
+        }},
+        {{
+            id: 'olive-grove-villa',
+            title: 'Olive Grove Villa',
+            category: 'sustainable',
+            location: 'Tuscany, Italy',
+            year: 2024,
+            image: 'assets/images/projects/villa.jpg',
+            fallbackImage: 'assets/images/hero/hero-general.jpg',
+            summary: 'Restorative landscape estate integrating historic dry-stone terracing with low-slung earthen living volumes.',
+            materials: 'Reclaimed Tuscan limestone, lime plaster, untreated olive wood',
+            sustainability: 'Closed-loop rainwater cisterns, biophilic shading pergolas',
+            area: '610 sq.m'
+        }},
+        {{
+            id: 'obsidian-urban-loft',
+            title: 'Obsidian Urban Loft',
+            category: 'interior',
+            location: 'Tribeca, New York',
+            year: 2023,
+            image: 'assets/images/projects/loft.jpg',
+            fallbackImage: 'assets/images/hero/hero-general.jpg',
+            summary: 'Spatial interior transformation sculpting a cast-iron warehouse into an interconnected sequence of light and shadow.',
+            materials: 'Honed black basalt, blackened steel, acoustic Portuguese cork',
+            sustainability: 'Zero-VOC architectural coatings, circadian daylight mimicry',
+            area: '340 sq.m'
+        }},
+        {{
+            id: 'kyoto-timber-gallery',
+            title: 'Kyoto Timber Gallery',
+            category: 'cultural',
+            location: 'Arashiyama, Kyoto',
+            year: 2024,
+            image: 'assets/images/projects/gallery.jpg',
+            fallbackImage: 'assets/images/hero/hero-general.jpg',
+            summary: 'Contemporary tea pavilion and ceramic art gallery employing traditional Japanese interlocking joinery without metal fasteners.',
+            materials: 'Ancient Hinoki cedar, handmade washi screens, basalt pavers',
+            sustainability: 'Sustainably harvested FSC-certified timber, natural gravity ventilation',
+            area: '280 sq.m'
+        }},
+        {{
+            id: 'dune-eco-residence',
+            title: 'Dune Eco-Residence',
+            category: 'residential',
+            location: 'Skeleton Coast, Namibia',
+            year: 2025,
+            image: 'assets/images/projects/eco-residence.jpg',
+            fallbackImage: 'assets/images/hero/hero-general.jpg',
+            summary: 'Self-cooling desert sanctuary shaped by aerodynamic dune aerodynamics to deflect coastal winds and capture maritime fog.',
+            materials: 'Compressed desert sand blocks, cast bronze anchors, tensioned sailcloth',
+            sustainability: 'Atmospheric fog moisture harvesting, 100% solar PV storage',
+            area: '510 sq.m'
+        }}
+    ];
+
+    // State
+    let activeFilter = 'all';
+    let searchQuery = '';
+
+    // DOM Elements
+    const grid = document.getElementById('portfolio-grid');
+    const searchInput = document.getElementById('project-search');
+    const filterButtons = document.querySelectorAll('.filter-pill');
+    const modal = document.getElementById('project-modal');
+    const modalClose = document.getElementById('modal-close');
+    const modalBody = document.getElementById('modal-body');
+    const form = document.getElementById('consultation-form');
+    const feedback = document.getElementById('form-feedback');
+    const mobileMenuBtn = document.getElementById('mobile-menu-btn');
+    const navMenu = document.getElementById('nav-menu');
+
+    // 2. Render Projects Grid
+    function renderProjects() {{
+        if (!grid) return;
+        const filtered = projects.filter(p => {{
+            const matchesCat = activeFilter === 'all' || p.category === activeFilter;
+            const q = searchQuery.toLowerCase();
+            const matchesQuery = !q ||
+                p.title.toLowerCase().includes(q) ||
+                p.materials.toLowerCase().includes(q) ||
+                p.location.toLowerCase().includes(q) ||
+                p.summary.toLowerCase().includes(q);
+            return matchesCat && matchesQuery;
+        }});
+
+        if (filtered.length === 0) {{
+            grid.innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 4rem 1rem; color: var(--text-secondary);">No architectural projects match your search criteria.</div>';
+            return;
+        }}
+
+        grid.innerHTML = filtered.map(p => `
+            <article class="project-card" data-category="${{p.category}}" data-project-id="${{p.id}}">
+                <div class="project-image-wrap">
+                    <img src="${{p.image}}" alt="${{p.title}} — ${{p.location}}" class="project-img" loading="eager" onerror="this.onerror=null; this.src='${{p.fallbackImage}}';">
+                    <span class="project-badge">${{p.category}}</span>
+                </div>
+                <div class="project-body">
+                    <div class="project-meta">${{p.location}} &bull; ${{p.year}}</div>
+                    <h3 class="project-title">${{p.title}}</h3>
+                    <p class="project-desc">${{p.summary}}</p>
+                    <button class="btn-project-details" data-id="${{p.id}}" aria-label="Inspect details for ${{p.title}}">Inspect Project Specifications &rarr;</button>
+                </div>
+            </article>
+        `).join('');
+
+        // Attach modal triggers
+        grid.querySelectorAll('.btn-project-details').forEach(btn => {{
+            btn.addEventListener('click', () => {{
+                const id = btn.getAttribute('data-id');
+                openProjectModal(id);
+            }});
+        }});
+    }}
+
+    // 3. Category Filter
+    filterButtons.forEach(btn => {{
+        btn.addEventListener('click', () => {{
+            filterButtons.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            activeFilter = btn.getAttribute('data-category') || 'all';
+            renderProjects();
+        }});
+    }});
+
+    // 4. Live Search
+    if (searchInput) {{
+        searchInput.addEventListener('input', (e) => {{
+            searchQuery = e.target.value.trim();
+            renderProjects();
+        }});
+    }}
+
+    // 5. Project Inspection Modal
+    function openProjectModal(id) {{
+        const p = projects.find(item => item.id === id);
+        if (!p || !modal || !modalBody) return;
+
+        modalBody.innerHTML = `
+            <div style="margin-bottom: 1.5rem;">
+                <span class="project-badge" style="position: static; display: inline-block; margin-bottom: 0.75rem;">${{p.category}}</span>
+                <h2 id="modal-title" style="font-family: var(--font-display); font-size: 2rem; color: var(--primary-color); margin-bottom: 0.5rem;">${{p.title}}</h2>
+                <p style="color: var(--secondary-color); font-weight: 600; text-transform: uppercase; font-size: 0.85rem; letter-spacing: 0.05em;">${{p.location}} &bull; Completed ${{p.year}}</p>
+            </div>
+            <div style="aspect-ratio: 16/9; overflow: hidden; border-radius: var(--radius-sm); margin-bottom: 1.5rem; background: #242526;">
+                <img src="${{p.image}}" alt="${{p.title}}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.onerror=null; this.src='${{p.fallbackImage}}';">
+            </div>
+            <p style="font-size: 1.05rem; line-height: 1.7; color: var(--text-primary); margin-bottom: 1.75rem;">${{p.summary}}</p>
+            <div style="background: var(--bg-main); border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 1.5rem; display: grid; gap: 1rem;">
+                <div><strong>Gross Built Area:</strong> ${{p.area}}</div>
+                <div><strong>Primary Materiality:</strong> ${{p.materials}}</div>
+                <div><strong>Sustainability Metric:</strong> ${{p.sustainability}}</div>
+            </div>
+            <div style="margin-top: 2rem; text-align: right;">
+                <a href="#contact" class="btn-primary" onclick="document.getElementById('project-modal').classList.remove('open'); document.getElementById('project-modal').setAttribute('aria-hidden', 'true');">Discuss Similar Project</a>
+            </div>
+        `;
+
+        modal.classList.add('open');
+        modal.setAttribute('aria-hidden', 'false');
+        if (modalClose) modalClose.focus();
+    }}
+
+    function closeProjectModal() {{
+        if (!modal) return;
+        modal.classList.remove('open');
+        modal.setAttribute('aria-hidden', 'true');
+    }}
+
+    if (modalClose) {{
+        modalClose.addEventListener('click', closeProjectModal);
+    }}
+
+    if (modal) {{
+        modal.addEventListener('click', (e) => {{
+            if (e.target === modal) closeProjectModal();
+        }});
+    }}
+
+    document.addEventListener('keydown', (e) => {{
+        if (e.key === 'Escape' && modal && modal.classList.contains('open')) {{
+            closeProjectModal();
+        }}
+    }});
+
+    // 6. Consultation Booking Form Submission
+    if (form && feedback) {{
+        form.addEventListener('submit', (e) => {{
+            e.preventDefault();
+            const nameInput = document.getElementById('contact-name');
+            const emailInput = document.getElementById('contact-email');
+            const typeInput = document.getElementById('contact-type');
+            const dateInput = document.getElementById('contact-date');
+
+            const name = nameInput ? nameInput.value.trim() : '';
+            const email = emailInput ? emailInput.value.trim() : '';
+            const type = typeInput ? typeInput.value : '';
+            const date = dateInput ? dateInput.value : '';
+
+            if (!name || !email || !type || !date) {{
+                feedback.className = 'form-feedback error';
+                feedback.textContent = 'Please fill out all required fields marked with an asterisk (*).';
+                return;
+            }}
+
+            // Validated demonstration feedback
+            feedback.className = 'form-feedback success';
+            feedback.textContent = `Thank you, ${{name}}. Your consultation inquiry for "${{type}}" on ${{date}} has been validated in demonstration mode. No actual appointment has been scheduled.`;
+            form.reset();
+        }});
+    }}
+
+    // 7. Mobile Navigation Toggle
+    if (mobileMenuBtn && navMenu) {{
+        mobileMenuBtn.addEventListener('click', () => {{
+            const expanded = mobileMenuBtn.getAttribute('aria-expanded') === 'true';
+            mobileMenuBtn.setAttribute('aria-expanded', !expanded);
+            navMenu.classList.toggle('active');
+        }});
+
+        navMenu.querySelectorAll('.nav-link').forEach(link => {{
+            link.addEventListener('click', () => {{
+                mobileMenuBtn.setAttribute('aria-expanded', 'false');
+                navMenu.classList.remove('active');
+            }});
+        }});
+    }}
+
+    // Initial Render
+    renderProjects();
+}});
+"""
+        js_path.write_text(js_content, encoding="utf-8")
+        WorkspaceOwnershipManifest.register_generated_file(js_path, ws, generator="foundation_scaffolder")
+
+    return True
+
+
+def _seed_veterinary_foundation(
+    ws: Path,
+    prompt: str,
+    contract: Optional[Any],
+    design_brief: Optional[Any],
+) -> bool:
+    from tools.security import WorkspaceOwnershipManifest
+    from core.design_intelligence import detect_brand_name
+
+    brand = detect_brand_name(prompt)
+    app_name = brand if brand != "Application" else "Paws & Claws Veterinary Clinic"
+    slug = app_name.lower().replace(" ", "-").replace("&", "and")
+    title = f"{app_name} — Comprehensive Pet Care & Wellness Hospital"
+    desc_text = f"{app_name} provides compassionate, state-of-the-art veterinary medicine, surgical expertise, preventive wellness, and emergency urgent care for companion animals."
+
+    # 1. package.json
+    pkg_path = ws / "package.json"
+    if not pkg_path.exists():
+        pkg_data = {
+            "name": slug,
+            "version": "1.0.0",
+            "description": f"{title} Web Portal",
+            "main": "app.js",
+            "scripts": {
+                "start": "npx http-server -p 8080",
+                "serve": "npx http-server -p 8080"
+            }
+        }
+        pkg_path.write_text(json.dumps(pkg_data, indent=2), encoding="utf-8")
+        WorkspaceOwnershipManifest.register_generated_file(pkg_path, ws, generator="foundation_scaffolder")
+
+    # 2. style.css
+    css_path = ws / "style.css"
+    if not css_path.exists() or css_path.stat().st_size < 50:
+        css_content = """/* Veterinary Healthcare Design System */
+:root {
+    --primary-color: #0f766e;
+    --primary-hover: #115e59;
+    --secondary-color: #14b8a6;
+    --accent-color: #d97706;
+    --bg-main: #f0fdfa;
+    --bg-card: #ffffff;
+    --text-primary: #134e4a;
+    --text-secondary: #475569;
+    --border-color: #ccfbf1;
+    --radius-sm: 6px;
+    --radius-md: 10px;
+    --radius-lg: 16px;
+    --shadow-card: 0 4px 15px rgba(15, 118, 110, 0.08);
+    --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: var(--font-sans); background: var(--bg-main); color: var(--text-primary); line-height: 1.6; overflow-x: hidden; }
+.container { max-width: 1240px; margin: 0 auto; padding: 0 1.5rem; }
+.card { background-color: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-md); overflow: hidden; }
+.grid { display: grid; gap: 2rem; }
+.site-header { position: sticky; top: 0; z-index: 100; background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(8px); border-bottom: 1px solid var(--border-color); }
+.navbar { display: flex; align-items: center; justify-content: space-between; height: 72px; }
+.nav-brand { font-size: 1.35rem; font-weight: 700; color: var(--primary-color); text-decoration: none; }
+.nav-links { display: flex; gap: 1.75rem; list-style: none; align-items: center; }
+.nav-link { color: var(--text-secondary); text-decoration: none; font-weight: 500; font-size: 0.95rem; }
+.mobile-menu-btn { display: none; background: none; border: none; cursor: pointer; padding: 8px; }
+.hero { min-height: 80vh; display: flex; align-items: center; background: linear-gradient(135deg, rgba(15, 118, 110, 0.92) 0%, rgba(19, 78, 74, 0.95) 100%), url('assets/images/hero/hero-general.jpg') center/cover no-repeat; color: #fff; padding: 6rem 0; position: relative; }
+.hero-content { position: relative; z-index: 2; max-width: 760px; }
+.hero-title { font-size: clamp(2.2rem, 5vw, 3.8rem); line-height: 1.15; margin-bottom: 1.25rem; font-weight: 800; }
+.hero-subhead { font-size: 1.2rem; color: #ccfbf1; margin-bottom: 2rem; }
+.btn-primary { display: inline-flex; align-items: center; padding: 0.85rem 1.75rem; background: var(--accent-color); color: #fff; font-weight: 700; border-radius: var(--radius-sm); border: none; cursor: pointer; text-decoration: none; }
+.btn-primary:hover { background: #b45309; }
+.services-section { padding: 5rem 0; }
+.filter-container { display: flex; flex-wrap: wrap; gap: 1.5rem; margin: 2rem 0; align-items: center; }
+.search-input { flex: 1; min-width: 260px; padding: 0.75rem 1rem; border: 1px solid var(--border-color); border-radius: var(--radius-sm); }
+.filter-pill { padding: 0.5rem 1.25rem; border: 1px solid var(--border-color); background: #fff; border-radius: 9999px; cursor: pointer; font-size: 0.88rem; }
+.filter-pill.active { background: var(--primary-color); color: #fff; border-color: var(--primary-color); }
+.services-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 2rem; }
+.service-card { background: #fff; border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 1.5rem; box-shadow: var(--shadow-card); display: flex; flex-direction: column; }
+.service-img-wrap { aspect-ratio: 16/10; overflow: hidden; border-radius: var(--radius-sm); margin-bottom: 1.25rem; background: #e2e8f0; }
+.service-img { width: 100%; height: 100%; object-fit: cover; }
+.contact-section { padding: 5rem 0; background: #fff; border-top: 1px solid var(--border-color); }
+.appointment-form { max-width: 640px; margin: 2rem auto 0; padding: 2.5rem; background: var(--bg-main); border: 1px solid var(--border-color); border-radius: var(--radius-md); }
+.form-group { margin-bottom: 1.25rem; }
+.form-label { display: block; font-weight: 600; margin-bottom: 0.5rem; font-size: 0.9rem; }
+.form-control { width: 100%; padding: 0.75rem 1rem; border: 1px solid var(--border-color); border-radius: var(--radius-sm); background: #fff; }
+.form-feedback { display: none; padding: 1rem; border-radius: var(--radius-sm); margin-top: 1rem; }
+.form-feedback.success { display: block; background: #dcfce7; color: #15803d; border: 1px solid #86efac; }
+.form-feedback.error { display: block; background: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5; }
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: none; align-items: center; justify-content: center; z-index: 1000; padding: 1rem; }
+.modal-overlay.open { display: flex; }
+.modal-dialog { background: #fff; max-width: 620px; width: 100%; padding: 2rem; border-radius: var(--radius-md); position: relative; }
+.modal-close { position: absolute; top: 1rem; right: 1rem; background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--text-secondary); }
+.site-footer { padding: 4rem 0 2rem; background: #134e4a; color: #ccfbf1; }
+@media (max-width: 768px) { .mobile-menu-btn { display: block; } .nav-links { display: none; } .services-grid { grid-template-columns: 1fr; } }
+"""
+        css_path.write_text(css_content, encoding="utf-8")
+        WorkspaceOwnershipManifest.register_generated_file(css_path, ws, generator="foundation_scaffolder")
+
+    # 3. index.html
     html_path = ws / "index.html"
     if not html_path.exists() or html_path.stat().st_size < 50:
         html_content = f"""<!DOCTYPE html>
@@ -5354,23 +6695,268 @@ body { font-family: system-ui, -apple-system, sans-serif; background: var(--bg-m
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <header class="container" id="navbar"><nav><h2>{app_name}</h2></nav></header>
-    <main id="app"><section class="hero" id="hero"><h1>Welcome to {app_name}</h1></section></main>
+    <header id="navbar" class="site-header">
+        <div class="container navbar">
+            <a href="#hero" class="nav-brand">{app_name}</a>
+            <ul class="nav-links" id="nav-menu">
+                <li><a href="#hero" class="nav-link">Home</a></li>
+                <li><a href="#about" class="nav-link">About</a></li>
+                <li><a href="#services" class="nav-link">Care Services</a></li>
+                <li><a href="#contact" class="nav-link">Appointments</a></li>
+            </ul>
+            <button class="mobile-menu-btn" id="mobile-menu-btn" aria-label="Toggle navigation"><span></span><span></span><span></span></button>
+        </div>
+    </header>
+    <main>
+        <section id="hero" class="hero">
+            <div class="container hero-content">
+                <h1 class="hero-title">Compassionate Healthcare for Your Beloved Pets</h1>
+                <p class="hero-subhead">{desc_text}</p>
+                <a href="#contact" class="btn-primary">Book an Appointment</a>
+            </div>
+        </section>
+        <section id="about" class="container" style="padding: 4rem 1.5rem;">
+            <h2>Expert Veterinary Medicine You Can Trust</h2>
+            <p>Our dedicated veterinary hospital combines cutting-edge diagnostics with compassionate bedside care to ensure your companion animal lives a long, healthy life.</p>
+        </section>
+        <section id="services" class="container services-section">
+            <h2>Clinical Specialties & Care Services</h2>
+            <div class="filter-container">
+                <input type="text" id="service-search" class="search-input" placeholder="Search veterinary services...">
+                <div class="filter-buttons" id="category-filters">
+                    <button class="filter-pill active" data-category="all">All Specialties</button>
+                    <button class="filter-pill" data-category="preventive">Preventive</button>
+                    <button class="filter-pill" data-category="surgery">Surgery</button>
+                    <button class="filter-pill" data-category="diagnostics">Diagnostics</button>
+                    <button class="filter-pill" data-category="urgent">Urgent Care</button>
+                </div>
+            </div>
+            <div id="services-grid" class="services-grid"></div>
+        </section>
+        <section id="contact" class="contact-section">
+            <div class="container">
+                <h2 style="text-align: center;">Schedule a Pet Wellness Visit</h2>
+                <form id="appointment-form" class="appointment-form" novalidate>
+                    <div class="form-group"><label class="form-label" for="pet-name">Pet Name *</label><input type="text" id="pet-name" class="form-control" required placeholder="e.g. Barnaby"></div>
+                    <div class="form-group"><label class="form-label" for="owner-email">Owner Email *</label><input type="email" id="owner-email" class="form-control" required placeholder="e.g. owner@example.com"></div>
+                    <div class="form-group"><label class="form-label" for="service-type">Service Type *</label>
+                        <select id="service-type" class="form-control" required>
+                            <option value="" disabled selected>Select a clinical service</option>
+                            <option value="Wellness Exam">Wellness Exam</option>
+                            <option value="Advanced Surgery">Advanced Surgery</option>
+                            <option value="Dental Healthcare">Dental Healthcare</option>
+                            <option value="Digital Diagnostics">Digital Diagnostics</option>
+                            <option value="Urgent Medical Care">Urgent Medical Care</option>
+                            <option value="Physical Rehabilitation">Physical Rehabilitation</option>
+                        </select>
+                    </div>
+                    <div class="form-group"><label class="form-label" for="appointment-date">Target Date *</label><input type="date" id="appointment-date" class="form-control" required></div>
+                    <button type="submit" class="btn-primary" style="width: 100%; justify-content: center;">Submit Appointment Request</button>
+                    <div id="form-feedback" class="form-feedback" role="alert"></div>
+                </form>
+            </div>
+        </section>
+    </main>
+    <div id="care-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-hidden="true">
+        <div class="modal-dialog">
+            <button id="modal-close" class="modal-close" aria-label="Close modal">&times;</button>
+            <div id="modal-body"></div>
+        </div>
+    </div>
+    <footer id="footer" class="site-footer">
+        <div class="container"><p>&copy; 2026 {app_name}. Demonstration Mode.</p></div>
+    </footer>
     <script src="app.js"></script>
 </body>
 </html>"""
         html_path.write_text(html_content, encoding="utf-8")
+        WorkspaceOwnershipManifest.register_generated_file(html_path, ws, generator="foundation_scaffolder")
 
+    # 4. app.js
     js_path = ws / "app.js"
-    if not js_path.exists() or js_path.stat().st_size < 10:
-        js_path.write_text("console.log('App ready');", encoding="utf-8")
+    if not js_path.exists() or js_path.stat().st_size < 50:
+        js_content = f"""/**
+ * {app_name} — Veterinary Clinic Application Logic
+ */
+document.addEventListener('DOMContentLoaded', () => {{
+    const services = [
+        {{
+            id: 'wellness',
+            title: 'Comprehensive Wellness Exams',
+            category: 'preventive',
+            image: 'assets/images/services/wellness.jpg',
+            fallbackImage: 'assets/images/hero/hero-general.jpg',
+            desc: 'Thorough head-to-tail physical examinations, customized vaccine schedules, and wellness blood panels.'
+        }},
+        {{
+            id: 'surgery',
+            title: 'Advanced Soft Tissue Surgery',
+            category: 'surgery',
+            image: 'assets/images/services/surgery.jpg',
+            fallbackImage: 'assets/images/hero/hero-general.jpg',
+            desc: 'State-of-the-art surgical suite with continuous multiparameter anesthetic monitoring and postoperative pain relief.'
+        }},
+        {{
+            id: 'dental',
+            title: 'Veterinary Dental Healthcare',
+            category: 'preventive',
+            image: 'assets/images/services/dental.jpg',
+            fallbackImage: 'assets/images/hero/hero-general.jpg',
+            desc: 'Ultrasonic scaling, dental digital radiography, subgingival polishing, and surgical extractions.'
+        }},
+        {{
+            id: 'diagnostics',
+            title: 'Digital Imaging & Ultrasound',
+            category: 'diagnostics',
+            image: 'assets/images/services/diagnostics.jpg',
+            fallbackImage: 'assets/images/hero/hero-general.jpg',
+            desc: 'High-resolution digital radiology, abdominal ultrasonography, and rapid in-house clinical pathology.'
+        }},
+        {{
+            id: 'urgent',
+            title: 'Emergency & Urgent Medical Care',
+            category: 'urgent',
+            image: 'assets/images/services/urgent.jpg',
+            fallbackImage: 'assets/images/hero/hero-general.jpg',
+            desc: 'Rapid triage, supplemental oxygen therapy, trauma stabilization, and intensive critical care.'
+        }},
+        {{
+            id: 'rehab',
+            title: 'Integrative Physical Rehabilitation',
+            category: 'preventive',
+            image: 'assets/images/services/rehab.jpg',
+            fallbackImage: 'assets/images/hero/hero-general.jpg',
+            desc: 'Companion therapeutic laser treatments, targeted hydrotherapy, and custom mobility restoration plans.'
+        }}
+    ];
+
+    const grid = document.getElementById('services-grid');
+    const search = document.getElementById('service-search');
+    const filterBtns = document.querySelectorAll('.filter-pill');
+    const modal = document.getElementById('care-modal');
+    const modalClose = document.getElementById('modal-close');
+    const modalBody = document.getElementById('modal-body');
+    const form = document.getElementById('appointment-form');
+    const feedback = document.getElementById('form-feedback');
+
+    let activeCat = 'all';
+    let q = '';
+
+    function render() {{
+        if (!grid) return;
+        const filtered = services.filter(s => {{
+            const mCat = activeCat === 'all' || s.category === activeCat;
+            const mQ = !q || s.title.toLowerCase().includes(q) || s.desc.toLowerCase().includes(q);
+            return mCat && mQ;
+        }});
+        grid.innerHTML = filtered.map(s => `
+            <div class="service-card" data-category="${{s.category}}" data-service-id="${{s.id}}">
+                <div class="service-img-wrap">
+                    <img src="${{s.image}}" alt="${{s.title}}" class="service-img" loading="eager" onerror="this.onerror=null; this.src='${{s.fallbackImage}}';">
+                </div>
+                <h3 style="font-size: 1.25rem; margin-bottom: 0.5rem; color: var(--primary-color);">${{s.title}}</h3>
+                <p style="margin: 0.5rem 0 1.25rem; color: var(--text-secondary); flex-grow: 1;">${{s.desc}}</p>
+                <button class="btn-primary btn-service-details" data-id="${{s.id}}" style="padding: 0.5rem 1rem; font-size: 0.85rem; align-self: flex-start;">View Details</button>
+            </div>
+        `).join('');
+
+        grid.querySelectorAll('.btn-service-details').forEach(btn => {{
+            btn.addEventListener('click', () => {{
+                const item = services.find(s => s.id === btn.dataset.id);
+                if (item && modal && modalBody) {{
+                    modalBody.innerHTML = `
+                        <div style="aspect-ratio: 16/10; overflow: hidden; border-radius: var(--radius-sm); margin-bottom: 1.25rem;">
+                            <img src="${{item.image}}" alt="${{item.title}}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.onerror=null; this.src='${{item.fallbackImage}}';">
+                        </div>
+                        <h2 id="modal-service-title" style="color: var(--primary-color); margin-bottom: 0.75rem;">${{item.title}}</h2>
+                        <p style="margin: 1rem 0; color: var(--text-secondary);">${{item.desc}}</p>
+                        <p><strong>Clinical Category:</strong> ${{item.category}}</p>
+                    `;
+                    modal.classList.add('open');
+                    modal.setAttribute('aria-hidden', 'false');
+                    if (modalClose) modalClose.focus();
+                }}
+            }});
+        }});
+    }}
+
+    filterBtns.forEach(b => {{
+        b.addEventListener('click', () => {{
+            filterBtns.forEach(x => x.classList.remove('active'));
+            b.classList.add('active');
+            activeCat = b.dataset.category || 'all';
+            render();
+        }});
+    }});
+
+    if (search) {{
+        search.addEventListener('input', (e) => {{
+            q = e.target.value.toLowerCase().trim();
+            render();
+        }});
+    }}
+
+    function closeModal() {{
+        if (!modal) return;
+        modal.classList.remove('open');
+        modal.setAttribute('aria-hidden', 'true');
+    }}
+
+    if (modalClose) modalClose.addEventListener('click', closeModal);
+    if (modal) modal.addEventListener('click', (e) => {{ if (e.target === modal) closeModal(); }});
+    document.addEventListener('keydown', (e) => {{ if (e.key === 'Escape' && modal && modal.classList.contains('open')) closeModal(); }});
+
+    if (form && feedback) {{
+        form.addEventListener('submit', (e) => {{
+            e.preventDefault();
+            const petInput = document.getElementById('pet-name');
+            const emailInput = document.getElementById('owner-email');
+            const serviceInput = document.getElementById('service-type');
+            const dateInput = document.getElementById('appointment-date');
+
+            const pet = petInput ? petInput.value.trim() : '';
+            const email = emailInput ? emailInput.value.trim() : '';
+            const service = serviceInput ? serviceInput.value : '';
+            const dt = dateInput ? dateInput.value : '';
+
+            if (!pet || !email || !service || !dt) {{
+                feedback.className = 'form-feedback error';
+                feedback.textContent = 'Please fill out all required fields marked with an asterisk (*).';
+                return;
+            }}
+
+            feedback.className = 'form-feedback success';
+            feedback.textContent = `Thank you! Appointment request for ${{pet}} (${{service}}) on ${{dt}} has been validated in demonstration mode. No actual booking was made.`;
+            form.reset();
+        }});
+    }}
+
+    render();
+}});
+"""
+        js_path.write_text(js_content, encoding="utf-8")
+        WorkspaceOwnershipManifest.register_generated_file(js_path, ws, generator="foundation_scaffolder")
 
     return True
 
 
-# ==============================================================================
-# 3. WANDERWORLD FOUNDATION (ONLY EXECUTED IF PROMPT EXPLICITLY ASKS FOR IT)
-# ==============================================================================
+def _seed_universal_foundation(
+    ws: Path,
+    prompt: str,
+    contract: Optional[Any],
+    design_brief: Optional[Any],
+) -> bool:
+    from core.mission_spec import MissionSpecification
+    from core.universal_renderer import UniversalContentRenderer
+
+    # Check if a persisted mission spec already exists in workspace
+    spec = MissionSpecification.load_from_workspace(ws)
+    if not spec:
+        spec = MissionSpecification.from_prompt(prompt, ws, design_brief=design_brief)
+        spec.persist(ws)
+
+    return UniversalContentRenderer.render(ws, spec)
+
 
 def _seed_wanderworld_foundation(
     ws: Path,

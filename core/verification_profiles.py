@@ -57,6 +57,14 @@ def classify_verification_profile(
     Classify the incoming prompt and context into the appropriate verification profile.
     """
     p_lower = prompt.lower()
+    # Check smoke / diagnostic test cues first
+    smoke_cues = (
+        "smoke test", "smoke_test", "diagnostic test",
+        "live write-tool", "write tool verification", "test write", "simple test"
+    )
+    if any(cue in p_lower for cue in smoke_cues):
+        return VerificationProfile.PROFILE_A
+
     # Check negative cues first: if prompt explicitly asks for Python, CLI, terminal, backend, or script
     explicit_non_web = any(k in p_lower for k in (
         "python script", "python program", "python package", "python cli", "python module",

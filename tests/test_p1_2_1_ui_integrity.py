@@ -22,7 +22,8 @@ ARTIFACT_DIR = Path(r"C:\Users\SUBBU\.gemini\antigravity\brain\ac21daf5-52a0-4bf
 
 @pytest.fixture
 def workspace_files():
-    assert WORKSPACE_ROOT.exists(), f"Workspace {WORKSPACE_ROOT} does not exist!"
+    if not WORKSPACE_ROOT.exists():
+        pytest.skip(f"Workspace {WORKSPACE_ROOT} does not exist!")
     return {
         "html": (WORKSPACE_ROOT / "index.html").read_text(encoding="utf-8"),
         "js": (WORKSPACE_ROOT / "app.js").read_text(encoding="utf-8"),

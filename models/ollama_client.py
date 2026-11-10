@@ -129,8 +129,7 @@ class OllamaClient(ModelProvider):
         self._last_loaded_model: Optional[str] = None
         self._semaphore: Optional[asyncio.Semaphore] = semaphore
 
-    @classmethod
-    async def is_available(cls, base_url: str = "http://127.0.0.1:11434", timeout: float = 1.0) -> bool:
+    async def is_available(self_or_cls, base_url: Optional[str] = None, timeout: float = 1.0) -> bool:
         """
         Check if the local Ollama daemon is currently running and reachable.
         Does not hang or spawn processes during passive availability checks.
@@ -138,19 +137,18 @@ class OllamaClient(ModelProvider):
         """
         import httpx
         try:
-            target_url = getattr(cls, "base_url", base_url) if not isinstance(cls, type) else base_url
+            target_url = base_url if base_url is not None else getattr(self_or_cls, "base_url", "http://127.0.0.1:11434")
             async with httpx.AsyncClient(timeout=timeout) as client:
                 r = await client.get(f"{target_url}/api/tags")
                 return r.status_code == 200
         except Exception:
             return False
 
-    @classmethod
-    def is_available_sync(cls, base_url: str = "http://127.0.0.1:11434", timeout: float = 1.0) -> bool:
+    def is_available_sync(self_or_cls, base_url: Optional[str] = None, timeout: float = 1.0) -> bool:
         """Synchronous connectivity check for Ollama endpoint."""
         import urllib.request
         try:
-            target_url = getattr(cls, "base_url", base_url) if not isinstance(cls, type) else base_url
+            target_url = base_url if base_url is not None else getattr(self_or_cls, "base_url", "http://127.0.0.1:11434")
             req = urllib.request.Request(f"{target_url}/api/tags")
             with urllib.request.urlopen(req, timeout=timeout) as resp:
                 return resp.status == 200

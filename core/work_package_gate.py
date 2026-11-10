@@ -93,19 +93,15 @@ class WorkPackageGater:
         else:
             evidence["frontend_contract_present"] = True
 
-        # JavaScript primary entrypoint check
+        # JavaScript entrypoint check (recorded in evidence if present)
         js_candidates = [ws / "app.js", ws / "main.js", ws / "index.js", ws / "static" / "app.js", ws / "static" / "main.js"]
         js_file = next((f for f in js_candidates if f.exists() and f.stat().st_size > 10), None)
-        if not js_file:
-            missing.append("Missing primary JavaScript application entrypoint (app.js).")
-        else:
+        if js_file:
             evidence["js_file"] = str(js_file.name)
 
-        # package.json check (mandatory for foundation)
+        # package.json check (valid JSON if present)
         pkg_file = ws / "package.json"
-        if not pkg_file.exists() or pkg_file.stat().st_size < 10:
-            missing.append("Missing project configuration (package.json).")
-        else:
+        if pkg_file.exists():
             try:
                 json.loads(pkg_file.read_text(encoding="utf-8", errors="ignore"))
                 evidence["package_json_valid"] = True
@@ -113,9 +109,42 @@ class WorkPackageGater:
                 missing.append(f"package.json is malformed: {e}")
 
         # Enforce that directory presence alone (.hermes, .artifacts, assets) cannot satisfy foundation
-        source_files_present = bool(html_file and css_file and js_file and pkg_file.exists() and pkg_file.stat().st_size >= 10)
+        source_files_present = bool(html_file and css_file)
         if not source_files_present:
-            missing.append("Foundation requires real application source files (index.html, style.css, app.js, package.json), not merely directories.")
+            missing.append("Foundation requires real application source files (index.html, style.css), not merely directories.")
+
+        # Strict rejection of generic uncustomized scaffold placeholders
+        banned_generic_markers = [
+            "modern web application",
+            "welcome to modern application",
+            "signature offering",
+            "strategic solution",
+            "advanced initiative",
+            "bespoke service",
+            "console.log('app ready')",
+            'console.log("app ready")',
+        ]
+        if html_file:
+            h_raw = html_file.read_text(encoding="utf-8", errors="ignore")
+            h_raw_lower = h_raw.lower()
+            for gm in banned_generic_markers:
+                if gm in h_raw_lower:
+                    m_case = re.search(re.escape(gm), h_raw, re.IGNORECASE)
+                    display_gm = m_case.group(0) if m_case else gm.title()
+                    missing.append(f"Primary entrypoint (index.html) contains generic uncustomized placeholder ('{display_gm}'). Must establish domain-specific brand identity.")
+            if 'data-category="primary"' in h_raw_lower or 'data-category="special"' in h_raw_lower or '>all items<' in h_raw_lower:
+                missing.append("Primary entrypoint (index.html) contains generic filter placeholders ('primary', 'special', 'all items'). Must use domain-specific categories.")
+        if pkg_file and pkg_file.exists():
+            try:
+                pkg_json = json.loads(pkg_file.read_text(encoding="utf-8", errors="ignore"))
+                if pkg_json.get("name") in ("modern-web-app", "app", "application"):
+                    missing.append(f"package.json has generic project name '{pkg_json.get('name')}'. Must use prompt-derived brand name.")
+            except Exception:
+                pass
+        if js_file:
+            js_raw = js_file.read_text(encoding="utf-8", errors="ignore").strip()
+            if js_raw in ("console.log('App ready');", "console.log('app ready');", "console.log('ready');", ""):
+                missing.append("Primary JavaScript entrypoint (app.js) is a generic stub ('console.log(\'App ready\');'). Must contain application logic or state.")
 
         passed = len(missing) == 0
         summary = "Foundation work package satisfied." if passed else f"Foundation gate blocked by {len(missing)} missing criteria."
@@ -187,6 +216,60 @@ class WorkPackageGater:
             if not populates_grid or not has_render:
                 missing.append(f"Content grid container div #{g_id} is empty in HTML and JavaScript does not populate it.")
 
+        # Generic placeholder rejection
+        banned_content_markers = [
+            "modern web application",
+            "welcome to modern application",
+            "signature offering",
+            "strategic solution",
+            "advanced initiative",
+            "bespoke service",
+        ]
+        for bm in banned_content_markers:
+            if bm in html_text.lower():
+                m_case = re.search(re.escape(bm), html_text, re.IGNORECASE)
+                display_bm = m_case.group(0) if m_case else bm.title()
+                missing.append(f"Content gate rejected: index.html contains generic placeholder markup ('{display_bm}').")
+
+        # Semantic domain keyword & required sections coverage check
+        try:
+            from core.mission_spec import MissionSpecification
+            spec = MissionSpecification.load_from_workspace(ws)
+            if spec:
+                if spec.semantic_keywords:
+                    matched_kw = [kw for kw in spec.semantic_keywords if kw.lower() in html_text.lower() or kw.lower() in js_text.lower()]
+                    if len(matched_kw) < 2:
+                        missing.append(f"Content gate rejected: Generated deliverables lack domain-specific semantic coverage (found only {matched_kw} out of required domain terms {spec.semantic_keywords[:5]}).")
+                if spec.required_sections:
+                    for s in spec.required_sections:
+                        sid = s.get("id") if isinstance(s, dict) else str(s)
+                        scomp = s.get("component", "") if isinstance(s, dict) else ""
+                        stitle = s.get("title", "") if isinstance(s, dict) else ""
+                        if sid in ("navbar", "footer"):
+                            continue
+                        if (sid and f'id="{sid}"' not in html_text and f"id='{sid}'" not in html_text
+                            and (not scomp or scomp not in html_text.lower())
+                            and (not stitle or stitle.lower() not in html_text.lower())):
+                            missing.append(f"Content gate rejected: Required section '{sid}' ({stitle or scomp}) missing in rendered HTML.")
+                if getattr(spec, "requirement_ledger", None):
+                    for req in spec.requirement_ledger:
+                        sel = req.get("expected_dom_selector", "")
+                        req_id = req.get("req_id", "REQ")
+                        if sel.startswith("#"):
+                            dom_id = sel[1:]
+                            if f'id="{dom_id}"' not in html_text and f"id='{dom_id}'" not in html_text and f'#{dom_id}' not in js_text and f'"{dom_id}"' not in js_text and f"'{dom_id}'" not in js_text:
+                                missing.append(f"Content gate rejected: Requirement ledger item '{req_id}' selector '{sel}' missing in rendered HTML/JS.")
+                        elif sel == "img":
+                            if "<img" not in html_text.lower() and "img" not in js_text.lower():
+                                missing.append(f"Content gate rejected: Requirement ledger item '{req_id}' selector 'img' missing in rendered HTML/JS.")
+                if "<form" in html_text.lower():
+                    if "demonstration" not in html_text.lower() and "simulated" not in html_text.lower():
+                        missing.append("Content gate rejected: Interactive form lacks explicit demonstration/simulation disclosure notice.")
+        except Exception:
+            pass
+        if js_text.strip() in ("console.log('App ready');", "console.log('app ready');", "console.log('ready');", ""):
+            missing.append("Content gate rejected: app.js contains generic stub ('console.log(\'App ready\');') without substantive interactive data or functions.")
+
         # Brand integrity & Cross-contamination check
         if contract:
             brand = (getattr(contract, "app_name", "") or "").lower()
@@ -195,29 +278,36 @@ class WorkPackageGater:
 
             if brand and brand not in html_text.lower() and brand not in js_text.lower():
                 missing.append(f"Brand integrity check failed: expected brand '{brand}' not found in HTML or JavaScript.")
-            
-            # If expected brand is education/NorthStar, explicitly forbid WanderWorld contamination
-            if "northstar" in brand or "university" in brand or "college" in brand:
-                wander_terms = ["wanderworld", "bali", "swiss alps", "paris getaway", "dubai luxury", "hero-wanderlust", "saffron & stone", "paneer tikka"]
-                found_contam = [w for w in wander_terms if w in html_text.lower() or w in js_text.lower()]
-                if found_contam:
-                    missing.append(f"Cross-contamination detected: foreign artifacts ({', '.join(found_contam)}) found in {brand} project.")
-            elif any(k in brand for k in ["saffron", "stone", "restaurant", "bistro", "culinary"]):
-                foreign_terms = ["wanderworld", "bali", "swiss alps", "paris getaway", "dubai luxury", "hero-wanderlust", "northstar university", "collegiate", "nova apex pro", "nova sonic"]
-                found_contam = [w for w in foreign_terms if w in html_text.lower() or w in js_text.lower()]
-                if found_contam:
-                    missing.append(f"Cross-contamination detected: foreign artifacts ({', '.join(found_contam)}) found in {brand} project.")
-            elif any(k in brand for k in ["nova", "electronics", "store", "ecommerce"]) or getattr(contract, "business_domain", "").startswith("ecommerce"):
-                foreign_terms = ["wanderworld", "bali", "swiss alps", "paris getaway", "dubai luxury", "hero-wanderlust", "saffron & stone", "saffron and stone", "paneer tikka", "dum biryani", "tandoori", "northstar university", "collegiate quadrangle"]
-                found_contam = [w for w in foreign_terms if w in html_text.lower() or w in js_text.lower()]
-                if found_contam:
-                    missing.append(f"Cross-contamination detected: foreign artifacts ({', '.join(found_contam)}) found in {brand} project.")
+
+            # Universal Cross-contamination checks
+            foreign_matrix = {
+                "saffron": ["saffron & stone", "saffron and stone", "paneer tikka", "dum biryani", "tandoori"],
+                "nova": ["nova apex", "nova sonic", "nova horizon", "smartphones", "laptops", "earbuds"],
+                "wanderworld": ["wanderworld", "bali getaway", "swiss alps expedition", "hero-wanderlust"],
+                "northstar": ["northstar university", "collegiate quadrangle", "faculty-grid"],
+                "atlas": ["atlas robotics", "autonomous mobile robots", "solutions-grid"],
+                "form_field": ["form & field", "form and field", "the monolith pavilion"],
+            }
+            for dom_key, terms in foreign_matrix.items():
+                if not any(k in brand for k in [dom_key, dom_key.replace("_", " "), dom_key.replace("_", " & ")]):
+                    leaks = [t for t in terms if t in html_text.lower() or t in js_text.lower()]
+                    if leaks:
+                        missing.append(f"Cross-contamination detected: foreign artifacts ({', '.join(leaks)}) found in {brand} project.")
 
         # Check asset references
         imgs = re.findall(r'<img\s+[^>]*>', html_text, re.I)
         missing_alt = [img for img in imgs if 'alt=' not in img.lower()]
         if missing_alt:
             missing.append(f"{len(missing_alt)} image(s) lack required accessibility alt attributes.")
+
+        try:
+            from core.asset_pipeline import AssetPipeline
+            assets_ok, missing_assets, found_assets = AssetPipeline.verify_workspace_assets(ws)
+            for m in missing_assets:
+                if "Duplicate" in m or "identical" in m:
+                    missing.append(f"Content gate rejected: {m}")
+        except Exception:
+            pass
 
         passed = len(missing) == 0
         summary = "Content work package satisfied." if passed else f"Content gate blocked by {len(missing)} missing criteria."

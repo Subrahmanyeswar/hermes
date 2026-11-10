@@ -140,18 +140,18 @@ class ReadFileTool(BaseTool):
             _READ_LOOP_TRACKER[track_key] = (content_hash, count)
 
             duration = time.monotonic() - start
-            if count >= 2:
+            if count >= 4:
                 return ToolResult(
                     success=False,
                     error=(
-                        f"TOOL_REJECTED_NO_PROGRESS: Target '{inp.path}' was read {count} times without intermediate modifications "
+                        f"NO_PROGRESS_LOOP_ENFORCEMENT: TOOL_REJECTED_NO_PROGRESS: Target '{inp.path}' was read {count} times without intermediate modifications "
                         f"(SHA-256 {content_hash[:8]} unchanged). Re-reading without modifications is forbidden. "
                         "Proceed immediately to creating missing files using fs.write, modifying code using fs.edit, or running tests."
                     ),
                     exit_code=1,
                     duration_seconds=duration,
                     details={
-                        "code": "TOOL_REJECTED_NO_PROGRESS",
+                        "code": "UNCHANGED_READ",
                         "path": str(inp.path),
                         "read_count": count,
                         "hash": content_hash,

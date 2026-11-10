@@ -30,7 +30,10 @@ from core.browser.models import BrowserSessionConfig, Viewport
 # Import LabFlow server from the empty build test challenge workspace
 LABFLOW_DIR = Path(r"C:\Users\SUBBU\Downloads\HERMES_EMPTY_BUILD_TEST")
 sys.path.insert(0, str(LABFLOW_DIR))
-from server import LabFlowHandler, init_database  # type: ignore
+try:
+    from server import LabFlowHandler, init_database  # type: ignore
+except ImportError:
+    pytest.skip("HERMES_EMPTY_BUILD_TEST workspace not available", allow_module_level=True)
 
 EDGE_BINARY_PATH = r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe"
 SCREENSHOTS_DIR = Path(r"C:\Users\SUBBU\Downloads\hermes\artifacts\phase12\screenshots")

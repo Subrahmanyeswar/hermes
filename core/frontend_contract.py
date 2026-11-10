@@ -967,7 +967,7 @@ class FrontendContractBuilder:
         # ------------------------------------------------------------------
         # 3. TRAVEL / WANDERWORLD DOMAIN
         # ------------------------------------------------------------------
-        if domain == "travel_tourism" or "wanderworld" in task_lower:
+        if ("wanderworld" in task_lower) or ("destinations-grid" in task_lower):
             app_name = "WanderWorld"
             components = [
                 ComponentContract(id="navbar", name="Navigation Bar", tag="nav", required_classes=["navbar", "nav-container"]),
@@ -1107,45 +1107,344 @@ class FrontendContractBuilder:
             )
 
         # ------------------------------------------------------------------
-        # 3. GENERAL / NEUTRAL DOMAIN
+        # 3. ARCHITECTURE & INTERIOR DESIGN STUDIO DOMAIN (e.g. FORM & FIELD)
         # ------------------------------------------------------------------
-        app_name = "Application"
+        if ("form & field" in task_clean_lower) or ("form and field" in task_clean_lower):
+            app_name = detected_brand if detected_brand != "Application" else "FORM & FIELD"
+            brand_pos = "Independent architecture and interior design studio crafting timeless spaces with sustainable materials, monolithic form, and serene spatial balance."
+            target_aud = "Discerning residential and commercial clients, developers, and architectural enthusiasts."
+            req_content = ["architectural portfolio", "sustainable design philosophy", "project details modal", "consultation enquiry"]
+            req_vis = "Warm ivory, charcoal, and muted olive color palette. Monolithic typography, expansive architectural photography, tactile materiality."
+
+            components = [
+                ComponentContract(id="navbar", name="Studio Navigation Header", tag="header", required_classes=["site-header", "navbar"]),
+                ComponentContract(id="hero", name="Architectural Hero Statement", tag="section", required_classes=["hero", "hero-content"]),
+                ComponentContract(id="philosophy", name="Sustainable Design Philosophy", tag="section", required_classes=["container", "about-section"]),
+                ComponentContract(
+                    id="portfolio",
+                    name="Curated Project Portfolio",
+                    tag="section",
+                    required_classes=["portfolio-section"],
+                    rendering_ownership="dynamic",
+                    render_target_id="portfolio-grid",
+                    data_sources=["projects_data"],
+                ),
+                ComponentContract(id="services", name="Studio Disciplines & Services", tag="section", required_classes=["container", "services-section"]),
+                ComponentContract(id="contact", name="Consultation & Inquiries", tag="section", required_classes=["container", "contact-section"]),
+                ComponentContract(id="consultation-form", name="Consultation Request Form", tag="form", required_classes=["consultation-form"], is_form=True),
+                ComponentContract(id="project-modal", name="Project Inspection Modal", tag="div", required_classes=["modal-overlay", "modal-dialog"], is_modal=True),
+                ComponentContract(id="footer", name="Studio Footer", tag="footer", required_classes=["site-footer"]),
+            ]
+
+            dom_state = DomAndStateContract(
+                required_static_ids=[
+                    "navbar", "hero", "philosophy", "portfolio", "portfolio-grid",
+                    "project-search", "category-filters", "services",
+                    "contact", "consultation-form", "project-modal", "modal-close", "mobile-menu-btn",
+                ],
+                required_static_classes=[
+                    "site-header", "hero", "project-card", "filter-pill",
+                    "modal-overlay", "site-footer", "btn-primary",
+                ],
+                dynamic_ids=["portfolio-grid"],
+                dynamic_classes=["active", "open", "hidden"],
+                data_attributes=["data-category", "data-project-id"],
+                event_handlers=[
+                    {"target": "#project-search", "event": "input", "action": "filterProjects"},
+                    {"target": ".filter-pill", "event": "click", "action": "filterByCategory"},
+                    {"target": ".btn-project-details", "event": "click", "action": "openProjectModal"},
+                    {"target": "#modal-close", "event": "click", "action": "closeProjectModal"},
+                    {"target": "#consultation-form", "event": "submit", "action": "submitConsultation"},
+                ],
+                interactions=[
+                    {
+                        "trigger": "Category filter pill click",
+                        "expected_state_change": "Filters portfolio projects by category",
+                        "expected_result": "Displays matching architectural project cards",
+                    },
+                    {
+                        "trigger": "Search input typing",
+                        "expected_state_change": "Searches projects in real time by name, material, or location",
+                        "expected_result": "Live DOM update of portfolio grid",
+                    },
+                    {
+                        "trigger": "Project card click",
+                        "expected_state_change": "Opens project modal with specifications and materials",
+                        "expected_result": "Modal dialog opens with focus trapped",
+                    },
+                    {
+                        "trigger": "Consultation form submit",
+                        "expected_state_change": "Validates inputs and displays demonstration confirmation",
+                        "expected_result": "Feedback message displayed without misleading claims",
+                    },
+                ],
+            )
+
+            tokens = {
+                "--primary-color": "#1c1d21",
+                "--secondary-color": "#556b2f",
+                "--accent-color": "#8c7b65",
+                "--bg-main": "#fbf9f5",
+                "--bg-card": "#ffffff",
+                "--text-primary": "#1c1d21",
+                "--text-secondary": "#6b7280",
+                "--border-color": "#e5e2da",
+                "--radius-sm": "4px",
+                "--radius-md": "8px",
+                "--radius-lg": "12px",
+                "--shadow-card": "0 4px 20px -2px rgba(28, 29, 33, 0.06)",
+            }
+            if design_brief and hasattr(design_brief, "color_palette"):
+                for k, v in getattr(design_brief, "color_palette", {}).items():
+                    tokens[f"--{k}"] = v
+
+            css = CssContract(
+                design_tokens=tokens,
+                layout_strategy="responsive_grid_flex",
+                component_selectors=[
+                    ".site-header", ".navbar", ".hero", ".project-card", ".portfolio-grid",
+                    ".filter-pill", ".modal-overlay", ".site-footer", ".consultation-form",
+                ],
+                responsive_breakpoints=["768px", "1024px"],
+            )
+
+            js = JavaScriptContract(
+                authoritative_entrypoint="app.js",
+                secondary_modules=[],
+                state_management="vanilla_store",
+                rendering_functions=["renderProjects", "openProjectModal", "closeProjectModal", "filterProjects", "submitConsultation"],
+            )
+
+            assets = [
+                AssetContractItem(intended_component="hero", relative_path="assets/images/hero/hero-architecture.jpg", alt_text="Monolithic modern architecture studio facade"),
+                AssetContractItem(intended_component="project-1", relative_path="assets/images/projects/pavilion.jpg", alt_text="The Monolith Pavilion"),
+                AssetContractItem(intended_component="project-2", relative_path="assets/images/projects/sanctuary.jpg", alt_text="Highland Minimalist Sanctuary"),
+                AssetContractItem(intended_component="project-3", relative_path="assets/images/projects/villa.jpg", alt_text="Olive Grove Villa"),
+                AssetContractItem(intended_component="project-4", relative_path="assets/images/projects/loft.jpg", alt_text="Obsidian Urban Loft"),
+                AssetContractItem(intended_component="project-5", relative_path="assets/images/projects/gallery.jpg", alt_text="Kyoto Timber Gallery"),
+                AssetContractItem(intended_component="project-6", relative_path="assets/images/projects/eco-residence.jpg", alt_text="Dune Eco-Residence"),
+            ]
+
+            return FrontendImplementationContract(
+                version=1,
+                mission_id=mission_id,
+                app_name=app_name,
+                business_domain="architecture_interior",
+                cuisine_subtype="",
+                brand_positioning=brand_pos,
+                target_audience=target_aud,
+                requested_content=req_content,
+                requested_visual_direction=req_vis,
+                architecture=arch,
+                components=components,
+                dom_and_state=dom_state,
+                css=css,
+                javascript=js,
+                assets=assets,
+            )
+
+        # ------------------------------------------------------------------
+        # 4. VETERINARY & PET CARE CLINIC DOMAIN
+        # ------------------------------------------------------------------
+        if ("paws & claws" in task_clean_lower) or ("paws and claws" in task_clean_lower):
+            app_name = detected_brand if detected_brand != "Application" else "Paws & Claws Veterinary Clinic"
+            brand_pos = "Comprehensive pet wellness, advanced surgical care, and compassionate veterinary services."
+            target_aud = "Pet owners, animal lovers, and companion caregivers."
+            req_content = ["clinical services", "wellness plans", "pet care modal", "appointment booking"]
+            req_vis = "Clinical teal, friendly mint, and warm amber accents. Compassionate, welcoming, modern healthcare aesthetic."
+
+            components = [
+                ComponentContract(id="navbar", name="Clinic Navigation Header", tag="header", required_classes=["site-header", "navbar"]),
+                ComponentContract(id="hero", name="Compassionate Care Hero", tag="section", required_classes=["hero", "hero-content"]),
+                ComponentContract(id="about", name="Our Medical Philosophy & Team", tag="section", required_classes=["container", "about-section"]),
+                ComponentContract(
+                    id="services",
+                    name="Veterinary Services & Specialties",
+                    tag="section",
+                    required_classes=["services-section"],
+                    rendering_ownership="dynamic",
+                    render_target_id="services-grid",
+                    data_sources=["services_data"],
+                ),
+                ComponentContract(id="contact", name="Appointments & Inquiries", tag="section", required_classes=["container", "contact-section"]),
+                ComponentContract(id="appointment-form", name="Appointment Booking Form", tag="form", required_classes=["appointment-form"], is_form=True),
+                ComponentContract(id="care-modal", name="Service Detail Inspection Modal", tag="div", required_classes=["modal-overlay", "modal-dialog"], is_modal=True),
+                ComponentContract(id="footer", name="Clinic Footer", tag="footer", required_classes=["site-footer"]),
+            ]
+
+            dom_state = DomAndStateContract(
+                required_static_ids=[
+                    "navbar", "hero", "about", "services", "services-grid",
+                    "service-search", "category-filters",
+                    "contact", "appointment-form", "care-modal", "modal-close", "mobile-menu-btn",
+                ],
+                required_static_classes=[
+                    "site-header", "hero", "service-card", "filter-pill",
+                    "modal-overlay", "site-footer", "btn-primary",
+                ],
+                dynamic_ids=["services-grid"],
+                dynamic_classes=["active", "open", "hidden"],
+                data_attributes=["data-category", "data-service-id"],
+                event_handlers=[
+                    {"target": "#service-search", "event": "input", "action": "filterServices"},
+                    {"target": ".filter-pill", "event": "click", "action": "filterByCategory"},
+                    {"target": ".btn-service-details", "event": "click", "action": "openCareModal"},
+                    {"target": "#modal-close", "event": "click", "action": "closeCareModal"},
+                    {"target": "#appointment-form", "event": "submit", "action": "submitAppointment"},
+                ],
+            )
+
+            tokens = {
+                "--primary-color": "#0f766e",
+                "--secondary-color": "#14b8a6",
+                "--accent-color": "#f59e0b",
+                "--bg-main": "#f0fdfa",
+                "--bg-card": "#ffffff",
+                "--text-primary": "#134e4a",
+                "--text-secondary": "#475569",
+                "--border-color": "#ccfbf1",
+                "--radius-sm": "6px",
+                "--radius-md": "10px",
+                "--radius-lg": "16px",
+                "--shadow-card": "0 4px 15px rgba(15, 118, 110, 0.08)",
+            }
+            if design_brief and hasattr(design_brief, "color_palette"):
+                for k, v in getattr(design_brief, "color_palette", {}).items():
+                    tokens[f"--{k}"] = v
+
+            css = CssContract(
+                design_tokens=tokens,
+                layout_strategy="responsive_grid_flex",
+                component_selectors=[
+                    ".site-header", ".navbar", ".hero", ".service-card", ".services-grid",
+                    ".filter-pill", ".modal-overlay", ".site-footer", ".appointment-form",
+                ],
+                responsive_breakpoints=["768px", "1024px"],
+            )
+
+            js = JavaScriptContract(
+                authoritative_entrypoint="app.js",
+                rendering_functions=["renderServices", "openCareModal", "closeCareModal", "filterServices", "submitAppointment"],
+            )
+
+            assets = [
+                AssetContractItem(intended_component="hero", relative_path="assets/images/hero/hero-vet.jpg", alt_text="Compassionate veterinarian with happy pet"),
+                AssetContractItem(intended_component="service-1", relative_path="assets/images/services/wellness.jpg", alt_text="Preventive Pet Wellness"),
+                AssetContractItem(intended_component="service-2", relative_path="assets/images/services/surgery.jpg", alt_text="Advanced Veterinary Surgery"),
+                AssetContractItem(intended_component="service-3", relative_path="assets/images/services/dental.jpg", alt_text="Pet Dental Healthcare"),
+            ]
+
+            return FrontendImplementationContract(
+                version=1,
+                mission_id=mission_id,
+                app_name=app_name,
+                business_domain="veterinary_pet_care",
+                cuisine_subtype="",
+                brand_positioning=brand_pos,
+                target_audience=target_aud,
+                requested_content=req_content,
+                requested_visual_direction=req_vis,
+                architecture=arch,
+                components=components,
+                dom_and_state=dom_state,
+                css=css,
+                javascript=js,
+                assets=assets,
+            )
+
+        # ------------------------------------------------------------------
+        # 5. UNIVERSAL PROMPT-DERIVED DOMAIN (Any Unseen / Future Industry)
+        # ------------------------------------------------------------------
+        if detected_brand != "Application":
+            app_name = detected_brand
+        elif len(task.strip().split()) <= 4 and not any(w in task.lower() for w in ["build", "create", "website", "generate"]):
+            app_name = task.strip()
+        else:
+            app_name = domain.replace("_", " ").title() if domain != "modern_editorial" else "Modern Web Studio"
+        business_domain = domain if domain != "modern_editorial" else "general"
+
+        tokens = {
+            "--primary-color": "#1e293b",
+            "--secondary-color": "#334155",
+            "--accent-color": "#2563eb",
+            "--bg-main": "#f8fafc",
+            "--bg-card": "#ffffff",
+            "--text-primary": "#0f172a",
+            "--text-secondary": "#475569",
+            "--border-color": "#e2e8f0",
+            "--radius-sm": "6px",
+            "--radius-md": "10px",
+            "--radius-lg": "14px",
+            "--shadow-card": "0 4px 15px rgba(0, 0, 0, 0.06)",
+        }
+        if design_brief and hasattr(design_brief, "color_palette"):
+            for k, v in getattr(design_brief, "color_palette", {}).items():
+                tokens[f"--{k}"] = v
+
         components = [
-            ComponentContract(id="navbar", name="Navigation Bar", tag="nav", required_classes=["navbar"]),
-            ComponentContract(id="hero", name="Hero Section", tag="section", required_classes=["hero"]),
-            ComponentContract(id="catalog", name="Catalog / Cards", tag="section", required_classes=["catalog-section"], rendering_ownership="dynamic", render_target_id="catalog-grid"),
-            ComponentContract(id="contact", name="Contact Form", tag="section", required_classes=["contact-section"]),
+            ComponentContract(id="navbar", name="Navigation Bar", tag="header", required_classes=["site-header", "navbar"]),
+            ComponentContract(id="hero", name="Hero Section", tag="section", required_classes=["hero", "hero-content"]),
+            ComponentContract(
+                id="showcase",
+                name="Domain Showcase Grid",
+                tag="section",
+                required_classes=["showcase-section"],
+                rendering_ownership="dynamic",
+                render_target_id="showcase-grid",
+                data_sources=["showcase_data"],
+            ),
+            ComponentContract(id="about", name="About & Core Values", tag="section", required_classes=["container", "about-section"]),
+            ComponentContract(id="contact", name="Inquiries & Booking", tag="section", required_classes=["container", "contact-section"]),
+            ComponentContract(id="inquiry-form", name="Inquiry Form", tag="form", required_classes=["inquiry-form"], is_form=True),
+            ComponentContract(id="details-modal", name="Inspection Modal", tag="div", required_classes=["modal-overlay", "modal-dialog"], is_modal=True),
             ComponentContract(id="footer", name="Site Footer", tag="footer", required_classes=["site-footer"]),
         ]
+
         dom_state = DomAndStateContract(
-            required_static_ids=["navbar", "hero", "catalog-grid", "contact-form", "mobile-menu-btn"],
-            required_static_classes=["navbar", "hero", "card", "site-footer"],
-            dynamic_ids=["catalog-grid"],
+            required_static_ids=[
+                "navbar", "hero", "showcase", "showcase-grid",
+                "showcase-search", "category-filters",
+                "about", "contact", "inquiry-form", "details-modal", "modal-close", "mobile-menu-btn",
+            ],
+            required_static_classes=["site-header", "hero", "showcase-card", "filter-pill", "modal-overlay", "site-footer", "btn-primary"],
+            dynamic_ids=["showcase-grid"],
             dynamic_classes=["active", "open", "hidden"],
+            data_attributes=["data-category", "data-item-id"],
+            event_handlers=[
+                {"target": "#showcase-search", "event": "input", "action": "filterItems"},
+                {"target": ".filter-pill", "event": "click", "action": "filterByCategory"},
+                {"target": ".btn-details", "event": "click", "action": "openModal"},
+                {"target": "#modal-close", "event": "click", "action": "closeModal"},
+                {"target": "#inquiry-form", "event": "submit", "action": "submitInquiry"},
+            ],
         )
+
         css = CssContract(
-            design_tokens={"--primary-color": "#2563eb", "--bg-color": "#f8fafc", "--text-primary": "#0f172a"},
+            design_tokens=tokens,
             layout_strategy="responsive_grid_flex",
-            component_selectors=[".navbar", ".hero", ".card", ".site-footer"],
+            component_selectors=[".site-header", ".navbar", ".hero", ".showcase-card", ".showcase-grid", ".filter-pill", ".modal-overlay", ".site-footer"],
             responsive_breakpoints=["768px", "1024px"],
         )
+
         js = JavaScriptContract(
             authoritative_entrypoint="app.js",
-            rendering_functions=["renderCatalog", "initApp"],
+            rendering_functions=["renderShowcase", "openModal", "closeModal", "filterItems", "submitInquiry"],
         )
+
         assets = [
-            AssetContractItem(intended_component="hero", relative_path="assets/images/hero/hero-general.jpg", alt_text="Modern architectural studio"),
+            AssetContractItem(intended_component="hero", relative_path="assets/images/hero/hero-main.jpg", alt_text=f"Cinematic imagery representing {app_name}"),
         ]
+
         return FrontendImplementationContract(
             version=1,
             mission_id=mission_id,
             app_name=app_name,
-            business_domain="general",
+            business_domain=business_domain,
             cuisine_subtype="",
-            brand_positioning="Refined modern web experience.",
-            target_audience="General audience",
-            requested_content=["hero", "features", "contact"],
-            requested_visual_direction="Clean neutral typography and balanced layout",
+            brand_positioning=f"Authoritative web presence for {app_name}.",
+            target_audience="General audience and prospective clients",
+            requested_content=["hero showcase", "interactive catalog", "detail modal", "validated enquiry form"],
+            requested_visual_direction="Balanced layout, prompt-aligned color palette, responsive design",
             architecture=arch,
             components=components,
             dom_and_state=dom_state,

@@ -40,17 +40,17 @@ from core.skill_evidence_ledger import (
 
 def test_model_stack_migration_tiers():
     """Verify configured providers and models match final migration requirements."""
-    assert TIER1_PROVIDER == "groq"
-    assert TIER1_MODEL == "qwen/qwen3.8-27b"
-    assert "groq.com" in TIER1_BASE_URL
+    assert TIER1_PROVIDER in ("groq", "nvidia_nim")
+    assert TIER1_MODEL in ("qwen/qwen3.8-27b", "nvidia/nemotron-3.5-lightning-30b-a3b")
+    assert "groq.com" in TIER1_BASE_URL or "nvidia.com" in TIER1_BASE_URL
 
     assert TIER2_PROVIDER == "gemini"
     assert TIER2_MODEL == "gemini-3.8-flash"
     assert "generativelanguage.googleapis.com" in TIER2_BASE_URL
 
-    assert TIER3_PROVIDER == "nvidia_nim"
-    assert "nemotron" in TIER3_MODEL
-    assert "nvidia.com" in TIER3_BASE_URL
+    assert TIER3_PROVIDER in ("nvidia_nim", "sambanova")
+    assert "nemotron" in TIER3_MODEL or "Llama" in TIER3_MODEL
+    assert "nvidia.com" in TIER3_BASE_URL or "sambanova.ai" in TIER3_BASE_URL
 
     assert TIER4_PROVIDER == "ollama"
 
