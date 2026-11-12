@@ -254,48 +254,126 @@ def detect_brand_name(prompt: str) -> str:
         return "Application"
     p = strip_negative_constraints(prompt).strip()
 
-    # 1. Check for "called / named / brand is **Brand**"
-    m = re.search(r'\b(?:called|named|brand(?:\s+is)?)\s+["\'*]*([A-Za-z0-9\s&\'-]+?)["\'*]*(?:[.,;\n]|\Z)', p, re.I)
-    if m:
-        b = m.group(1).strip()
-        b = re.split(r"[.,;\n]", b)[0].strip()
-        b = re.sub(r"^(?:a|an|the|modern|visually impressive|fresh|new|fictional|independent)\s+", "", b, flags=re.I).strip()
-        if b and b.lower() not in ["website", "brand", "a", "an", "the", "application", "independent"]:
-            return b
+    blacklist = {
+        "identity", "identity studio", "brand identity", "guidelines", "aesthetic",
+        "strategy", "voice", "personality", "positioning", "values", "concept",
+        "overview", "website", "web portal", "brand", "company", "business",
+        "application", "studio", "independent", "modern", "portfolio", "app",
+        "platform", "portal", "fictional", "discerning users", "following completely new business",
+        "completely new business", "new business"
+    }
 
-    # 2. Check for "Build ... (website/portal) for Brand"
-    m = re.search(r"(?:website|web\s+portal|portal|application)\s+for\s+(?:an?\s+|the\s+)?([A-Za-z0-9&'\-]+(?:\s+[A-Za-z0-9&'\-]+)*?)(?:,\s*an?|\s*[\u2014\u2013-]\s*|\s+called|\s+named|\s+with|\s+and|[.,;\n]|\Z)", p, re.I)
-    if m:
-        b = m.group(1).strip()
-        b = re.split(r"[.,;\n]", b)[0].strip()
-        b = re.sub(r"^(?:a|an|the|modern|visually impressive|fresh|new|fictional|independent)\s+", "", b, flags=re.I).strip()
-        if b and b.lower() not in ["website", "brand", "company", "business", "application", "studio", "independent"]:
-            return b
+    def _clean_candidate(cand: str) -> str:
+        if not cand:
+            return ""
+        # Strip markdown bold/italic/quotes
+        cand = cand.strip(" *\"'_`#")
+        # Split on common punctuation that ends a name (period, comma, semicolon, newline, colon, or spaced dash)
+        cand = re.split(r"[\r\n.,;:]|\s+[\u2014\u2013-]\s+", cand)[0].strip()
+        # Strip leading lowercase articles and descriptive filler words (preserve uppercase THE in proper titles)
+        cand = re.sub(r"^(?:a|an|the)\s+", "", cand).strip()
+        cand = re.sub(
+            r"^(?:modern|visually impressive|fresh|new|fictional|independent|completely new)\s+",
+            "",
+            cand,
+            flags=re.I,
+        ).strip()
+        # Strip trailing noise like 'website', 'web portal', 'platform', 'app'
+        cand = re.sub(r"\s+(?:website|web\s+portal|portal|application|app)\b.*$", "", cand, flags=re.I).strip()
+        cand = cand.strip(" *\"'_`#")
+        if cand.lower() in blacklist or len(cand) < 2:
+            return ""
+        if any(b in cand.lower() for b in ["brand identity", "brand guidelines", "brand aesthetic", "brand personality"]):
+            return ""
+        return cand
 
-    # 3. Check title line: Build Brand — ... (em-dash / hyphen)
-    for line in p.splitlines()[:5]:
+    # 1. Explicit structured fields: Brand:, Brand Name:, Company:, Business:, Organization:
+    # Handles markdown headers like '## Brand: VERDANT LOOP' or '**Brand:** VERDANT LOOP' or 'Brand Name: VERDANT LOOP'
+    m_structured = re.search(
+        r"(?:^|\n)\s*(?:#+\s*)?(?:\*{0,2}(?:Brand(?:\s*Name)?|Company(?:\s*Name)?|Business(?:\s*Name)?|Organization)\*{0,2})\s*[:=]\s*[*\"'_`]*([^\r\n*\"'_`#]+)",
+        p,
+        re.I,
+    )
+    if m_structured:
+        cleaned = _clean_candidate(m_structured.group(1))
+        if cleaned:
+            return cleaned
+
+    # 2. Explicit quoted names: called "VERDANT LOOP", named "VERDANT LOOP", for "VERDANT LOOP"
+    m_quoted = re.search(r'\b(?:called|named|brand\s+is|brand\s*[:=])\s+["\']([^"\']{2,60})["\']', p, re.I)
+    if m_quoted:
+        cleaned = _clean_candidate(m_quoted.group(1))
+        if cleaned:
+            return cleaned
+
+    # 3. Explicit bolded names: called **VERDANT LOOP**, named **VERDANT LOOP**
+    m_bold = re.search(r'\b(?:called|named)\s+\*\*([^*]{2,60})\*\*', p, re.I)
+    if m_bold:
+        cleaned = _clean_candidate(m_bold.group(1))
+        if cleaned:
+            return cleaned
+
+    # 4. Check for "Build ... (website/portal/publication) for Brand" BEFORE loose title-dash heuristic
+    m_for = re.search(
+        r"(?i:(?:website|web\s+portal|portal|application|publication|platform|dashboard)\s+for)\s+(?:a\s+|an\s+|the\s+)?([A-Za-z0-9&'\-]+(?:\s+[A-Za-z0-9&'\-]+)*?)(?=,\s*a|\s*[\u2014\u2013]\s*|\s+-\s+|\s+(?:called|named|with|and|focused|providing|specializing|dedicated|offering|featuring|showcasing|delivering|building|selling|operating|developing|producing|that|which|where|built|designed|created)\b|[.,;\n]|\Z)",
+        p,
+    )
+    if m_for:
+        cleaned = _clean_candidate(m_for.group(1))
+        if cleaned:
+            return cleaned
+
+    # 5. Check title line: Build/Create Brand — ... or direct Brand — Description
+    # Require spaced hyphen or en/em-dash so mid-word hyphens like 'project-management' never split
+    for line in p.splitlines()[:6]:
         line_s = line.strip()
-        m = re.search(r"^(?:#+\s*(?:Mission:\s*)?)?(?:Build|Create|Design|Develop)\s+([A-Za-z0-9\s&'.-]+?)(?:\s*[\u2014\u2013-]\s*)", line_s, re.I)
-        if m:
-            b = m.group(1).strip()
-            b = re.split(r"[.,;\n]", b)[0].strip()
-            b = re.sub(r"^(?:a|an|the|modern|visually impressive|fresh|new|fictional|independent)\s+", "", b, flags=re.I).strip()
-            if b and b.lower() not in ["website", "web portal", "brand", "app", "application", "independent", "fictional"]:
-                return b
+        m_title_dash = re.search(
+            r"^(?:#+\s*(?:Mission:\s*)?)?(?:Build|Create|Design|Develop)\s+(?:an?\s+|the\s+)?(?!website\b|web\s+portal\b|app\b|application\b|portal\b)([A-Za-z0-9\s&'.-]+?)(?:\s+[\u2014\u2013-]\s+|\s*[\u2014\u2013]\s*)",
+            line_s,
+            re.I,
+        )
+        if m_title_dash:
+            cleaned = _clean_candidate(m_title_dash.group(1))
+            if cleaned:
+                return cleaned
 
-    # 4. Check title line: Build Brand (followed by website/portal/end)
-    for line in p.splitlines()[:5]:
+        # Direct title line: Brand — Description (e.g. NOVA — Cutting-edge..., FORM & FIELD — ...)
+        m_direct_dash = re.search(
+            r"^(?:#+\s*(?:Mission:\s*)?)?(?!Build\b|Create\b|Design\b|Develop\b|Welcome\b|Website\b|The\s+following\b)([A-Z0-9][A-Za-z0-9\s&'.-]{1,50}?)(?:\s+[\u2014\u2013-]\s+|\s*[\u2014\u2013]\s+)",
+            line_s,
+        )
+        if m_direct_dash:
+            cleaned = _clean_candidate(m_direct_dash.group(1))
+            if cleaned:
+                return cleaned
+
+    # 6. Natural language: called Brand / named Brand (must NOT match 'with brand identity')
+    m_called = re.search(r'\b(?:called|named)\s+([A-Z0-9][A-Za-z0-9\s&-]{2,40})(?:[.,;\n]|\Z)', p)
+    if m_called:
+        cleaned = _clean_candidate(m_called.group(1))
+        if cleaned:
+            return cleaned
+
+    # 7. Check title line: Build/Create/Design Brand, a/an/the ... OR Build Brand website
+    for line in p.splitlines()[:6]:
         line_s = line.strip()
-        m = re.search(r"^(?:#+\s*(?:Mission:\s*)?)?(?:Build|Create|Design|Develop)\s+(?:an?\s+|the\s+)?([A-Za-z0-9\s&'.-]+?)(?:\s+website|\s+web\s+portal|[.;\n]|\Z)", line_s, re.I)
-        if m:
-            b = m.group(1).strip()
-            b = re.split(r"[.;\n]", b)[0].strip()
-            b = re.sub(r"^(?:a|an|the|modern|visually impressive|fresh|new|fictional|independent)\s+", "", b, flags=re.I).strip()
-            m_for = re.search(r"(?:website|web\s+portal|portal|application)\s+for\s+(?:an?\s+|the\s+)?([A-Za-z0-9\s&'.-]+)", b, re.I)
-            if m_for:
-                b = m_for.group(1).strip()
-            if b and b.lower() not in ["website", "web portal", "brand", "app", "application", "independent", "fictional"]:
-                return b
+        m_title_comma = re.search(
+            r"^(?:#+\s*(?:Mission:\s*)?)?(?:Build|Create|Design|Develop)\s+(?!a\b|an\b|the\b|some\b|modern\b|complex\b|website\b|web\b|app\b|application\b|portal\b|platform\b|dashboard\b)([A-Z0-9][A-Za-z0-9&'.-]*(?:\s+(?:[A-Z0-9&][A-Za-z0-9&'.-]*|and|of|the|&)){0,5})(?=\s*,\s*(?:a|an|the)\b)",
+            line_s,
+        )
+        if m_title_comma:
+            cleaned = _clean_candidate(m_title_comma.group(1))
+            if cleaned:
+                return cleaned
+        m_title_end = re.search(
+            r"^(?:#+\s*(?:Mission:\s*)?)?(?:Build|Create|Design|Develop)\s+(?:an?\s+|the\s+)?(?!website\b|web\s+portal\b|app\b|application\b|portal\b)([A-Za-z0-9\s&'.-]+?)(?:\s+website|\s+web\s+portal|[.;\n]|\Z)",
+            line_s,
+            re.I,
+        )
+        if m_title_end:
+            cleaned = _clean_candidate(m_title_end.group(1))
+            if cleaned:
+                return cleaned
 
     return "Application"
 
@@ -444,6 +522,18 @@ class DesignBriefGenerator:
             "text_muted": "#94a3b8",
             "border": "#334155",
         },
+        "ecommerce_marketplace": {
+            "primary": "#1c1d21",       # charcoal
+            "secondary": "#2d5a27",     # forest green
+            "accent": "#556b2f",        # earthy olive
+            "accent_secondary": "#c5a880", # warm sand/stone
+            "background": "#fbf9f5",    # warm off-white canvas
+            "surface": "#ffffff",
+            "surface_border": "#e4e4e7",
+            "text_primary": "#1c1d21",
+            "text_muted": "#52525b",
+            "border": "#e4e4e7",
+        },
         "fintech_commerce": {
             "primary": "#0f766e",       # deep teal / trust
             "secondary": "#115e59",     # pine
@@ -494,6 +584,28 @@ class DesignBriefGenerator:
             "text_muted": "#64748b",
             "border": "#e2e8f0",
         },
+        "editorial_publication": {
+            "primary": "#111827",       # deep editorial ink
+            "secondary": "#1f2937",
+            "accent": "#0f766e",        # archival emerald teal
+            "accent_secondary": "#b45309", # amber footnote accent
+            "background": "#faf9f5",    # warm newsprint ivory
+            "surface": "#ffffff",
+            "text_primary": "#111827",
+            "text_muted": "#4b5563",
+            "border": "#e5e7eb",
+        },
+        "geospatial_intelligence": {
+            "primary": "#0f172a",
+            "secondary": "#1e293b",
+            "accent": "#0ea5e9",
+            "accent_secondary": "#10b981",
+            "background": "#f8fafc",
+            "surface": "#ffffff",
+            "text_primary": "#0f172a",
+            "text_muted": "#475569",
+            "border": "#e2e8f0",
+        },
     }
 
     DOMAIN_TYPOGRAPHY = {
@@ -516,6 +628,13 @@ class DesignBriefGenerator:
         "ecommerce_store": {
             "heading_font": "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif",
             "body_font": "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif",
+            "scale": "1.25 (Major Third)",
+            "base_size": "16px",
+        },
+        "ecommerce_marketplace": {
+            "heading_font": "'Plus Jakarta Sans', system-ui, -apple-system, sans-serif",
+            "body_font": "'Inter', -apple-system, BlinkMacSystemFont, sans-serif",
+            "font_mono": "'JetBrains Mono', monospace",
             "scale": "1.25 (Major Third)",
             "base_size": "16px",
         },
@@ -549,6 +668,20 @@ class DesignBriefGenerator:
             "scale": "1.25 (Major Third)",
             "base_size": "16px",
         },
+        "editorial_publication": {
+            "heading_font": "'Playfair Display', Georgia, 'Times New Roman', serif",
+            "body_font": "'Inter', -apple-system, BlinkMacSystemFont, sans-serif",
+            "font_mono": "'JetBrains Mono', monospace",
+            "scale": "1.333 (Perfect Fourth)",
+            "base_size": "17px",
+        },
+        "geospatial_intelligence": {
+            "heading_font": "'Plus Jakarta Sans', system-ui, -apple-system, sans-serif",
+            "body_font": "'Inter', -apple-system, BlinkMacSystemFont, sans-serif",
+            "font_mono": "'JetBrains Mono', monospace",
+            "scale": "1.25 (Major Third)",
+            "base_size": "16px",
+        },
     }
 
     @classmethod
@@ -574,12 +707,67 @@ class DesignBriefGenerator:
         return "Artisanal Dining"
 
     @classmethod
+    def detect_archetype(cls, prompt: str, domain: str = "") -> str:
+        """
+        Determines the primary application archetype independently from the business domain.
+        Separates 'marketplace' from 'portfolio_studio', 'saas_product', 'ecommerce_store', etc.
+        """
+        p_lower = (prompt or "").lower()
+        if not domain:
+            domain = cls.detect_domain(prompt)
+
+        if any(k in p_lower for k in [
+            "marketplace", "materials marketplace", "digital marketplace", "b2b marketplace",
+            "material recovery suppliers", "quote basket", "add to quote", "buy and sell",
+            "catalog containing at least", "catalogue containing at least"
+        ]):
+            return "marketplace"
+        if domain in ("architecture_interior", "creative_portfolio") or any(k in p_lower for k in [
+            "architecture studio", "interior design studio", "architecture and interior",
+            "portfolio", "architectural project", "studio manifesto", "spatial design"
+        ]):
+            return "portfolio_studio"
+        if domain in ("saas_tech", "saas_software") or (any(k in p_lower for k in ["saas", "dashboard", "sprint planning", "pricing toggle"]) and any(w in p_lower for w in ["software", "saas", "developer", "cloud", "orbit"])):
+            return "saas_product"
+        if domain == "geospatial_intelligence" or any(k in p_lower for k in ["geospatial", "aerial surveying", "geomatics", "drone-based terrain", "lidar scanning", "skytrace"]):
+            return "interactive_showcase"
+        if domain == "education_institution" or any(k in p_lower for k in ["museum", "science center", "discovery museum", "planetarium dome", "sparkfield"]):
+            return "interactive_showcase"
+        if domain in ("travel_tourism", "tourism_adventure") or any(k in p_lower for k in ["expedition", "guided treks", "itinerary", "packing list"]):
+            return "tourism_adventure"
+        if domain in ("culinary_restaurant",) or any(k in p_lower for k in ["restaurant", "menu", "dining", "chef"]):
+            return "culinary_restaurant"
+        if domain in ("astronomy_observatory", "oceanographic_marine_research", "volcanology_geothermal_research") or any(k in p_lower for k in ["observatory", "research institute"]):
+            return "research_institution"
+        if domain == "editorial_publication" or any(k in p_lower for k in ["digital editorial", "journalism", "featured stories", "article categories", "reading-time", "newsletter subscription", "magazine"]):
+            return "editorial_publication"
+        if domain in ("ecommerce_electronics", "ecommerce_store"):
+            return "ecommerce_store"
+        return "interactive_showcase"
+
+    @classmethod
     def detect_domain(cls, prompt: str) -> str:
+        """
+        Extracts the primary business domain using hierarchical intent classification:
+        Primary Business Purpose > Secondary Catalogue Vocabulary > Generic Modifiers > Meta-instructions.
+        Prevents secondary keywords (e.g. 'reclaimed architectural fixtures') from hijacking business domain.
+        """
         p_clean = strip_negative_constraints(prompt or "")
         p_lower = p_clean.lower()
-        first_lines = " ".join(p_lower.splitlines()[:5])
+        lines = [l.strip() for l in p_lower.splitlines() if l.strip()]
+        first_lines = " ".join(lines[:6])
+
+        # Extract structured business fields: Business:, Concept:, Industry:, Primary Purpose:
+        structured_business = ""
+        for line in lines:
+            m = re.search(r"^(?:#+\s*)?(?:\*{0,2}(?:business|concept|industry|primary purpose|product category)\*{0,2})\s*[:=]\s*(.+)$", line)
+            if m:
+                structured_business += " " + m.group(1).strip()
+
+        primary_text = (first_lines + " " + structured_business).strip()
 
         scores = {
+            "ecommerce_marketplace": 0,
             "robotics_automation": 0,
             "healthcare_medical": 0,
             "real_estate": 0,
@@ -595,66 +783,98 @@ class DesignBriefGenerator:
             "architecture_interior": 0,
             "veterinary_pet_care": 0,
             "legal_consulting": 0,
+            "geospatial_intelligence": 0,
+            "editorial_publication": 0,
         }
 
-        # High-weight intent in title / initial mission statement (30 pts)
-        if any(re.search(r'\b' + re.escape(k) + r'\b', first_lines) for k in ["architecture", "architectural", "interior design", "spatial design", "building design", "form & field", "architecture studio"]):
-            scores["architecture_interior"] += 35
-        if any(re.search(r'\b' + re.escape(k) + r'\b', first_lines) for k in ["veterinary", "vet clinic", "pet care", "animal hospital", "veterinarian", "pet clinic", "paws & claws"]):
-            scores["veterinary_pet_care"] += 35
-        if any(re.search(r'\b' + re.escape(k) + r'\b', first_lines) for k in ["law firm", "attorney", "legal services", "counsel", "lawyer", "litigation"]):
-            scores["legal_consulting"] += 35
-        if any(re.search(r'\b' + re.escape(k) + r'\b', first_lines) for k in ["robotics", "robot", "robots", "atlas", "robotic arm", "automation company", "autonomous mobile"]):
-            scores["robotics_automation"] += 30
-        if any(re.search(r'\b' + re.escape(k) + r'\b', first_lines) for k in ["hospital", "clinic", "healthcare", "medical center", "patient care"]):
-            scores["healthcare_medical"] += 30
-        if any(re.search(r'\b' + re.escape(k) + r'\b', first_lines) for k in ["real estate", "realty", "property", "luxury villas", "apartments"]):
-            scores["real_estate"] += 30
-        if any(re.search(r'\b' + re.escape(k) + r'\b', first_lines) for k in ["logistics", "freight", "supply chain", "warehousing", "cargo"]):
-            scores["logistics_supply_chain"] += 30
-        if any(re.search(r'\b' + re.escape(k) + r'\b', first_lines) for k in ["electronics", "nova", "consumer electronics", "smartphones", "laptops", "headphones"]):
-            scores["ecommerce_electronics"] += 25
-        if any(re.search(r'\b' + re.escape(k) + r'\b', first_lines) for k in ["restaurant", "dining", "kitchen", "culinary", "bistro", "cafe", "saffron & stone", "saffron and stone"]):
-            scores["culinary_restaurant"] += 25
-        if any(re.search(r'\b' + re.escape(k) + r'\b', first_lines) for k in ["university", "college", "northstar", "academy"]):
-            scores["education_institution"] += 25
-        if any(re.search(r'\b' + re.escape(k) + r'\b', first_lines) for k in ["travel", "tourism", "wanderworld", "vacation"]):
-            scores["travel_tourism"] += 25
+        # 1. High-weight intent in structured business fields or title / initial statement (40-45 pts)
+        if any(re.search(r'\b' + re.escape(k) + r'\b', primary_text) for k in [
+            "marketplace", "materials marketplace", "digital marketplace", "b2b marketplace",
+            "material recovery", "circular construction", "reclaimed and recycled", "buy and sell"
+        ]):
+            scores["ecommerce_marketplace"] += 45
 
-        # Body keywords scoring - strictly domain-specific with word boundary matching
-        for w in ["robotics", "robot", "robots", "robotic arm", "autonomous mobile", "cobot", "machine vision", "industrial automation", "intelligent automation", "inspection systems", "assembly automation"]:
-            scores["robotics_automation"] += len(re.findall(r'\b' + re.escape(w) + r'\b', p_lower))
-        for w in ["hospital", "clinic", "healthcare", "medical", "patient", "physician", "doctor", "health"]:
-            scores["healthcare_medical"] += len(re.findall(r'\b' + re.escape(w) + r'\b', p_lower))
-        for w in ["real estate", "realty", "property", "properties", "realtor", "villas", "condos", "listing"]:
-            scores["real_estate"] += len(re.findall(r'\b' + re.escape(w) + r'\b', p_lower))
-        for w in ["logistics", "supply chain", "freight", "warehousing", "cargo", "fleet", "shipping"]:
-            scores["logistics_supply_chain"] += len(re.findall(r'\b' + re.escape(w) + r'\b', p_lower))
-        for w in ["smartphones", "laptops", "headphones", "smartwatches", "earbuds", "consumer electronics", "gadgets", "nova"]:
-            scores["ecommerce_electronics"] += len(re.findall(r'\b' + re.escape(w) + r'\b', p_lower))
-        for w in ["restaurant", "dining", "kitchen", "culinary", "bistro", "cafe", "menu", "chef", "dishes", "dish", "tasting", "cuisine", "tandoori", "biryani", "reservations", "gourmet", "spices", "cooking"]:
-            scores["culinary_restaurant"] += len(re.findall(r'\b' + re.escape(w) + r'\b', p_lower))
-        for w in ["university", "college", "school", "academy", "curriculum", "courses", "education", "campus", "academic", "admissions", "degree", "faculty"]:
-            scores["education_institution"] += len(re.findall(r'\b' + re.escape(w) + r'\b', p_lower))
-        for w in ["wanderworld", "travel", "tourism", "vacation", "resort", "safari", "tourist", "airline", "flight", "itinerary", "holiday"]:
-            scores["travel_tourism"] += len(re.findall(r'\b' + re.escape(w) + r'\b', p_lower))
-        for w in ["saas", "dashboard", "analytics", "developer", "cloud", "api", "ai engine", "infrastructure"]:
-            scores["saas_tech"] += len(re.findall(r'\b' + re.escape(w) + r'\b', p_lower))
-        for w in ["car", "automotive", "hypercar", "dealership", "vehicle", "race", "motor"]:
-            scores["automotive_luxury"] += len(re.findall(r'\b' + re.escape(w) + r'\b', p_lower))
-        for w in ["fintech", "banking", "finance", "crypto", "trading", "investment"]:
-            scores["fintech_commerce"] += len(re.findall(r'\b' + re.escape(w) + r'\b', p_lower))
-        for w in ["portfolio", "agency", "photographer", "creative studio", "designer showcase"]:
-            scores["creative_portfolio"] += len(re.findall(r'\b' + re.escape(w) + r'\b', p_lower))
-        for w in ["architecture", "architectural", "interior design", "architect", "spatial", "blueprints", "residence", "sustainable design", "building design"]:
-            scores["architecture_interior"] += len(re.findall(r'\b' + re.escape(w) + r'\b', p_lower))
-        for w in ["veterinary", "vet", "pets", "pet", "animal", "canine", "feline", "vaccination", "surgery", "pet care", "clinic"]:
-            scores["veterinary_pet_care"] += len(re.findall(r'\b' + re.escape(w) + r'\b', p_lower))
-        for w in ["legal", "law", "attorney", "lawyer", "litigation", "counsel", "practice areas", "consultation", "corporate law"]:
-            scores["legal_consulting"] += len(re.findall(r'\b' + re.escape(w) + r'\b', p_lower))
+        if any(re.search(r'\b' + re.escape(k) + r'\b', primary_text) for k in [
+            "architecture studio", "interior design studio", "architectural studio", "architectural firm",
+            "architecture firm", "architecture practice", "spatial design studio", "form & field", "form and field", "atelier kroma"
+        ]):
+            scores["architecture_interior"] += 45
+        elif any(re.search(r'\b' + re.escape(k) + r'\b', primary_text) for k in ["architecture", "interior design", "spatial design"]) and not any(k in primary_text for k in ["marketplace", "materials", "recycled", "reclaimed"]):
+            scores["architecture_interior"] += 30
+
+        if any(re.search(r'\b' + re.escape(k) + r'\b', primary_text) for k in ["veterinary", "vet clinic", "pet care", "animal hospital", "veterinarian", "paws & claws", "paws and claws"]):
+            scores["veterinary_pet_care"] += 40
+        if any(re.search(r'\b' + re.escape(k) + r'\b', primary_text) for k in ["law firm", "attorney", "legal services", "counsel", "lawyer", "litigation"]):
+            scores["legal_consulting"] += 40
+        if any(re.search(r'\b' + re.escape(k) + r'\b', primary_text) for k in ["robotics", "robot", "robots", "atlas robotics", "robotic arm", "automation company", "autonomous mobile"]):
+            scores["robotics_automation"] += 40
+        if any(re.search(r'\b' + re.escape(k) + r'\b', primary_text) for k in ["hospital", "clinic", "healthcare", "medical center", "patient care"]):
+            scores["healthcare_medical"] += 35
+        if any(re.search(r'\b' + re.escape(k) + r'\b', primary_text) for k in ["real estate", "realty", "property management", "luxury villas", "apartments"]):
+            scores["real_estate"] += 35
+        if any(re.search(r'\b' + re.escape(k) + r'\b', primary_text) for k in ["logistics", "freight forwarding", "supply chain management", "warehousing", "cargo"]):
+            scores["logistics_supply_chain"] += 35
+        if any(re.search(r'\b' + re.escape(k) + r'\b', primary_text) for k in ["consumer electronics", "smartphones", "laptops", "headphones", "nova"]):
+            scores["ecommerce_electronics"] += 35
+        if any(re.search(r'\b' + re.escape(k) + r'\b', primary_text) for k in ["restaurant", "dining", "kitchen", "culinary", "bistro", "cafe", "saffron & stone", "saffron and stone"]):
+            scores["culinary_restaurant"] += 35
+        if any(re.search(r'\b' + re.escape(k) + r'\b', primary_text) for k in [
+            "geospatial", "aerial surveying", "geomatics", "drone-based terrain", "lidar scanning",
+            "volumetric stockpile", "skytrace", "aerial survey", "orthomosaic", "photogrammetry", "land surveys"
+        ]):
+            scores["geospatial_intelligence"] += 45
+        if any(re.search(r'\b' + re.escape(k) + r'\b', primary_text) for k in [
+            "museum", "discovery museum", "science center", "innovation center", "children's science",
+            "sparkfield", "planetarium", "university", "college", "northstar", "academy", "higher education"
+        ]):
+            scores["education_institution"] += 45
+        elif any(re.search(r'\b' + re.escape(k) + r'\b', primary_text) for k in ["university", "college", "northstar", "academy", "higher education"]):
+            scores["education_institution"] += 35
+        if any(re.search(r'\b' + re.escape(k) + r'\b', primary_text) for k in ["travel agency", "tourism", "wanderworld", "expedition", "vacation"]):
+            scores["travel_tourism"] += 35
+        if any(re.search(r'\b' + re.escape(k) + r'\b', primary_text) for k in [
+            "saas", "software as a service", "project-management", "project management", "workflow platform",
+            "kanban", "billing switcher", "orbit pm", "b2b saas"
+        ]):
+            scores["saas_tech"] += 45
+        if any(re.search(r'\b' + re.escape(k) + r'\b', primary_text) for k in [
+            "editorial publication", "digital editorial", "journalism", "online magazine", "digital publication",
+            "field journal", "featured stories", "newsroom", "newspaper", "publication"
+        ]):
+            scores["editorial_publication"] += 45
+
+        # 2. Body keywords scoring - strictly domain-specific with word boundary matching
+        body_keywords = {
+            "ecommerce_marketplace": ["marketplace", "quote basket", "suppliers", "vendor", "catalog", "catalogue", "material recovery", "circular economy"],
+            "robotics_automation": ["robotics", "robot", "robots", "robotic arm", "autonomous mobile", "cobot", "machine vision", "industrial automation", "intelligent automation", "inspection systems", "assembly automation"],
+            "healthcare_medical": ["hospital", "clinic", "healthcare", "medical", "patient", "physician", "doctor", "health"],
+            "real_estate": ["real estate", "realty", "property", "properties", "realtor", "villas", "condos", "listing"],
+            "logistics_supply_chain": ["logistics", "supply chain", "freight", "warehousing", "cargo", "fleet", "shipping"],
+            "ecommerce_electronics": ["smartphones", "laptops", "headphones", "smartwatches", "earbuds", "consumer electronics", "gadgets", "nova"],
+            "culinary_restaurant": ["restaurant", "dining", "kitchen", "culinary", "bistro", "cafe", "menu", "chef", "dishes", "dish", "tasting", "cuisine", "tandoori", "biryani", "reservations", "reservation", "party-size", "gourmet", "spices", "cooking"],
+            "education_institution": ["museum", "science center", "discovery center", "planetarium", "exhibits", "exhibit", "camps", "workshops", "stem", "discovery", "university", "college", "school", "academy", "curriculum", "courses", "education", "campus", "academic", "admissions", "degree", "faculty"],
+            "geospatial_intelligence": ["geospatial", "geomatics", "surveying", "drone", "terrain", "lidar", "volumetric", "stockpile", "photogrammetry", "orthomosaic", "topographic", "mapping", "elevation"],
+            "editorial_publication": ["editorial", "journalism", "publication", "magazine", "journal", "featured stories", "stories", "article", "articles", "reading-time", "newsletter", "contributors", "author"],
+            "travel_tourism": ["wanderworld", "travel", "tourism", "vacation", "resort", "safari", "tourist", "airline", "flight", "itinerary", "holiday"],
+            "saas_tech": ["saas", "dashboard", "kanban", "analytics", "developer", "cloud", "api", "ai engine", "infrastructure", "billing", "sprint"],
+            "automotive_luxury": ["car", "automotive", "hypercar", "dealership", "vehicle", "race", "motor"],
+            "fintech_commerce": ["fintech", "banking", "finance", "crypto", "trading", "investment"],
+            "creative_portfolio": ["portfolio", "agency", "photographer", "creative studio", "designer showcase"],
+            "architecture_interior": ["architecture studio", "architectural studio", "interior design studio", "blueprints", "residence", "spatial design", "building design"],
+            "veterinary_pet_care": ["veterinary", "vet", "pets", "pet", "animal", "canine", "feline", "vaccination", "surgery", "pet care"],
+            "legal_consulting": ["legal", "law firm", "attorney", "lawyer", "litigation", "counsel", "practice areas", "consultation", "corporate law"],
+        }
+
+        for d, words in body_keywords.items():
+            for w in words:
+                scores[d] += len(re.findall(r'\b' + re.escape(w) + r'\b', p_lower))
+
+        # Secondary keyword disambiguation: marketplace intent overrides secondary architectural fixtures
+        if scores["ecommerce_marketplace"] > 0:
+            scores["architecture_interior"] = 0
 
         best_domain = max(scores, key=scores.get)
-        if scores[best_domain] == 0:
+        if scores[best_domain] < 3:
             return "modern_editorial"
         return best_domain
 
@@ -683,12 +903,14 @@ class DesignBriefGenerator:
             "culinary_restaurant": "Warm, artisanal, grounded, sensory, welcoming",
             "ecommerce_electronics": "Sleek, innovative, authoritative, high-performance, precision-engineered",
             "ecommerce_store": "Sleek, innovative, authoritative, high-performance, precision-engineered",
+            "ecommerce_marketplace": "Industrial sustainability, trustworthy, circular economy, transparent, tactile materiality",
             "saas_tech": "Engineered, precise, cutting-edge, dependable, dark-mode polished",
             "automotive_luxury": "High-velocity, aerodynamic, aggressive elegance, precision",
             "fintech_commerce": "Authoritative, trustworthy, modern, crystal clear",
             "education_institution": "Scholarly, distinguished, structured, accessible",
             "creative_portfolio": "Minimalist, editorial, typography-driven, showcase",
             "modern_editorial": "Clean, contemporary, balanced, intuitive",
+            "editorial_publication": "Intellectual, journalistic, investigative, long-form clarity, archival restraint",
         }
 
         visual_directions = {
@@ -699,12 +921,14 @@ class DesignBriefGenerator:
             "culinary_restaurant": "Sensory photography, warm organic tones, distinct menu grids, and accessible ordering actions.",
             "ecommerce_electronics": "Deep charcoal, crisp white, electric blue, and subtle silver accents. Modern technology cards, interactive category pills, real-time cart drawer, and modal product inspection.",
             "ecommerce_store": "Deep charcoal, crisp white, electric blue, and subtle silver accents. Modern technology cards, interactive category pills, real-time cart drawer, and modal product inspection.",
+            "ecommerce_marketplace": "Warm off-white, forest green, and charcoal color palette. Material catalogue grid, price sorting, interactive quote basket, material detail modal, and supplier inquiry form.",
             "saas_tech": "Metric stat cards, interactive feature toggles, high-contrast code/preview blocks, and subtle gradient borders.",
             "automotive_luxury": "Dramatic dark contrast, high-resolution vehicle cards, spec comparison tables, and subtle hover glows.",
             "fintech_commerce": "Clean ledger cards, clear transaction workflows, accessible contrast, and zero layout shift.",
             "education_institution": "Organized faculty/course cards, calendar view, structured admission forms, and high-readability text.",
             "creative_portfolio": "Asymmetric visual grid, expansive whitespace, custom cursor interactions, and responsive media tiles.",
             "modern_editorial": "Harmonious vertical rhythm, modular card layouts, clear visual hierarchy, and polished interactive controls.",
+            "editorial_publication": "Warm archival ivory newsprint canvas, serif display headlines, lead featured dispatch, article reader modal with related stories, and validated newsletter subscription.",
         }
 
         component_styling = {
@@ -747,6 +971,7 @@ class DesignBriefGenerator:
             "culinary_restaurant": "Artisanal gastronomy and neighborhood dining experience celebrating organic, locally sourced delicacies.",
             "ecommerce_electronics": "Cutting-edge consumer electronics brand offering premium personal technology, smartphones, laptops, audio, smartwatches, and gaming gear.",
             "ecommerce_store": "Cutting-edge consumer electronics brand offering premium personal technology, smartphones, laptops, audio, smartwatches, and gaming gear.",
+            "ecommerce_marketplace": "Circular construction materials marketplace connecting builders, architects, and suppliers with high-quality reclaimed and recycled materials.",
             "saas_tech": "Next-generation developer infrastructure providing intelligent, high-throughput cloud automation.",
             "automotive_luxury": "High-performance automotive engineering delivering peerless aerodynamics and ultra-luxury performance.",
             "fintech_commerce": "Next-generation digital banking platform offering secure, borderless capital management.",
@@ -763,6 +988,7 @@ class DesignBriefGenerator:
             "culinary_restaurant": "Atmospheric full-width hero, two-column story layout, tabbed multi-course menu grid, table reservation form, and map/contact section.",
             "ecommerce_electronics": "Sticky brand navigation with live cart count, full-width technology hero, category filter pills, responsive 12-product grid with search and sort, feature highlights, and interactive cart/product modals.",
             "ecommerce_store": "Sticky brand navigation with live cart count, full-width technology hero, category filter pills, responsive 12-product grid with search and sort, feature highlights, and interactive cart/product modals.",
+            "ecommerce_marketplace": "Industrial sustainability hero with marketplace stats, material search and category filter pills, responsive 8-item materials grid with price sorting and modal view, real-time quote basket with quantity/subtotal calculation, supplier onboarding steps, and material inquiry form.",
             "saas_tech": "Hero headline with animated code demo or product dashboard mockup, key metric highlight grid, interactive feature comparison, pricing tier cards, and FAQ accordion.",
             "automotive_luxury": "Dramatic full-screen vehicle hero, interactive model selector, technical performance specifications grid, 360-degree gallery, and bespoke consultation booking.",
             "fintech_commerce": "Trust-focused hero with security badges, interactive savings/fee calculator, feature card matrix, customer testimonial carousel, and sign-up form.",
@@ -774,6 +1000,7 @@ class DesignBriefGenerator:
         navigation_strategies = {
             "travel_tourism": "Sticky top navigation with smooth scroll anchors to #destinations, #packages, #reviews, #booking.",
             "culinary_restaurant": "Sticky navigation with smooth scroll to #story, #menu, #reservations, #contact.",
+            "ecommerce_marketplace": "Sticky header with brand logo, smooth scroll links to #materials, #how-it-works, #quote-basket, #sustainability, #contact, and quote basket counter badge.",
             "saas_tech": "Fixed header with product links, documentation, pricing anchor, and Sign Up / Demo CTA button.",
             "automotive_luxury": "Minimalist header with models menu, engineering highlights, and Test Drive CTA button.",
             "fintech_commerce": "Clean top bar with solutions dropdown, security overview, pricing, and Open Account button.",
@@ -799,6 +1026,15 @@ class DesignBriefGenerator:
                 "reservation_form": "Inline date/time picker, party size selector, and confirmation modal",
                 "footer": "Warm stone footer with opening hours, address, and social links"
             },
+            "ecommerce_marketplace": {
+                "navbar": "Sticky header (height: 64-76px) with brand logo, smooth scroll links to #materials, #how-it-works, #quote-basket, #sustainability, #contact, and quote basket counter badge.",
+                "hero": "Expansive hero with high-contrast headline, marketplace metrics (tons diverted, active suppliers, verified materials), and primary CTA to browse inventory.",
+                "card": "Material specification card with photographic header, category badge, technical grade/specification, unit price, stock status, and add-to-quote / details triggers.",
+                "quote_basket": "Interactive quote basket with itemized table, quantity adjustments, live subtotal calculation, and quote request submission.",
+                "modal": "Material detail inspection modal with environmental impact specs, provenance, physical dimensions, and close controls.",
+                "form": "Supplier onboarding and material quote inquiry form with instant client-side validation and demonstration feedback alert.",
+                "footer": "Comprehensive 4-column footer with marketplace links, circular economy manifesto, supplier portal, and copyright."
+            },
         }
 
         interaction_specifications = {
@@ -810,6 +1046,13 @@ class DesignBriefGenerator:
             "culinary_restaurant": {
                 "menu_filter": "Filter menu courses (Appetizers, Mains, Desserts, Cocktails)",
                 "reservation": "Table reservation validation with guest count and date checking"
+            },
+            "ecommerce_marketplace": {
+                "search_filter": "Instant search and category pill filtering of reclaimed materials inventory",
+                "sorting": "Price and availability sorting (low-high, high-low, alphabetical)",
+                "quote_basket": "Add to quote basket with quantity increment/decrement and live subtotal update",
+                "modal": "Inspect material technical specifications with trap focus and Escape/backdrop close",
+                "inquiry": "Submit material inquiry or supplier onboarding form with demonstration disclosure banner"
             },
         }
 
@@ -830,6 +1073,17 @@ class DesignBriefGenerator:
                 "assets/images/hero/restaurant-hero.jpg",
                 "assets/images/menu/artisan-dish1.jpg",
                 "assets/images/menu/artisan-dish2.jpg",
+            ],
+            "ecommerce_marketplace": [
+                "assets/images/hero/hero-materials.jpg",
+                "assets/images/products/timber.jpg",
+                "assets/images/products/steel.jpg",
+                "assets/images/products/bricks.jpg",
+                "assets/images/products/glass-aggregates.jpg",
+                "assets/images/products/concrete.jpg",
+                "assets/images/products/stone.jpg",
+                "assets/images/products/insulation.jpg",
+                "assets/images/products/fixtures.jpg",
             ],
         }
 

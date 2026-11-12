@@ -218,6 +218,17 @@ def classify_provider_error(
             is_model_unavailable=False,
             raw_response=body_text,
         )
+    if status_code == 402:
+        return ProviderErrorInfo(
+            classification=ErrorClassification.AUTH_FAILURE,
+            status_code=402,
+            message="Billing/Payment required or account balance exhausted",
+            is_transient=False,
+            is_quota_exhausted=True,
+            is_unauthorized=True,
+            is_model_unavailable=False,
+            raw_response=body_text,
+        )
     if status_code == 403:
         return ProviderErrorInfo(
             classification=ErrorClassification.PERMISSION_DENIED,
@@ -647,6 +658,10 @@ class CommonProviderAdapter(ModelProvider):
             await self._client.aclose()
             self._client = None
 
+    async def aclose(self) -> None:
+        """Async close alias matching NvidiaClient transport interface."""
+        await self.close()
+
     # Normalization helpers
     def _sanitize_tool_definitions(self, tools: Optional[List[Dict[str, Any]]]) -> Optional[List[Dict[str, Any]]]:
         if not tools:
@@ -856,6 +871,11 @@ class CommonProviderAdapter(ModelProvider):
                     else:
                         payload["stream"] = False
                         resp = await self._execute_non_streaming(client, url, headers, payload, telemetry, timeout_val)
+                except asyncio.CancelledError:
+                    telemetry.cancellation_result = "CANCELLED"
+                    telemetry.final_result = "CANCELLED"
+                    logger.info(f"[{self.provider_name.upper()}] Generation request cancelled by caller.")
+                    raise
                 except Exception as exc:
                     telemetry.final_result = "STREAM_ERROR"
                     telemetry.error_classification = type(exc).__name__

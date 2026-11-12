@@ -90,6 +90,27 @@ class GeminiClient(ModelProvider):
     async def is_running(self, timeout: Optional[float] = None) -> bool:
         return await self.is_available(timeout=timeout or 5.0)
 
+    async def discover_models(self, timeout: float = 5.0) -> List[str]:
+        """Discover supported generateContent model IDs via Gemini /v1beta/models."""
+        if not self.api_key:
+            return []
+        try:
+            client = await self._get_client()
+            resp = await client.get(
+                f"{self.BASE_URL}/models",
+                params={"key": self.api_key},
+                timeout=timeout,
+            )
+            if resp.status_code != 200:
+                return []
+            models = [
+                m for m in (resp.json().get("models") or [])
+                if "generateContent" in (m.get("supportedGenerationMethods") or [])
+            ]
+            return [m.get("name", "").replace("models/", "") for m in models if m.get("name")]
+        except Exception:
+            return []
+
     def _convert_tools_to_gemini(self, tools: List[Dict[str, Any]]) -> Optional[List[Dict[str, Any]]]:
         """Convert OpenAI-style tool definitions to Gemini functionDeclarations."""
         if not tools:
@@ -350,18 +371,19 @@ class GeminiClient(ModelProvider):
                 if resp.status_code in (429, 503):
                     err_preview = resp.text[:500].lower()
                     is_quota_exhausted = any(k in err_preview for k in ("quota", "exhausted", "limit: 20", "per day", "free tier"))
-                    if is_quota_exhausted:
-                        logger.warning(f"[GEMINI] HTTP {resp.status_code} quota exhausted. Immediately failing over without retry sleep.")
+                    is_high_demand = "high demand" in err_preview or "currently experiencing high demand" in err_preview
+                    if is_quota_exhausted or is_high_demand:
+                        logger.warning(f"[GEMINI] HTTP {resp.status_code} ({'quota exhausted' if is_quota_exhausted else 'provider high demand'}). Failing over without sleep.")
                         try:
                             from core.adaptive_routing import get_adaptive_router
                             router = get_adaptive_router()
-                            router.record_failure("gemini", active_model, 86400.0)
+                            router.record_failure(self.tier, RuntimeError(f"HTTP {resp.status_code}: {err_preview[:120]}"), timeout_type="HTTP_503_UNAVAILABLE" if resp.status_code == 503 else "HTTP_429_RATE_LIMIT")
                         except Exception:
                             pass
                     else:
                         elapsed = time.monotonic() - t0
                         rem = timeout_val - elapsed
-                        if rem > 3.0:
+                        if kwargs.get("allow_internal_retry", False) and rem > 3.0:
                             retry_after = resp.headers.get("retry-after")
                             wait_sec = min(float(retry_after), 3.0) if retry_after else 1.5
                             if wait_sec < rem:
@@ -429,6 +451,9 @@ class GeminiClient(ModelProvider):
                 )
                 return result
 
+            except asyncio.CancelledError:
+                logger.info("[GEMINI] Request cancelled by caller.")
+                raise
             except (httpx.TimeoutException, asyncio.TimeoutError) as exc:
                 latency_ms = (time.monotonic() - t0) * 1000
                 logger.warning(f"[GEMINI TIMEOUT] {exc} after {latency_ms:.0f}ms")

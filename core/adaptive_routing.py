@@ -27,11 +27,14 @@ from config.model_config import (
     T2_MAX_CONCURRENCY,
     MODEL_FIRST_TOKEN_TIMEOUT,
 )
+from core.runtime_failover import CircuitBreakerState, ErrorClassification, classify_runtime_error
 
 
 class ProviderHealthState(str, Enum):
     HEALTHY = "HEALTHY"
     DEGRADED = "DEGRADED"
+    BILLING_BLOCKED = "BILLING_BLOCKED"
+    MODEL_UNAVAILABLE = "MODEL_UNAVAILABLE"
     OPEN_CIRCUIT = "OPEN_CIRCUIT"
     PROBING = "PROBING"
     RECOVERED = "RECOVERED"
@@ -167,7 +170,7 @@ class AdaptiveRouter:
 
     def get_health(self, tier: int) -> ProviderHealthRecord:
         record = self.providers[tier]
-        if record.state in (ProviderHealthState.OPEN_CIRCUIT, ProviderHealthState.DEGRADED):
+        if record.state in (ProviderHealthState.OPEN_CIRCUIT, ProviderHealthState.DEGRADED, ProviderHealthState.PROBING):
             now = time.time()
             # Permanent / unserviceable failure checks (do not auto-recover via generic cooldown)
             if getattr(record, "is_auth_failure", False):
@@ -185,23 +188,53 @@ class AdaptiveRouter:
                     record.retry_after_ts = None
 
             reference_ts = record.circuit_open_ts or record.last_state_change_ts or record.last_failure_ts
-            base_window = float(os.getenv("T1_CIRCUIT_BREAKER_WINDOW", "90.0"))
+            base_window = float(os.getenv("T1_CIRCUIT_BREAKER_WINDOW", "30.0"))
             backoff_factor = 2 ** min(max(0, record.failure_count - 1), 3)
             cooldown = base_window * backoff_factor
             if reference_ts and (now - reference_ts >= cooldown):
-                logger.info(
-                    f"[ADAPTIVE ROUTING] Tier {tier} circuit breaker cooldown window expired ({now - reference_ts:.1f}s >= {cooldown:.1f}s, backoff={backoff_factor}x). "
-                    "Resetting state to HEALTHY."
-                )
-                record.state = ProviderHealthState.HEALTHY
-                record.consecutive_first_token_failures = 0
-                record.failure_count = 0
-                record.circuit_open_ts = None
-                record.circuit_close_ts = now
-                record.last_state_change_ts = now
+                if record.state == ProviderHealthState.OPEN_CIRCUIT:
+                    logger.info(
+                        f"[ADAPTIVE ROUTING] Tier {tier} circuit breaker cooldown window expired ({now - reference_ts:.1f}s >= {cooldown:.1f}s, backoff={backoff_factor}x). "
+                        "Transitioning state to PROBING (HALF_OPEN)."
+                    )
+                    record.state = ProviderHealthState.PROBING
+                    record.last_state_change_ts = now
         return record
 
-    def is_tier_healthy(self, tier: int) -> bool:
+    def get_circuit_breaker_state(self, tier: int) -> CircuitBreakerState:
+        """Return the circuit breaker state (CLOSED, OPEN, HALF_OPEN) for a tier."""
+        record = self.get_health(tier)
+        if record.state in (ProviderHealthState.HEALTHY, ProviderHealthState.RECOVERED):
+            return CircuitBreakerState.CLOSED
+        if record.state == ProviderHealthState.PROBING:
+            return CircuitBreakerState.HALF_OPEN
+        now = time.time()
+        ref_ts = record.circuit_open_ts or record.last_state_change_ts or record.last_failure_ts
+        base_window = float(os.getenv("T1_CIRCUIT_BREAKER_WINDOW", "30.0"))
+        if ref_ts and (now - ref_ts >= base_window):
+            return CircuitBreakerState.HALF_OPEN
+        return CircuitBreakerState.OPEN
+
+    def exclude_tier_for_mission(self, tier: int, mission_id: str, permanent: bool = False, reason: str = "", **kwargs: Any) -> None:
+        """Mission-scoped tier exclusion to prevent resetting to failed tiers during same mission."""
+        if mission_id:
+            if not hasattr(self, "_mission_excluded_tiers"):
+                self._mission_excluded_tiers = {}
+            self._mission_excluded_tiers.setdefault(mission_id, set()).add(tier)
+            logger.warning(f"[ADAPTIVE ROUTING] Tier {tier} excluded for mission '{mission_id}' (permanent={permanent}, reason={reason})")
+
+    def is_tier_excluded_for_mission(self, tier: int, mission_id: str) -> bool:
+        if not mission_id or not hasattr(self, "_mission_excluded_tiers"):
+            return False
+        return tier in self._mission_excluded_tiers.get(mission_id, set())
+
+    def reset_mission(self, mission_id: str) -> None:
+        if hasattr(self, "_mission_excluded_tiers"):
+            self._mission_excluded_tiers.pop(mission_id, None)
+
+    def is_tier_healthy(self, tier: int, mission_id: Optional[str] = None) -> bool:
+        if mission_id and self.is_tier_excluded_for_mission(tier, mission_id):
+            return False
         record = self.get_health(tier) if tier in self.providers else None
         if not record:
             return False
@@ -209,8 +242,10 @@ class AdaptiveRouter:
             return False
         return record.state in (ProviderHealthState.HEALTHY, ProviderHealthState.RECOVERED)
 
-    def is_tier_available(self, tier: int) -> bool:
-        """Check if tier is configured with a model and marked available."""
+    def is_tier_available(self, tier: int, mission_id: Optional[str] = None) -> bool:
+        """Check if tier is configured with a model, marked available, and not excluded for mission."""
+        if mission_id and self.is_tier_excluded_for_mission(tier, mission_id):
+            return False
         record = self.providers.get(tier)
         if not record or not record.model:
             return False
@@ -241,12 +276,16 @@ class AdaptiveRouter:
                 return False
         return True
 
-    def get_eligible_tiers(self) -> List[int]:
-        """Return all tiers that are configured, available, and not open circuit."""
+    def get_eligible_tiers(self, mission_id: Optional[str] = None) -> List[int]:
+        """Return all tiers that are configured, available, and not open circuit or excluded for mission."""
         eligible = []
         for t in sorted(self.providers.keys()):
             rec = self.providers[t]
-            if rec.model and self.is_tier_available(t) and rec.state != ProviderHealthState.OPEN_CIRCUIT:
+            if rec.model and self.is_tier_available(t, mission_id=mission_id) and rec.state not in (
+                ProviderHealthState.OPEN_CIRCUIT,
+                ProviderHealthState.BILLING_BLOCKED,
+                ProviderHealthState.MODEL_UNAVAILABLE,
+            ):
                 eligible.append(t)
         return eligible
 
@@ -266,7 +305,7 @@ class AdaptiveRouter:
             rec.is_quota_exhausted = False
             rec.retry_after_ts = None
 
-    def route_primary(self, client_t1: Any = None) -> RouteDecision:
+    def route_primary(self, client_t1: Any = None, mission_id: Optional[str] = None) -> RouteDecision:
         """
         Evaluate provider health and return route decision.
         Target: <= 5ms local overhead.
@@ -276,7 +315,9 @@ class AdaptiveRouter:
         t1 = self.providers[1]
         t2 = self.providers[2]
 
-        if not CIRCUIT_BREAKER_ENABLED:
+        is_t1_excluded = bool(mission_id and self.is_tier_excluded_for_mission(1, mission_id))
+
+        if not CIRCUIT_BREAKER_ENABLED and not is_t1_excluded:
             dec_lat = (time.perf_counter() - t0) * 1000.0
             self.telemetry.t1_direct_dispatches += 1
             return RouteDecision(
@@ -289,7 +330,7 @@ class AdaptiveRouter:
             )
 
         # Evaluate T1 state
-        if t1.state in (ProviderHealthState.HEALTHY, ProviderHealthState.RECOVERED):
+        if not is_t1_excluded and t1.state in (ProviderHealthState.HEALTHY, ProviderHealthState.RECOVERED):
             dec_lat = (time.perf_counter() - t0) * 1000.0
             self.telemetry.t1_direct_dispatches += 1
             return RouteDecision(
@@ -354,6 +395,8 @@ class AdaptiveRouter:
         tier: int,
         latency: float,
         first_token_latency: Optional[float] = None,
+        mission_id: Optional[str] = None,
+        **kwargs: Any,
     ) -> None:
         """Update provider health following a successful generation."""
         record = self.providers.get(tier)
@@ -398,6 +441,8 @@ class AdaptiveRouter:
         latency: float = 0.0,
         client: Any = None,
         retry_after: Optional[float] = None,
+        mission_id: Optional[str] = None,
+        **kwargs: Any,
     ) -> None:
         """Update provider health following a failure, tripping circuit if threshold exceeded."""
         record = self.providers.get(tier)
@@ -410,6 +455,21 @@ class AdaptiveRouter:
         record.consecutive_successes = 0
 
         err_str = str(error).lower()
+        if "402" in err_str or "payment_method_required" in err_str or "payment required" in err_str or "balance_units" in err_str or "billing" in err_str:
+            record.is_quota_exhausted = True
+            record.is_available = False
+            record.state = ProviderHealthState.BILLING_BLOCKED
+            record.unavailability_reason = str(error)[:200]
+            record.circuit_open_ts = now
+            return
+
+        if ("model" in err_str and "not found" in err_str) or "model_not_found" in err_str:
+            record.is_available = False
+            record.state = ProviderHealthState.MODEL_UNAVAILABLE
+            record.unavailability_reason = str(error)[:200]
+            record.circuit_open_ts = now
+            return
+
         if "401" in err_str or "unauthorized" in err_str or "auth_failure" in err_str or "invalid api key" in err_str or "403" in err_str:
             record.is_auth_failure = True
             record.state = ProviderHealthState.OPEN_CIRCUIT
@@ -418,7 +478,8 @@ class AdaptiveRouter:
 
         if "insufficient_quota" in err_str or "quota exceeded" in err_str or "out of credits" in err_str:
             record.is_quota_exhausted = True
-            record.state = ProviderHealthState.OPEN_CIRCUIT
+            record.is_available = False
+            record.state = ProviderHealthState.BILLING_BLOCKED
             record.circuit_open_ts = now
             return
 
@@ -434,7 +495,12 @@ class AdaptiveRouter:
             record.circuit_open_ts = now
             return
 
-        is_severe_timeout = timeout_type in ("FIRST_TOKEN_TIMEOUT", "CONNECT_TIMEOUT", "TOTAL_GENERATION_TIMEOUT") or "timeout" in str(error).lower()
+        is_severe_timeout = (
+            timeout_type in ("FIRST_TOKEN_TIMEOUT", "CONNECT_TIMEOUT", "TOTAL_GENERATION_TIMEOUT", "TTFT_TIMEOUT", "ATTEMPT_TIMEOUT", "HTTP_504_GATEWAY_TIMEOUT")
+            or getattr(error, "timeout_type", None) in ("FIRST_TOKEN_TIMEOUT", "TTFT_TIMEOUT")
+            or "timeout" in str(error).lower()
+            or "stalled" in str(error).lower()
+        )
 
         if is_severe_timeout:
             record.consecutive_first_token_failures += 1

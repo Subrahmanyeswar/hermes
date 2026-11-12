@@ -822,6 +822,89 @@ class AssetPipeline:
                 "height": 600,
             },
         },
+        "ecommerce_marketplace": {
+            "hero": {
+                "subject": "Circular Construction Materials Recovery Facility & Salvage",
+                "relative_path": "assets/images/hero/hero-materials.jpg",
+                "component": "hero",
+                "url": "https://images.unsplash.com/photo-1504307651254-35680f356dfd?auto=format&fit=crop&w=1600&q=80",
+                "alt": "Circular construction materials recovery facility and architectural salvage",
+                "width": 1600,
+                "height": 900,
+            },
+            "mat_timber": {
+                "subject": "Reclaimed Timber",
+                "relative_path": "assets/images/products/timber.jpg",
+                "component": "catalogue_grid",
+                "url": "https://images.unsplash.com/photo-1513694203232-719a280e022f?auto=format&fit=crop&w=800&q=80",
+                "alt": "Reclaimed Timber",
+                "width": 800,
+                "height": 600,
+            },
+            "mat_steel": {
+                "subject": "Recycled Structural Steel",
+                "relative_path": "assets/images/products/steel.jpg",
+                "component": "catalogue_grid",
+                "url": "https://images.unsplash.com/photo-1587293852726-70cdb56c2866?auto=format&fit=crop&w=800&q=80",
+                "alt": "Recycled Structural Steel",
+                "width": 800,
+                "height": 600,
+            },
+            "mat_bricks": {
+                "subject": "Salvaged Bricks",
+                "relative_path": "assets/images/products/bricks.jpg",
+                "component": "catalogue_grid",
+                "url": "https://images.unsplash.com/photo-1589939705384-5185137a7f0f?auto=format&fit=crop&w=800&q=80",
+                "alt": "Salvaged Bricks",
+                "width": 800,
+                "height": 600,
+            },
+            "mat_glass_aggregates": {
+                "subject": "Recycled Glass Aggregates",
+                "relative_path": "assets/images/products/glass-aggregates.jpg",
+                "component": "catalogue_grid",
+                "url": "https://images.unsplash.com/photo-1578328819058-b69f3a3b0f6b?auto=format&fit=crop&w=800&q=80",
+                "alt": "Recycled Glass Aggregates",
+                "width": 800,
+                "height": 600,
+            },
+            "mat_concrete": {
+                "subject": "Low-Carbon Concrete",
+                "relative_path": "assets/images/products/concrete.jpg",
+                "component": "catalogue_grid",
+                "url": "https://images.unsplash.com/photo-1590381105924-c72589b9ef3f?auto=format&fit=crop&w=800&q=80",
+                "alt": "Low-Carbon Concrete",
+                "width": 800,
+                "height": 600,
+            },
+            "mat_stone": {
+                "subject": "Reclaimed Stone",
+                "relative_path": "assets/images/products/stone.jpg",
+                "component": "catalogue_grid",
+                "url": "https://images.unsplash.com/photo-1541888946425-d0fbb18086f6?auto=format&fit=crop&w=800&q=80",
+                "alt": "Reclaimed Stone",
+                "width": 800,
+                "height": 600,
+            },
+            "mat_insulation": {
+                "subject": "Recycled Insulation",
+                "relative_path": "assets/images/products/insulation.jpg",
+                "component": "catalogue_grid",
+                "url": "https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?auto=format&fit=crop&w=800&q=80",
+                "alt": "Recycled Insulation",
+                "width": 800,
+                "height": 600,
+            },
+            "mat_fixtures": {
+                "subject": "Reclaimed Architectural Fixtures",
+                "relative_path": "assets/images/products/fixtures.jpg",
+                "component": "catalogue_grid",
+                "url": "https://images.unsplash.com/photo-1584622650111-993a426fbf0a?auto=format&fit=crop&w=800&q=80",
+                "alt": "Reclaimed Architectural Fixtures",
+                "width": 800,
+                "height": 600,
+            },
+        },
         "architecture_interior": {
             "hero": {
                 "subject": "Monolithic Architectural Studio & Spatial Design",
@@ -1231,6 +1314,41 @@ class AssetPipeline:
                 bw = 18 + b * 16
                 draw.ellipse([px - bw, by - 16, px + bw, by + 16], fill=(120 - b * 8, 113 - b * 8, 108 - b * 8))
 
+        elif is_hero and ("geospatial" in d_lower or any(w in s_lower for w in ["geospatial", "drone", "aerial", "terrain mapping", "topography", "lidar"])):
+            for y in range(int(height * 0.4)):
+                ratio = y / max(height * 0.4, 1)
+                draw.line([(0, y), (width, y)], fill=(int(140 + ratio * 50), int(190 + ratio * 40), int(235 + ratio * 20)))
+            for y in range(int(height * 0.4), height):
+                ratio = (y - height * 0.4) / max(height * 0.6, 1)
+                g_val = int(70 + (1 - ratio) * 60)
+                draw.line([(0, y), (width, y)], fill=(int(40 + (1 - ratio) * 50), g_val, int(30 + ratio * 20)))
+            for ci in range(12):
+                cy_base = int(height * 0.45 + ci * (height * 0.045))
+                points = [(0, cy_base)]
+                for x in range(0, width + 40, 40):
+                    y_offset = int(math.sin(seed + ci * 2.3 + x * 0.008) * 25 + math.cos(x * 0.015) * 15)
+                    points.append((x, cy_base + y_offset))
+                draw.line(points, fill=(14, 165, 233), width=2)
+            dx, dy = int(width * 0.72), int(height * 0.22)
+            draw.ellipse([dx - 18, dy - 6, dx + 18, dy + 6], fill=(30, 41, 59))
+            draw.line([(dx - 30, dy - 12), (dx + 30, dy + 12)], fill=(15, 23, 42), width=3)
+            draw.line([(dx - 30, dy + 12), (dx + 30, dy - 12)], fill=(15, 23, 42), width=3)
+            for rx, ry in [(dx - 30, dy - 12), (dx + 30, dy + 12), (dx - 30, dy + 12), (dx + 30, dy - 12)]:
+                draw.ellipse([rx - 8, ry - 3, rx + 8, ry + 3], fill=(56, 189, 248), outline=(255, 255, 255), width=1)
+
+        elif is_hero and ("museum" in d_lower or any(w in s_lower for w in ["museum", "sparkfield", "discovery", "planetarium", "science center"])):
+            for y in range(height):
+                ratio = y / max(height - 1, 1)
+                draw.line([(0, y), (width, y)], fill=(int(15 + ratio * 20), int(18 + ratio * 30), int(45 + ratio * 50)))
+            cx, cy = int(width * 0.5), int(height * 0.45)
+            r = int(min(width, height) * 0.42)
+            for i in range(100):
+                sx = int((math.sin(seed + i * 47.3) * 0.5 + 0.5) * width)
+                sy = int((math.cos(seed + i * 89.9) * 0.45 + 0.45) * height)
+                draw.rectangle([sx, sy, sx + 2, sy + 2], fill=(255, 245, 200))
+            draw.arc([cx - r, cy - int(r * 0.4), cx + r, cy + int(r * 0.4)], 0, 360, fill=(245, 158, 11), width=4)
+            draw.ellipse([cx - int(r * 0.35), cy - int(r * 0.35), cx + int(r * 0.35), cy + int(r * 0.35)], fill=(59, 130, 246), outline=(96, 165, 250), width=3)
+
         # -------------------------------------------------------------
         # 1. ASTRONOMY SHOWCASE ASSETS
         # -------------------------------------------------------------
@@ -1275,7 +1393,7 @@ class AssetPipeline:
             draw.line([(dcx, mcy), (dcx, 0)], fill=(56, 189, 248), width=3)
             draw.line([(dcx - 1, mcy), (dcx - 1, 0)], fill=(255, 255, 255), width=1)
 
-        elif "infrared" in s_lower or "nebula" in s_lower or "survey" in s_lower or "galaxy" in s_lower:
+        elif "infrared" in s_lower or "nebula" in s_lower or "deep-sky" in s_lower or "galaxy" in s_lower:
             for y in range(height):
                 ratio = y / max(height - 1, 1)
                 draw.line([(0, y), (width, y)], fill=(int(2 + ratio * 15), int(2 + ratio * 8), int(10 + ratio * 25)))
@@ -1834,6 +1952,39 @@ class AssetPipeline:
                     c_x2 = c_x1 + int(width * 0.24)
                     draw.rounded_rectangle([c_x1, int(height * 0.25), c_x2, int(height * 0.75)], radius=10, fill=(30, 41, 59), outline=(99, 102, 241), width=2)
                     draw.line([(c_x1 + 15, int(height * 0.4)), (c_x2 - 15, int(height * 0.4))], fill=(245, 158, 11), width=3)
+            elif "geospatial" in d_lower or any(w in s_lower for w in ["terrain", "mapping", "lidar", "stockpile", "volumetric", "drone", "survey"]):
+                for y in range(height):
+                    ratio = y / max(height - 1, 1)
+                    draw.line([(0, y), (width, y)], fill=(int(20 + ratio * 30), int(35 + ratio * 60), int(60 + ratio * 70)))
+                for ci in range(8):
+                    cy_base = int(height * 0.18 + ci * (height * 0.09))
+                    points = [(0, cy_base)]
+                    for x in range(0, width + 30, 30):
+                        y_offset = int(math.sin(seed + ci * 1.7 + x * 0.012) * 20 + math.cos(x * 0.02) * 12)
+                        points.append((x, cy_base + y_offset))
+                    c_val = int(120 + ci * 14)
+                    draw.line(points, fill=(14, min(255, c_val), 233), width=2)
+                bx, by = int(width * 0.3), int(height * 0.4)
+                bw, bh = int(width * 0.4), int(height * 0.35)
+                draw.rectangle([bx, by, bx + bw, by + bh], outline=(245, 158, 11), width=2)
+                draw.line([(bx, by), (bx + 20, by - 20)], fill=(245, 158, 11), width=2)
+                draw.line([(bx + bw, by), (bx + bw + 20, by - 20)], fill=(245, 158, 11), width=2)
+                draw.line([(bx + bw, by + bh), (bx + bw + 20, by + bh - 20)], fill=(245, 158, 11), width=2)
+                draw.line([(bx + 20, by - 20), (bx + bw + 20, by - 20)], fill=(245, 158, 11), width=2)
+                draw.line([(bx + bw + 20, by - 20), (bx + bw + 20, by + bh - 20)], fill=(245, 158, 11), width=2)
+            elif "museum" in d_lower or any(w in s_lower for w in ["physics", "robotics", "planetarium", "maker", "camps", "sensory", "explorers"]):
+                for y in range(height):
+                    ratio = y / max(height - 1, 1)
+                    draw.line([(0, y), (width, y)], fill=(int(25 + ratio * 35), int(30 + ratio * 45), int(65 + ratio * 65)))
+                cx, cy = int(width * 0.5), int(height * 0.5)
+                r = int(min(width, height) * 0.3)
+                draw.ellipse([cx - r, cy - r, cx + r, cy + r], outline=(59, 130, 246), width=3)
+                draw.ellipse([cx - int(r * 0.6), cy - int(r * 0.6), cx + int(r * 0.6), cy + int(r * 0.6)], fill=(245, 158, 11), outline=(251, 191, 36), width=2)
+                for ai in range(8):
+                    ang = ai * (math.pi / 4)
+                    px = int(cx + r * math.cos(ang))
+                    py = int(cy + r * math.sin(ang))
+                    draw.ellipse([px - 8, py - 8, px + 8, py + 8], fill=(16, 185, 129))
             else:
                 cx, cy = int(width * 0.5), int(height * 0.48)
                 r_orb = int(min(width, height) * 0.28)
@@ -1923,6 +2074,7 @@ class AssetPipeline:
                 dynamic_pool[aid] = {
                     "relative_path": a.get("relative_path", f"assets/images/{aid}.jpg"),
                     "subject": a.get("subject", aid),
+                    "search_query": a.get("search_query", a.get("subject", aid)),
                     "component": a.get("component", "showcase"),
                     "width": a.get("width", 800),
                     "height": a.get("height", 600),
@@ -1934,6 +2086,84 @@ class AssetPipeline:
             pool = cls.CURATED_ASSETS.get(pool_key, cls.CURATED_ASSETS.get(domain))
             if not pool:
                 pool = cls.CURATED_ASSETS.get("general", cls.CURATED_ASSETS["travel_tourism"])
+
+        # For Mode 2 / dynamic unseen-domain entries without a hardcoded URL, resolve real stock photos via Wikimedia Commons
+        import sys as _sys
+        if ("pytest" not in _sys.modules) or os.getenv("HERMES_LIVE_IMAGE_SEARCH") == "true":
+            missing_url_items = [(k, v) for k, v in pool.items() if not v.get("url") and (v.get("search_query") or v.get("subject"))]
+            if missing_url_items:
+                try:
+                    from tools.image_asset_tools import ImageSearchTool
+                    img_search = ImageSearchTool()
+                    _MODIFIER_STOPWORDS = {
+                        "close", "closeup", "macro", "photo", "photograph", "image", "shot",
+                        "view", "detail", "bespoke", "studio", "luxury", "artisan", "craft",
+                        "hand", "wound", "in", "house", "with", "and", "the", "for",
+                    }
+                    hero_anchor = ""
+                    if pool.get("hero"):
+                        hq_tokens = [
+                            w for w in re.findall(r"[a-z0-9]+", str(pool["hero"].get("search_query") or pool["hero"].get("subject") or "").lower())
+                            if len(w) >= 3 and w not in _MODIFIER_STOPWORDS
+                        ]
+                        if hq_tokens:
+                            hero_anchor = hq_tokens[-1]
+                    used_urls: set[str] = {str(v.get("url")) for v in pool.values() if v.get("url")}
+                    for k, v in missing_url_items:
+                        raw_q = str(v.get("search_query") or v.get("subject") or "")
+                        clean_tokens = [
+                            w for w in re.findall(r"[a-z0-9]+", raw_q.lower())
+                            if len(w) >= 3 and w not in _MODIFIER_STOPWORDS
+                        ]
+                        if not clean_tokens:
+                            clean_tokens = [w for w in re.findall(r"[a-z0-9]+", raw_q.lower()) if len(w) >= 3]
+                        q = " ".join(clean_tokens[:4]) if clean_tokens else raw_q
+                        if not q:
+                            continue
+                        sub_queries = [q]
+                        if len(clean_tokens) >= 2:
+                            sub_queries.append(" ".join(clean_tokens[:2]))
+                            sub_queries.append(" ".join(clean_tokens[-2:]))
+                        if hero_anchor and hero_anchor not in clean_tokens:
+                            sub_queries.append(f"{clean_tokens[0]} {hero_anchor}")
+                        core_words = set(clean_tokens)
+                        if hero_anchor:
+                            core_words.add(hero_anchor)
+                        try:
+                            picked = False
+                            for sq in sub_queries:
+                                hits = img_search._search_wikimedia(sq, num_results=10)
+                                scored_hits = []
+                                for hit in hits:
+                                    title_l = str(hit.get("title") or "").lower()
+                                    cand_url = hit.get("preview_url") or hit.get("image_url")
+                                    w_hit = hit.get("width", 0) or 0
+                                    if (
+                                        cand_url
+                                        and cand_url not in used_urls
+                                        and "engraving" not in title_l
+                                        and "diagram" not in title_l
+                                        and (w_hit == 0 or w_hit >= 400)
+                                    ):
+                                        rel = sum(1 for cw in core_words if cw in title_l)
+                                        scored_hits.append((rel, 1 if w_hit >= 800 else 0, cand_url))
+                                scored_hits.sort(key=lambda x: (x[0], x[1]), reverse=True)
+                                if scored_hits and scored_hits[0][0] >= 1:
+                                    v["url"] = scored_hits[0][2]
+                                    used_urls.add(scored_hits[0][2])
+                                    picked = True
+                                    break
+                            if not picked and hits:
+                                for hit in hits:
+                                    cand_url = hit.get("preview_url") or hit.get("image_url")
+                                    if cand_url and cand_url not in used_urls:
+                                        v["url"] = cand_url
+                                        used_urls.add(cand_url)
+                                        break
+                        except Exception as w_ex:
+                            logger.debug(f"AssetPipeline: Wikimedia search lookup skipped for '{q}': {w_ex}")
+                except Exception as tool_ex:
+                    logger.debug(f"AssetPipeline: ImageSearchTool import notice: {tool_ex}")
         try:
             from tools.security import WorkspaceOwnershipManifest
             WorkspaceOwnershipManifest.register_generated_files(ws, [spec["relative_path"] for spec in pool.values()], source="asset_pipeline")
@@ -1953,12 +2183,10 @@ class AssetPipeline:
         if urls_to_download:
             def _fetch_url(item):
                 key, u, tf = item
+                ua = "HERMES-AssetPipeline/2.x (https://github.com/hermes-agent; contact@example.invalid)" if "wikimedia.org" in u else "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
                 try:
-                    req = urllib.request.Request(
-                        u,
-                        headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
-                    )
-                    with urllib.request.urlopen(req, timeout=3.0) as resp:
+                    req = urllib.request.Request(u, headers={"User-Agent": ua})
+                    with urllib.request.urlopen(req, timeout=6.0) as resp:
                         if resp.status == 200:
                             data = resp.read()
                             if len(data) > 5000:
@@ -1968,7 +2196,7 @@ class AssetPipeline:
                     logger.debug(f"AssetPipeline: concurrent fetch for {key} failed: {ex}")
                 return False
 
-            with ThreadPoolExecutor(max_workers=min(8, len(urls_to_download))) as executor:
+            with ThreadPoolExecutor(max_workers=min(3, len(urls_to_download))) as executor:
                 list(executor.map(_fetch_url, urls_to_download))
 
         manifest = AssetManifest(domain=domain, mission_id=mission_id)

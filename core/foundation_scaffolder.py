@@ -54,10 +54,17 @@ def seed_initial_foundation_files(
         or DesignBriefGenerator.detect_domain(prompt)
     )
 
-    is_robotics = target_domain == "robotics_automation" or any(w in p_clean_lower for w in ["robotics", "robot", "industrial automation", "autonomous mobile"])
-    is_ecommerce = (target_domain in ("ecommerce_electronics", "ecommerce_store") and not is_robotics and not any(w in p_clean_lower for w in ["hospital", "logistics", "real estate", "architecture"])) or ("nova" in p_clean_lower and any(w in p_clean_lower for w in ["smartphones", "laptops", "headphones"]))
-    is_culinary = target_domain == "culinary_restaurant"
-    is_education = target_domain == "education_institution"
+    is_robotics = (
+        (target_domain == "robotics_automation" or any(w in p_clean_lower for w in ["atlas robotics", "industrial automation", "autonomous mobile"]))
+        and not any(w in p_clean_lower for w in ["museum", "sparkfield", "discovery center", "children", "kids", "stem camp", "education"])
+    )
+    is_ecommerce = (
+        bool(re.search(r"\bnova\b", p_clean_lower))
+        and not is_robotics
+        and not any(w in p_clean_lower for w in ["hospital", "logistics", "real estate", "architecture"])
+    )
+    is_culinary = target_domain == "culinary_restaurant" and "saffron" in p_clean_lower
+    is_education = ("northstar" in p_clean_lower or "collegiate" in p_clean_lower or "university" in p_clean_lower) and not any(w in p_clean_lower for w in ["museum", "sparkfield", "discovery center"])
     is_wanderworld = ("wanderworld" in p_clean_lower) or ("destinations-grid" in p_clean_lower)
     is_architecture = ("form & field" in p_clean_lower) or ("form and field" in p_clean_lower)
     is_veterinary = ("paws & claws" in p_clean_lower) or ("paws and claws" in p_clean_lower)

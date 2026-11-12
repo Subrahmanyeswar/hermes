@@ -131,6 +131,13 @@ class MissionSnapshot(BaseModel):
     recovery_required: bool = False
     is_paused: bool = False
     pause_pending: bool = False
+    execution_mode: Optional[str] = None
+    active_provider: Optional[str] = None
+    active_model: Optional[str] = None
+    current_stage: Optional[str] = None
+    duration_seconds: Optional[float] = None
+    failover_events: List[Dict[str, Any]] = Field(default_factory=list)
+    terminal_reason: Optional[str] = None
 
 
 class CreateMissionRequest(BaseModel):

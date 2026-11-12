@@ -146,6 +146,23 @@ class WorkPackageGater:
             if js_raw in ("console.log('App ready');", "console.log('app ready');", "console.log('ready');", ""):
                 missing.append("Primary JavaScript entrypoint (app.js) is a generic stub ('console.log(\'App ready\');'). Must contain application logic or state.")
 
+        # Prompt-authoritative brand check in foundation
+        try:
+            from core.mission_spec import MissionSpecification
+            spec = MissionSpecification.load_from_workspace(ws)
+            if spec and getattr(spec, "user_prompt", None):
+                from core.design_intelligence import detect_brand_name
+                true_b = detect_brand_name(spec.user_prompt)
+                if true_b and true_b.lower() not in ("application", "modern application"):
+                    if html_file:
+                        h_t = html_file.read_text(encoding="utf-8", errors="ignore").lower()
+                        if true_b.lower() not in h_t:
+                            missing.append(f"Foundation gate rejected: Prompt brand '{true_b}' missing from primary markup (index.html).")
+                        if re.search(r'<title>[^<]*\bidentity\b[^<]*</title>', h_t):
+                            missing.append("Foundation gate rejected: Brand corrupted with generic token 'identity'.")
+        except Exception:
+            pass
+
         passed = len(missing) == 0
         summary = "Foundation work package satisfied." if passed else f"Foundation gate blocked by {len(missing)} missing criteria."
         return WorkPackageGateResult(
@@ -294,6 +311,102 @@ class WorkPackageGater:
                     if leaks:
                         missing.append(f"Cross-contamination detected: foreign artifacts ({', '.join(leaks)}) found in {brand} project.")
 
+        # Prompt-authoritative anti-circular validation
+        try:
+            from core.mission_spec import MissionSpecification
+            spec = MissionSpecification.load_from_workspace(ws)
+            raw_prompt = getattr(spec, "user_prompt", "") or getattr(spec, "prompt", "") if spec else ""
+            if raw_prompt:
+                from core.design_intelligence import detect_brand_name, DesignBriefGenerator
+                true_brand = detect_brand_name(raw_prompt)
+                true_domain = DesignBriefGenerator.detect_domain(raw_prompt)
+                true_archetype = DesignBriefGenerator.detect_archetype(raw_prompt)
+
+                if true_brand and true_brand.lower() not in ("application", "modern application"):
+                    if true_brand.lower() not in html_text.lower() and true_brand.lower() not in js_text.lower():
+                        missing.append(f"Prompt-authoritative brand failure: expected brand '{true_brand}' from original user prompt not found in deliverables.")
+                    if re.search(r'<title>[^<]*\bidentity\b[^<]*</title>', html_text, re.I):
+                        missing.append("Prompt-authoritative brand failure: title corrupted with generic token 'identity'.")
+
+                if true_domain == "ecommerce_marketplace" or true_archetype == "marketplace":
+                    # Reject architectural hijacking in marketplace
+                    arch_leaks = [t for t in [
+                        "cantilever pavilion", "vapour ridge", "ember loft", "solarium coastal",
+                        "terrene alpine", "residential architecture", "commercial & hospitality",
+                        "spatial philosophy & tectonic materiality"
+                    ] if t in html_text.lower() or t in js_text.lower()]
+                    if arch_leaks:
+                        missing.append(f"Content gate rejected (CONTENT_DOMAIN_MISMATCH): Prompt requested a marketplace but deliverables contain architectural studio projects or manifesto ({', '.join(arch_leaks)}).")
+
+                    # Check requested circular materials with strict identity verification
+                    canonical_materials = [
+                        ("Reclaimed Timber", ["reclaimed timber", "reclaimed douglas fir"]),
+                        ("Recycled Structural Steel", ["recycled structural steel", "recycled steel"]),
+                        ("Salvaged Bricks", ["salvaged bricks", "salvaged historic bricks"]),
+                        ("Recycled Glass Aggregates", ["recycled glass aggregates", "glass aggregates"]),
+                        ("Low-Carbon Concrete", ["low-carbon concrete"]),
+                        ("Reclaimed Stone", ["reclaimed stone"]),
+                        ("Recycled Insulation", ["recycled insulation"]),
+                        ("Reclaimed Architectural Fixtures", ["reclaimed architectural fixtures", "architectural fixtures"]),
+                    ]
+
+                    # Parse entities from app.js or spec if present
+                    parsed_entity_titles = []
+                    ent_match = re.search(r'const\s+entities\s*=\s*(\[.*?\]);', js_text, re.DOTALL)
+                    if ent_match:
+                        try:
+                            import json
+                            raw_ent_data = json.loads(ent_match.group(1))
+                            parsed_entity_titles = [e.get("title", "").strip() for e in raw_ent_data if isinstance(e, dict)]
+                        except Exception:
+                            pass
+                    if not parsed_entity_titles and spec and getattr(spec, "content_entities", None):
+                        parsed_entity_titles = [e.get("title", "").strip() for e in spec.content_entities if isinstance(e, dict)]
+
+                    # Detect unauthorized substitutions
+                    has_canonical_fixtures = any("reclaimed architectural fixtures" in t.lower() for t in parsed_entity_titles) or "reclaimed architectural fixtures" in html_text.lower()
+                    has_brass_substitution = any(b in html_text.lower() or b in js_text.lower() for b in [
+                        "salvaged heavy-duty brass hardware", "brass hardware", "heavy-duty brass hardware"
+                    ])
+                    if not has_canonical_fixtures and has_brass_substitution:
+                        missing.append("Content gate rejected (REQUIRED_ENTITY_SUBSTITUTION): Required catalogue entity 'Reclaimed Architectural Fixtures' was substituted with unauthorized product ('Brass Hardware').")
+
+                    has_canonical_stone = any("reclaimed stone" in t.lower() for t in parsed_entity_titles) or "reclaimed stone" in html_text.lower()
+                    has_paver_substitution = any(p in html_text.lower() or p in js_text.lower() for p in [
+                        "granite pavers", "granite stone pavers", "architectural granite pavers"
+                    ])
+                    if not has_canonical_stone and has_paver_substitution:
+                        missing.append("Content gate rejected (REQUIRED_ENTITY_SUBSTITUTION): Required catalogue entity 'Reclaimed Stone' was substituted with unauthorized product ('Granite Pavers').")
+
+                    # Verify all canonical entities exist
+                    missing_entities = []
+                    for c_title, c_aliases in canonical_materials:
+                        found_in_titles = any(c_title.lower() == t.lower() or any(a in t.lower() for a in c_aliases) for t in parsed_entity_titles)
+                        found_in_html = c_title.lower() in html_text.lower() or any(a in html_text.lower() for a in c_aliases)
+                        if not found_in_titles and not found_in_html:
+                            missing_entities.append(c_title)
+
+                    if missing_entities:
+                        missing.append(f"Content gate rejected (REQUIRED_ENTITY_SUBSTITUTION): Required catalogue entities missing or substituted: {', '.join(missing_entities)}.")
+
+                    # Detect unsupported environmental claims
+                    unsupported_env_patterns = [
+                        (r'\b\d{1,3}(?:,\d{3})+\s*(?:\+)?\s*(?:t|tons|tonnes)\b', "Fabricated diversion tonnage"),
+                        (r'\b\d{2,}\+\s*(?:verified\s+)?suppliers\b', "Fabricated supplier count"),
+                        (r'\b\d{2,}(?:\.\d+)?%\s*(?:carbon\s+reduction|reduction\s+in\s+carbon)\b', "Fabricated carbon reduction percentage"),
+                        (r'-\d{2,}%\s*embodied\s*carbon\b', "Fabricated carbon reduction percentage"),
+                        (r'100%\s*(?:verified|certified)\s*(?:reclaimed\s+materials|circular|materials|carbon)', "Fabricated 100% verification claim"),
+                        (r'100%\s*chain\s*of\s*custody', "Fabricated 100% chain of custody claim"),
+                        (r'\b(?:certified\s+embodied\s+carbon|epd\s+verified|verified\s+epd)\b', "Fabricated certification / EPD claim"),
+                        (r'\b\d+(?:\.\d+)?\s*(?:kg|t)\s*co2e?(?:/[a-zA-Z0-9\s]+)?\b', "Fabricated CO2e reduction figure"),
+                    ]
+                    for pat, pat_desc in unsupported_env_patterns:
+                        m_env = re.search(pat, html_text, re.IGNORECASE) or re.search(pat, js_text, re.IGNORECASE)
+                        if m_env:
+                            missing.append(f"Content gate rejected (UNSUPPORTED_ENVIRONMENTAL_CLAIM): Deliverables contain unverified environmental claim or fabricated metric ('{m_env.group(0)}' — {pat_desc}). Factual integrity requires qualitative messaging or verified data.")
+        except Exception as e:
+            logger.debug(f"Prompt-authoritative validation notice: {e}")
+
         # Check asset references
         imgs = re.findall(r'<img\s+[^>]*>', html_text, re.I)
         missing_alt = [img for img in imgs if 'alt=' not in img.lower()]
@@ -303,11 +416,17 @@ class WorkPackageGater:
         try:
             from core.asset_pipeline import AssetPipeline
             assets_ok, missing_assets, found_assets = AssetPipeline.verify_workspace_assets(ws)
-            for m in missing_assets:
-                if "Duplicate" in m or "identical" in m:
-                    missing.append(f"Content gate rejected: {m}")
-        except Exception:
-            pass
+            manifest_exists = (ws / ".hermes" / "asset_manifest.json").exists()
+            assets_dir_has_files = (ws / "assets").exists() and any((ws / "assets").glob("**/*.*"))
+            if manifest_exists or assets_dir_has_files:
+                for m in missing_assets:
+                    missing.append(f"Content gate rejected (MISSING_LOCAL_ASSET): {m}")
+            else:
+                for m in missing_assets:
+                    if "Duplicate" in m or "identical" in m:
+                        missing.append(f"Content gate rejected: {m}")
+        except Exception as e:
+            logger.debug(f"Asset verification notice: {e}")
 
         passed = len(missing) == 0
         summary = "Content work package satisfied." if passed else f"Content gate blocked by {len(missing)} missing criteria."
@@ -444,3 +563,7 @@ class WorkPackageGater:
             missing_criteria=missing,
             evidence=evidence,
         )
+
+
+WorkPackageGate = WorkPackageGater
+

@@ -382,9 +382,13 @@ class NvidiaClient(ModelProvider):
         # (e.g. clear_thinking, num_predict, num_ctx, keep_alive, think, format)
         if "top_p" in kwargs:
             payload["top_p"] = kwargs["top_p"]
+        if "response_format" in kwargs and kwargs["response_format"] is not None:
+            payload["response_format"] = kwargs["response_format"]
+        if "chat_template_kwargs" in kwargs and kwargs["chat_template_kwargs"] is not None:
+            payload["chat_template_kwargs"] = kwargs["chat_template_kwargs"]
         if "reasoning_effort" in kwargs and kwargs["reasoning_effort"] is not None:
             payload["reasoning_effort"] = kwargs["reasoning_effort"]
-        elif active_model.startswith("z-ai/") or "nemotron" in active_model.lower():
+        elif "chat_template_kwargs" not in payload and (active_model.startswith("z-ai/") or "nemotron" in active_model.lower()):
             payload["reasoning_effort"] = "low"
 
         if "tools" in kwargs:
@@ -465,19 +469,24 @@ class NvidiaClient(ModelProvider):
                         attempt_index=attempt,
                         turn_index=turn_index,
                     )
+            except asyncio.CancelledError:
+                logger.info("NvidiaClient: request cancelled by caller/deadline enforcer.")
+                raise
             except NvidiaConnectionError as conn_exc:
                 await self.aclose()
-                if attempt < 1:
+                elapsed = time.monotonic() - start_time
+                rem = effective_timeout - elapsed
+                if kwargs.get("allow_internal_retry", False) and attempt < 1 and rem > 5.0:
                     logger.warning(
-                        f"NvidiaClient connection error ({conn_exc}), retrying attempt 2/2 after 1.5s..."
+                        f"NvidiaClient connection error ({conn_exc}), retrying attempt 2/2 after 1.0s..."
                     )
-                    await asyncio.sleep(1.5)
+                    await asyncio.sleep(1.0)
                     continue
                 raise
             except NvidiaTimeoutError as timeout_exc:
                 elapsed = time.monotonic() - start_time
                 rem_budget = effective_timeout - elapsed
-                if attempt < 1 and timeout_exc.timeout_type != "FIRST_TOKEN_TIMEOUT" and rem_budget > 15.0:
+                if kwargs.get("allow_internal_retry", False) and attempt < 1 and timeout_exc.timeout_type != "FIRST_TOKEN_TIMEOUT" and rem_budget > 15.0:
                     logger.warning(
                         f"NvidiaClient primary model {active_model} timed out ({timeout_exc.timeout_type}), "
                         f"retrying attempt 2/2 with remaining budget {rem_budget:.1f}s after 0.5s..."
@@ -498,11 +507,15 @@ class NvidiaClient(ModelProvider):
                     active_model, prompt, system, start_time, timed_out=False, error=str(exc),
                     request_id=request_id, mission_id=mission_id, task_id=task_id, stage=stage
                 )
-                if attempt < 1:
+                from core.runtime_failover import classify_runtime_error
+                classification, is_transient, _ = classify_runtime_error(exc)
+                elapsed = time.monotonic() - start_time
+                rem = effective_timeout - elapsed
+                if kwargs.get("allow_internal_retry", False) and attempt < 1 and is_transient and rem > 5.0:
                     logger.warning(f"NvidiaClient generation error ({exc}), retrying attempt 2/2 after 1.0s...")
                     await asyncio.sleep(1.0)
                     continue
-                raise NvidiaConnectionError(f"NVIDIA NIM generation failed after retries: {exc}") from exc
+                raise NvidiaConnectionError(f"NVIDIA NIM generation failed: {exc}") from exc
 
     async def _generate_stream(
         self,
@@ -738,6 +751,7 @@ class NvidiaClient(ModelProvider):
 
                                 if first_token_time is None and (c or r or tc_deltas):
                                     first_token_time = time.monotonic()
+                                    token_kind = "content" if c else ("tool_call" if tc_deltas else "reasoning")
                                     try:
                                         from core.event_bus import event_bus
                                         from core.runtime_state.events import HermesEvent, EventType
@@ -749,11 +763,17 @@ class NvidiaClient(ModelProvider):
                                                 turn_id=str(turn_index or ""),
                                                 source="nvidia_client",
                                                 payload={
-                                                    "stage": "first_token_received",
+                                                    "stage": "first_usable_token_received" if token_kind != "reasoning" else "reasoning_started",
+                                                    "token_kind": token_kind,
+                                                    "is_usable_output": token_kind != "reasoning",
                                                     "provider": "nvidia_nim",
                                                     "model": active_model,
                                                     "ttft_ms": round(ttft, 2),
-                                                    "headline": f"First token received from NVIDIA NIM ({ttft/1000.0:.2f}s)",
+                                                    "headline": (
+                                                        f"First {token_kind} token from NVIDIA NIM ({ttft/1000.0:.2f}s)"
+                                                        if token_kind != "reasoning"
+                                                        else f"Model reasoning started on NVIDIA NIM ({ttft/1000.0:.2f}s)"
+                                                    ),
                                                 }
                                             ))
                                     except Exception:
@@ -927,7 +947,9 @@ class NvidiaClient(ModelProvider):
         ttft_reasoning_ms = (first_reasoning_time - start_time) * 1000.0 if first_reasoning_time else 0.0
         ttft_content_ms = (first_content_time - start_time) * 1000.0 if first_content_time else 0.0
         ttft_tool_ms = (first_tool_time - start_time) * 1000.0 if first_tool_time else 0.0
-        ttfu_ms = (first_useful_action_time - start_time) * 1000.0 if first_useful_action_time else 0.0
+        usable_candidates = [t for t in (first_content_time, first_tool_time) if t is not None]
+        ttft_usable_ms = (min(usable_candidates) - start_time) * 1000.0 if usable_candidates else 0.0
+        ttfu_ms = (first_useful_action_time - start_time) * 1000.0 if first_useful_action_time else ttft_usable_ms
         tools_char_len = len(json.dumps(payload.get("tools", []))) if payload.get("tools") else 0
 
         raw_timings = {
@@ -937,7 +959,9 @@ class NvidiaClient(ModelProvider):
             "ttft_reasoning_ms": round(ttft_reasoning_ms, 2),
             "ttft_content_ms": round(ttft_content_ms, 2),
             "ttft_tool_ms": round(ttft_tool_ms, 2),
+            "ttft_usable_ms": round(ttft_usable_ms, 2),
             "ttfu_ms": round(ttfu_ms, 2),
+            "response_completion_ms": round(latency_ms, 2),
             "eval_ms": round(max(0.0, latency_ms - ttft_ms), 2),
             "max_idle_interval_ms": round(max_idle_interval_ms, 2),
             "reasoning_effort": payload.get("reasoning_effort", "none"),

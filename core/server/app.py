@@ -289,72 +289,67 @@ def create_app(adapter: Optional[RuntimeAdapter] = None, registry: Optional[Work
 
     # ── 1C. GET /api/providers/status ─────────────────────────────────────────
     @app.get("/api/providers/status")
-    async def get_providers_status_endpoint():
-        """Retrieve detailed configuration and health status of all 3 model tiers."""
-        from models.common_adapter import get_provider_adapter
-        from config.model_config import (
-            TIER1_PROVIDER, TIER1_MODEL,
-            TIER2_PROVIDER, TIER2_MODEL,
-            TIER3_PROVIDER, TIER3_MODEL,
-        )
-        t1_adapter = get_provider_adapter(TIER1_PROVIDER, TIER1_MODEL, tier=1)
-        t2_adapter = get_provider_adapter(TIER2_PROVIDER, TIER2_MODEL, tier=2)
-        t3_adapter = get_provider_adapter(TIER3_PROVIDER, TIER3_MODEL, tier=3)
+    async def get_providers_status_endpoint(live: bool = False):
+        """Retrieve accurate multi-tier provider configuration and runtime availability states."""
+        from core.provider_registry import get_provider_registry
+        registry = get_provider_registry()
+        if live:
+            await registry.refresh_all(probe_inference=True, timeout=8.0)
+
+        entries = registry.get_all()
+        providers_payload: Dict[str, Any] = {}
+        for tier_num in sorted(entries.keys()):
+            e = entries[tier_num]
+            providers_payload[f"tier{tier_num}"] = {
+                "tier": e.tier,
+                "name": e.provider,
+                "provider": e.provider,
+                "model": e.configured_model,
+                "served_model": e.served_model,
+                "base_url": e.endpoint,
+                "configured": e.has_credentials,
+                "availability_state": e.state.value,
+                "routable": e.is_routable(),
+                "supported_models": e.supported_models[:12],
+                "corrective_action": e.corrective_action,
+                "last_error": e.last_error,
+                "last_ttfb_ms": e.last_ttfb_ms,
+                "last_ttft_reasoning_ms": e.last_ttft_reasoning_ms,
+                "last_ttft_content_ms": e.last_ttft_content_ms,
+                "last_ttft_usable_ms": e.last_ttft_usable_ms,
+                "last_latency_ms": e.last_latency_ms,
+                "checked_at": e.checked_at,
+            }
 
         return {
-            "architecture": "three_provider",
-            "active_tier": 1,
-            "providers": {
-                "tier1": {
-                    "tier": 1,
-                    "name": "Gemini" if "gemini" in TIER1_PROVIDER else "Tier 1 Provider",
-                    "provider": TIER1_PROVIDER,
-                    "model": TIER1_MODEL,
-                    "base_url": getattr(t1_adapter, "base_url", ""),
-                    "configured": bool(getattr(t1_adapter, "api_key", "")),
-                    "masked_key": f"{t1_adapter.api_key[:4]}...{t1_adapter.api_key[-4:]}" if (getattr(t1_adapter, "api_key", None) and len(t1_adapter.api_key) > 8) else ("SET" if getattr(t1_adapter, "api_key", None) else "MISSING"),
-                },
-                "tier2": {
-                    "tier": 2,
-                    "name": "Groq" if "groq" in TIER2_PROVIDER else "Tier 2 Provider",
-                    "provider": TIER2_PROVIDER,
-                    "model": TIER2_MODEL,
-                    "base_url": getattr(t2_adapter, "base_url", ""),
-                    "configured": bool(getattr(t2_adapter, "api_key", "")),
-                    "masked_key": f"{t2_adapter.api_key[:4]}...{t2_adapter.api_key[-4:]}" if (getattr(t2_adapter, "api_key", None) and len(t2_adapter.api_key) > 8) else ("SET" if getattr(t2_adapter, "api_key", None) else "MISSING"),
-                },
-                "tier3": {
-                    "tier": 3,
-                    "name": "NVIDIA NIM" if "nvidia" in TIER3_PROVIDER else "Tier 3 Provider",
-                    "provider": TIER3_PROVIDER,
-                    "model": TIER3_MODEL,
-                    "base_url": getattr(t3_adapter, "base_url", ""),
-                    "configured": bool(getattr(t3_adapter, "api_key", "")),
-                    "masked_key": f"{t3_adapter.api_key[:4]}...{t3_adapter.api_key[-4:]}" if (getattr(t3_adapter, "api_key", None) and len(t3_adapter.api_key) > 8) else ("SET" if getattr(t3_adapter, "api_key", None) else "MISSING"),
-                },
-            }
+            "architecture": "four_tier_hybrid",
+            "routable_tiers": registry.get_routable_tiers(),
+            "providers": providers_payload,
         }
 
     # ── 1D. POST /api/providers/test/{provider_name} ──────────────────────────
     @app.post("/api/providers/test/{provider_name}")
     async def test_provider_endpoint(provider_name: str):
-        """Run on-demand diagnostics test for a single configured provider."""
-        from models.common_adapter import get_provider_adapter
+        """Run on-demand live verification probe for a configured provider tier."""
+        from core.provider_registry import get_provider_registry
         p_clean = provider_name.lower().strip()
-        if p_clean in ("tier1", "gemini", "google", "zai", "glm"):
-            from config.model_config import TIER1_PROVIDER, TIER1_MODEL
-            adapter = get_provider_adapter(TIER1_PROVIDER, TIER1_MODEL, tier=1)
-        elif p_clean in ("tier2", "groq", "nvidia", "nvidia_nim", "nim", "minimax"):
-            from config.model_config import TIER2_PROVIDER, TIER2_MODEL
-            adapter = get_provider_adapter(TIER2_PROVIDER, TIER2_MODEL, tier=2)
-        elif p_clean in ("tier3", "nvidia", "nvidia_nim", "nim", "openrouter", "kimi"):
-            from config.model_config import TIER3_PROVIDER, TIER3_MODEL
-            adapter = get_provider_adapter(TIER3_PROVIDER, TIER3_MODEL, tier=3)
+        if p_clean in ("tier1", "nvidia", "nvidia_nim", "nim"):
+            tier_num = 1
+        elif p_clean in ("tier2", "gemini", "google"):
+            tier_num = 2
+        elif p_clean in ("tier3", "sambanova", "llama"):
+            tier_num = 3
+        elif p_clean in ("tier4", "ollama", "local"):
+            tier_num = 4
         else:
-            raise HTTPException(status_code=400, detail=f"Unknown provider '{provider_name}'. Must be tier1, tier2, or tier3.")
+            raise HTTPException(
+                status_code=400,
+                detail=f"Unknown provider '{provider_name}'. Must be tier1, tier2, tier3, or tier4.",
+            )
 
-        diag = await adapter.run_diagnostics()
-        return diag
+        registry = get_provider_registry()
+        entry = await registry.probe_tier(tier_num, probe_inference=True, timeout=10.0)
+        return entry.to_dict()
 
     # ── 2. WORKSPACE HUB ENDPOINTS ──────────────────────────────────────────
     _dialog_lock = asyncio.Lock()
@@ -724,6 +719,45 @@ def create_app(adapter: Optional[RuntimeAdapter] = None, registry: Optional[Work
                 f"**Launch Instructions:** Open `{entry_f}` in your browser or run the local application server."
             )
 
+        exec_mode_val: Optional[str] = None
+        active_prov_val: Optional[str] = None
+        active_mod_val: Optional[str] = None
+        curr_stage_val: Optional[str] = None
+        failover_evts: List[Dict[str, Any]] = []
+        term_reason_val: Optional[str] = state.mission.completion_reason or getattr(state.mission, "completion_reason", None) or state.mission.abort_reason
+
+        for e in events:
+            p = e.payload or {}
+            etv = e.event_type.value if hasattr(e.event_type, "value") else str(e.event_type)
+            if p.get("execution_mode"):
+                exec_mode_val = str(p.get("execution_mode"))
+            if p.get("provider"):
+                active_prov_val = str(p.get("provider"))
+            if p.get("model"):
+                active_mod_val = str(p.get("model"))
+            if p.get("stage"):
+                curr_stage_val = str(p.get("stage"))
+            elif etv in ("PLANNING_STARTED", "PLAN_CREATED", "MODEL_REQUESTED", "MODEL_COMPLETED", "VERIFICATION_COMPLETED", "MISSION_COMPLETED", "MISSION_FAILED"):
+                curr_stage_val = p.get("headline") or etv
+            if etv in ("TIER_FAILOVER_STARTED", "MODEL_FAILED"):
+                failover_evts.append({
+                    "event": etv,
+                    "timestamp": e.timestamp,
+                    "from_tier": p.get("from_tier") or p.get("tier"),
+                    "to_tier": p.get("to_tier"),
+                    "provider": p.get("provider") or p.get("to_provider"),
+                    "error": p.get("error") or p.get("reason"),
+                })
+            if etv in ("MISSION_COMPLETED", "MISSION_FAILED", "MISSION_CANCELLED"):
+                term_reason_val = str(p.get("reason") or p.get("error") or term_reason_val or etv)
+
+        dur_sec_val: Optional[float] = None
+        if events and len(events) >= 1:
+            t_first = events[0].timestamp
+            t_last = events[-1].timestamp
+            if isinstance(t_first, (int, float)) and isinstance(t_last, (int, float)) and t_last >= t_first:
+                dur_sec_val = round(float(t_last - t_first), 3)
+
         return MissionSnapshot(
             mission_id=state.mission.mission_id,
             run_id=run_id_val,
@@ -747,6 +781,13 @@ def create_app(adapter: Optional[RuntimeAdapter] = None, registry: Optional[Work
             recovery_required=recovery_req_val,
             is_paused=is_paused_val,
             pause_pending=pause_pending_val,
+            execution_mode=exec_mode_val,
+            active_provider=active_prov_val,
+            active_model=active_mod_val,
+            current_stage=curr_stage_val,
+            duration_seconds=dur_sec_val,
+            failover_events=failover_evts,
+            terminal_reason=term_reason_val,
         )
 
     # ── 6. GET /api/missions/{mission_id}/events (SSE) ─────────────────────────

@@ -62,6 +62,10 @@ class MissionSpecification:
     acceptance_criteria: list[str] = field(default_factory=list)
     semantic_keywords: list[str] = field(default_factory=list)
     requirement_ledger: list[dict[str, Any]] = field(default_factory=list)
+    execution_mode: str = "deterministic"
+    domain_confidence: float = 1.0
+    confidence_category: str = "RECOGNIZED_HIGH_CONFIDENCE"
+    synthesis_telemetry: dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self):
         if not isinstance(self.required_sections, SectionList):
@@ -101,7 +105,79 @@ class MissionSpecification:
             acceptance_criteria=list(data.get("acceptance_criteria", [])),
             semantic_keywords=list(data.get("semantic_keywords", [])),
             requirement_ledger=list(data.get("requirement_ledger", [])),
+            execution_mode=data.get("execution_mode", "deterministic"),
+            domain_confidence=float(data.get("domain_confidence", 1.0)),
+            confidence_category=data.get("confidence_category", "RECOGNIZED_HIGH_CONFIDENCE"),
+            synthesis_telemetry=dict(data.get("synthesis_telemetry", {})),
         )
+
+    @classmethod
+    def from_payload(
+        cls,
+        payload: SynthesizedDomainPayload,
+        prompt: str,
+        workspace_root: Path | str,
+        mission_id: str = "",
+    ) -> MissionSpecification:
+        raw_prompt = prompt or ""
+        ws_str = str(Path(workspace_root).resolve())
+        fp = hashlib.sha256(raw_prompt.encode("utf-8")).hexdigest()[:12]
+        return cls(
+            mission_id=mission_id,
+            workspace_root=ws_str,
+            user_prompt=raw_prompt,
+            prompt_fingerprint=fp,
+            requested_brand=payload.requested_brand,
+            business_domain=payload.business_domain,
+            domain_subtype=payload.domain_subtype,
+            application_archetype=payload.application_archetype,
+            purpose=payload.purpose,
+            target_audience=payload.target_audience,
+            business_objectives=payload.business_objectives,
+            visual_direction=payload.visual_direction,
+            color_palette=payload.color_palette,
+            typography=payload.typography,
+            required_sections=payload.required_sections,
+            content_entities=payload.content_entities,
+            entity_schemas=payload.entity_schemas,
+            navigation_structure=payload.navigation_structure,
+            card_specs=payload.card_specs,
+            required_interactions=payload.required_interactions,
+            filter_capabilities=payload.filter_capabilities,
+            form_specs=payload.form_specs,
+            asset_requirements=payload.asset_requirements,
+            backend_requirements=payload.backend_requirements,
+            negative_constraints=payload.negative_constraints,
+            acceptance_criteria=payload.acceptance_criteria,
+            semantic_keywords=payload.semantic_keywords,
+            requirement_ledger=getattr(payload, "requirement_ledger", []),
+            execution_mode=getattr(payload, "execution_mode", "deterministic"),
+            domain_confidence=getattr(payload, "domain_confidence", 1.0),
+            confidence_category=getattr(payload, "confidence_category", "RECOGNIZED_HIGH_CONFIDENCE"),
+            synthesis_telemetry=dict(getattr(payload, "synthesis_telemetry", {}) or {}),
+        )
+
+    @classmethod
+    async def from_prompt_hybrid_async(
+        cls,
+        prompt: str,
+        workspace_root: Path | str,
+        mission_id: str = "",
+        design_brief: Optional[Any] = None,
+        allow_llm: bool = True,
+        total_budget_seconds: float = 25.0,
+        event_callback: Optional[Any] = None,
+    ) -> tuple[MissionSpecification, Any]:
+        payload, assessment = await SemanticDomainSynthesizer.synthesize_hybrid_async(
+            prompt=prompt,
+            workspace_root=workspace_root,
+            mission_id=mission_id,
+            design_brief=design_brief,
+            allow_llm=allow_llm,
+            total_budget_seconds=total_budget_seconds,
+            event_callback=event_callback,
+        )
+        return cls.from_payload(payload, prompt, workspace_root, mission_id=mission_id), assessment
 
     @classmethod
     def from_prompt(

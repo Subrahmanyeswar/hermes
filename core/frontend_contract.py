@@ -821,9 +821,9 @@ class FrontendContractBuilder:
             )
 
         # ------------------------------------------------------------------
-        # 2. CULINARY / RESTAURANT DOMAIN
+        # 2. CULINARY / RESTAURANT DOMAIN (Legacy Saffron & Stone Template Only)
         # ------------------------------------------------------------------
-        if domain == "culinary_restaurant":
+        if domain == "culinary_restaurant" and "saffron" in task_clean_lower:
             from core.design_intelligence import DesignBriefGenerator, strip_negative_constraints
             cuisine = getattr(design_brief, "cuisine_subtype", "") or DesignBriefGenerator.detect_cuisine_subtype(task)
             is_indian = cuisine == "Contemporary Indian"
@@ -1107,6 +1107,173 @@ class FrontendContractBuilder:
             )
 
         # ------------------------------------------------------------------
+        # E-COMMERCE MARKETPLACE / CIRCULAR MATERIALS MARKETPLACE (e.g. VERDANT LOOP)
+        # ------------------------------------------------------------------
+        if domain == "ecommerce_marketplace" or any(w in task_clean_lower for w in ["marketplace", "materials marketplace", "material recovery", "circular construction", "reclaimed and recycled", "verdant loop"]):
+            app_name = detected_brand if detected_brand != "Application" else "VERDANT LOOP"
+            brand_pos = "Circular construction materials marketplace connecting builders, architects, and suppliers with high-quality reclaimed and recycled materials."
+            target_aud = "Commercial builders, architects, demolition contractors, salvage specialists, and green developers."
+            req_content = ["materials catalogue", "category filters", "price sorting", "quote basket", "technical detail modal", "supplier onboarding inquiry"]
+            req_vis = "Warm off-white, forest green, and charcoal color palette. Material catalogue grid, price sorting, interactive quote basket, material detail modal, and supplier inquiry form."
+
+            components = [
+                ComponentContract(id="navbar", name="Marketplace Navigation Header", tag="header", required_classes=["site-header", "navbar"]),
+                ComponentContract(id="hero", name="Marketplace Hero & Metrics", tag="section", required_classes=["hero", "hero-content"]),
+                ComponentContract(id="benefits", name="Circular Sourcing Workflow", tag="section", required_classes=["container", "benefits-section"]),
+                ComponentContract(
+                    id="materials",
+                    name="Verified Materials Catalogue",
+                    tag="section",
+                    required_classes=["materials-section"],
+                    rendering_ownership="dynamic",
+                    render_target_id="showcase-grid",
+                    data_sources=["materials_data"],
+                ),
+                ComponentContract(
+                    id="quote-basket",
+                    name="Interactive Quote Assembly Basket",
+                    tag="section",
+                    required_classes=["container", "quote-basket-section"],
+                    rendering_ownership="dynamic",
+                    render_target_id="basket-items-list",
+                    data_sources=["quote_basket_state"],
+                ),
+                ComponentContract(id="onboarding", name="Supplier & Contractor Onboarding", tag="section", required_classes=["container", "onboarding-section"]),
+                ComponentContract(id="sustainability", name="Sustainability Commitment & Material Lifecycle", tag="section", required_classes=["container", "impact-section"]),
+                ComponentContract(id="contact", name="Supplier Inquiries & Procurement Form", tag="section", required_classes=["container", "contact-section"]),
+                ComponentContract(id="contact-form", name="Supplier Onboarding Inquiry Form", tag="form", required_classes=["inquiry-form"], is_form=True),
+                ComponentContract(id="details-modal", name="Material Technical Specifications Modal", tag="div", required_classes=["modal-overlay", "modal-dialog"], is_modal=True),
+                ComponentContract(id="footer", name="Marketplace Footer", tag="footer", required_classes=["site-footer"]),
+            ]
+
+            dom_state = DomAndStateContract(
+                required_static_ids=[
+                    "navbar", "hero", "benefits", "materials", "showcase-grid",
+                    "showcase-search", "category-filters", "price-sort",
+                    "quote-basket", "basket-items-list", "basket-subtotal",
+                    "onboarding", "sustainability", "contact", "contact-form",
+                    "details-modal", "modal-close", "mobile-menu-btn", "basket-count",
+                ],
+                required_static_classes=[
+                    "site-header", "hero", "material-card", "filter-pill",
+                    "quote-basket", "modal-overlay", "site-footer", "btn-primary",
+                ],
+                dynamic_ids=["showcase-grid", "basket-items-list", "basket-subtotal", "basket-count"],
+                dynamic_classes=["active", "open", "hidden"],
+                data_attributes=["data-category", "data-material-id", "data-price"],
+                event_handlers=[
+                    {"target": "#showcase-search", "event": "input", "action": "filterMaterials"},
+                    {"target": ".filter-pill", "event": "click", "action": "filterByCategory"},
+                    {"target": "#price-sort", "event": "change", "action": "sortMaterials"},
+                    {"target": ".btn-material-details", "event": "click", "action": "openMaterialModal"},
+                    {"target": ".btn-add-quote", "event": "click", "action": "addToQuoteBasket"},
+                    {"target": "#modal-close", "event": "click", "action": "closeMaterialModal"},
+                    {"target": "#contact-form", "event": "submit", "action": "submitInquiry"},
+                ],
+                interactions=[
+                    {
+                        "trigger": "Material search typing",
+                        "expected_state_change": "Searches catalogue by material name, specifications, or provenance in real time",
+                        "expected_result": "Live DOM update of material cards",
+                    },
+                    {
+                        "trigger": "Category filter pill click",
+                        "expected_state_change": "Filters materials by category (Timber, Steel, Bricks, etc.)",
+                        "expected_result": "Displays matching circular material cards",
+                    },
+                    {
+                        "trigger": "Price sort dropdown change",
+                        "expected_state_change": "Sorts material cards by price ascending or descending",
+                        "expected_result": "Re-orders material cards in the DOM",
+                    },
+                    {
+                        "trigger": "Add to Quote button click",
+                        "expected_state_change": "Adds item to quote basket and updates basket count and subtotal",
+                        "expected_result": "Item appears in quote basket table with increment/decrement controls",
+                    },
+                    {
+                        "trigger": "Material card details click",
+                        "expected_state_change": "Opens material modal with full technical data sheet and provenance",
+                        "expected_result": "Modal dialog opens with focus trapped",
+                    },
+                    {
+                        "trigger": "Supplier inquiry form submit",
+                        "expected_state_change": "Validates inputs and displays demonstration confirmation banner",
+                        "expected_result": "Success message displayed without misleading network claims",
+                    },
+                ],
+            )
+
+            tokens = {
+                "--primary-color": "#1c1d21",
+                "--secondary-color": "#2d5a27",
+                "--accent-color": "#556b2f",
+                "--accent-secondary": "#c5a880",
+                "--bg-main": "#fbf9f5",
+                "--bg-card": "#ffffff",
+                "--text-primary": "#1c1d21",
+                "--text-secondary": "#52525b",
+                "--border-color": "#e4e4e7",
+                "--radius-sm": "4px",
+                "--radius-md": "8px",
+                "--radius-lg": "12px",
+                "--shadow-card": "0 4px 20px -2px rgba(28, 29, 33, 0.06)",
+            }
+            if design_brief and hasattr(design_brief, "color_palette"):
+                for k, v in getattr(design_brief, "color_palette", {}).items():
+                    tokens[f"--{k}"] = v
+
+            css = CssContract(
+                design_tokens=tokens,
+                layout_strategy="responsive_grid_flex",
+                component_selectors=[
+                    ".site-header", ".navbar", ".hero", ".material-card", ".materials-section",
+                    ".filter-pill", ".quote-basket", ".modal-overlay", ".site-footer", ".inquiry-form",
+                ],
+                responsive_breakpoints=["768px", "1024px"],
+            )
+
+            js = JavaScriptContract(
+                authoritative_entrypoint="app.js",
+                secondary_modules=[],
+                state_management="vanilla_store",
+                rendering_functions=[
+                    "renderMaterials", "renderBasket", "addToBasket", "updateQuantity",
+                    "openMaterialModal", "closeMaterialModal", "filterMaterials", "sortMaterials", "submitInquiry"
+                ],
+            )
+
+            assets = [
+                AssetContractItem(intended_component="hero", relative_path="assets/images/hero/hero-materials.jpg", alt_text="Circular construction materials recovery facility and architectural salvage"),
+                AssetContractItem(intended_component="material-1", relative_path="assets/images/products/timber.jpg", alt_text="Reclaimed Timber"),
+                AssetContractItem(intended_component="material-2", relative_path="assets/images/products/steel.jpg", alt_text="Recycled Structural Steel"),
+                AssetContractItem(intended_component="material-3", relative_path="assets/images/products/bricks.jpg", alt_text="Salvaged Bricks"),
+                AssetContractItem(intended_component="material-4", relative_path="assets/images/products/glass-aggregates.jpg", alt_text="Recycled Glass Aggregates"),
+                AssetContractItem(intended_component="material-5", relative_path="assets/images/products/concrete.jpg", alt_text="Low-Carbon Concrete"),
+                AssetContractItem(intended_component="material-6", relative_path="assets/images/products/stone.jpg", alt_text="Reclaimed Stone"),
+                AssetContractItem(intended_component="material-7", relative_path="assets/images/products/insulation.jpg", alt_text="Recycled Insulation"),
+                AssetContractItem(intended_component="material-8", relative_path="assets/images/products/fixtures.jpg", alt_text="Reclaimed Architectural Fixtures"),
+            ]
+
+            return FrontendImplementationContract(
+                version=1,
+                mission_id=mission_id,
+                app_name=app_name,
+                business_domain="ecommerce_marketplace",
+                cuisine_subtype="",
+                brand_positioning=brand_pos,
+                target_audience=target_aud,
+                requested_content=req_content,
+                requested_visual_direction=req_vis,
+                architecture=arch,
+                components=components,
+                dom_and_state=dom_state,
+                css=css,
+                javascript=js,
+                assets=assets,
+            )
+
+        # ------------------------------------------------------------------
         # 3. ARCHITECTURE & INTERIOR DESIGN STUDIO DOMAIN (e.g. FORM & FIELD)
         # ------------------------------------------------------------------
         if ("form & field" in task_clean_lower) or ("form and field" in task_clean_lower):
@@ -1216,7 +1383,7 @@ class FrontendContractBuilder:
             )
 
             assets = [
-                AssetContractItem(intended_component="hero", relative_path="assets/images/hero/hero-architecture.jpg", alt_text="Monolithic modern architecture studio facade"),
+                AssetContractItem(intended_component="hero", relative_path="assets/images/hero/hero-general.jpg", alt_text="Monolithic modern architecture studio facade"),
                 AssetContractItem(intended_component="project-1", relative_path="assets/images/projects/pavilion.jpg", alt_text="The Monolith Pavilion"),
                 AssetContractItem(intended_component="project-2", relative_path="assets/images/projects/sanctuary.jpg", alt_text="Highland Minimalist Sanctuary"),
                 AssetContractItem(intended_component="project-3", relative_path="assets/images/projects/villa.jpg", alt_text="Olive Grove Villa"),

@@ -233,6 +233,7 @@ class ImageSearchTool(BaseTool):
             "gsrlimit": min(num_results, 10),
             "prop": "imageinfo",
             "iiprop": "url|size|extmetadata",
+            "iiurlwidth": 1280,
             "format": "json",
         }
         headers = {"User-Agent": RESEARCH_USER_AGENT}

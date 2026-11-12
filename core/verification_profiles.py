@@ -470,7 +470,7 @@ class VerificationProfileEvaluator:
         link_hrefs = re.findall(r'<link[^>]+href=["\']([^"\']+)["\']', content, re.IGNORECASE)
         has_css_link = False
         for l_href in link_hrefs:
-            if not l_href.startswith(("http://", "https://", "//")):
+            if not l_href.startswith(("http://", "https://", "//", "data:")):
                 clean_l = l_href.replace("\\", "/").lstrip("./")
                 css_path = workspace_root / clean_l
                 if not css_path.exists():

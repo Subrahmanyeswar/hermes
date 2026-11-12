@@ -19,9 +19,10 @@ import asyncio
 import json
 import re
 import time
+import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional, Any
+from typing import Optional, Any, Dict, List
 
 from loguru import logger
 
@@ -56,9 +57,7 @@ from core.reasoning_policy import ReasoningPolicy, TaskComplexity
 from core.tool_validator import tool_validator
 
 
-class MultiTierRoutingExhaustedError(RuntimeError):
-    """Raised when all configured model tiers fail in sequence."""
-    pass
+from core.runtime_failover import MultiTierRoutingExhaustedError
 
 from core.disagreement_router import DisagreementRouter, RoutingDecision, RouterResult, ALWAYS_ESCALATE_TOOLS
 from core.planner import TaskPlanner, Task
@@ -190,6 +189,27 @@ class Orchestrator:
     def active_t1_client(self, client: Any) -> None:
         self.tier1 = client
 
+    @staticmethod
+    def _extract_attempt_timings(resp: Any) -> Dict[str, Optional[float]]:
+        """Extract separate TTFB, reasoning TTFT, content TTFT, and usable TTFT metrics."""
+        timings = getattr(resp, "raw_timing_metadata", None)
+        if not isinstance(timings, dict):
+            timings = {}
+        ttfb = timings.get("ttfb_ms") or getattr(resp, "ttfb_ms", None)
+        ttft_r = timings.get("ttft_reasoning_ms") or getattr(resp, "ttft_reasoning_ms", None)
+        ttft_c = timings.get("ttft_content_ms") or getattr(resp, "ttft_content_ms", None)
+        ttft_u = timings.get("ttft_usable_ms") or ttft_c or timings.get("ttft_tool_ms")
+        # Never treat pure reasoning tokens as usable output TTFT unless usable_ms explicitly populated
+        raw_ttft = timings.get("ttft_ms")
+        ttft_compat = ttft_u if ttft_u is not None else (None if ttft_r else raw_ttft)
+        return {
+            "ttfb_ms": ttfb if isinstance(ttfb, (int, float)) else None,
+            "ttft_reasoning_ms": ttft_r if isinstance(ttft_r, (int, float)) else None,
+            "ttft_content_ms": ttft_c if isinstance(ttft_c, (int, float)) else None,
+            "ttft_usable_ms": ttft_u if isinstance(ttft_u, (int, float)) else None,
+            "ttft_compat": ttft_compat if isinstance(ttft_compat, (int, float)) else None,
+        }
+
     async def _generate_t1(self, **kwargs) -> Any:
         """Execute Tier 1 generation through configured provider with test harness compatibility."""
         from config.model_config import (
@@ -224,7 +244,11 @@ class Orchestrator:
                 return await self.ollama.generate(**kwargs)
 
         prov = getattr(tier1_client, "provider", TIER1_PROVIDER)
+        if not isinstance(prov, str):
+            prov = TIER1_PROVIDER
         mod = getattr(tier1_client, "model", TIER1_MODEL)
+        if not isinstance(mod, str):
+            mod = TIER1_MODEL
         from core.adaptive_routing import get_adaptive_router
         router = get_adaptive_router()
 
@@ -237,10 +261,24 @@ class Orchestrator:
                 from core.request_guard import DuplicateInFlightRequestError
                 raise DuplicateInFlightRequestError(f"Duplicate model request rejected: mission '{mid}' already has a model call in flight.")
 
-        total_decision_budget = min(float(kwargs.get("timeout_seconds") or 25.0), 25.0)
-        t_decision_start = time.monotonic()
+        from core.runtime_failover import (
+            LogicalOperationBudget,
+            global_attempt_ledger,
+            ProviderAttemptRecord,
+            classify_runtime_error,
+            ErrorClassification,
+        )
 
-        route_decision = router.route_primary(client_t1=tier1_client)
+        total_decision_budget = min(float(kwargs.get("timeout_seconds") or 25.0), 25.0)
+        op_budget = LogicalOperationBudget(
+            operation_id=kwargs.get("request_id") or f"op_{uuid.uuid4().hex[:8]}",
+            mission_id=mid,
+            turn_id=str(turn_id),
+            total_budget=total_decision_budget,
+        )
+        t_decision_start = op_budget.start_time
+
+        route_decision = router.route_primary(client_t1=tier1_client, mission_id=mid)
         current_ollama = getattr(self, "ollama", None)
         ollama_mocked = current_ollama is not None and (
             current_ollama is not getattr(self, "_default_ollama", None)
@@ -266,12 +304,26 @@ class Orchestrator:
             or hasattr(t3_gen, "mock")
             or getattr(t3_gen, "__class__", None).__name__ in ("AsyncMock", "MagicMock", "Mock")
         )
-        allow_t2_failover = tier2_client is not None and (not is_t1_mocked or is_t2_mocked)
-        allow_t3_failover = tier3_client is not None and bool(TIER3_MODEL) and (not is_t1_mocked or is_t3_mocked)
+        from core.provider_registry import get_provider_registry
+        _prov_reg = get_provider_registry()
+        _e2 = _prov_reg.get(2)
+        _e3 = _prov_reg.get(3)
+        allow_t2_failover = (
+            tier2_client is not None
+            and (not is_t1_mocked or is_t2_mocked)
+            and (is_t2_mocked or _e2 is None or _e2.is_routable())
+        )
+        allow_t3_failover = (
+            tier3_client is not None
+            and bool(TIER3_MODEL)
+            and (not is_t1_mocked or is_t3_mocked)
+            and (is_t3_mocked or _e3 is None or _e3.is_routable())
+        )
+        remaining_fallback_tiers = (1 if allow_t2_failover else 0) + (1 if allow_t3_failover else 0)
 
         if route_decision.bypassed and allow_t2_failover:
             logger.info(
-                f"Tier 1 circuit is open. Zero-wait failover to Tier 2 ({TIER2_PROVIDER} / {TIER2_MODEL}) | "
+                f"Tier 1 circuit is open/excluded. Zero-wait failover to Tier 2 ({TIER2_PROVIDER} / {TIER2_MODEL}) | "
                 f"reason={route_decision.reason} | avoided_wait={route_decision.avoided_timeout_ms:.0f}ms"
             )
             await self._emit_progress("circuit_bypass", {
@@ -289,19 +341,43 @@ class Orchestrator:
                 "turn_id": turn_id,
             })
             t2_kwargs = self._build_t2_failover_kwargs(kwargs)
-            rem_budget = max(0.0, total_decision_budget - (time.monotonic() - t_decision_start))
-            if rem_budget <= 1.0:
+            if op_budget.remaining_budget() <= 1.0:
                 raise TimeoutError(f"Model decision deadline exceeded ({total_decision_budget:.1f}s shared budget exhausted)")
-            t2_kwargs["timeout_seconds"] = rem_budget
+            t2_timeout = op_budget.compute_attempt_timeout(remaining_tiers_count=1 if allow_t3_failover else 0, default_cap=22.0)
+            t2_kwargs["timeout_seconds"] = t2_timeout
             t2_t0 = time.monotonic()
+            rec2_start = time.time()
             try:
-                resp2 = await asyncio.wait_for(tier2_client.generate(**t2_kwargs), timeout=rem_budget)
+                resp2 = await asyncio.wait_for(tier2_client.generate(**t2_kwargs), timeout=t2_timeout)
                 resp2_text = (getattr(resp2, "content", "") or getattr(resp2, "text", "") or "")
                 resp2_calls = getattr(resp2, "tool_calls", None) or []
                 if getattr(resp2, "success", True) is False or (not str(resp2_text).strip() and not resp2_calls):
-                    raise RuntimeError(getattr(resp2, "error", None) or f"Tier 2 ({TIER2_PROVIDER}/{TIER2_MODEL}) failed: empty or unsuccessful response")
+                    raise RuntimeError(getattr(resp2, "error", None) or f"EMPTY_RESPONSE: Tier 2 ({TIER2_PROVIDER}/{TIER2_MODEL}) failed: empty or unsuccessful response")
                 t2_lat = time.monotonic() - t2_t0
-                router.record_success(tier=2, latency=t2_lat)
+                _tm2_cb = self._extract_attempt_timings(resp2)
+                rec2 = ProviderAttemptRecord(
+                    operation_id=op_budget.operation_id,
+                    mission_id=mid,
+                    turn_id=str(turn_id),
+                    provider=TIER2_PROVIDER,
+                    model=TIER2_MODEL,
+                    tier=2,
+                    attempt_number=1,
+                    start_time=rec2_start,
+                    end_time=time.time(),
+                    duration_ms=t2_lat * 1000.0,
+                    success=True,
+                    ttft_ms=_tm2_cb["ttft_compat"],
+                    ttfb_ms=_tm2_cb["ttfb_ms"],
+                    ttft_reasoning_ms=_tm2_cb["ttft_reasoning_ms"],
+                    ttft_content_ms=_tm2_cb["ttft_content_ms"],
+                    ttft_usable_ms=_tm2_cb["ttft_usable_ms"],
+                    availability_state="HEALTHY",
+                )
+                global_attempt_ledger.record_attempt(rec2)
+                router.record_success(tier=2, latency=t2_lat, mission_id=mid)
+                if not is_t2_mocked:
+                    _prov_reg.record_outcome(2, success=True, ttfb_ms=_tm2_cb["ttfb_ms"], ttft_usable_ms=_tm2_cb["ttft_usable_ms"], latency_ms=t2_lat * 1000.0, served_model=TIER2_MODEL)
                 self._active_tier = 2
                 if hasattr(resp2, "__dict__"):
                     try:
@@ -320,19 +396,66 @@ class Orchestrator:
                 })
                 return resp2
             except Exception as t2_exc:
-                router.record_failure(tier=2, error=t2_exc, latency=time.monotonic() - t2_t0)
+                t2_lat = time.monotonic() - t2_t0
+                t2_classification, _, _ = classify_runtime_error(t2_exc)
+                rec2 = ProviderAttemptRecord(
+                    operation_id=op_budget.operation_id,
+                    mission_id=mid,
+                    turn_id=str(turn_id),
+                    provider=TIER2_PROVIDER,
+                    model=TIER2_MODEL,
+                    tier=2,
+                    attempt_number=1,
+                    start_time=rec2_start,
+                    end_time=time.time(),
+                    duration_ms=t2_lat * 1000.0,
+                    success=False,
+                    error_classification=t2_classification.value,
+                    error_message=str(t2_exc),
+                    next_selected_provider=TIER3_PROVIDER if allow_t3_failover else None,
+                )
+                global_attempt_ledger.record_attempt(rec2)
+                router.record_failure(tier=2, error=t2_exc, latency=t2_lat, mission_id=mid)
+                if not is_t2_mocked:
+                    _prov_reg.record_outcome(2, success=False, error=str(t2_exc), latency_ms=t2_lat * 1000.0)
                 logger.error(f"Tier 2 circuit bypass also failed: {t2_exc}. Attempting Tier 3 failover...")
-                if tier3_client is not None and TIER3_MODEL:
-                    rem_budget_t3 = max(0.0, total_decision_budget - (time.monotonic() - t_decision_start))
-                    if rem_budget_t3 <= 1.0:
-                        raise TimeoutError(f"Model decision deadline exceeded before Tier 3 fallback ({total_decision_budget:.1f}s shared budget exhausted)")
+                if allow_t3_failover and op_budget.has_budget(1.0):
+                    rem_budget_t3 = op_budget.remaining_budget()
                     t3_kwargs = dict(t2_kwargs)
                     t3_kwargs["model"] = TIER3_MODEL
                     t3_kwargs["timeout_seconds"] = rem_budget_t3
                     t3_t0 = time.monotonic()
+                    rec3_start = time.time()
                     try:
                         resp3 = await asyncio.wait_for(tier3_client.generate(**t3_kwargs), timeout=rem_budget_t3)
+                        resp3_text = (getattr(resp3, "content", "") or getattr(resp3, "text", "") or "")
+                        resp3_calls = getattr(resp3, "tool_calls", None) or []
+                        if getattr(resp3, "success", True) is False or (not str(resp3_text).strip() and not resp3_calls):
+                            raise RuntimeError(getattr(resp3, "error", None) or f"EMPTY_RESPONSE: Tier 3 ({TIER3_PROVIDER}/{TIER3_MODEL}) failed: empty or unsuccessful response")
                         t3_lat = time.monotonic() - t3_t0
+                        _tm3_cb = self._extract_attempt_timings(resp3)
+                        rec3 = ProviderAttemptRecord(
+                            operation_id=op_budget.operation_id,
+                            mission_id=mid,
+                            turn_id=str(turn_id),
+                            provider=TIER3_PROVIDER,
+                            model=TIER3_MODEL,
+                            tier=3,
+                            attempt_number=2,
+                            start_time=rec3_start,
+                            end_time=time.time(),
+                            duration_ms=t3_lat * 1000.0,
+                            success=True,
+                            ttft_ms=_tm3_cb["ttft_compat"],
+                            ttfb_ms=_tm3_cb["ttfb_ms"],
+                            ttft_reasoning_ms=_tm3_cb["ttft_reasoning_ms"],
+                            ttft_content_ms=_tm3_cb["ttft_content_ms"],
+                            ttft_usable_ms=_tm3_cb["ttft_usable_ms"],
+                            availability_state="HEALTHY",
+                        )
+                        global_attempt_ledger.record_attempt(rec3)
+                        if not is_t3_mocked:
+                            _prov_reg.record_outcome(3, success=True, ttfb_ms=_tm3_cb["ttfb_ms"], ttft_usable_ms=_tm3_cb["ttft_usable_ms"], latency_ms=t3_lat * 1000.0, served_model=TIER3_MODEL)
                         self._active_tier = 3
                         if hasattr(resp3, "__dict__"):
                             try:
@@ -351,6 +474,26 @@ class Orchestrator:
                         })
                         return resp3
                     except Exception as t3_exc:
+                        t3_lat = time.monotonic() - t3_t0
+                        t3_classification, _, _ = classify_runtime_error(t3_exc)
+                        rec3 = ProviderAttemptRecord(
+                            operation_id=op_budget.operation_id,
+                            mission_id=mid,
+                            turn_id=str(turn_id),
+                            provider=TIER3_PROVIDER,
+                            model=TIER3_MODEL,
+                            tier=3,
+                            attempt_number=2,
+                            start_time=rec3_start,
+                            end_time=time.time(),
+                            duration_ms=t3_lat * 1000.0,
+                            success=False,
+                            error_classification=t3_classification.value,
+                            error_message=str(t3_exc),
+                        )
+                        global_attempt_ledger.record_attempt(rec3)
+                        if not is_t3_mocked:
+                            _prov_reg.record_outcome(3, success=False, error=str(t3_exc), latency_ms=t3_lat * 1000.0)
                         logger.error(f"Tier 3 failover also failed: {t3_exc}")
                         raise MultiTierRoutingExhaustedError(
                             f"All model tiers failed during circuit bypass. Tier 2: {t2_exc}. Tier 3: {t3_exc}"
@@ -359,26 +502,58 @@ class Orchestrator:
                     f"Tier 2 failed during circuit bypass and no Tier 3 fallback available: {t2_exc}"
                 ) from t2_exc
 
-        from config.model_config import HERMES_MODEL_ATTEMPT_TIMEOUT_SECONDS
-        rem_budget_t1 = max(0.0, total_decision_budget - (time.monotonic() - t_decision_start))
-        if rem_budget_t1 <= 1.0:
+        if op_budget.remaining_budget() <= 1.0:
             raise TimeoutError(f"Model decision deadline exceeded before Tier 1 attempt ({total_decision_budget:.1f}s shared budget exhausted)")
-        kwargs["timeout_seconds"] = rem_budget_t1
-        logger.info(f"MODEL_START | tier=1 | provider={prov} | model={mod} | budget={rem_budget_t1:.1f}s")
+        t1_timeout = op_budget.compute_attempt_timeout(remaining_tiers_count=remaining_fallback_tiers, default_cap=10.0)
+        kwargs["timeout_seconds"] = t1_timeout
+        logger.info(f"MODEL_START | tier=1 | provider={prov} | model={mod} | budget={t1_timeout:.1f}s (op_remaining={op_budget.remaining_budget():.1f}s)")
         await self._emit_progress("model_start", {
             "tier": 1, "provider": prov, "model": mod,
             "mission_id": mid, "turn_id": turn_id
         })
         t0 = time.monotonic()
+        rec1_start = time.time()
         try:
-            resp = await asyncio.wait_for(tier1_client.generate(**kwargs), timeout=rem_budget_t1)
+            resp = await asyncio.wait_for(tier1_client.generate(**kwargs), timeout=t1_timeout)
             resp_text = (getattr(resp, "content", "") or getattr(resp, "text", "") or "")
             resp_calls = getattr(resp, "tool_calls", None) or []
             if getattr(resp, "success", True) is False or (not str(resp_text).strip() and not resp_calls):
                 err = getattr(resp, "error", None) or f"Tier 1 ({prov}/{mod}) failed: empty or unsuccessful response"
-                raise RuntimeError(err)
+                raise RuntimeError(f"EMPTY_RESPONSE: {err}")
             lat = time.monotonic() - t0
-            router.record_success(tier=1, latency=lat)
+            _tm1 = self._extract_attempt_timings(resp)
+            rec1 = ProviderAttemptRecord(
+                operation_id=op_budget.operation_id,
+                mission_id=mid,
+                turn_id=str(turn_id),
+                provider=prov,
+                model=mod,
+                tier=1,
+                attempt_number=1,
+                start_time=rec1_start,
+                end_time=time.time(),
+                duration_ms=lat * 1000.0,
+                success=True,
+                ttft_ms=_tm1["ttft_compat"],
+                ttfb_ms=_tm1["ttfb_ms"],
+                ttft_reasoning_ms=_tm1["ttft_reasoning_ms"],
+                ttft_content_ms=_tm1["ttft_content_ms"],
+                ttft_usable_ms=_tm1["ttft_usable_ms"],
+                availability_state="HEALTHY",
+            )
+            global_attempt_ledger.record_attempt(rec1)
+            router.record_success(tier=1, latency=lat, mission_id=mid)
+            if not is_t1_mocked:
+                _prov_reg.record_outcome(
+                    1,
+                    success=True,
+                    ttfb_ms=_tm1["ttfb_ms"],
+                    ttft_reasoning_ms=_tm1["ttft_reasoning_ms"],
+                    ttft_content_ms=_tm1["ttft_content_ms"],
+                    ttft_usable_ms=_tm1["ttft_usable_ms"],
+                    latency_ms=lat * 1000.0,
+                    served_model=getattr(resp, "served_model", None) or mod,
+                )
             logger.info(f"MODEL_COMPLETE | tier=1 | provider={prov} | model={mod} | latency={lat:.2f}s")
             if not kwargs.get("suppress_model_completed_event", False):
                 await self._emit_progress("model_complete", {
@@ -389,11 +564,34 @@ class Orchestrator:
             return resp
         except Exception as exc:
             lat = time.monotonic() - t0
-            to_type = getattr(exc, "timeout_type", "FIRST_TOKEN_TIMEOUT" if "timeout" in str(exc).lower() else "ERROR")
-            router.record_failure(tier=1, error=exc, timeout_type=to_type, latency=lat, client=tier1_client)
-            logger.warning(f"MODEL_FAILED | tier=1 | provider={prov} | model={mod} | latency={lat:.2f}s | error={exc}")
+            t1_classification, is_transient, retry_after = classify_runtime_error(exc)
+            rec1 = ProviderAttemptRecord(
+                operation_id=op_budget.operation_id,
+                mission_id=mid,
+                turn_id=str(turn_id),
+                provider=prov,
+                model=mod,
+                tier=1,
+                attempt_number=1,
+                start_time=rec1_start,
+                end_time=time.time(),
+                duration_ms=lat * 1000.0,
+                success=False,
+                error_classification=t1_classification.value,
+                error_message=str(exc),
+                next_selected_provider=TIER2_PROVIDER if allow_t2_failover else None,
+            )
+            global_attempt_ledger.record_attempt(rec1)
+            router.record_failure(tier=1, error=exc, timeout_type=t1_classification.value, latency=lat, client=tier1_client, mission_id=mid)
+            if not is_t1_mocked:
+                _prov_reg.record_outcome(1, success=False, error=str(exc), latency_ms=lat * 1000.0)
+            logger.warning(f"MODEL_FAILED | tier=1 | provider={prov} | model={mod} | classification={t1_classification.value} | latency={lat:.2f}s | error={exc}")
             
+            if not is_transient:
+                router.exclude_tier_for_mission(1, mid, reason=f"Permanent error: {t1_classification.value}")
+
             if allow_t2_failover:
+                router.exclude_tier_for_mission(1, mid, reason="Failed over to Tier 2 in current mission")
                 logger.warning(
                     f"Tier 1 ({mod}) failed: {exc}. "
                     f"Failing over to Tier 2 ({TIER2_PROVIDER} / {TIER2_MODEL}) via multi-tier architecture..."
@@ -403,21 +601,45 @@ class Orchestrator:
                     "mission_id": mid,
                     "turn_id": turn_id,
                 })
-                rem_budget_t2 = max(0.0, total_decision_budget - (time.monotonic() - t_decision_start))
-                if rem_budget_t2 <= 1.0:
+                if op_budget.remaining_budget() <= 1.0:
                     raise TimeoutError(f"Model decision deadline exceeded before Tier 2 fallback ({total_decision_budget:.1f}s shared budget exhausted)")
+                t2_timeout = op_budget.compute_attempt_timeout(remaining_tiers_count=1 if allow_t3_failover else 0, default_cap=22.0)
                 t2_kwargs = self._build_t2_failover_kwargs(kwargs)
-                t2_kwargs["timeout_seconds"] = rem_budget_t2
+                t2_kwargs["timeout_seconds"] = t2_timeout
                 t2_t0 = time.monotonic()
+                rec2_start = time.time()
                 try:
-                    resp2 = await asyncio.wait_for(tier2_client.generate(**t2_kwargs), timeout=rem_budget_t2)
+                    resp2 = await asyncio.wait_for(tier2_client.generate(**t2_kwargs), timeout=t2_timeout)
                     resp2_text = (getattr(resp2, "content", "") or getattr(resp2, "text", "") or "")
                     resp2_calls = getattr(resp2, "tool_calls", None) or []
                     if getattr(resp2, "success", True) is False or (not str(resp2_text).strip() and not resp2_calls):
                         err2 = getattr(resp2, "error", None) or f"Tier 2 ({TIER2_PROVIDER}/{TIER2_MODEL}) failed: empty or unsuccessful response"
-                        raise RuntimeError(err2)
+                        raise RuntimeError(f"EMPTY_RESPONSE: {err2}")
                     t2_lat = time.monotonic() - t2_t0
-                    router.record_success(tier=2, latency=t2_lat)
+                    _tm2 = self._extract_attempt_timings(resp2)
+                    rec2 = ProviderAttemptRecord(
+                        operation_id=op_budget.operation_id,
+                        mission_id=mid,
+                        turn_id=str(turn_id),
+                        provider=TIER2_PROVIDER,
+                        model=TIER2_MODEL,
+                        tier=2,
+                        attempt_number=2,
+                        start_time=rec2_start,
+                        end_time=time.time(),
+                        duration_ms=t2_lat * 1000.0,
+                        success=True,
+                        ttft_ms=_tm2["ttft_compat"],
+                        ttfb_ms=_tm2["ttfb_ms"],
+                        ttft_reasoning_ms=_tm2["ttft_reasoning_ms"],
+                        ttft_content_ms=_tm2["ttft_content_ms"],
+                        ttft_usable_ms=_tm2["ttft_usable_ms"],
+                        availability_state="HEALTHY",
+                    )
+                    global_attempt_ledger.record_attempt(rec2)
+                    router.record_success(tier=2, latency=t2_lat, mission_id=mid)
+                    if not is_t2_mocked:
+                        _prov_reg.record_outcome(2, success=True, ttfb_ms=_tm2["ttfb_ms"], ttft_usable_ms=_tm2["ttft_usable_ms"], latency_ms=t2_lat * 1000.0, served_model=TIER2_MODEL)
                     self._active_tier = 2
                     if hasattr(resp2, "__dict__"):
                         try:
@@ -436,24 +658,67 @@ class Orchestrator:
                     })
                     return resp2
                 except Exception as t2_exc:
-                    router.record_failure(tier=2, error=t2_exc, latency=time.monotonic() - t2_t0)
+                    t2_lat = time.monotonic() - t2_t0
+                    t2_classification, _, _ = classify_runtime_error(t2_exc)
+                    rec2 = ProviderAttemptRecord(
+                        operation_id=op_budget.operation_id,
+                        mission_id=mid,
+                        turn_id=str(turn_id),
+                        provider=TIER2_PROVIDER,
+                        model=TIER2_MODEL,
+                        tier=2,
+                        attempt_number=2,
+                        start_time=rec2_start,
+                        end_time=time.time(),
+                        duration_ms=t2_lat * 1000.0,
+                        success=False,
+                        error_classification=t2_classification.value,
+                        error_message=str(t2_exc),
+                        next_selected_provider=TIER3_PROVIDER if allow_t3_failover else None,
+                    )
+                    global_attempt_ledger.record_attempt(rec2)
+                    router.record_failure(tier=2, error=t2_exc, latency=t2_lat, mission_id=mid)
+                    if not is_t2_mocked:
+                        _prov_reg.record_outcome(2, success=False, error=str(t2_exc), latency_ms=t2_lat * 1000.0)
                     logger.error(f"Tier 2 failover also failed: {t2_exc}. Attempting Tier 3 failover...")
-                    if allow_t3_failover:
-                        rem_budget_t3 = max(0.0, total_decision_budget - (time.monotonic() - t_decision_start))
-                        if rem_budget_t3 <= 1.0:
-                            raise TimeoutError(f"Model decision deadline exceeded before Tier 3 fallback ({total_decision_budget:.1f}s shared budget exhausted)")
+                    if allow_t3_failover and op_budget.has_budget(1.0):
+                        rem_budget_t3 = op_budget.remaining_budget()
                         t3_kwargs = dict(t2_kwargs)
                         t3_kwargs["model"] = TIER3_MODEL
                         t3_kwargs["timeout_seconds"] = rem_budget_t3
                         t3_t0 = time.monotonic()
+                        rec3_start = time.time()
                         try:
                             resp3 = await asyncio.wait_for(tier3_client.generate(**t3_kwargs), timeout=rem_budget_t3)
                             resp3_text = (getattr(resp3, "content", "") or getattr(resp3, "text", "") or "")
                             resp3_calls = getattr(resp3, "tool_calls", None) or []
                             if getattr(resp3, "success", True) is False or (not str(resp3_text).strip() and not resp3_calls):
                                 err3 = getattr(resp3, "error", None) or f"Tier 3 ({TIER3_PROVIDER}/{TIER3_MODEL}) failed: empty or unsuccessful response"
-                                raise RuntimeError(err3)
+                                raise RuntimeError(f"EMPTY_RESPONSE: {err3}")
                             t3_lat = time.monotonic() - t3_t0
+                            _tm3 = self._extract_attempt_timings(resp3)
+                            rec3 = ProviderAttemptRecord(
+                                operation_id=op_budget.operation_id,
+                                mission_id=mid,
+                                turn_id=str(turn_id),
+                                provider=TIER3_PROVIDER,
+                                model=TIER3_MODEL,
+                                tier=3,
+                                attempt_number=3,
+                                start_time=rec3_start,
+                                end_time=time.time(),
+                                duration_ms=t3_lat * 1000.0,
+                                success=True,
+                                ttft_ms=_tm3["ttft_compat"],
+                                ttfb_ms=_tm3["ttfb_ms"],
+                                ttft_reasoning_ms=_tm3["ttft_reasoning_ms"],
+                                ttft_content_ms=_tm3["ttft_content_ms"],
+                                ttft_usable_ms=_tm3["ttft_usable_ms"],
+                                availability_state="HEALTHY",
+                            )
+                            global_attempt_ledger.record_attempt(rec3)
+                            if not is_t3_mocked:
+                                _prov_reg.record_outcome(3, success=True, ttfb_ms=_tm3["ttfb_ms"], ttft_usable_ms=_tm3["ttft_usable_ms"], latency_ms=t3_lat * 1000.0, served_model=TIER3_MODEL)
                             self._active_tier = 3
                             if hasattr(resp3, "__dict__"):
                                 try:
@@ -472,6 +737,26 @@ class Orchestrator:
                             })
                             return resp3
                         except Exception as t3_exc:
+                            t3_lat = time.monotonic() - t3_t0
+                            t3_classification, _, _ = classify_runtime_error(t3_exc)
+                            rec3 = ProviderAttemptRecord(
+                                operation_id=op_budget.operation_id,
+                                mission_id=mid,
+                                turn_id=str(turn_id),
+                                provider=TIER3_PROVIDER,
+                                model=TIER3_MODEL,
+                                tier=3,
+                                attempt_number=3,
+                                start_time=rec3_start,
+                                end_time=time.time(),
+                                duration_ms=t3_lat * 1000.0,
+                                success=False,
+                                error_classification=t3_classification.value,
+                                error_message=str(t3_exc),
+                            )
+                            global_attempt_ledger.record_attempt(rec3)
+                            if not is_t3_mocked:
+                                _prov_reg.record_outcome(3, success=False, error=str(t3_exc), latency_ms=t3_lat * 1000.0)
                             logger.error(f"Tier 3 failover also failed: {t3_exc}")
                             raise MultiTierRoutingExhaustedError(
                                 f"All configured model tiers failed. Tier 1 ({mod}): {exc}. "
@@ -480,8 +765,7 @@ class Orchestrator:
                     raise MultiTierRoutingExhaustedError(
                         f"All configured model tiers failed. Tier 1 ({mod}) and Tier 2 ({TIER2_MODEL}) failed, no Tier 3 available: {t2_exc}"
                     ) from t2_exc
-            raise
-            raise
+            raise exc
 
     def _build_t2_failover_kwargs(self, kwargs: dict) -> dict:
         """Standardize keyword arguments for Tier 2 failover or circuit bypass."""
