@@ -27,6 +27,19 @@ from core.observability.schemas import (
 from core.runtime_state.events import redact_sensitive_payload, redact_sensitive_str
 
 
+def get_default_observability_root() -> Path:
+    """Resolve the base directory for observability logs, supporting HERMES_LOGS_DIR and HERMES_ARTIFACTS_DIR."""
+    if os.environ.get("HERMES_LOGS_DIR"):
+        p = Path(os.environ["HERMES_LOGS_DIR"]).resolve()
+        p.mkdir(parents=True, exist_ok=True)
+        return p
+    if os.environ.get("HERMES_ARTIFACTS_DIR"):
+        p = (Path(os.environ["HERMES_ARTIFACTS_DIR"]) / "observability").resolve()
+        p.mkdir(parents=True, exist_ok=True)
+        return p
+    return (Path(__file__).resolve().parent.parent.parent / "artifacts" / "observability").resolve()
+
+
 def validate_run_id(run_id: str, base_dir: Optional[Path] = None) -> Path:
     """
     Validate run_id and return resolved safe Path within base_dir.
@@ -44,7 +57,7 @@ def validate_run_id(run_id: str, base_dir: Optional[Path] = None) -> Path:
     if not re.match(r"^[a-zA-Z0-9_\-]+(\.[a-zA-Z0-9_\-]+)*$", run_id):
         raise ValueError(f"run_id contains invalid characters: {run_id!r}")
 
-    root = (base_dir or (Path(__file__).resolve().parent.parent.parent / "artifacts" / "observability")).resolve()
+    root = (base_dir or get_default_observability_root()).resolve()
     target = (root / run_id).resolve()
     try:
         target.relative_to(root)
@@ -80,7 +93,7 @@ class MissionTelemetryLogger:
         self.mission_id: str = mission_id
         
         # Base observability directory
-        root = base_dir or (Path(__file__).resolve().parent.parent.parent / "artifacts" / "observability")
+        root = base_dir or get_default_observability_root()
         self.log_dir: Path = validate_run_id(run_id, root)
         self.log_dir.mkdir(parents=True, exist_ok=True)
         
@@ -636,7 +649,7 @@ _TELEMETRY_LOCK = threading.RLock()
 def get_telemetry_logger(run_id: str, mission_id: Optional[str] = None, base_dir: Optional[Path] = None) -> MissionTelemetryLogger:
     """Retrieve or create singleton MissionTelemetryLogger for a given run."""
     with _TELEMETRY_LOCK:
-        root = (base_dir or (Path(__file__).resolve().parent.parent.parent / "artifacts" / "observability")).resolve()
+        root = (base_dir or get_default_observability_root()).resolve()
         validate_run_id(run_id, root)
         if run_id not in _ACTIVE_TELEMETRY_LOGGERS:
             m_id = mission_id or "default"

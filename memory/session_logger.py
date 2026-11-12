@@ -7,13 +7,25 @@
 # Format: one JSON object per line (JSONL).
 
 import json
+import os
 import uuid
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Optional
 from loguru import logger
 
-SESSION_LOG_DIR = Path("data/sessions")
+
+def get_default_session_log_dir() -> Path:
+    """Resolve the session log directory, supporting HERMES_SESSION_LOG_DIR."""
+    env_p = os.environ.get("HERMES_SESSION_LOG_DIR")
+    if env_p:
+        p = Path(env_p).resolve()
+        p.mkdir(parents=True, exist_ok=True)
+        return p
+    return Path("data/sessions")
+
+
+SESSION_LOG_DIR = get_default_session_log_dir()
 
 from dataclasses import dataclass, field
 

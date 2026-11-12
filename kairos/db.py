@@ -6,6 +6,7 @@
 # Thread safety: SQLite in WAL mode handles concurrent reads safely.
 # Write serialisation: all writes go through the execute_write() helper.
 
+import os
 import sqlite3
 import threading
 from contextlib import contextmanager
@@ -14,7 +15,18 @@ from typing import Generator
 
 from loguru import logger
 
-DB_PATH: Path = Path("data/tasks.db")
+
+def get_default_tasks_db_path() -> Path:
+    """Resolve the authoritative tasks database path, supporting HERMES_KAIROS_DB_PATH."""
+    env_p = os.environ.get("HERMES_KAIROS_DB_PATH")
+    if env_p:
+        p = Path(env_p).resolve()
+        p.parent.mkdir(parents=True, exist_ok=True)
+        return p
+    return Path("data/tasks.db")
+
+
+DB_PATH: Path = get_default_tasks_db_path()
 _lock = threading.Lock()  # Write lock for serialising concurrent writes
 
 

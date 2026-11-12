@@ -123,10 +123,31 @@ def canonicalize_workspace_path(path: str | Path, ws_root: Path) -> Path:
     def _match(a: str, b: str) -> bool:
         return a.lower() == b.lower() if is_win else a == b
 
+    # If the input is already a Path pointing exactly to ws_root, return it immediately
+    if isinstance(path, Path) and path.resolve() == ws_root:
+        return ws_root
+
     raw_str = str(path).strip()
+    # If the raw string resolves exactly to ws_root, return ws_root immediately
+    try:
+        if Path(raw_str).resolve() == ws_root:
+            return ws_root
+    except Exception:
+        pass
+
+    # Check for Windows-style drive letters on non-Windows platforms (e.g. 'C:/Windows/...')
+    # On POSIX, Path('C:/foo') treats 'C:' as a relative folder, but it represents an absolute escape attempt.
+    is_win_drive = bool(len(raw_str) >= 2 and raw_str[0].isalpha() and raw_str[1] == ":")
+    if is_win_drive and not is_win:
+        raise WorkspaceBoundaryError(
+            f"Path '{path}' is outside workspace boundary '{ws_root}'"
+        )
+
     # Strip root-relative leading slashes like '/search.html' or '\search.html' unless Windows drive path
+    # or an existing absolute directory path
     if (raw_str.startswith("/") or raw_str.startswith("\\")) and not (len(raw_str) > 2 and raw_str[1] == ":"):
-        raw_str = raw_str.lstrip("/\\")
+        if not Path(raw_str).is_absolute() or not Path(raw_str).exists():
+            raw_str = raw_str.lstrip("/\\")
 
     p = Path(raw_str)
 

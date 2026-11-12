@@ -92,11 +92,21 @@ def _get_startup_lock() -> asyncio.Lock:
     return _OLLAMA_STARTUP_LOCK
 
 
+def get_default_ollama_base_url() -> str:
+    """Resolve the default Ollama base URL from environment variables."""
+    return (
+        os.environ.get("OLLAMA_BASE_URL")
+        or os.environ.get("TIER4_BASE_URL")
+        or "http://127.0.0.1:11434"
+    ).rstrip("/")
+
+
 def get_shared_ollama_client() -> OllamaClient:
     """Return a process-wide persistent OllamaClient singleton."""
     global _SHARED_OLLAMA_CLIENT
     if _SHARED_OLLAMA_CLIENT is None:
         _SHARED_OLLAMA_CLIENT = OllamaClient(
+            base_url=get_default_ollama_base_url(),
             timeout_seconds=MODEL_TIMEOUT_SECONDS,
         )
     return _SHARED_OLLAMA_CLIENT
@@ -115,13 +125,14 @@ class OllamaClient(ModelProvider):
 
     def __init__(
         self,
-        base_url: str = "http://127.0.0.1:11434",
+        base_url: Optional[str] = None,
         timeout_seconds: int = MODEL_TIMEOUT_SECONDS,
         num_ctx: int = 4096,
         semaphore: Optional[asyncio.Semaphore] = None,
     ) -> None:
         """Store connection configuration; initialize persistent connection pool."""
-        self.base_url: str = base_url.rstrip("/")
+        eff_url = base_url if base_url is not None else get_default_ollama_base_url()
+        self.base_url: str = eff_url.rstrip("/")
         self.timeout_seconds: int = timeout_seconds
         self.num_ctx: int = num_ctx
         self.last_raw_response: Optional[dict[str, Any]] = None
@@ -137,7 +148,7 @@ class OllamaClient(ModelProvider):
         """
         import httpx
         try:
-            target_url = base_url if base_url is not None else getattr(self_or_cls, "base_url", "http://127.0.0.1:11434")
+            target_url = base_url if base_url is not None else getattr(self_or_cls, "base_url", get_default_ollama_base_url())
             async with httpx.AsyncClient(timeout=timeout) as client:
                 r = await client.get(f"{target_url}/api/tags")
                 return r.status_code == 200
@@ -192,6 +203,11 @@ class OllamaClient(ModelProvider):
                 pass
 
             # 2. Check if binary is available
+            # In container mode, never attempt to launch local binary; host Ollama is managed externally
+            if os.environ.get("HERMES_CONTAINER_MODE", "false").lower() == "true":
+                logger.debug("OllamaClient: container mode active; skipping local executable auto-spawn.")
+                return False
+
             ollama_bin = shutil.which("ollama") or r"C:\Users\SUBBU\AppData\Local\Programs\Ollama\ollama.exe"
             if not os.path.exists(ollama_bin):
                 return False

@@ -1,0 +1,55 @@
+# Runtime dependencies for HERMES 2.x Linux Container (Python 3.12)
+# Core Framework & Server
+fastapi==0.143.0
+uvicorn==0.54.0
+starlette==1.7.0
+pydantic==2.13.5
+pydantic_core==2.46.5
+typing_extensions==4.16.0
+anyio==4.15.1
+sniffio==1.3.1
+h11==0.16.0
+
+# HTTP & Transport
+httpx==0.28.1
+httpcore==1.0.9
+requests==2.32.5
+urllib3==2.8.0
+certifi==2026.10.23
+idna==3.20
+charset-normalizer==3.5.2
+websockets==12.0
+
+# Logging & Terminal UI
+loguru==0.7.3
+rich==15.0.0
+textual==8.2.8
+typer==0.27.2
+click==8.5.0
+markdown-it-py==4.2.0
+mdit-py-plugins==0.6.1
+mdurl==0.1.2
+pygments==2.21.0
+
+# File & OS Utilities
+aiofiles==25.1.0
+psutil==7.2.2
+python-dotenv==1.2.4
+pyyaml==6.0.3
+gitpython==3.2.1
+gitdb==4.0.12
+smmap==5.0.3
+platformdirs==4.12.3
+
+# Testing & Browser Automation Helpers
+beautifulsoup4==4.13.4
+soupsieve==2.10
+pillow==13.0.0
+matplotlib==3.11.2
+numpy==2.5.3
+jedi==0.19.2
+parso==0.8.7
+
+# Model Clients
+anthropic==1.11.0
+opentelemetry-api==1.45.1

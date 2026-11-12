@@ -31,7 +31,9 @@ def get_canonical_database_path() -> Path:
     """
     env_path = os.environ.get("HERMES_DATABASE_PATH")
     if env_path:
-        return Path(env_path).resolve()
+        p = Path(env_path).resolve()
+        p.parent.mkdir(parents=True, exist_ok=True)
+        return p
 
     local_app_data = os.environ.get("LOCALAPPDATA")
     if local_app_data:

@@ -1,0 +1,61 @@
+services:
+  hermes:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: hermes-runtime
+    restart: unless-stopped
+    ports:
+      # Strictly bind to 127.0.0.1 on the host to prevent public or LAN ingress
+      - "127.0.0.1:8765:8765"
+    environment:
+      - HERMES_CONTAINER_MODE=true
+      - HERMES_DOCKER_SUBNET=172.18.0.0/16
+      - HERMES_DATABASE_PATH=/var/lib/hermes/db/hermes_runtime.db
+      - HERMES_KAIROS_DB_PATH=/var/lib/hermes/db/tasks.db
+      - HERMES_SESSION_LOG_DIR=/var/lib/hermes/logs/sessions
+      - HERMES_REGISTRY_FILE=/var/lib/hermes/registry/recent_workspaces.json
+      - HERMES_ARTIFACTS_DIR=/var/lib/hermes/artifacts
+      - HERMES_LOGS_DIR=/var/lib/hermes/logs
+      - HERMES_WORKSPACES_ROOT=/workspaces
+      # Host Ollama connectivity via Docker bridge / host.docker.internal
+      - OLLAMA_BASE_URL=http://host.docker.internal:11434
+      - TIER4_BASE_URL=http://host.docker.internal:11434
+      # Model API credentials passed from host environment
+      - NVIDIA_API_KEY=${NVIDIA_API_KEY:-}
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      - SAMBANOVA_API_KEY=${SAMBANOVA_API_KEY:-}
+      - GROQ_API_KEY=${GROQ_API_KEY:-}
+      - ZAI_API_KEY=${ZAI_API_KEY:-}
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - hermes_data:/var/lib/hermes
+      - hermes_workspaces:/workspaces
+    networks:
+      - hermes_net
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+          cpus: "4.0"
+        reservations:
+          memory: 1G
+          cpus: "1.0"
+    stop_grace_period: 20s
+
+networks:
+  hermes_net:
+    name: hermes_default
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.18.0.0/16
+          gateway: 172.18.0.1
+
+volumes:
+  hermes_data:
+    name: hermes_data
+  hermes_workspaces:
+    name: hermes_workspaces

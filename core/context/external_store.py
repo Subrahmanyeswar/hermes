@@ -77,6 +77,10 @@ class ExternalizedOutputStore:
     def __init__(self, base_dir: Optional[Path | str] = None) -> None:
         if base_dir:
             self.base_dir = Path(base_dir).resolve()
+        elif os.environ.get("HERMES_EXTERNAL_STORE_DIR"):
+            self.base_dir = Path(os.environ["HERMES_EXTERNAL_STORE_DIR"]).resolve()
+        elif os.environ.get("HERMES_ARTIFACTS_DIR"):
+            self.base_dir = (Path(os.environ["HERMES_ARTIFACTS_DIR"]) / "context" / "tool-results").resolve()
         else:
             self.base_dir = Path("artifacts/context/tool-results").resolve()
         self.base_dir.mkdir(parents=True, exist_ok=True)

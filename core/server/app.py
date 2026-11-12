@@ -7,6 +7,7 @@ Exposes health, workspaces, sessions, missions, SSE event streams, approvals, an
 from __future__ import annotations
 
 import asyncio
+import os
 import sys
 import time
 from pathlib import Path
@@ -143,59 +144,94 @@ def create_app(adapter: Optional[RuntimeAdapter] = None, registry: Optional[Work
 
     async def _execute_safe_shutdown():
         from core.runtime_state.events import redact_sensitive_str
+        from core.network.connectivity import shared_connectivity_monitor
+        from core.network.coordinator import shared_recovery_coordinator
+
+        cleanup_failures: list[str] = []
 
         # 1. Subscriber detachment
         try:
             if hasattr(eff_adapter, "detach_telemetry_subscriber"):
                 eff_adapter.detach_telemetry_subscriber()
         except Exception as exc:
-            logger.warning(f"Shutdown: failed to detach telemetry subscriber: {redact_sensitive_str(str(exc))}")
+            msg = f"detach_telemetry_subscriber failed: {redact_sensitive_str(str(exc))}"
+            cleanup_failures.append(msg)
+            logger.warning(f"Shutdown: {msg}")
 
         # 2. Recovery coordinator shutdown
         try:
             shared_recovery_coordinator.stop()
         except Exception as exc:
-            logger.warning(f"Shutdown: failed to stop recovery coordinator: {redact_sensitive_str(str(exc))}")
+            msg = f"recovery_coordinator.stop failed: {redact_sensitive_str(str(exc))}"
+            cleanup_failures.append(msg)
+            logger.warning(f"Shutdown: {msg}")
 
         # 3. Connectivity monitor shutdown
         try:
             await shared_connectivity_monitor.stop()
         except Exception as exc:
-            logger.warning(f"Shutdown: failed to stop connectivity monitor: {redact_sensitive_str(str(exc))}")
+            msg = f"connectivity_monitor.stop failed: {redact_sensitive_str(str(exc))}"
+            cleanup_failures.append(msg)
+            logger.warning(f"Shutdown: {msg}")
 
         # 4. Transport client cleanup
         try:
             await transport_client_manager.aclose()
         except Exception as exc:
-            logger.warning(f"Shutdown: failed to close transport clients: {redact_sensitive_str(str(exc))}")
+            msg = f"transport_client_manager.aclose failed: {redact_sensitive_str(str(exc))}"
+            cleanup_failures.append(msg)
+            logger.warning(f"Shutdown: {msg}")
 
         # 5. NVIDIA client cleanup
         try:
             await close_shared_nvidia_client()
         except Exception as exc:
-            logger.warning(f"Shutdown: failed to close NVIDIA client: {redact_sensitive_str(str(exc))}")
+            msg = f"close_shared_nvidia_client failed: {redact_sensitive_str(str(exc))}"
+            cleanup_failures.append(msg)
+            logger.warning(f"Shutdown: {msg}")
 
         # 6. Ollama client cleanup
         try:
             await close_shared_ollama_client()
         except Exception as exc:
-            logger.warning(f"Shutdown: failed to close Ollama client: {redact_sensitive_str(str(exc))}")
+            msg = f"close_shared_ollama_client failed: {redact_sensitive_str(str(exc))}"
+            cleanup_failures.append(msg)
+            logger.warning(f"Shutdown: {msg}")
 
         # 7. Common adapter cleanup
         try:
             from models.common_adapter import close_all_adapters
             await close_all_adapters()
         except Exception as exc:
-            logger.warning(f"Shutdown: failed to close model adapters: {redact_sensitive_str(str(exc))}")
+            msg = f"close_all_adapters failed: {redact_sensitive_str(str(exc))}"
+            cleanup_failures.append(msg)
+            logger.warning(f"Shutdown: {msg}")
 
-        # 8. Runtime adapter cleanup
+        # 8. EventBus persistence flush and shutdown
+        try:
+            if hasattr(eff_adapter, "event_bus") and eff_adapter.event_bus:
+                eff_adapter.event_bus.shutdown(timeout=5.0)
+        except Exception as exc:
+            msg = f"event_bus.shutdown failed: {redact_sensitive_str(str(exc))}"
+            cleanup_failures.append(msg)
+            logger.warning(f"Shutdown: {msg}")
+
+        # 9. Runtime adapter cleanup
         try:
             if hasattr(eff_adapter, "cleanup"):
                 eff_adapter.cleanup()
         except Exception as exc:
-            logger.warning(f"Shutdown: failed during adapter cleanup: {redact_sensitive_str(str(exc))}")
+            msg = f"runtime_adapter.cleanup failed: {redact_sensitive_str(str(exc))}"
+            cleanup_failures.append(msg)
+            logger.warning(f"Shutdown: {msg}")
 
-        logger.info("FastAPI lifespan shutdown: all model transport clients and monitors closed.")
+        if cleanup_failures:
+            logger.warning(
+                f"FastAPI lifespan shutdown completed with {len(cleanup_failures)} failure(s): "
+                f"{'; '.join(cleanup_failures)}"
+            )
+        else:
+            logger.info("FastAPI lifespan shutdown: all model transport clients, monitors, and EventBus closed cleanly.")
 
     @asynccontextmanager
     async def lifespan(app_instance: FastAPI):
@@ -238,7 +274,12 @@ def create_app(adapter: Optional[RuntimeAdapter] = None, registry: Optional[Work
     @app.get("/api/health", response_model=HealthResponse)
     async def get_health():
         import os
-        ws_root = str(workspace_manager.workspace_root) if (workspace_manager.is_locked and workspace_manager.workspace_root) else str(Path.cwd().resolve())
+        if workspace_manager.is_locked and workspace_manager.workspace_root:
+            ws_root = str(workspace_manager.workspace_root)
+        elif os.environ.get("HERMES_CONTAINER_MODE", "false").lower() == "true":
+            ws_root = os.environ.get("HERMES_WORKSPACES_ROOT", "/workspaces")
+        else:
+            ws_root = str(Path.cwd().resolve())
         disk_fingerprint = _compute_code_fingerprint()
         mismatched_files = _get_code_mismatches()
         is_match = bool(len(mismatched_files) == 0 and _SERVER_CODE_FINGERPRINT == disk_fingerprint)
@@ -359,7 +400,12 @@ def create_app(adapter: Optional[RuntimeAdapter] = None, registry: Optional[Work
         # Retrieve active workspace from registry or fallback
         active_path = eff_registry.get_active_path()
         if not active_path:
-            active_path = str(workspace_manager.workspace_root) if (workspace_manager.is_locked and workspace_manager.workspace_root) else str(Path.cwd().resolve())
+            if workspace_manager.is_locked and workspace_manager.workspace_root:
+                active_path = str(workspace_manager.workspace_root)
+            elif os.environ.get("HERMES_CONTAINER_MODE", "false").lower() == "true":
+                active_path = os.environ.get("HERMES_WORKSPACES_ROOT", "/workspaces")
+            else:
+                active_path = str(Path.cwd().resolve())
             eff_registry.register_or_select(active_path, set_active=True)
 
         registered = eff_registry.list_workspaces()
@@ -402,6 +448,16 @@ def create_app(adapter: Optional[RuntimeAdapter] = None, registry: Optional[Work
     @app.post("/api/workspaces/select", response_model=WorkspacesResponse)
     async def select_workspace(req: SelectWorkspaceRequest):
         target = Path(req.folder_path).resolve()
+        # In container mode, validate that the target directory resides within the allowed mounted workspace root
+        if os.environ.get("HERMES_CONTAINER_MODE", "false").lower() == "true":
+            allowed_root = Path(os.environ.get("HERMES_WORKSPACES_ROOT", "/workspaces")).resolve()
+            try:
+                target = canonicalize_workspace_path(target, allowed_root)
+            except WorkspaceBoundaryError as wbe:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail=f"Selected workspace '{target}' escapes allowed container workspace root '{allowed_root}': {wbe}",
+                )
         if not target.exists():
             try:
                 target.mkdir(parents=True, exist_ok=True)
@@ -430,6 +486,54 @@ def create_app(adapter: Optional[RuntimeAdapter] = None, registry: Optional[Work
 
     @app.post("/api/workspaces/pick-folder", response_model=PickFolderResponse)
     async def pick_folder():
+        # In headless / container mode, GUI file dialog is unavailable; select active mounted workspace deterministically
+        if os.environ.get("HERMES_CONTAINER_MODE", "false").lower() == "true":
+            mount_root = Path(os.environ.get("HERMES_WORKSPACES_ROOT", "/workspaces")).resolve()
+            mount_root.mkdir(parents=True, exist_ok=True)
+
+            # Deterministic container workspace selection:
+            # 1. Explicit HERMES_DEFAULT_WORKSPACE env var if set
+            # 2. Existing active workspace if already registered and present within mount_root
+            # 3. Existing 'default_project' directory if present
+            # 4. Existing non-hidden workspace directory deterministically sorted
+            # 5. Greenfield default_project
+            default_env = os.environ.get("HERMES_DEFAULT_WORKSPACE", "").strip()
+            active_reg = eff_registry.get_active_path()
+
+            if default_env:
+                selected_candidate = mount_root / default_env
+            elif active_reg and Path(active_reg).exists():
+                selected_candidate = Path(active_reg)
+            elif (mount_root / "default_project").exists():
+                selected_candidate = mount_root / "default_project"
+            else:
+                subdirs = sorted(
+                    [p for p in mount_root.iterdir() if p.is_dir() and not p.name.startswith(".")],
+                    key=lambda p: p.name.lower()
+                )
+                selected_candidate = subdirs[0] if subdirs else (mount_root / "default_project")
+
+            try:
+                selected_path = canonicalize_workspace_path(selected_candidate, mount_root)
+            except WorkspaceBoundaryError as wbe:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail=f"Deterministic container workspace selection failed boundary check: {wbe}",
+                )
+
+            selected_path.mkdir(parents=True, exist_ok=True)
+            entry = eff_registry.register_or_select(selected_path, set_active=True)
+            try:
+                workspace_manager.lock(str(selected_path))
+            except Exception as e:
+                logger.warning(f"Could not lock workspace_manager: {e}")
+            return PickFolderResponse(
+                cancelled=False,
+                path=str(selected_path),
+                name=selected_path.name or str(selected_path),
+                is_hermes_repo=is_hermes_repo_root(selected_path),
+            )
+
         if folder_picker_manager.is_dialog_active():
             return PickFolderResponse(
                 cancelled=True,

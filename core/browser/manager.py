@@ -45,7 +45,14 @@ class BrowserManager:
         security_manager: Optional[BrowserSecurityManager] = None,
         prefer_cdp: bool = True,
     ) -> None:
-        self.artifacts_dir = Path(artifacts_dir or "artifacts/browser").resolve()
+        if artifacts_dir:
+            self.artifacts_dir = Path(artifacts_dir).resolve()
+        elif os.environ.get("HERMES_BROWSER_ARTIFACTS_DIR"):
+            self.artifacts_dir = Path(os.environ["HERMES_BROWSER_ARTIFACTS_DIR"]).resolve()
+        elif os.environ.get("HERMES_ARTIFACTS_DIR"):
+            self.artifacts_dir = (Path(os.environ["HERMES_ARTIFACTS_DIR"]) / "browser").resolve()
+        else:
+            self.artifacts_dir = Path("artifacts/browser").resolve()
         self.artifacts_dir.mkdir(parents=True, exist_ok=True)
         self.security = security_manager or BrowserSecurityManager()
         self.dev_servers = DevServerManager()

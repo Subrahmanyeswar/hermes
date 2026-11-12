@@ -34,7 +34,7 @@ HARD_COST_CAP_USD: float = 25.0        # Lifetime cost cap across project
 ALERT_THRESHOLD_USD: float = 15.0      # Warn threshold
 DEFAULT_MODEL: str = TIER3_MODEL or "stealth/ox-alpha"
 OPENROUTER_BASE_URL: str = "https://openrouter.ai/api/v1"
-COST_DB_PATH: Path = Path("data/tasks.db")
+COST_DB_PATH: Path = Path(os.environ.get("HERMES_KAIROS_DB_PATH", "data/tasks.db")).resolve()
 
 # Estimated fallback cost per million tokens
 DEFAULT_INPUT_COST_PER_MTOK: float = 3.0

@@ -17,6 +17,7 @@
 #   - Raw model responses beyond first 200 characters
 
 import json
+import os
 import sys
 import uuid
 import time
@@ -27,7 +28,17 @@ from loguru import logger
 
 # ── Constants ─────────────────────────────────────────────────────────
 
-SESSION_LOG_DIR = Path("data/sessions")
+def get_default_session_log_dir() -> Path:
+    """Resolve the session log directory, supporting HERMES_SESSION_LOG_DIR."""
+    env_p = os.environ.get("HERMES_SESSION_LOG_DIR")
+    if env_p:
+        p = Path(env_p).resolve()
+        p.mkdir(parents=True, exist_ok=True)
+        return p
+    return Path("data/sessions")
+
+
+SESSION_LOG_DIR = get_default_session_log_dir()
 LOG_ROTATION_SIZE = "50 MB"
 LOG_RETENTION_DAYS = "7 days"
 _CURRENT_TRACE_ID: Optional[str] = None

@@ -1,0 +1,272 @@
+name: HERMES CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - hermes-2.x
+      - main
+  pull_request:
+    branches:
+      - hermes-2.x
+      - main
+
+# Least privilege: default to read-only repository contents access
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Stage A & B: Python Backend Validation & Regression Testing
+  backend-test:
+    name: Backend Validation & Pytest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@42375524e23c412d93fb67b49958b491fce71c38 # v5.4.0
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Upgrade Pip & Install Testing Tooling
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest pytest-asyncio anyio
+
+      - name: Install Linux Backend Dependencies
+        run: |
+          pip install -r docker/requirements-linux.txt
+
+      - name: Validate Python Syntax & Compilation
+        run: |
+          python -m compileall core/ kairos/ memory/ models/ tools/ utils/ -q
+
+      - name: Run Linux-Compatible Pytest Regression Suite
+        run: |
+          python -m pytest \
+            tests/test_event_bus.py \
+            tests/test_security.py \
+            tests/test_checkpoints.py \
+            tests/test_workspace.py \
+            tests/test_phase2_restart_recovery.py \
+            --junitxml=pytest-report.xml \
+            -v
+
+      - name: Upload Test Results Artifact
+        if: always()
+        uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
+        with:
+          name: backend-test-results
+          path: pytest-report.xml
+          retention-days: 14
+
+  # Stage C: Frontend Typecheck & Production Build
+  frontend-build:
+    name: Frontend Compilation & Validation
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@1d0ff469b7ec7b3cb9d8673fde0c81c44821de2a # v4.2.0
+        with:
+          node-version: 20
+          cache: "npm"
+          cache-dependency-path: gui/package-lock.json
+
+      - name: Install Frontend Dependencies
+        working-directory: gui
+        run: npm ci
+
+      - name: Run TypeScript Typecheck & Production Build
+        working-directory: gui
+        run: npm run build
+
+      - name: Upload Frontend Build Artifact
+        uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
+        with:
+          name: frontend-dist
+          path: gui/dist/
+          retention-days: 7
+
+  # Stage D: Docker Container Build & Real Smoke Verification
+  docker-build:
+    name: Docker Build & Smoke Verification
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    needs: [backend-test, frontend-build]
+
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@b5ca514318bd6ebac0fb2aedd5d36ec1b5c232a2 # v3.10.0
+
+      - name: Build HERMES Docker Image
+        uses: docker/build-push-action@471d1dc4e07e5cdedd4c2171150001c434f0b7a4 # v6.15.0
+        with:
+          context: .
+          file: Dockerfile
+          push: false
+          load: true
+          tags: hermes-runtime:${{ github.sha }}
+
+      - name: Verify Container Health & Frontend Smoke Test
+        run: |
+          CONTAINER_ID="smoke-test-${{ github.sha }}"
+          echo "Starting smoke test container: ${CONTAINER_ID}"
+
+          docker run -d --name "${CONTAINER_ID}" \
+            -e HERMES_CONTAINER_MODE=true \
+            -e HERMES_DATABASE_PATH=/var/lib/hermes/db/hermes_runtime.db \
+            -e HERMES_KAIROS_DB_PATH=/var/lib/hermes/db/tasks.db \
+            -e HERMES_WORKSPACES_ROOT=/workspaces \
+            hermes-runtime:${{ github.sha }}
+
+          # Poll /api/health with bounded retry loop (up to 20 seconds)
+          HEALTHY=0
+          for i in $(seq 1 20); do
+            sleep 1
+            STATUS=$(docker exec "${CONTAINER_ID}" python3 -c \
+              "import urllib.request; resp = urllib.request.urlopen('http://127.0.0.1:8765/api/health', timeout=2); print(resp.status)" 2>/dev/null || echo "DOWN")
+            if [ "$STATUS" = "200" ]; then
+              echo "Container health check passed (HTTP 200) on attempt $i"
+              HEALTHY=1
+              break
+            fi
+            echo "Waiting for container startup... attempt $i"
+          done
+
+          if [ "$HEALTHY" -ne 1 ]; then
+            echo "ERROR: Container failed to respond HTTP 200 to /api/health within 20s"
+            echo "=== Container Logs ==="
+            docker logs "${CONTAINER_ID}"
+            docker rm -f "${CONTAINER_ID}"
+            exit 1
+          fi
+
+          # Verify Frontend Delivery on /
+          FE_STATUS=$(docker exec "${CONTAINER_ID}" python3 -c \
+            "import urllib.request; resp = urllib.request.urlopen('http://127.0.0.1:8765/', timeout=2); print(resp.status)" 2>/dev/null || echo "DOWN")
+          if [ "$FE_STATUS" != "200" ]; then
+            echo "ERROR: Frontend root endpoint / failed with status $FE_STATUS"
+            docker logs "${CONTAINER_ID}"
+            docker rm -f "${CONTAINER_ID}"
+            exit 1
+          fi
+          echo "Frontend root check passed (HTTP 200)"
+
+          # Verify container remained actively running during checks
+          IS_RUNNING=$(docker inspect "${CONTAINER_ID}" --format '{{.State.Running}}')
+          if [ "$IS_RUNNING" != "true" ]; then
+            echo "ERROR: Container stopped unexpectedly during verification"
+            docker logs "${CONTAINER_ID}"
+            docker rm -f "${CONTAINER_ID}"
+            exit 1
+          fi
+          echo "Container stability verified (Running: true)"
+
+          # Clean up container cleanly
+          docker stop "${CONTAINER_ID}"
+          docker rm "${CONTAINER_ID}"
+          echo "Smoke test container cleaned up successfully."
+
+      - name: Save Docker Image Archive for Security Scan
+        run: |
+          docker save hermes-runtime:${{ github.sha }} -o hermes-image.tar
+
+      - name: Upload Docker Image Artifact
+        uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
+        with:
+          name: docker-image-archive
+          path: hermes-image.tar
+          retention-days: 1
+
+  # Stage E: Trivy Security & Vulnerability Scanning
+  security-scan:
+    name: Trivy Security Scan
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    needs: [docker-build]
+    permissions:
+      contents: read
+      security-events: write # Required for uploading SARIF to GitHub Code Scanning
+
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Download Docker Image Artifact
+        uses: actions/download-artifact@cc203385981b70ca67e1cc392babf9cc229d5806 # v4.1.9
+        with:
+          name: docker-image-archive
+
+      - name: Load Docker Image into Daemon
+        run: |
+          docker load -i hermes-image.tar
+          docker images
+
+      - name: Run Trivy Filesystem Scan (Table Summary & Enforce Exit Code)
+        uses: aquasecurity/trivy-action@a9c7b0f06e461e9d4b4d1711f154ee024b8d7ab8 # v0.36.0
+        with:
+          scan-type: "fs"
+          format: "table"
+          severity: "CRITICAL,HIGH"
+          ignore-unfixed: false
+          exit-code: "0" # Audit mode for repo filesystem to report findings
+
+      - name: Run Trivy Image Vulnerability Scan (SARIF Report)
+        uses: aquasecurity/trivy-action@a9c7b0f06e461e9d4b4d1711f154ee024b8d7ab8 # v0.36.0
+        with:
+          image-ref: "hermes-runtime:${{ github.sha }}"
+          format: "sarif"
+          output: "trivy-image-results.sarif"
+          severity: "CRITICAL,HIGH"
+          ignore-unfixed: false
+          exit-code: "0"
+
+      - name: Run Enforceable Trivy Image Vulnerability Gate (Fixable Vulnerabilities)
+        uses: aquasecurity/trivy-action@a9c7b0f06e461e9d4b4d1711f154ee024b8d7ab8 # v0.36.0
+        with:
+          image-ref: "hermes-runtime:${{ github.sha }}"
+          format: "table"
+          severity: "CRITICAL,HIGH"
+          ignore-unfixed: true
+          exit-code: "1"
+
+      - name: Validate SARIF File Before Upload
+        if: always()
+        run: |
+          if [ -s "trivy-image-results.sarif" ]; then
+            echo "SARIF file exists and is non-empty ($(wc -c < trivy-image-results.sarif) bytes)."
+          else
+            echo "ERROR: SARIF report file is missing or empty."
+            exit 1
+          fi
+
+      - name: Upload SARIF to GitHub Security Center
+        if: always() && github.event_name != 'pull_request'
+        continue-on-error: true # Prevents pipeline breakage on public/free accounts without GitHub Advanced Security
+        uses: github/codeql-action/upload-sarif@b56ba49b26e50535fa1e7f7db0f4f7b4bf65d80d # v3.28.10
+        with:
+          sarif_file: "trivy-image-results.sarif"
+          category: "trivy-container-image"
+
+      - name: Upload Trivy Scan Artifacts
+        if: always()
+        uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
+        with:
+          name: trivy-security-reports
+          path: trivy-image-results.sarif
+          retention-days: 14

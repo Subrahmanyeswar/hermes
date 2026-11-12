@@ -53,6 +53,7 @@ interface TimelineStep {
   timestamp?: number;
   durationMs?: number;
   model?: string;
+  provider?: string;
   tier?: number;
   diffStat?: { added: number; deleted: number; is_new?: boolean };
   exitCode?: number;

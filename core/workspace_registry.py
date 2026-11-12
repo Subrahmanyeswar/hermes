@@ -22,7 +22,9 @@ def get_canonical_registry_path() -> Path:
     """Resolve the canonical HERMES recent workspaces registry path."""
     env_path = os.environ.get("HERMES_REGISTRY_FILE")
     if env_path:
-        return Path(env_path).resolve()
+        p = Path(env_path).resolve()
+        p.parent.mkdir(parents=True, exist_ok=True)
+        return p
     return HERMES_ROOT / "data" / "recent_workspaces.json"
 
 

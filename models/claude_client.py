@@ -26,7 +26,7 @@ ALERT_THRESHOLD_USD: float = 15.0      # Warn when this is reached
 TIER3_MODEL: str = "claude-sonnet-4-6"
 INPUT_COST_PER_MTOK: float = 3.0       # $3 per million input tokens
 OUTPUT_COST_PER_MTOK: float = 15.0     # $15 per million output tokens
-COST_DB_PATH: Path = Path("data/tasks.db")
+COST_DB_PATH: Path = Path(os.environ.get("HERMES_KAIROS_DB_PATH", "data/tasks.db")).resolve()
 
 
 # ──────────────────────────────────────────────────────────────────────
